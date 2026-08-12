@@ -1,0 +1,12 @@
+.git
+.claude
+node_modules
+frontend/node_modules
+frontend/dist
+backend/server
+*.db
+*.db-shm
+*.db-wal
+config.yaml
+README.md
+CLAUDE.md

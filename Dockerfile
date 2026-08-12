@@ -1,0 +1,29 @@
+# Build the frontend
+FROM node:22-alpine AS frontend
+WORKDIR /src/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+# Build the backend (pure Go, no cgo — modernc sqlite)
+FROM golang:1.26-alpine AS backend
+WORKDIR /src/backend
+COPY backend/go.mod backend/go.sum ./
+RUN go mod download
+COPY backend/ ./
+RUN CGO_ENABLED=0 go build -ldflags='-s -w' -o /out/server ./cmd/server
+
+# Runtime: single binary + static assets
+FROM alpine:3.21
+RUN apk add --no-cache ca-certificates && adduser -D -H app
+COPY --from=backend /out/server /usr/local/bin/server
+COPY --from=frontend /src/frontend/dist /app/static
+ENV LCM_LISTEN=0.0.0.0:8080 \
+    LCM_DB_DSN=/data/labcloud.db \
+    LCM_STATIC_DIR=/app/static
+RUN mkdir /data && chown app /data
+USER app
+VOLUME /data
+EXPOSE 8080
+ENTRYPOINT ["server"]

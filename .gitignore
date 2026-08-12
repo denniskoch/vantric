@@ -1,0 +1,14 @@
+# Secrets — config.yaml holds the Proxmox API token
+config.yaml
+
+# Local databases
+*.db
+*.db-shm
+*.db-wal
+
+# Go
+backend/server
+
+# Node
+node_modules/
+frontend/dist/

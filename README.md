@@ -1,0 +1,101 @@
+# lab-cloud-manager
+
+A home lab manager with a Google Cloud Console–inspired UI. Manage VMs on
+your homelab hypervisor the way you'd manage Compute Engine instances.
+
+- **Backend**: Go — REST API, SQLite storage, pluggable hypervisor drivers
+- **Frontend**: React + TypeScript + MUI (Vite)
+- **Hypervisors**: Proxmox VE (via API token), plus a mock driver for development
+
+## Quick start (Docker, no cluster needed)
+
+```bash
+docker compose --profile dev up
+```
+
+Open http://localhost:5173. Backend hot-reloads on Go changes (air, polling
+mode for macOS bind mounts), frontend has Vite HMR. A default `homelab`
+project is created on first run; create an instance and watch it go
+PROVISIONING → STAGING → RUNNING.
+
+Native alternative (no Docker): `cd backend && go run ./cmd/server` plus
+`cd frontend && npm run dev`.
+
+## Deploying
+
+The production image bundles the API and the built UI into one ~32 MB image;
+the Go server serves the SPA with client-route fallback:
+
+```bash
+docker compose --profile prod up --build -d   # serves everything on :8080
+```
+
+Point it at Proxmox with env vars (or bake a config.yaml into a bind mount):
+
+```bash
+LCM_DRIVER=proxmox \
+LCM_PROXMOX_URL=https://pve.example.lan:8006 \
+LCM_PROXMOX_TOKEN_ID='root@pam!labcloud' \
+LCM_PROXMOX_SECRET=xxxx \
+docker compose --profile prod up --build -d
+```
+
+SQLite data persists in the `app-data` volume (`/data/labcloud.db`).
+
+## Using Proxmox
+
+1. Create an API token: Datacenter → Permissions → API Tokens (needs VM
+   privileges on the nodes/VMs it will manage).
+2. `cp config.example.yaml config.yaml` and fill in `proxmox:` settings,
+   set `driver: proxmox` — or use the `LCM_*` env vars shown above.
+3. Restart the backend (native: `go run ./cmd/server -config ../config.yaml`).
+
+Concept mapping:
+
+| Console concept | Proxmox |
+|---|---|
+| Zone | Cluster node |
+| Image | Template VM (create instances = full clone) |
+| Machine type | `hl-*` presets → cores/memory config |
+| Instance status | GCP-style: `PROVISIONING`, `STAGING`, `RUNNING`, `STOPPING`, `TERMINATED` |
+
+## Architecture
+
+```
+backend/
+  cmd/server/            entry point
+  internal/
+    api/                 REST handlers (chi) + reconciler loop
+    config/              YAML + LCM_* env config
+    hypervisor/          Driver interface (the abstraction point)
+      mock/              in-memory driver with simulated state transitions
+      proxmox/           Proxmox VE REST driver
+    store/               SQLite persistence (portable SQL, Postgres planned)
+frontend/
+  src/
+    api/                 typed API client
+    components/          Shell (top bar + nav drawer), StatusIcon
+    pages/               Instances, CreateInstance, InstanceDetail, Images, Overview
+```
+
+Design notes:
+
+- **The hypervisor is the source of truth for runtime state** (status, IPs);
+  the store owns metadata (projects, machine type, creation record). A
+  reconciler polls the driver every 2s and syncs the store; the UI polls the
+  API every 3s.
+- **Adding a hypervisor** = implementing `hypervisor.Driver` (see
+  `internal/hypervisor/driver.go`) and registering it in `cmd/server/main.go`.
+- **Postgres**: all SQL is written portably (TEXT keys, RFC3339 timestamps).
+  Adding it means a `pgx` driver branch in `store.Open` plus `?`→`$n`
+  placeholder handling.
+
+## API
+
+Base path `/api/v1`:
+
+- `GET/POST /projects`
+- `GET /zones`, `GET /images`, `GET /machine-types`
+- `GET/POST /projects/{project}/instances`
+- `GET/DELETE /projects/{project}/instances/{name}/`
+- `POST /projects/{project}/instances/{name}/{start|stop|reset}`

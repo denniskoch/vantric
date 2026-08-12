@@ -1,0 +1,56 @@
+# Dev:  docker compose --profile dev up
+#   backend hot-reload (air) on :8080, frontend HMR (vite) on :5173
+# Prod: docker compose --profile prod up --build
+#   single image (API + built UI) on :8080
+services:
+  backend-dev:
+    profiles: [dev]
+    image: golang:1.26-alpine
+    working_dir: /src/backend
+    command: go run github.com/air-verse/air@v1.63.0 -c .air.toml
+    environment:
+      LCM_LISTEN: 0.0.0.0:8080
+      LCM_DB_DSN: /data/labcloud.db
+    volumes:
+      - .:/src
+      - go-mod:/go/pkg/mod
+      - go-build:/root/.cache/go-build
+      - dev-data:/data
+    ports:
+      - "8080:8080"
+
+  frontend-dev:
+    profiles: [dev]
+    image: node:22-alpine
+    working_dir: /src/frontend
+    command: sh -c "npm install && npm run dev -- --host"
+    environment:
+      LCM_API_TARGET: http://backend-dev:8080
+    volumes:
+      - .:/src
+      # keep container node_modules separate from the host's (different OS)
+      - node-modules:/src/frontend/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend-dev
+
+  app:
+    profiles: [prod]
+    build: .
+    environment:
+      LCM_DRIVER: ${LCM_DRIVER:-mock}
+      LCM_PROXMOX_URL: ${LCM_PROXMOX_URL:-}
+      LCM_PROXMOX_TOKEN_ID: ${LCM_PROXMOX_TOKEN_ID:-}
+      LCM_PROXMOX_SECRET: ${LCM_PROXMOX_SECRET:-}
+    volumes:
+      - app-data:/data
+    ports:
+      - "8080:8080"
+
+volumes:
+  go-mod:
+  go-build:
+  node-modules:
+  dev-data:
+  app-data:

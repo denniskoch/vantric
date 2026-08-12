@@ -1,0 +1,16 @@
+# air (hot reload) config for docker-compose dev
+root = "."
+tmp_dir = "/tmp/air"
+
+[build]
+cmd = "go build -o /tmp/air/server ./cmd/server"
+bin = "/tmp/air/server"
+include_ext = ["go"]
+exclude_dir = []
+# inotify events don't cross the macOS→VM bind mount (Colima/Docker
+# Desktop), so watch by polling instead.
+poll = true
+poll_interval = 1000
+
+[log]
+main_only = true
