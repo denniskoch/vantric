@@ -129,6 +129,17 @@ func (d *Driver) tick(vm *instance) {
 	}
 }
 
+func (d *Driver) List(ctx context.Context) ([]hypervisor.InstanceState, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	states := []hypervisor.InstanceState{}
+	for _, vm := range d.vms {
+		d.tick(vm)
+		states = append(states, vm.state)
+	}
+	return states, nil
+}
+
 func (d *Driver) Get(ctx context.Context, driverID string) (*hypervisor.InstanceState, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()

@@ -42,6 +42,8 @@ export default function InstancesPage() {
     queryFn: api.listInstances,
     refetchInterval: 3000,
   })
+  const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
+  const serverName = (id: string) => servers.find((s) => s.id === id)?.name ?? '—'
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ['instances'] })
@@ -102,6 +104,7 @@ export default function InstancesPage() {
               </TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Name</TableCell>
+              <TableCell>Server</TableCell>
               <TableCell>Zone</TableCell>
               <TableCell>Machine type</TableCell>
               <TableCell>Internal IP</TableCell>
@@ -127,6 +130,7 @@ export default function InstancesPage() {
                     {inst.name}
                   </Link>
                 </TableCell>
+                <TableCell>{serverName(inst.serverId)}</TableCell>
                 <TableCell>{inst.zone}</TableCell>
                 <TableCell>
                   {inst.machineType === 'custom' || !inst.machineType
@@ -144,7 +148,7 @@ export default function InstancesPage() {
             ))}
             {instances.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={9} align="center" sx={{ py: 6, color: '#5f6368' }}>
                   {isLoading
                     ? 'Loading…'
                     : 'No VM instances yet. Click "Create instance" to get started.'}

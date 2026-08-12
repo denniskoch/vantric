@@ -35,6 +35,10 @@ Dockerfile).
 - The driver is the source of truth for runtime state (status/IPs); the
   store owns metadata. The reconciler (internal/api/reconciler.go) syncs
   driver → store; handlers never poll the driver for reads.
+- The reconciler also ADOPTS VMs found on a server that the app didn't
+  create (they appear as instances with deletion protection enabled) and
+  removes instances whose VM vanished out-of-band. Driver.List must be
+  one cheap call; guest-agent IP lookups happen via Get, throttled.
 - Keep store SQL portable between SQLite and Postgres: TEXT ids, RFC3339
   TEXT timestamps, no engine-specific types. Postgres is planned, not wired.
 - Frontend talks only to `/api/v1` via `src/api/client.ts` (typed client);

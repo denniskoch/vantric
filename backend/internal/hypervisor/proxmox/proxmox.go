@@ -228,6 +228,32 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 	return nextID, nil
 }
 
+// List reports every non-template VM from a single cluster/resources
+// call. IPs are omitted (the guest agent requires per-VM calls); the
+// reconciler fills them in via Get for running instances.
+func (d *Driver) List(ctx context.Context) ([]hypervisor.InstanceState, error) {
+	vms, err := d.clusterVMs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	states := []hypervisor.InstanceState{}
+	for _, vm := range vms {
+		if vm.Template == 1 {
+			continue
+		}
+		states = append(states, hypervisor.InstanceState{
+			DriverID: strconv.Itoa(vm.VMID),
+			Name:     vm.Name,
+			Zone:     vm.Node,
+			Status:   mapStatus(vm.Status, vm.Lock),
+			CPUs:     vm.MaxCPU,
+			MemoryMB: int(vm.MaxMem / (1024 * 1024)),
+			DiskGB:   int(vm.MaxDisk / (1024 * 1024 * 1024)),
+		})
+	}
+	return states, nil
+}
+
 func (d *Driver) Get(ctx context.Context, driverID string) (*hypervisor.InstanceState, error) {
 	node, err := d.node(ctx, driverID)
 	if err != nil {

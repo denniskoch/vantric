@@ -109,6 +109,10 @@ type Driver interface {
 	// and progress is observed via Get.
 	Create(ctx context.Context, spec InstanceSpec) (driverID string, err error)
 	Get(ctx context.Context, driverID string) (*InstanceState, error)
+	// List returns every (non-template) VM on the backend in one cheap
+	// call. Implementations may omit IPs here; callers use Get for
+	// per-instance detail.
+	List(ctx context.Context) ([]InstanceState, error)
 	Start(ctx context.Context, driverID string) error
 	Stop(ctx context.Context, driverID string) error
 	Reset(ctx context.Context, driverID string) error
