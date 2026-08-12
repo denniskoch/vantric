@@ -29,6 +29,25 @@ export interface Instance {
   updatedAt: string
 }
 
+// Container (LXC) — deliberately separate from Instance: containers
+// list and provision differently.
+export interface Container {
+  id: string
+  name: string
+  serverId: string
+  zone: string
+  cpus: number
+  memoryMb: number
+  diskGb: number
+  status: InstanceStatus
+  driverId: string
+  internalIp: string
+  description: string
+  protected: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 export type ServerType = 'proxmox' | 'mock'
 
 export interface Server {
@@ -162,6 +181,18 @@ export const api = {
     request<Instance>(`/instances/${name}/${action}`, { method: 'POST' }),
   setInstanceProtection: (name: string, protectedFlag: boolean) =>
     request<Instance>(`/instances/${name}/protection`, {
+      method: 'POST',
+      body: JSON.stringify({ protected: protectedFlag }),
+    }),
+
+  listContainers: () => request<Container[]>('/containers'),
+  getContainer: (name: string) => request<Container>(`/containers/${name}/`),
+  containerAction: (name: string, action: 'start' | 'stop' | 'reset') =>
+    request<Container>(`/containers/${name}/${action}`, { method: 'POST' }),
+  deleteContainer: (name: string) =>
+    request<void>(`/containers/${name}/`, { method: 'DELETE' }),
+  setContainerProtection: (name: string, protectedFlag: boolean) =>
+    request<Container>(`/containers/${name}/protection`, {
       method: 'POST',
       body: JSON.stringify({ protected: protectedFlag }),
     }),

@@ -118,3 +118,18 @@ type Driver interface {
 	Reset(ctx context.Context, driverID string) error
 	Delete(ctx context.Context, driverID string) error
 }
+
+// ContainerDriver is an optional capability for backends that support
+// system containers (Proxmox LXC). Containers are deliberately a
+// separate resource from VMs: they list, provision, and behave
+// differently. Check with a type assertion:
+//
+//	cd, ok := driver.(hypervisor.ContainerDriver)
+type ContainerDriver interface {
+	ListContainers(ctx context.Context) ([]InstanceState, error)
+	GetContainer(ctx context.Context, driverID string) (*InstanceState, error)
+	StartContainer(ctx context.Context, driverID string) error
+	StopContainer(ctx context.Context, driverID string) error
+	RestartContainer(ctx context.Context, driverID string) error
+	DeleteContainer(ctx context.Context, driverID string) error
+}

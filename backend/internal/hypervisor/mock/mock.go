@@ -25,10 +25,28 @@ type Driver struct {
 	mu     sync.Mutex
 	nextID int
 	vms    map[string]*instance
+	cts    map[string]*instance
 }
 
 func New() *Driver {
-	return &Driver{nextID: 100, vms: map[string]*instance{}}
+	d := &Driver{nextID: 100, vms: map[string]*instance{}, cts: map[string]*instance{}}
+	// Seed a couple of containers so the CT pages have data in dev.
+	d.cts["200"] = &instance{
+		created: time.Now(),
+		state: hypervisor.InstanceState{
+			DriverID: "200", Name: "pihole", Zone: "lab-node-a",
+			Status: hypervisor.StatusRunning, CPUs: 1, MemoryMB: 512, DiskGB: 4,
+			InternalIP: "10.20.0.53",
+		},
+	}
+	d.cts["201"] = &instance{
+		created: time.Now(),
+		state: hypervisor.InstanceState{
+			DriverID: "201", Name: "docker-host", Zone: "lab-node-b",
+			Status: hypervisor.StatusTerminated, CPUs: 2, MemoryMB: 2048, DiskGB: 16,
+		},
+	}
+	return d
 }
 
 func (d *Driver) Name() string { return "mock" }
@@ -174,6 +192,67 @@ func (d *Driver) transition(driverID string, now, then hypervisor.Status, after 
 	vm.state.Status = now
 	vm.next = then
 	vm.at = time.Now().Add(after)
+	return nil
+}
+
+// --- hypervisor.ContainerDriver ---
+
+func (d *Driver) ListContainers(ctx context.Context) ([]hypervisor.InstanceState, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	states := []hypervisor.InstanceState{}
+	for _, ct := range d.cts {
+		d.tick(ct)
+		states = append(states, ct.state)
+	}
+	return states, nil
+}
+
+func (d *Driver) GetContainer(ctx context.Context, driverID string) (*hypervisor.InstanceState, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	ct, ok := d.cts[driverID]
+	if !ok {
+		return nil, hypervisor.ErrNotFound
+	}
+	d.tick(ct)
+	s := ct.state
+	return &s, nil
+}
+
+func (d *Driver) ctTransition(driverID string, now, then hypervisor.Status, after time.Duration) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	ct, ok := d.cts[driverID]
+	if !ok {
+		return hypervisor.ErrNotFound
+	}
+	ct.state.Status = now
+	ct.next = then
+	ct.at = time.Now().Add(after)
+	return nil
+}
+
+func (d *Driver) StartContainer(ctx context.Context, driverID string) error {
+	// Containers start much faster than VMs.
+	return d.ctTransition(driverID, hypervisor.StatusStaging, hypervisor.StatusRunning, 1*time.Second)
+}
+
+func (d *Driver) StopContainer(ctx context.Context, driverID string) error {
+	return d.ctTransition(driverID, hypervisor.StatusStopping, hypervisor.StatusTerminated, 2*time.Second)
+}
+
+func (d *Driver) RestartContainer(ctx context.Context, driverID string) error {
+	return d.ctTransition(driverID, hypervisor.StatusStaging, hypervisor.StatusRunning, 1*time.Second)
+}
+
+func (d *Driver) DeleteContainer(ctx context.Context, driverID string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if _, ok := d.cts[driverID]; !ok {
+		return hypervisor.ErrNotFound
+	}
+	delete(d.cts, driverID)
 	return nil
 }
 

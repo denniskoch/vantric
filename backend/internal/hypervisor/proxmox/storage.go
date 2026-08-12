@@ -24,7 +24,7 @@ func (d *Driver) Disks(ctx context.Context) ([]hypervisor.Disk, error) {
 	}
 	disks := []hypervisor.Disk{}
 	for _, vm := range vms {
-		if vm.Template == 1 {
+		if vm.Template == 1 || vm.Type != "qemu" {
 			continue
 		}
 		var cfg map[string]any
@@ -94,7 +94,7 @@ func (d *Driver) Snapshots(ctx context.Context) ([]hypervisor.Snapshot, error) {
 	}
 	snapshots := []hypervisor.Snapshot{}
 	for _, vm := range vms {
-		if vm.Template == 1 {
+		if vm.Template == 1 || vm.Type != "qemu" {
 			continue
 		}
 		var snaps []struct {

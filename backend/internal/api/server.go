@@ -66,6 +66,8 @@ func (s *Server) Router() http.Handler {
 		r.Put("/servers/{id}", s.updateServer)
 		r.Delete("/servers/{id}", s.deleteServer)
 
+		s.containerRoutes(r)
+
 		r.Get("/instances", s.listInstances)
 		r.Post("/instances", s.createInstance)
 		r.Route("/instances/{instance}", func(r chi.Router) {

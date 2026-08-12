@@ -68,6 +68,22 @@ var migrations = []string{
 		created_at TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	)`,
+	`CREATE TABLE IF NOT EXISTS containers (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL UNIQUE,
+		server_id TEXT NOT NULL REFERENCES servers(id),
+		zone TEXT NOT NULL,
+		cpus INTEGER NOT NULL,
+		memory_mb INTEGER NOT NULL,
+		disk_gb INTEGER NOT NULL,
+		status TEXT NOT NULL,
+		driver_id TEXT NOT NULL DEFAULT '',
+		internal_ip TEXT NOT NULL DEFAULT '',
+		description TEXT NOT NULL DEFAULT '',
+		protected INTEGER NOT NULL DEFAULT 0,
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	)`,
 	`CREATE TABLE IF NOT EXISTS machine_types (
 		name TEXT PRIMARY KEY,
 		description TEXT NOT NULL DEFAULT '',

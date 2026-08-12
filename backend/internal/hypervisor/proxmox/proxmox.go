@@ -112,11 +112,14 @@ type clusterVM struct {
 	Node     string  `json:"node"`
 	Status   string  `json:"status"`
 	Template int     `json:"template"`
-	MaxCPU   int     `json:"maxcpu"`
-	MaxMem   int64   `json:"maxmem"`
-	MaxDisk  int64   `json:"maxdisk"`
-	Lock     string  `json:"lock"`
-	CPU      float64 `json:"cpu"`
+	// Type distinguishes "qemu" VMs from "lxc" containers; the
+	// cluster/resources?type=vm endpoint returns BOTH.
+	Type    string  `json:"type"`
+	MaxCPU  int     `json:"maxcpu"`
+	MaxMem  int64   `json:"maxmem"`
+	MaxDisk int64   `json:"maxdisk"`
+	Lock    string  `json:"lock"`
+	CPU     float64 `json:"cpu"`
 }
 
 func (d *Driver) clusterVMs(ctx context.Context) ([]clusterVM, error) {
@@ -140,6 +143,9 @@ func (d *Driver) Images(ctx context.Context) ([]hypervisor.Image, error) {
 	}
 	var images []hypervisor.Image
 	for _, vm := range vms {
+		if vm.Type != "qemu" {
+			continue
+		}
 		if vm.Template == 1 {
 			images = append(images, hypervisor.Image{
 				ID:          strconv.Itoa(vm.VMID),
@@ -238,7 +244,7 @@ func (d *Driver) List(ctx context.Context) ([]hypervisor.InstanceState, error) {
 	}
 	states := []hypervisor.InstanceState{}
 	for _, vm := range vms {
-		if vm.Template == 1 {
+		if vm.Template == 1 || vm.Type != "qemu" {
 			continue
 		}
 		states = append(states, hypervisor.InstanceState{

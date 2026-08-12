@@ -9,6 +9,7 @@ import DnsIcon from '@mui/icons-material/Dns'
 import TuneIcon from '@mui/icons-material/Tune'
 import LayersIcon from '@mui/icons-material/Layers'
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
+import Inventory2Icon from '@mui/icons-material/Inventory2'
 
 export interface SectionItem {
   label: string
@@ -54,6 +55,7 @@ export const sections: Section[] = [
         label: 'Virtual machines',
         items: [
           { label: 'VM instances', icon: ComputerIcon, to: '/compute/instances' },
+          { label: 'CT instances', icon: Inventory2Icon, to: '/compute/containers' },
           { label: 'Images', icon: AlbumIcon, to: '/compute/images' },
         ],
       },

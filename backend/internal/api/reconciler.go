@@ -91,7 +91,94 @@ func (r *Reconciler) sweep(ctx context.Context) {
 				_ = r.store.DeleteInstance(ctx, inst.ID)
 			}
 		}
+
+		if cd, ok := driver.(hypervisor.ContainerDriver); ok {
+			r.sweepContainers(ctx, server, cd)
+		}
 	}
+}
+
+// sweepContainers mirrors the instance sweep for LXC containers.
+func (r *Reconciler) sweepContainers(ctx context.Context, server store.Server, cd hypervisor.ContainerDriver) {
+	containers, err := r.store.ListContainers(ctx)
+	if err != nil {
+		r.log.Error("reconciler: listing containers", "error", err)
+		return
+	}
+	byDriverID := map[string]*store.Container{}
+	for i := range containers {
+		ct := &containers[i]
+		if ct.ServerID == server.ID && ct.DriverID != "" {
+			byDriverID[ct.DriverID] = ct
+		}
+	}
+	states, err := cd.ListContainers(ctx)
+	if err != nil {
+		r.log.Warn("reconciler: container list failed", "server", server.Name, "error", err)
+		return
+	}
+	seen := map[string]bool{}
+	for _, state := range states {
+		seen[state.DriverID] = true
+		if ct, ok := byDriverID[state.DriverID]; ok {
+			r.syncContainer(ctx, cd, ct, state)
+		} else {
+			r.adoptContainer(ctx, server, state)
+		}
+	}
+	for _, ct := range containers {
+		if ct.ServerID == server.ID && ct.DriverID != "" && !seen[ct.DriverID] {
+			r.log.Info("reconciler: container gone from hypervisor, removing", "name", ct.Name)
+			_ = r.store.DeleteContainer(ctx, ct.ID)
+		}
+	}
+}
+
+func (r *Reconciler) syncContainer(ctx context.Context, cd hypervisor.ContainerDriver, ct *store.Container, state hypervisor.InstanceState) {
+	internalIP := ct.InternalIP
+	switch {
+	case state.Status == hypervisor.StatusTerminated:
+		internalIP = ""
+	case state.InternalIP != "":
+		internalIP = state.InternalIP
+	case state.Status == hypervisor.StatusRunning && internalIP == "" && r.sweeps%5 == 0:
+		if full, err := cd.GetContainer(ctx, ct.DriverID); err == nil {
+			internalIP = full.InternalIP
+		}
+	}
+	if string(state.Status) != ct.Status || internalIP != ct.InternalIP {
+		if err := r.store.UpdateContainerState(ctx, ct.ID, string(state.Status), internalIP); err != nil {
+			r.log.Warn("reconciler: container update failed", "name", ct.Name, "error", err)
+		}
+	}
+}
+
+// adoptContainer records a container found on the hypervisor that this
+// app didn't create; protected by default like adopted instances.
+func (r *Reconciler) adoptContainer(ctx context.Context, server store.Server, state hypervisor.InstanceState) {
+	ct := &store.Container{
+		ID:        uuid.NewString(),
+		Name:      state.Name,
+		ServerID:  server.ID,
+		Zone:      state.Zone,
+		CPUs:      state.CPUs,
+		MemoryMB:  state.MemoryMB,
+		DiskGB:    state.DiskGB,
+		Status:    string(state.Status),
+		DriverID:  state.DriverID,
+		Protected: true,
+	}
+	if ct.Name == "" {
+		ct.Name = "ct-" + state.DriverID
+	}
+	if err := r.store.CreateContainer(ctx, ct); err != nil {
+		ct.Name = ct.Name + "-" + state.DriverID
+		if err := r.store.CreateContainer(ctx, ct); err != nil {
+			r.log.Warn("reconciler: container adopt failed", "name", state.Name, "error", err)
+			return
+		}
+	}
+	r.log.Info("reconciler: adopted container", "name", ct.Name, "server", server.Name)
 }
 
 // syncInstance applies observed runtime state to a managed instance.

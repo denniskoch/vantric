@@ -39,6 +39,13 @@ Dockerfile).
   create (they appear as instances with deletion protection enabled) and
   removes instances whose VM vanished out-of-band. Driver.List must be
   one cheap call; guest-agent IP lookups happen via Get, throttled.
+- Containers (LXC) are a SEPARATE resource from VM instances — separate
+  table, API (/containers), nav item, and pages — because they list and
+  provision differently. Container support is the optional
+  hypervisor.ContainerDriver capability interface (type assertion), so
+  future drivers without containers stay simple. Proxmox's
+  cluster/resources?type=vm returns BOTH qemu and lxc: always filter by
+  the resource Type field.
 - Keep store SQL portable between SQLite and Postgres: TEXT ids, RFC3339
   TEXT timestamps, no engine-specific types. Postgres is planned, not wired.
 - Frontend talks only to `/api/v1` via `src/api/client.ts` (typed client);
