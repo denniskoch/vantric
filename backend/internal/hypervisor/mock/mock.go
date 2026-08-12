@@ -14,7 +14,8 @@ import (
 )
 
 type instance struct {
-	state hypervisor.InstanceState
+	state   hypervisor.InstanceState
+	created time.Time
 	// pending transition, applied when 'at' passes
 	next hypervisor.Status
 	at   time.Time
@@ -47,12 +48,50 @@ func (d *Driver) Images(ctx context.Context) ([]hypervisor.Image, error) {
 	}, nil
 }
 
+// Disks reports one boot disk per VM, mimicking Proxmox naming.
+func (d *Driver) Disks(ctx context.Context) ([]hypervisor.Disk, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	disks := []hypervisor.Disk{}
+	for id, vm := range d.vms {
+		disks = append(disks, hypervisor.Disk{
+			ID:      id + "/scsi0",
+			Name:    fmt.Sprintf("vm-%s-disk-0", id),
+			InUseBy: vm.state.Name,
+			Zone:    vm.state.Zone,
+			Storage: "local-lvm",
+			SizeGB:  vm.state.DiskGB,
+		})
+	}
+	return disks, nil
+}
+
+// Snapshots reports one post-provision snapshot per VM so the UI has
+// something realistic to show in development.
+func (d *Driver) Snapshots(ctx context.Context) ([]hypervisor.Snapshot, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	snapshots := []hypervisor.Snapshot{}
+	for id, vm := range d.vms {
+		snapshots = append(snapshots, hypervisor.Snapshot{
+			ID:          id + "/clean-install",
+			Name:        "clean-install",
+			VMName:      vm.state.Name,
+			Zone:        vm.state.Zone,
+			Description: "Automatic post-provision snapshot (mock)",
+			CreatedAt:   vm.created.Unix(),
+		})
+	}
+	return snapshots, nil
+}
+
 func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (string, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.nextID++
 	id := fmt.Sprintf("%d", d.nextID)
 	d.vms[id] = &instance{
+		created: time.Now(),
 		state: hypervisor.InstanceState{
 			DriverID: id,
 			Name:     spec.Name,

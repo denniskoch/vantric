@@ -1,7 +1,10 @@
 import { useState } from 'react'
+import { Link as RouterLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   Box,
+  Chip,
+  Link,
   MenuItem,
   Paper,
   Table,
@@ -15,17 +18,17 @@ import {
 } from '@mui/material'
 import { api } from '../api/client'
 
-export default function ImagesPage() {
+export default function SnapshotsPage() {
   const [serverId, setServerId] = useState('')
 
   const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
-  const { data: images = [], isLoading } = useQuery({
-    queryKey: ['images', serverId],
-    queryFn: () => api.listImages(serverId),
+  const { data: snapshots = [], isLoading } = useQuery({
+    queryKey: ['snapshots', serverId],
+    queryFn: () => api.listSnapshots(serverId),
     enabled: Boolean(serverId),
+    refetchInterval: 10000,
   })
 
-  // Default to the first connected server.
   const connected = servers.filter((s) => s.status === 'connected')
   if (!serverId && connected.length > 0) {
     setServerId(connected[0].id)
@@ -34,7 +37,7 @@ export default function ImagesPage() {
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-        <Typography variant="h5">Images</Typography>
+        <Typography variant="h5">Snapshots</Typography>
         <TextField
           label="Server"
           size="small"
@@ -55,26 +58,46 @@ export default function ImagesPage() {
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
-              <TableCell>ID</TableCell>
+              <TableCell>VM</TableCell>
+              <TableCell>Zone</TableCell>
               <TableCell>Description</TableCell>
+              <TableCell>Created</TableCell>
+              <TableCell>RAM</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {images.map((img) => (
-              <TableRow key={img.id} hover>
-                <TableCell>{img.name}</TableCell>
-                <TableCell>{img.id}</TableCell>
-                <TableCell>{img.description}</TableCell>
+            {snapshots.map((snap) => (
+              <TableRow key={snap.id} hover>
+                <TableCell>{snap.name}</TableCell>
+                <TableCell>
+                  <Link
+                    component={RouterLink}
+                    to={`/compute/instances/${snap.vmName}`}
+                    underline="hover"
+                  >
+                    {snap.vmName}
+                  </Link>
+                </TableCell>
+                <TableCell>{snap.zone}</TableCell>
+                <TableCell>{snap.description || '—'}</TableCell>
+                <TableCell>
+                  {snap.createdAt ? new Date(snap.createdAt * 1000).toLocaleString() : '—'}
+                </TableCell>
+                <TableCell>
+                  {snap.includesRam && (
+                    <Chip label="RAM" size="small" variant="outlined" sx={{ fontSize: 10, height: 18 }} />
+                  )}
+                </TableCell>
               </TableRow>
             ))}
-            {images.length === 0 && (
+            {snapshots.length === 0 && (
               <TableRow>
-                <TableCell colSpan={3} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 6, color: '#5f6368' }}>
                   {!serverId
                     ? 'No connected servers — add one under Bare Metal Solution → Servers.'
                     : isLoading
                       ? 'Loading…'
-                      : 'No images (templates) found on this server.'}
+                      : 'No snapshots found on this server.'}
                 </TableCell>
               </TableRow>
             )}

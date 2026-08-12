@@ -37,16 +37,20 @@ func Open(driver, dsn string) (*Store, error) {
 func (s *Store) Close() error { return s.db.Close() }
 
 var migrations = []string{
-	`CREATE TABLE IF NOT EXISTS projects (
+	`CREATE TABLE IF NOT EXISTS servers (
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL UNIQUE,
-		display_name TEXT NOT NULL,
+		type TEXT NOT NULL,
+		base_url TEXT NOT NULL DEFAULT '',
+		token_id TEXT NOT NULL DEFAULT '',
+		secret TEXT NOT NULL DEFAULT '',
+		insecure_tls INTEGER NOT NULL DEFAULT 0,
 		created_at TEXT NOT NULL
 	)`,
 	`CREATE TABLE IF NOT EXISTS instances (
 		id TEXT PRIMARY KEY,
-		project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-		name TEXT NOT NULL,
+		name TEXT NOT NULL UNIQUE,
+		server_id TEXT NOT NULL REFERENCES servers(id),
 		zone TEXT NOT NULL,
 		machine_type TEXT NOT NULL,
 		cpus INTEGER NOT NULL,
@@ -54,15 +58,23 @@ var migrations = []string{
 		disk_gb INTEGER NOT NULL,
 		image_id TEXT NOT NULL DEFAULT '',
 		status TEXT NOT NULL,
-		driver TEXT NOT NULL,
 		driver_id TEXT NOT NULL DEFAULT '',
 		internal_ip TEXT NOT NULL DEFAULT '',
 		external_ip TEXT NOT NULL DEFAULT '',
+		net_bridge TEXT NOT NULL DEFAULT '',
+		vlan_tag INTEGER NOT NULL DEFAULT 0,
+		description TEXT NOT NULL DEFAULT '',
+		protected INTEGER NOT NULL DEFAULT 0,
 		created_at TEXT NOT NULL,
-		updated_at TEXT NOT NULL,
-		UNIQUE (project_id, name)
+		updated_at TEXT NOT NULL
 	)`,
-	`CREATE INDEX IF NOT EXISTS idx_instances_project ON instances(project_id)`,
+	`CREATE TABLE IF NOT EXISTS machine_types (
+		name TEXT PRIMARY KEY,
+		description TEXT NOT NULL DEFAULT '',
+		cpus INTEGER NOT NULL,
+		memory_mb INTEGER NOT NULL,
+		created_at TEXT NOT NULL
+	)`,
 }
 
 func (s *Store) migrate() error {

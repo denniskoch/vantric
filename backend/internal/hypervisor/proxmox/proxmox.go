@@ -194,15 +194,34 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 	d.nodeOf[nextID] = spec.Zone
 	d.mu.Unlock()
 
-	// Apply sizing, then boot. Clone is async; Proxmox queues these
-	// behind the clone lock, so failures here are surfaced by Get.
-	sizing := url.Values{
+	// Apply sizing and optional settings, then boot. Clone is async;
+	// Proxmox queues these behind the clone lock, so failures here are
+	// surfaced by Get.
+	cfg := url.Values{
 		"cores":  {strconv.Itoa(spec.CPUs)},
 		"memory": {strconv.Itoa(spec.MemoryMB)},
 	}
+	if spec.Description != "" {
+		cfg.Set("description", spec.Description)
+	}
+	if spec.NetworkBridge != "" {
+		net0 := "virtio,bridge=" + spec.NetworkBridge
+		if spec.VLANTag > 0 {
+			net0 += fmt.Sprintf(",tag=%d", spec.VLANTag)
+		}
+		cfg.Set("net0", net0)
+	}
+	if spec.CloudInitUser != "" {
+		cfg.Set("ciuser", spec.CloudInitUser)
+	}
+	if keys := strings.TrimSpace(spec.SSHKeys); keys != "" {
+		// Proxmox expects the sshkeys value itself URL-encoded (it is
+		// then form-encoded again on the wire).
+		cfg.Set("sshkeys", url.QueryEscape(keys))
+	}
 	cfgPath := fmt.Sprintf("/nodes/%s/qemu/%s/config", spec.Zone, nextID)
-	if err := d.do(ctx, http.MethodPost, cfgPath, sizing, nil); err != nil {
-		return nextID, nil // instance exists; sizing can be fixed manually
+	if err := d.do(ctx, http.MethodPost, cfgPath, cfg, nil); err != nil {
+		return nextID, nil // instance exists; config can be fixed manually
 	}
 	startPath := fmt.Sprintf("/nodes/%s/qemu/%s/status/start", spec.Zone, nextID)
 	_ = d.do(ctx, http.MethodPost, startPath, url.Values{}, nil)

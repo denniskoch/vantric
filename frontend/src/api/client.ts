@@ -1,12 +1,5 @@
 // Typed client for the lab-cloud-manager REST API.
 
-export interface Project {
-  id: string
-  name: string
-  displayName: string
-  createdAt: string
-}
-
 export type InstanceStatus =
   | 'PROVISIONING'
   | 'STAGING'
@@ -16,8 +9,8 @@ export type InstanceStatus =
 
 export interface Instance {
   id: string
-  projectId: string
   name: string
+  serverId: string
   zone: string
   machineType: string
   cpus: number
@@ -25,12 +18,40 @@ export interface Instance {
   diskGb: number
   imageId: string
   status: InstanceStatus
-  driver: string
   driverId: string
   internalIp: string
   externalIp: string
+  netBridge: string
+  vlanTag: number
+  description: string
+  protected: boolean
   createdAt: string
   updatedAt: string
+}
+
+export type ServerType = 'proxmox' | 'mock'
+
+export interface Server {
+  id: string
+  name: string
+  type: ServerType
+  baseUrl: string
+  tokenId: string
+  insecureTls: boolean
+  hasSecret: boolean
+  status: 'connected' | 'unreachable' | 'unknown'
+  nodes: number
+  error?: string
+  createdAt: string
+}
+
+export interface ServerRequest {
+  name: string
+  type: ServerType
+  baseUrl: string
+  tokenId: string
+  secret: string
+  insecureTls: boolean
 }
 
 export interface Zone {
@@ -45,6 +66,25 @@ export interface Image {
   description: string
 }
 
+export interface Disk {
+  id: string
+  name: string
+  inUseBy: string
+  zone: string
+  storage: string
+  sizeGb: number
+}
+
+export interface Snapshot {
+  id: string
+  name: string
+  vmName: string
+  zone: string
+  description: string
+  createdAt: number
+  includesRam: boolean
+}
+
 export interface MachineType {
   name: string
   description: string
@@ -54,12 +94,19 @@ export interface MachineType {
 
 export interface CreateInstanceRequest {
   name: string
+  serverId: string
   zone: string
   machineType: string
   cpus?: number
   memoryMb?: number
   diskGb?: number
   imageId: string
+  netBridge?: string
+  vlanTag?: number
+  cloudInitUser?: string
+  sshKeys?: string
+  description?: string
+  protected?: boolean
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -82,24 +129,42 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  listProjects: () => request<Project[]>('/projects'),
-  listZones: () => request<Zone[]>('/zones'),
-  listImages: () => request<Image[]>('/images'),
-  listMachineTypes: () => request<MachineType[]>('/machine-types'),
+  listZones: (serverId: string) => request<Zone[]>(`/zones?server=${serverId}`),
+  listImages: (serverId: string) => request<Image[]>(`/images?server=${serverId}`),
+  listDisks: (serverId: string) => request<Disk[]>(`/disks?server=${serverId}`),
+  listSnapshots: (serverId: string) =>
+    request<Snapshot[]>(`/snapshots?server=${serverId}`),
 
-  listInstances: (project: string) =>
-    request<Instance[]>(`/projects/${project}/instances`),
-  getInstance: (project: string, name: string) =>
-    request<Instance>(`/projects/${project}/instances/${name}/`),
-  createInstance: (project: string, body: CreateInstanceRequest) =>
-    request<Instance>(`/projects/${project}/instances`, {
+  listServers: () => request<Server[]>('/servers'),
+  createServer: (body: ServerRequest) =>
+    request<Server>('/servers', { method: 'POST', body: JSON.stringify(body) }),
+  updateServer: (id: string, body: ServerRequest) =>
+    request<Server>(`/servers/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteServer: (id: string) =>
+    request<void>(`/servers/${id}`, { method: 'DELETE' }),
+  listMachineTypes: () => request<MachineType[]>('/machine-types'),
+  createMachineType: (body: MachineType) =>
+    request<MachineType>('/machine-types', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  instanceAction: (project: string, name: string, action: 'start' | 'stop' | 'reset') =>
-    request<Instance>(`/projects/${project}/instances/${name}/${action}`, {
+  deleteMachineType: (name: string) =>
+    request<void>(`/machine-types/${name}`, { method: 'DELETE' }),
+
+  listInstances: () => request<Instance[]>('/instances'),
+  getInstance: (name: string) => request<Instance>(`/instances/${name}/`),
+  createInstance: (body: CreateInstanceRequest) =>
+    request<Instance>('/instances', {
       method: 'POST',
+      body: JSON.stringify(body),
     }),
-  deleteInstance: (project: string, name: string) =>
-    request<void>(`/projects/${project}/instances/${name}/`, { method: 'DELETE' }),
+  instanceAction: (name: string, action: 'start' | 'stop' | 'reset') =>
+    request<Instance>(`/instances/${name}/${action}`, { method: 'POST' }),
+  setInstanceProtection: (name: string, protectedFlag: boolean) =>
+    request<Instance>(`/instances/${name}/protection`, {
+      method: 'POST',
+      body: JSON.stringify({ protected: protectedFlag }),
+    }),
+  deleteInstance: (name: string) =>
+    request<void>(`/instances/${name}/`, { method: 'DELETE' }),
 }

@@ -10,18 +10,18 @@ import (
 	"lab-cloud-manager/internal/store"
 )
 
-// Reconciler polls the hypervisor and syncs live instance state
+// Reconciler polls each instance's hypervisor and syncs live state
 // (status, IPs) into the store. The driver is the source of truth for
 // runtime state; the store is the source of truth for metadata.
 type Reconciler struct {
 	store    *store.Store
-	driver   hypervisor.Driver
+	registry *hypervisor.Registry
 	log      *slog.Logger
 	interval time.Duration
 }
 
-func NewReconciler(st *store.Store, driver hypervisor.Driver, log *slog.Logger, interval time.Duration) *Reconciler {
-	return &Reconciler{store: st, driver: driver, log: log, interval: interval}
+func NewReconciler(st *store.Store, registry *hypervisor.Registry, log *slog.Logger, interval time.Duration) *Reconciler {
+	return &Reconciler{store: st, registry: registry, log: log, interval: interval}
 }
 
 func (r *Reconciler) Run(ctx context.Context) {
@@ -38,16 +38,17 @@ func (r *Reconciler) Run(ctx context.Context) {
 }
 
 func (r *Reconciler) sweep(ctx context.Context) {
-	instances, err := r.store.ListAllInstances(ctx)
+	instances, err := r.store.ListInstances(ctx)
 	if err != nil {
 		r.log.Error("reconciler: listing instances", "error", err)
 		return
 	}
 	for _, inst := range instances {
-		if inst.Driver != r.driver.Name() || inst.DriverID == "" {
+		driver, ok := r.registry.Get(inst.ServerID)
+		if !ok || inst.DriverID == "" {
 			continue
 		}
-		state, err := r.driver.Get(ctx, inst.DriverID)
+		state, err := driver.Get(ctx, inst.DriverID)
 		if errors.Is(err, hypervisor.ErrNotFound) {
 			// VM was removed out-of-band (e.g. directly in Proxmox).
 			r.log.Info("reconciler: instance gone from hypervisor, removing", "name", inst.Name)

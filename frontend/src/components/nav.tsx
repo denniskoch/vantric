@@ -1,27 +1,39 @@
-import type { ReactNode } from 'react'
+import type { SvgIconComponent } from '@mui/icons-material'
 import DashboardIcon from '@mui/icons-material/Dashboard'
 import ComputerIcon from '@mui/icons-material/Computer'
 import AlbumIcon from '@mui/icons-material/Album'
 import StorageIcon from '@mui/icons-material/Storage'
 import LanIcon from '@mui/icons-material/Lan'
 import MemoryIcon from '@mui/icons-material/Memory'
+import DnsIcon from '@mui/icons-material/Dns'
+import TuneIcon from '@mui/icons-material/Tune'
+import LayersIcon from '@mui/icons-material/Layers'
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
 
 export interface SectionItem {
   label: string
-  icon: ReactNode
+  icon: SvgIconComponent
   to: string
+}
+
+/** Collapsible group of items in a section's left nav (GCP-style). */
+export interface SectionGroup {
+  label: string
+  items: SectionItem[]
 }
 
 export interface Section {
   id: string
   label: string
-  icon: ReactNode
+  icon: SvgIconComponent
   /** route prefix that marks this section active */
   prefix: string
   /** where the global menu lands you */
   home: string
-  /** permanent left-nav entries while inside the section */
+  /** ungrouped entries at the top of the section nav */
   items: SectionItem[]
+  /** collapsible groups below the ungrouped entries */
+  groups: SectionGroup[]
   comingSoon?: boolean
 }
 
@@ -31,31 +43,60 @@ export const sections: Section[] = [
   {
     id: 'compute',
     label: 'Compute Engine',
-    icon: <MemoryIcon fontSize="small" />,
+    icon: MemoryIcon,
     prefix: '/compute',
     home: '/compute/instances',
     items: [
-      { label: 'Overview', icon: <DashboardIcon fontSize="small" />, to: '/compute/overview' },
-      { label: 'VM instances', icon: <ComputerIcon fontSize="small" />, to: '/compute/instances' },
-      { label: 'Images', icon: <AlbumIcon fontSize="small" />, to: '/compute/images' },
+      { label: 'Overview', icon: DashboardIcon, to: '/compute/overview' },
+    ],
+    groups: [
+      {
+        label: 'Virtual machines',
+        items: [
+          { label: 'VM instances', icon: ComputerIcon, to: '/compute/instances' },
+          { label: 'Images', icon: AlbumIcon, to: '/compute/images' },
+        ],
+      },
+      {
+        label: 'Storage',
+        items: [
+          { label: 'Disks', icon: LayersIcon, to: '/compute/disks' },
+          { label: 'Snapshots', icon: PhotoCameraIcon, to: '/compute/snapshots' },
+        ],
+      },
+      {
+        // Physical virtualization hosts (e.g. Proxmox nodes) live here.
+        label: 'Bare Metal Solution',
+        items: [
+          { label: 'Servers', icon: DnsIcon, to: '/compute/servers' },
+        ],
+      },
+      {
+        label: 'Settings',
+        items: [
+          { label: 'Machine types', icon: TuneIcon, to: '/compute/settings/machine-types' },
+        ],
+      },
     ],
   },
   {
     id: 'storage',
     label: 'Storage',
-    icon: <StorageIcon fontSize="small" />,
+    icon: StorageIcon,
     prefix: '/storage',
     home: '/storage',
     items: [],
+    groups: [],
     comingSoon: true,
   },
   {
     id: 'network',
     label: 'VPC Network',
-    icon: <LanIcon fontSize="small" />,
+    icon: LanIcon,
     prefix: '/network',
     home: '/network',
     items: [],
+    groups: [],
     comingSoon: true,
   },
 ]

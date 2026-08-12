@@ -19,7 +19,6 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { useState } from 'react'
 import { api } from '../api/client'
-import { useProject } from '../project'
 import StatusIcon from '../components/StatusIcon'
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -33,33 +32,39 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 
 export default function InstanceDetailPage() {
   const { name } = useParams<{ name: string }>()
-  const { current } = useProject()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
 
-  const project = current?.name
   const { data: inst } = useQuery({
-    queryKey: ['instance', project, name],
-    queryFn: () => api.getInstance(project!, name!),
-    enabled: Boolean(project && name),
+    queryKey: ['instance', name],
+    queryFn: () => api.getInstance(name!),
+    enabled: Boolean(name),
     refetchInterval: 3000,
   })
+  const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
+  const server = servers.find((s) => s.id === inst?.serverId)
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['instance', project, name] })
-    queryClient.invalidateQueries({ queryKey: ['instances', project] })
+    queryClient.invalidateQueries({ queryKey: ['instance', name] })
+    queryClient.invalidateQueries({ queryKey: ['instances'] })
   }
 
   const action = useMutation({
-    mutationFn: (act: 'start' | 'stop' | 'reset') => api.instanceAction(project!, name!, act),
+    mutationFn: (act: 'start' | 'stop' | 'reset') => api.instanceAction(name!, act),
     onSuccess: invalidate,
     onError: (e: Error) => setError(e.message),
   })
 
   const remove = useMutation({
-    mutationFn: () => api.deleteInstance(project!, name!),
+    mutationFn: () => api.deleteInstance(name!),
     onSuccess: () => navigate('/compute/instances'),
+    onError: (e: Error) => setError(e.message),
+  })
+
+  const protect = useMutation({
+    mutationFn: (flag: boolean) => api.setInstanceProtection(name!, flag),
+    onSuccess: invalidate,
     onError: (e: Error) => setError(e.message),
   })
 
@@ -108,7 +113,7 @@ export default function InstanceDetailPage() {
           size="small"
           color="error"
           startIcon={<DeleteIcon />}
-          disabled={remove.isPending}
+          disabled={remove.isPending || inst.protected}
           onClick={() => remove.mutate()}
         >
           Delete
@@ -134,6 +139,22 @@ export default function InstanceDetailPage() {
               value={`${inst.machineType || 'custom'} (${inst.cpus} vCPU, ${inst.memoryMb} MB memory)`}
             />
             <Row label="Boot disk" value={`${inst.diskGb} GB (image ${inst.imageId})`} />
+            {inst.description && <Row label="Description" value={inst.description} />}
+            <Row
+              label="Deletion protection"
+              value={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {inst.protected ? 'Enabled' : 'Disabled'}
+                  <Button
+                    size="small"
+                    disabled={protect.isPending}
+                    onClick={() => protect.mutate(!inst.protected)}
+                  >
+                    {inst.protected ? 'Disable' : 'Enable'}
+                  </Button>
+                </Box>
+              }
+            />
             <Row label="Created" value={new Date(inst.createdAt).toLocaleString()} />
           </TableBody>
         </Table>
@@ -145,6 +166,8 @@ export default function InstanceDetailPage() {
           <TableBody>
             <Row label="Internal IP" value={inst.internalIp || '—'} />
             <Row label="External IP" value={inst.externalIp || '—'} />
+            <Row label="Bridge" value={inst.netBridge || 'image default'} />
+            {inst.vlanTag > 0 && <Row label="VLAN tag" value={inst.vlanTag} />}
           </TableBody>
         </Table>
         <Divider sx={{ my: 2 }} />
@@ -153,7 +176,7 @@ export default function InstanceDetailPage() {
         </Typography>
         <Table size="small">
           <TableBody>
-            <Row label="Hypervisor driver" value={inst.driver} />
+            <Row label="Server" value={server ? `${server.name} (${server.type})` : inst.serverId} />
             <Row label="Driver instance ID" value={inst.driverId} />
           </TableBody>
         </Table>

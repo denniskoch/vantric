@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Box, Grid, Paper, Typography } from '@mui/material'
 import { api } from '../api/client'
-import { useProject } from '../project'
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
@@ -15,17 +14,15 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 export default function OverviewPage() {
-  const { current } = useProject()
-  const project = current?.name
   const { data: instances = [] } = useQuery({
-    queryKey: ['instances', project],
-    queryFn: () => api.listInstances(project!),
-    enabled: Boolean(project),
+    queryKey: ['instances'],
+    queryFn: api.listInstances,
     refetchInterval: 5000,
   })
-  const { data: zones = [] } = useQuery({ queryKey: ['zones'], queryFn: api.listZones })
+  const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
 
   const running = instances.filter((i) => i.status === 'RUNNING').length
+  const connected = servers.filter((s) => s.status === 'connected').length
 
   return (
     <Box sx={{ p: 3 }}>
@@ -40,7 +37,7 @@ export default function OverviewPage() {
           <Stat label="Running" value={running} />
         </Grid>
         <Grid>
-          <Stat label="Zones (nodes)" value={zones.length} />
+          <Stat label="Servers" value={`${connected}/${servers.length}`} />
         </Grid>
       </Grid>
     </Box>

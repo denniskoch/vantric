@@ -5,6 +5,10 @@ import CreateInstancePage from './pages/CreateInstancePage'
 import InstanceDetailPage from './pages/InstanceDetailPage'
 import ImagesPage from './pages/ImagesPage'
 import OverviewPage from './pages/OverviewPage'
+import ServersPage from './pages/ServersPage'
+import MachineTypesPage from './pages/MachineTypesPage'
+import DisksPage from './pages/DisksPage'
+import SnapshotsPage from './pages/SnapshotsPage'
 
 export default function App() {
   return (
@@ -16,6 +20,10 @@ export default function App() {
         <Route path="/compute/instances/create" element={<CreateInstancePage />} />
         <Route path="/compute/instances/:name" element={<InstanceDetailPage />} />
         <Route path="/compute/images" element={<ImagesPage />} />
+        <Route path="/compute/disks" element={<DisksPage />} />
+        <Route path="/compute/snapshots" element={<SnapshotsPage />} />
+        <Route path="/compute/servers" element={<ServersPage />} />
+        <Route path="/compute/settings/machine-types" element={<MachineTypesPage />} />
       </Route>
     </Routes>
   )

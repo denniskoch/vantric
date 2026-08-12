@@ -14,9 +14,8 @@ docker compose --profile dev up
 ```
 
 Open http://localhost:5173. Backend hot-reloads on Go changes (air, polling
-mode for macOS bind mounts), frontend has Vite HMR. A default `homelab`
-project is created on first run; create an instance and watch it go
-PROVISIONING → STAGING → RUNNING.
+mode for macOS bind mounts), frontend has Vite HMR. Create an instance and
+watch it go PROVISIONING → STAGING → RUNNING.
 
 Native alternative (no Docker): `cd backend && go run ./cmd/server` plus
 `cd frontend && npm run dev`.
@@ -81,7 +80,7 @@ frontend/
 Design notes:
 
 - **The hypervisor is the source of truth for runtime state** (status, IPs);
-  the store owns metadata (projects, machine type, creation record). A
+  the store owns metadata (machine types, creation record). A
   reconciler polls the driver every 2s and syncs the store; the UI polls the
   API every 3s.
 - **Adding a hypervisor** = implementing `hypervisor.Driver` (see
@@ -94,8 +93,11 @@ Design notes:
 
 Base path `/api/v1`:
 
-- `GET/POST /projects`
-- `GET /zones`, `GET /images`, `GET /machine-types`
-- `GET/POST /projects/{project}/instances`
-- `GET/DELETE /projects/{project}/instances/{name}/`
-- `POST /projects/{project}/instances/{name}/{start|stop|reset}`
+- `GET /zones`, `GET /images`
+- `GET/POST /machine-types`, `DELETE /machine-types/{name}`
+- `GET/POST /instances`
+- `GET/DELETE /instances/{name}/`
+- `POST /instances/{name}/{start|stop|reset}`
+
+Projects (GCP-style resource grouping) were dropped pre-ship and may
+return as a post-ship enhancement.

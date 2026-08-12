@@ -4,9 +4,12 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"regexp"
+	"slices"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -16,35 +19,32 @@ import (
 	"lab-cloud-manager/internal/store"
 )
 
-// MachineType is a sizing preset, GCP-style. Custom sizing is also
-// accepted on create.
-type MachineType struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	CPUs        int    `json:"cpus"`
-	MemoryMB    int    `json:"memoryMb"`
-}
-
-var machineTypes = []MachineType{
-	{Name: "hl-micro", Description: "1 vCPU, 512 MB", CPUs: 1, MemoryMB: 512},
-	{Name: "hl-small", Description: "1 vCPU, 1 GB", CPUs: 1, MemoryMB: 1024},
-	{Name: "hl-standard-2", Description: "2 vCPU, 2 GB", CPUs: 2, MemoryMB: 2048},
-	{Name: "hl-standard-4", Description: "4 vCPU, 4 GB", CPUs: 4, MemoryMB: 4096},
-	{Name: "hl-highmem-4", Description: "4 vCPU, 8 GB", CPUs: 4, MemoryMB: 8192},
-	{Name: "hl-highmem-8", Description: "8 vCPU, 16 GB", CPUs: 8, MemoryMB: 16384},
-}
-
 var nameRe = regexp.MustCompile(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`)
 
 type Server struct {
 	store     *store.Store
-	driver    hypervisor.Driver
+	registry  *hypervisor.Registry
 	log       *slog.Logger
 	staticDir string
 }
 
-func New(st *store.Store, driver hypervisor.Driver, log *slog.Logger, staticDir string) *Server {
-	return &Server{store: st, driver: driver, log: log, staticDir: staticDir}
+func New(st *store.Store, registry *hypervisor.Registry, log *slog.Logger, staticDir string) *Server {
+	return &Server{store: st, registry: registry, log: log, staticDir: staticDir}
+}
+
+// serverDriver resolves the ?server= query param to a live driver.
+func (s *Server) serverDriver(w http.ResponseWriter, r *http.Request) hypervisor.Driver {
+	id := r.URL.Query().Get("server")
+	if id == "" {
+		s.err(w, http.StatusBadRequest, "server query parameter is required")
+		return nil
+	}
+	driver, ok := s.registry.Get(id)
+	if !ok {
+		s.err(w, http.StatusNotFound, "server: not found")
+		return nil
+	}
+	return driver
 }
 
 func (s *Server) Router() http.Handler {
@@ -54,21 +54,27 @@ func (s *Server) Router() http.Handler {
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/zones", s.listZones)
 		r.Get("/images", s.listImages)
+		r.Get("/disks", s.listDisks)
+		r.Get("/snapshots", s.listSnapshots)
 		r.Get("/machine-types", s.listMachineTypes)
+		r.Post("/machine-types", s.createMachineType)
+		r.Delete("/machine-types/{name}", s.deleteMachineType)
 
-		r.Get("/projects", s.listProjects)
-		r.Post("/projects", s.createProject)
+		r.Get("/server-types", s.listServerTypes)
+		r.Get("/servers", s.listServers)
+		r.Post("/servers", s.createServer)
+		r.Put("/servers/{id}", s.updateServer)
+		r.Delete("/servers/{id}", s.deleteServer)
 
-		r.Route("/projects/{project}", func(r chi.Router) {
-			r.Get("/instances", s.listInstances)
-			r.Post("/instances", s.createInstance)
-			r.Route("/instances/{instance}", func(r chi.Router) {
-				r.Get("/", s.getInstance)
-				r.Delete("/", s.deleteInstance)
-				r.Post("/start", s.instanceAction("start"))
-				r.Post("/stop", s.instanceAction("stop"))
-				r.Post("/reset", s.instanceAction("reset"))
-			})
+		r.Get("/instances", s.listInstances)
+		r.Post("/instances", s.createInstance)
+		r.Route("/instances/{instance}", func(r chi.Router) {
+			r.Get("/", s.getInstance)
+			r.Delete("/", s.deleteInstance)
+			r.Post("/start", s.instanceAction("start"))
+			r.Post("/stop", s.instanceAction("stop"))
+			r.Post("/reset", s.instanceAction("reset"))
+			r.Post("/protection", s.setInstanceProtection)
 		})
 	})
 
@@ -103,20 +109,14 @@ func (s *Server) fail(w http.ResponseWriter, err error, context string) {
 	s.err(w, http.StatusInternalServerError, context+": "+err.Error())
 }
 
-// project resolves the {project} URL param.
-func (s *Server) project(w http.ResponseWriter, r *http.Request) *store.Project {
-	p, err := s.store.GetProjectByName(r.Context(), chi.URLParam(r, "project"))
-	if err != nil {
-		s.fail(w, err, "project")
-		return nil
-	}
-	return p
-}
-
 // --- catalog ---
 
 func (s *Server) listZones(w http.ResponseWriter, r *http.Request) {
-	zones, err := s.driver.Zones(r.Context())
+	driver := s.serverDriver(w, r)
+	if driver == nil {
+		return
+	}
+	zones, err := driver.Zones(r.Context())
 	if err != nil {
 		s.fail(w, err, "zones")
 		return
@@ -125,7 +125,11 @@ func (s *Server) listZones(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listImages(w http.ResponseWriter, r *http.Request) {
-	images, err := s.driver.Images(r.Context())
+	driver := s.serverDriver(w, r)
+	if driver == nil {
+		return
+	}
+	images, err := driver.Images(r.Context())
 	if err != nil {
 		s.fail(w, err, "images")
 		return
@@ -136,53 +140,106 @@ func (s *Server) listImages(w http.ResponseWriter, r *http.Request) {
 	s.json(w, http.StatusOK, images)
 }
 
-func (s *Server) listMachineTypes(w http.ResponseWriter, r *http.Request) {
-	s.json(w, http.StatusOK, machineTypes)
-}
-
-// --- projects ---
-
-func (s *Server) listProjects(w http.ResponseWriter, r *http.Request) {
-	projects, err := s.store.ListProjects(r.Context())
-	if err != nil {
-		s.fail(w, err, "projects")
+func (s *Server) listDisks(w http.ResponseWriter, r *http.Request) {
+	driver := s.serverDriver(w, r)
+	if driver == nil {
 		return
 	}
-	s.json(w, http.StatusOK, projects)
+	disks, err := driver.Disks(r.Context())
+	if err != nil {
+		s.fail(w, err, "disks")
+		return
+	}
+	if disks == nil {
+		disks = []hypervisor.Disk{}
+	}
+	slices.SortFunc(disks, func(a, b hypervisor.Disk) int {
+		if c := strings.Compare(a.InUseBy, b.InUseBy); c != 0 {
+			return c
+		}
+		return strings.Compare(a.Name, b.Name)
+	})
+	s.json(w, http.StatusOK, disks)
 }
 
-func (s *Server) createProject(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Name        string `json:"name"`
-		DisplayName string `json:"displayName"`
+func (s *Server) listSnapshots(w http.ResponseWriter, r *http.Request) {
+	driver := s.serverDriver(w, r)
+	if driver == nil {
+		return
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	snapshots, err := driver.Snapshots(r.Context())
+	if err != nil {
+		s.fail(w, err, "snapshots")
+		return
+	}
+	if snapshots == nil {
+		snapshots = []hypervisor.Snapshot{}
+	}
+	slices.SortFunc(snapshots, func(a, b hypervisor.Snapshot) int {
+		return int(b.CreatedAt - a.CreatedAt) // newest first
+	})
+	s.json(w, http.StatusOK, snapshots)
+}
+
+// --- machine types ---
+
+func (s *Server) listMachineTypes(w http.ResponseWriter, r *http.Request) {
+	types, err := s.store.ListMachineTypes(r.Context())
+	if err != nil {
+		s.fail(w, err, "machine types")
+		return
+	}
+	s.json(w, http.StatusOK, types)
+}
+
+func (s *Server) createMachineType(w http.ResponseWriter, r *http.Request) {
+	var mt store.MachineType
+	if err := json.NewDecoder(r.Body).Decode(&mt); err != nil {
 		s.err(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	if !nameRe.MatchString(req.Name) {
+	if !nameRe.MatchString(mt.Name) {
 		s.err(w, http.StatusBadRequest, "name must be lowercase letters, digits, hyphens (start with a letter)")
 		return
 	}
-	if req.DisplayName == "" {
-		req.DisplayName = req.Name
-	}
-	p := &store.Project{ID: uuid.NewString(), Name: req.Name, DisplayName: req.DisplayName}
-	if err := s.store.CreateProject(r.Context(), p); err != nil {
-		s.fail(w, err, "creating project")
+	if mt.CPUs < 1 || mt.MemoryMB < 128 {
+		s.err(w, http.StatusBadRequest, "cpus must be >= 1 and memoryMb >= 128")
 		return
 	}
-	s.json(w, http.StatusCreated, p)
+	if mt.Description == "" {
+		mt.Description = describeMachineType(mt.CPUs, mt.MemoryMB)
+	}
+	if existing, err := s.store.GetMachineType(r.Context(), mt.Name); err == nil && existing != nil {
+		s.err(w, http.StatusConflict, "a machine type with this name already exists")
+		return
+	}
+	if err := s.store.CreateMachineType(r.Context(), &mt); err != nil {
+		s.fail(w, err, "creating machine type")
+		return
+	}
+	s.json(w, http.StatusCreated, mt)
+}
+
+func (s *Server) deleteMachineType(w http.ResponseWriter, r *http.Request) {
+	if err := s.store.DeleteMachineType(r.Context(), chi.URLParam(r, "name")); err != nil {
+		s.fail(w, err, "deleting machine type")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func describeMachineType(cpus, memoryMB int) string {
+	mem := fmt.Sprintf("%d MB", memoryMB)
+	if memoryMB%1024 == 0 {
+		mem = fmt.Sprintf("%d GB", memoryMB/1024)
+	}
+	return fmt.Sprintf("%d vCPU, %s", cpus, mem)
 }
 
 // --- instances ---
 
 func (s *Server) listInstances(w http.ResponseWriter, r *http.Request) {
-	p := s.project(w, r)
-	if p == nil {
-		return
-	}
-	instances, err := s.store.ListInstances(r.Context(), p.ID)
+	instances, err := s.store.ListInstances(r.Context())
 	if err != nil {
 		s.fail(w, err, "instances")
 		return
@@ -191,11 +248,7 @@ func (s *Server) listInstances(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getInstance(w http.ResponseWriter, r *http.Request) {
-	p := s.project(w, r)
-	if p == nil {
-		return
-	}
-	inst, err := s.store.GetInstance(r.Context(), p.ID, chi.URLParam(r, "instance"))
+	inst, err := s.store.GetInstance(r.Context(), chi.URLParam(r, "instance"))
 	if err != nil {
 		s.fail(w, err, "instance")
 		return
@@ -204,18 +257,21 @@ func (s *Server) getInstance(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
-	p := s.project(w, r)
-	if p == nil {
-		return
-	}
 	var req struct {
-		Name        string `json:"name"`
-		Zone        string `json:"zone"`
-		MachineType string `json:"machineType"`
-		CPUs        int    `json:"cpus"`
-		MemoryMB    int    `json:"memoryMb"`
-		DiskGB      int    `json:"diskGb"`
-		ImageID     string `json:"imageId"`
+		Name          string `json:"name"`
+		ServerID      string `json:"serverId"`
+		Zone          string `json:"zone"`
+		MachineType   string `json:"machineType"`
+		CPUs          int    `json:"cpus"`
+		MemoryMB      int    `json:"memoryMb"`
+		DiskGB        int    `json:"diskGb"`
+		ImageID       string `json:"imageId"`
+		NetBridge     string `json:"netBridge"`
+		VLANTag       int    `json:"vlanTag"`
+		CloudInitUser string `json:"cloudInitUser"`
+		SSHKeys       string `json:"sshKeys"`
+		Description   string `json:"description"`
+		Protected     bool   `json:"protected"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		s.err(w, http.StatusBadRequest, "invalid JSON body")
@@ -225,24 +281,27 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, "name must be lowercase letters, digits, hyphens (start with a letter)")
 		return
 	}
-	if req.Zone == "" || req.ImageID == "" {
-		s.err(w, http.StatusBadRequest, "zone and imageId are required")
+	if req.ServerID == "" || req.Zone == "" || req.ImageID == "" {
+		s.err(w, http.StatusBadRequest, "serverId, zone and imageId are required")
+		return
+	}
+	driver, ok := s.registry.Get(req.ServerID)
+	if !ok {
+		s.err(w, http.StatusBadRequest, "unknown serverId")
 		return
 	}
 	// Resolve sizing from machine type unless custom values are given.
 	if req.MachineType != "" && req.MachineType != "custom" {
-		found := false
-		for _, mt := range machineTypes {
-			if mt.Name == req.MachineType {
-				req.CPUs, req.MemoryMB = mt.CPUs, mt.MemoryMB
-				found = true
-				break
-			}
-		}
-		if !found {
+		mt, err := s.store.GetMachineType(r.Context(), req.MachineType)
+		if errors.Is(err, store.ErrNotFound) {
 			s.err(w, http.StatusBadRequest, "unknown machineType")
 			return
 		}
+		if err != nil {
+			s.fail(w, err, "machine type")
+			return
+		}
+		req.CPUs, req.MemoryMB = mt.CPUs, mt.MemoryMB
 	}
 	if req.CPUs < 1 || req.MemoryMB < 128 {
 		s.err(w, http.StatusBadRequest, "cpus and memoryMb are required (machineType or custom values)")
@@ -251,18 +310,23 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 	if req.DiskGB == 0 {
 		req.DiskGB = 10
 	}
-	if existing, err := s.store.GetInstance(r.Context(), p.ID, req.Name); err == nil && existing != nil {
+	if existing, err := s.store.GetInstance(r.Context(), req.Name); err == nil && existing != nil {
 		s.err(w, http.StatusConflict, "an instance with this name already exists")
 		return
 	}
 
-	driverID, err := s.driver.Create(r.Context(), hypervisor.InstanceSpec{
-		Name:     req.Name,
-		Zone:     req.Zone,
-		CPUs:     req.CPUs,
-		MemoryMB: req.MemoryMB,
-		DiskGB:   req.DiskGB,
-		ImageID:  req.ImageID,
+	driverID, err := driver.Create(r.Context(), hypervisor.InstanceSpec{
+		Name:          req.Name,
+		Zone:          req.Zone,
+		CPUs:          req.CPUs,
+		MemoryMB:      req.MemoryMB,
+		DiskGB:        req.DiskGB,
+		ImageID:       req.ImageID,
+		NetworkBridge: req.NetBridge,
+		VLANTag:       req.VLANTag,
+		CloudInitUser: req.CloudInitUser,
+		SSHKeys:       req.SSHKeys,
+		Description:   req.Description,
 	})
 	if err != nil {
 		s.fail(w, err, "creating instance")
@@ -270,8 +334,8 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 	}
 	inst := &store.Instance{
 		ID:          uuid.NewString(),
-		ProjectID:   p.ID,
 		Name:        req.Name,
+		ServerID:    req.ServerID,
 		Zone:        req.Zone,
 		MachineType: req.MachineType,
 		CPUs:        req.CPUs,
@@ -279,8 +343,11 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		DiskGB:      req.DiskGB,
 		ImageID:     req.ImageID,
 		Status:      string(hypervisor.StatusProvisioning),
-		Driver:      s.driver.Name(),
 		DriverID:    driverID,
+		NetBridge:   req.NetBridge,
+		VLANTag:     req.VLANTag,
+		Description: req.Description,
+		Protected:   req.Protected,
 	}
 	if err := s.store.CreateInstance(r.Context(), inst); err != nil {
 		s.fail(w, err, "saving instance")
@@ -291,25 +358,26 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) instanceAction(action string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		p := s.project(w, r)
-		if p == nil {
-			return
-		}
-		inst, err := s.store.GetInstance(r.Context(), p.ID, chi.URLParam(r, "instance"))
+		inst, err := s.store.GetInstance(r.Context(), chi.URLParam(r, "instance"))
 		if err != nil {
 			s.fail(w, err, "instance")
+			return
+		}
+		driver, ok := s.registry.Get(inst.ServerID)
+		if !ok {
+			s.err(w, http.StatusConflict, "the server backing this instance is no longer registered")
 			return
 		}
 		var optimistic hypervisor.Status
 		switch action {
 		case "start":
-			err = s.driver.Start(r.Context(), inst.DriverID)
+			err = driver.Start(r.Context(), inst.DriverID)
 			optimistic = hypervisor.StatusStaging
 		case "stop":
-			err = s.driver.Stop(r.Context(), inst.DriverID)
+			err = driver.Stop(r.Context(), inst.DriverID)
 			optimistic = hypervisor.StatusStopping
 		case "reset":
-			err = s.driver.Reset(r.Context(), inst.DriverID)
+			err = driver.Reset(r.Context(), inst.DriverID)
 			optimistic = hypervisor.StatusStaging
 		}
 		if err != nil {
@@ -323,17 +391,44 @@ func (s *Server) instanceAction(action string) http.HandlerFunc {
 	}
 }
 
-func (s *Server) deleteInstance(w http.ResponseWriter, r *http.Request) {
-	p := s.project(w, r)
-	if p == nil {
-		return
-	}
-	inst, err := s.store.GetInstance(r.Context(), p.ID, chi.URLParam(r, "instance"))
+// setInstanceProtection toggles deletion protection (GCP-style).
+func (s *Server) setInstanceProtection(w http.ResponseWriter, r *http.Request) {
+	inst, err := s.store.GetInstance(r.Context(), chi.URLParam(r, "instance"))
 	if err != nil {
 		s.fail(w, err, "instance")
 		return
 	}
-	if err := s.driver.Delete(r.Context(), inst.DriverID); err != nil && !errors.Is(err, hypervisor.ErrNotFound) {
+	var req struct {
+		Protected bool `json:"protected"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if err := s.store.SetInstanceProtection(r.Context(), inst.ID, req.Protected); err != nil {
+		s.fail(w, err, "updating protection")
+		return
+	}
+	inst.Protected = req.Protected
+	s.json(w, http.StatusOK, inst)
+}
+
+func (s *Server) deleteInstance(w http.ResponseWriter, r *http.Request) {
+	inst, err := s.store.GetInstance(r.Context(), chi.URLParam(r, "instance"))
+	if err != nil {
+		s.fail(w, err, "instance")
+		return
+	}
+	if inst.Protected {
+		s.err(w, http.StatusConflict, "deletion protection is enabled on this instance")
+		return
+	}
+	driver, ok := s.registry.Get(inst.ServerID)
+	if !ok {
+		s.err(w, http.StatusConflict, "the server backing this instance is no longer registered")
+		return
+	}
+	if err := driver.Delete(r.Context(), inst.DriverID); err != nil && !errors.Is(err, hypervisor.ErrNotFound) {
 		s.fail(w, err, "deleting instance")
 		return
 	}

@@ -28,37 +28,33 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { api } from '../api/client'
 import type { Instance } from '../api/client'
-import { useProject } from '../project'
 import StatusIcon from '../components/StatusIcon'
 
 export default function InstancesPage() {
-  const { current } = useProject()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
   const [menuInstance, setMenuInstance] = useState<Instance | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const project = current?.name
   const { data: instances = [], refetch, isLoading } = useQuery({
-    queryKey: ['instances', project],
-    queryFn: () => api.listInstances(project!),
-    enabled: Boolean(project),
+    queryKey: ['instances'],
+    queryFn: api.listInstances,
     refetchInterval: 3000,
   })
 
   const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: ['instances', project] })
+    queryClient.invalidateQueries({ queryKey: ['instances'] })
 
   const action = useMutation({
     mutationFn: ({ name, act }: { name: string; act: 'start' | 'stop' | 'reset' }) =>
-      api.instanceAction(project!, name, act),
+      api.instanceAction(name, act),
     onSuccess: invalidate,
     onError: (e: Error) => setError(e.message),
   })
 
   const remove = useMutation({
-    mutationFn: (name: string) => api.deleteInstance(project!, name),
+    mutationFn: (name: string) => api.deleteInstance(name),
     onSuccess: invalidate,
     onError: (e: Error) => setError(e.message),
   })
@@ -151,7 +147,7 @@ export default function InstancesPage() {
                 <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#5f6368' }}>
                   {isLoading
                     ? 'Loading…'
-                    : 'No VM instances in this project. Click "Create instance" to get started.'}
+                    : 'No VM instances yet. Click "Create instance" to get started.'}
                 </TableCell>
               </TableRow>
             )}
@@ -183,9 +179,11 @@ export default function InstancesPage() {
             if (menuInstance) remove.mutate(menuInstance.name)
             closeMenu()
           }}
+          disabled={menuInstance?.protected}
           sx={{ color: '#d93025' }}
         >
-          <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Delete
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+          {menuInstance?.protected ? 'Delete (protected)' : 'Delete'}
         </MenuItem>
       </Menu>
     </Box>

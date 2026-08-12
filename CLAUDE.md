@@ -21,7 +21,15 @@ Dockerfile).
 
 - `internal/hypervisor.Driver` is the abstraction boundary. Nothing outside
   `internal/hypervisor/*` may import Proxmox specifics. New backends
-  implement Driver and get wired in `cmd/server/main.go`.
+  implement Driver and register in `internal/hypervisor/factory`
+  (`factory.Types` + `Build`) — that alone exposes them in the API and the
+  Servers GUI type dropdown.
+- Servers (virtualization hosts) are DB records managed in the GUI
+  (Bare Metal Solution → Servers), one live driver per server held in
+  `hypervisor.Registry` keyed by server ID. Zones/images are per-server
+  (`?server=` param). Config seeds one server on first run only; after
+  that config driver settings are ignored. Server secrets never leave the
+  backend (`json:"-"`; API exposes `hasSecret`).
 - Instance statuses are GCP's: PROVISIONING, STAGING, RUNNING, STOPPING,
   TERMINATED. Drivers map native states to these.
 - The driver is the source of truth for runtime state (status/IPs); the
@@ -35,8 +43,12 @@ Dockerfile).
   (Google blue #1a73e8, white surfaces, #dadce0 borders, dense tables).
 - Navigation model (mirrors GCP): the hamburger opens a temporary global
   menu for switching between Lab Cloud sections; each section then has a
-  permanent left nav. Sections live in `src/components/nav.tsx` — adding
-  one there wires both menus.
+  permanent left nav with collapsible groups (GCP-style). Sections and
+  groups live in `src/components/nav.tsx` — adding entries there wires
+  both menus.
+- Compute Engine nav groups: "Virtual machines" (VM instances, Images)
+  and "Bare Metal Solution" (Servers). Servers lists the virtualization
+  hosts; adding/registering new hosts will live there (planned).
 - docker-compose dev caveat: file-change events don't cross the macOS→VM
   bind mount, so both watchers poll (air `poll = true`, vite
   `watch.usePolling`). Don't remove either.

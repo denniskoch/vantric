@@ -36,6 +36,29 @@ type Image struct {
 	Description string `json:"description"`
 }
 
+// Disk is a virtual disk attached to an instance.
+type Disk struct {
+	ID      string `json:"id"`      // driver-scoped, e.g. "101/scsi0"
+	Name    string `json:"name"`    // volume name, e.g. "vm-101-disk-0"
+	InUseBy string `json:"inUseBy"` // VM name the disk is attached to
+	Zone    string `json:"zone"`
+	Storage string `json:"storage"` // storage pool
+	SizeGB  int    `json:"sizeGb"`
+}
+
+// Snapshot is a point-in-time VM snapshot.
+type Snapshot struct {
+	ID          string `json:"id"` // driver-scoped, e.g. "101/pre-upgrade"
+	Name        string `json:"name"`
+	VMName      string `json:"vmName"`
+	Zone        string `json:"zone"`
+	Description string `json:"description"`
+	// CreatedAt is unix seconds; 0 when the hypervisor doesn't report it.
+	CreatedAt int64 `json:"createdAt"`
+	// IncludesRAM reports whether the snapshot captured VM memory state.
+	IncludesRAM bool `json:"includesRam"`
+}
+
 // InstanceSpec describes an instance to create.
 type InstanceSpec struct {
 	Name     string
@@ -44,6 +67,18 @@ type InstanceSpec struct {
 	MemoryMB int
 	DiskGB   int
 	ImageID  string
+
+	// Networking (optional). Empty bridge keeps the image's network config.
+	NetworkBridge string
+	VLANTag       int
+
+	// Cloud-init access (optional; drivers may ignore if unsupported).
+	CloudInitUser string
+	SSHKeys       string // authorized public keys, one per line
+
+	// Description is free-form metadata, mirrored to the hypervisor
+	// where supported.
+	Description string
 }
 
 // InstanceState is the driver's live view of an instance.
@@ -66,6 +101,8 @@ type Driver interface {
 	Name() string
 	Zones(ctx context.Context) ([]Zone, error)
 	Images(ctx context.Context) ([]Image, error)
+	Disks(ctx context.Context) ([]Disk, error)
+	Snapshots(ctx context.Context) ([]Snapshot, error)
 
 	// Create provisions an instance and returns its driver-specific ID.
 	// It should return quickly; provisioning continues asynchronously

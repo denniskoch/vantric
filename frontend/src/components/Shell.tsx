@@ -3,8 +3,8 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   AppBar,
   Box,
-  Button,
   Chip,
+  Collapse,
   Drawer,
   IconButton,
   InputBase,
@@ -12,28 +12,42 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  ListSubheader,
-  Menu,
-  MenuItem,
   Toolbar,
   Typography,
 } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import CloudIcon from '@mui/icons-material/Cloud'
 import SearchIcon from '@mui/icons-material/Search'
-import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown'
-import { useProject } from '../project'
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { sections, sectionFor } from './nav'
+import type { SectionItem } from './nav'
 
 const SECTION_NAV_WIDTH = 256
 const GLOBAL_NAV_WIDTH = 280
 
+function NavItem({ item }: { item: SectionItem }) {
+  const location = useLocation()
+  return (
+    <ListItemButton
+      component={Link}
+      to={item.to}
+      selected={location.pathname.startsWith(item.to)}
+      sx={{ mr: 1 }}
+    >
+      <ListItemIcon sx={{ minWidth: 36 }}>
+        <item.icon fontSize="small" />
+      </ListItemIcon>
+      <ListItemText primary={item.label} />
+    </ListItemButton>
+  )
+}
+
 export default function Shell() {
   const [globalNavOpen, setGlobalNavOpen] = useState(false)
-  const [projectMenu, setProjectMenu] = useState<null | HTMLElement>(null)
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const location = useLocation()
   const navigate = useNavigate()
-  const { projects, current, setCurrent } = useProject()
 
   const section = sectionFor(location.pathname)
 
@@ -48,33 +62,6 @@ export default function Shell() {
           <Typography variant="h6" sx={{ color: '#5f6368', fontWeight: 400, mr: 1 }}>
             Lab Cloud
           </Typography>
-          <Button
-            size="small"
-            variant="outlined"
-            endIcon={<ArrowDropDownIcon />}
-            onClick={(e) => setProjectMenu(e.currentTarget)}
-            sx={{ color: '#202124', borderColor: '#dadce0' }}
-          >
-            {current?.displayName ?? 'Select project'}
-          </Button>
-          <Menu
-            anchorEl={projectMenu}
-            open={Boolean(projectMenu)}
-            onClose={() => setProjectMenu(null)}
-          >
-            {projects.map((p) => (
-              <MenuItem
-                key={p.id}
-                selected={p.id === current?.id}
-                onClick={() => {
-                  setCurrent(p)
-                  setProjectMenu(null)
-                }}
-              >
-                {p.displayName}
-              </MenuItem>
-            ))}
-          </Menu>
           <Box
             sx={{
               flex: 1,
@@ -122,7 +109,9 @@ export default function Shell() {
               }}
               sx={{ mr: 1 }}
             >
-              <ListItemIcon sx={{ minWidth: 36 }}>{s.icon}</ListItemIcon>
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <s.icon fontSize="small" />
+              </ListItemIcon>
               <ListItemText primary={s.label} />
               {s.comingSoon && (
                 <Chip label="soon" size="small" sx={{ fontSize: 10, height: 18 }} />
@@ -133,7 +122,7 @@ export default function Shell() {
       </Drawer>
 
       {/* Section navigation: permanent while inside a section. */}
-      {section && section.items.length > 0 && (
+      {section && (section.items.length > 0 || section.groups.length > 0) && (
         <Drawer
           variant="permanent"
           sx={{
@@ -147,26 +136,49 @@ export default function Shell() {
           }}
         >
           <Toolbar variant="dense" sx={{ minHeight: 48 }} />
-          <List
-            dense
-            subheader={
-              <ListSubheader sx={{ fontSize: 12, lineHeight: '32px' }}>
-                {section.label}
-              </ListSubheader>
-            }
-          >
+          {/* Section header, GCP-style: product icon + large title */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, pt: 2, pb: 1.5 }}>
+            <section.icon sx={{ fontSize: 28, color: '#5f6368' }} />
+            <Typography sx={{ fontSize: 18, color: '#202124' }}>
+              {section.label}
+            </Typography>
+          </Box>
+          <List dense>
             {section.items.map((item) => (
-              <ListItemButton
-                key={item.to}
-                component={Link}
-                to={item.to}
-                selected={location.pathname.startsWith(item.to)}
-                sx={{ mr: 1 }}
-              >
-                <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.label} />
-              </ListItemButton>
+              <NavItem key={item.to} item={item} />
             ))}
+            {section.groups.map((group) => {
+              const isCollapsed = collapsed[group.label] ?? false
+              return (
+                <Box key={group.label}>
+                  <ListItemButton
+                    onClick={() =>
+                      setCollapsed((c) => ({ ...c, [group.label]: !isCollapsed }))
+                    }
+                    sx={{ mt: 0.5 }}
+                  >
+                    <ListItemText
+                      primary={group.label}
+                      slotProps={{
+                        primary: { sx: { fontWeight: 500, color: '#202124' } },
+                      }}
+                    />
+                    {isCollapsed ? (
+                      <ExpandMoreIcon fontSize="small" sx={{ color: '#5f6368' }} />
+                    ) : (
+                      <ExpandLessIcon fontSize="small" sx={{ color: '#5f6368' }} />
+                    )}
+                  </ListItemButton>
+                  <Collapse in={!isCollapsed} timeout="auto">
+                    <List dense disablePadding sx={{ pl: 1 }}>
+                      {group.items.map((item) => (
+                        <NavItem key={item.to} item={item} />
+                      ))}
+                    </List>
+                  </Collapse>
+                </Box>
+              )
+            })}
           </List>
         </Drawer>
       )}
