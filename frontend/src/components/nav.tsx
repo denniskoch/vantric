@@ -10,6 +10,8 @@ import TuneIcon from '@mui/icons-material/Tune'
 import LayersIcon from '@mui/icons-material/Layers'
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
+import DiscFullIcon from '@mui/icons-material/DiscFull'
+import FolderSpecialIcon from '@mui/icons-material/FolderSpecial'
 
 export interface SectionItem {
   label: string
@@ -64,6 +66,8 @@ export const sections: Section[] = [
         items: [
           { label: 'Disks', icon: LayersIcon, to: '/compute/disks' },
           { label: 'Snapshots', icon: PhotoCameraIcon, to: '/compute/snapshots' },
+          { label: 'ISOs', icon: DiscFullIcon, to: '/compute/isos' },
+          { label: 'Datastores', icon: FolderSpecialIcon, to: '/compute/datastores' },
         ],
       },
       {

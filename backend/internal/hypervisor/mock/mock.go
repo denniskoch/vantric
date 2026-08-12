@@ -195,6 +195,26 @@ func (d *Driver) transition(driverID string, now, then hypervisor.Status, after 
 	return nil
 }
 
+func (d *Driver) ISOs(ctx context.Context) ([]hypervisor.ISO, error) {
+	return []hypervisor.ISO{
+		{ID: "local:iso/debian-12.7.0-amd64-netinst.iso", Name: "debian-12.7.0-amd64-netinst.iso",
+			Zone: "lab-node-a", Storage: "local", SizeBytes: 663748608, CreatedAt: time.Now().Add(-90 * 24 * time.Hour).Unix()},
+		{ID: "local:iso/ubuntu-24.04.1-live-server-amd64.iso", Name: "ubuntu-24.04.1-live-server-amd64.iso",
+			Zone: "lab-node-a", Storage: "local", SizeBytes: 2754981888, CreatedAt: time.Now().Add(-30 * 24 * time.Hour).Unix()},
+	}, nil
+}
+
+func (d *Driver) Datastores(ctx context.Context) ([]hypervisor.Datastore, error) {
+	return []hypervisor.Datastore{
+		{ID: "lab-node-a/local", Name: "local", Zone: "lab-node-a", Type: "dir",
+			Content: "iso,vztmpl,backup", TotalBytes: 100 << 30, UsedBytes: 38 << 30, Active: true},
+		{ID: "lab-node-a/local-lvm", Name: "local-lvm", Zone: "lab-node-a", Type: "lvmthin",
+			Content: "images,rootdir", TotalBytes: 500 << 30, UsedBytes: 213 << 30, Active: true},
+		{ID: "lab-node-b/ssd-tank", Name: "ssd-tank", Zone: "lab-node-b", Type: "zfspool",
+			Content: "images,rootdir", TotalBytes: 2 << 40, UsedBytes: 700 << 30, Active: true, Shared: true},
+	}, nil
+}
+
 // --- hypervisor.ContainerDriver ---
 
 func (d *Driver) ListContainers(ctx context.Context) ([]hypervisor.InstanceState, error) {

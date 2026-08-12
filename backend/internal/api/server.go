@@ -56,6 +56,8 @@ func (s *Server) Router() http.Handler {
 		r.Get("/images", s.listImages)
 		r.Get("/disks", s.listDisks)
 		r.Get("/snapshots", s.listSnapshots)
+		r.Get("/isos", s.listISOs)
+		r.Get("/datastores", s.listDatastores)
 		r.Get("/machine-types", s.listMachineTypes)
 		r.Post("/machine-types", s.createMachineType)
 		r.Delete("/machine-types/{name}", s.deleteMachineType)
@@ -181,6 +183,47 @@ func (s *Server) listSnapshots(w http.ResponseWriter, r *http.Request) {
 		return int(b.CreatedAt - a.CreatedAt) // newest first
 	})
 	s.json(w, http.StatusOK, snapshots)
+}
+
+func (s *Server) listISOs(w http.ResponseWriter, r *http.Request) {
+	driver := s.serverDriver(w, r)
+	if driver == nil {
+		return
+	}
+	isos, err := driver.ISOs(r.Context())
+	if err != nil {
+		s.fail(w, err, "isos")
+		return
+	}
+	if isos == nil {
+		isos = []hypervisor.ISO{}
+	}
+	slices.SortFunc(isos, func(a, b hypervisor.ISO) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	s.json(w, http.StatusOK, isos)
+}
+
+func (s *Server) listDatastores(w http.ResponseWriter, r *http.Request) {
+	driver := s.serverDriver(w, r)
+	if driver == nil {
+		return
+	}
+	datastores, err := driver.Datastores(r.Context())
+	if err != nil {
+		s.fail(w, err, "datastores")
+		return
+	}
+	if datastores == nil {
+		datastores = []hypervisor.Datastore{}
+	}
+	slices.SortFunc(datastores, func(a, b hypervisor.Datastore) int {
+		if c := strings.Compare(a.Zone, b.Zone); c != 0 {
+			return c
+		}
+		return strings.Compare(a.Name, b.Name)
+	})
+	s.json(w, http.StatusOK, datastores)
 }
 
 // --- machine types ---

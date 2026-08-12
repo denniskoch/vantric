@@ -104,6 +104,27 @@ export interface Snapshot {
   includesRam: boolean
 }
 
+export interface ISO {
+  id: string
+  name: string
+  zone: string
+  storage: string
+  sizeBytes: number
+  createdAt: number
+}
+
+export interface Datastore {
+  id: string
+  name: string
+  zone: string
+  type: string
+  content: string
+  totalBytes: number
+  usedBytes: number
+  active: boolean
+  shared: boolean
+}
+
 export interface MachineType {
   name: string
   description: string
@@ -153,6 +174,9 @@ export const api = {
   listDisks: (serverId: string) => request<Disk[]>(`/disks?server=${serverId}`),
   listSnapshots: (serverId: string) =>
     request<Snapshot[]>(`/snapshots?server=${serverId}`),
+  listISOs: (serverId: string) => request<ISO[]>(`/isos?server=${serverId}`),
+  listDatastores: (serverId: string) =>
+    request<Datastore[]>(`/datastores?server=${serverId}`),
 
   listServers: () => request<Server[]>('/servers'),
   createServer: (body: ServerRequest) =>

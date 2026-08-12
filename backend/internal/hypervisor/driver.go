@@ -46,6 +46,30 @@ type Disk struct {
 	SizeGB  int    `json:"sizeGb"`
 }
 
+// ISO is an installer/media image available on a datastore.
+type ISO struct {
+	ID        string `json:"id"` // volume ID, e.g. "local:iso/debian-12.iso"
+	Name      string `json:"name"`
+	Zone      string `json:"zone"`
+	Storage   string `json:"storage"`
+	SizeBytes int64  `json:"sizeBytes"`
+	// CreatedAt is unix seconds; 0 when unknown.
+	CreatedAt int64 `json:"createdAt"`
+}
+
+// Datastore is a storage pool VMs and media live on.
+type Datastore struct {
+	ID         string `json:"id"` // e.g. "pve1/local-lvm"
+	Name       string `json:"name"`
+	Zone       string `json:"zone"`
+	Type       string `json:"type"`    // lvmthin, zfspool, dir, nfs, ...
+	Content    string `json:"content"` // comma-separated content types
+	TotalBytes int64  `json:"totalBytes"`
+	UsedBytes  int64  `json:"usedBytes"`
+	Active     bool   `json:"active"`
+	Shared     bool   `json:"shared"`
+}
+
 // Snapshot is a point-in-time VM snapshot.
 type Snapshot struct {
 	ID          string `json:"id"` // driver-scoped, e.g. "101/pre-upgrade"
@@ -103,6 +127,8 @@ type Driver interface {
 	Images(ctx context.Context) ([]Image, error)
 	Disks(ctx context.Context) ([]Disk, error)
 	Snapshots(ctx context.Context) ([]Snapshot, error)
+	ISOs(ctx context.Context) ([]ISO, error)
+	Datastores(ctx context.Context) ([]Datastore, error)
 
 	// Create provisions an instance and returns its driver-specific ID.
 	// It should return quickly; provisioning continues asynchronously
