@@ -16,8 +16,8 @@ import {
   Typography,
 } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
-import CloudIcon from '@mui/icons-material/Cloud'
 import SearchIcon from '@mui/icons-material/Search'
+import logoLight from '../assets/brand/kochlabs-logo-light.svg'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { sections, sectionFor } from './nav'
@@ -58,9 +58,14 @@ export default function Shell() {
           <IconButton edge="start" onClick={() => setGlobalNavOpen(true)} size="small">
             <MenuIcon />
           </IconButton>
-          <CloudIcon sx={{ color: '#1a73e8' }} />
+          <Box
+            component="img"
+            src={logoLight}
+            alt="KochLabs"
+            sx={{ height: 18, display: 'block' }}
+          />
           <Typography variant="h6" sx={{ color: '#5f6368', fontWeight: 400, mr: 1 }}>
-            Lab Cloud
+            Cloud
           </Typography>
           <Box
             sx={{
