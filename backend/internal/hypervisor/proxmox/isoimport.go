@@ -36,36 +36,43 @@ func (d *Driver) DownloadISO(ctx context.Context, spec hypervisor.ISODownloadSpe
 	return upid, nil
 }
 
-// UploadISO streams content to the node as a multipart body. An
-// io.Pipe keeps memory flat regardless of image size.
+// multipartQuoteReplacer escapes the characters that would break a
+// Content-Disposition filename.
+var multipartQuoteReplacer = strings.NewReplacer(`\`, `\\`, `"`, `\"`, "\r", "", "\n", "")
+
+// UploadISO streams content to the node as a multipart body.
+//
+// The multipart envelope is assembled by hand rather than with
+// multipart.Writer so its exact byte length is known in advance:
+// pveproxy answers 501 to chunked transfer encoding, which is what Go
+// falls back to when a request body has no known length. Only the
+// envelope is built in memory — the image itself is streamed.
 func (d *Driver) UploadISO(ctx context.Context, spec hypervisor.ISOUploadSpec, content io.Reader) (string, error) {
-	pr, pw := io.Pipe()
-	mw := multipart.NewWriter(pw)
-	go func() {
-		err := func() error {
-			if err := mw.WriteField("content", "iso"); err != nil {
-				return err
-			}
-			part, err := mw.CreateFormFile("filename", spec.Filename)
-			if err != nil {
-				return err
-			}
-			if _, err := io.Copy(part, content); err != nil {
-				return err
-			}
-			return mw.Close()
-		}()
-		// Closing with the error surfaces it on the request side.
-		_ = pw.CloseWithError(err)
-	}()
+	if spec.SizeBytes <= 0 {
+		return "", fmt.Errorf("proxmox: upload needs the image size up front")
+	}
+	boundary := multipart.NewWriter(io.Discard).Boundary()
+	prologue := fmt.Sprintf(
+		"--%s\r\nContent-Disposition: form-data; name=\"content\"\r\n\r\niso\r\n"+
+			"--%s\r\nContent-Disposition: form-data; name=\"filename\"; filename=\"%s\"\r\n"+
+			"Content-Type: application/octet-stream\r\n\r\n",
+		boundary, boundary, multipartQuoteReplacer.Replace(spec.Filename))
+	epilogue := fmt.Sprintf("\r\n--%s--\r\n", boundary)
+
+	body := io.MultiReader(
+		strings.NewReader(prologue),
+		io.LimitReader(content, spec.SizeBytes),
+		strings.NewReader(epilogue),
+	)
 
 	path := fmt.Sprintf("/nodes/%s/storage/%s/upload", spec.Zone, spec.Storage)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, d.cfg.BaseURL+"/api2/json"+path, pr)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, d.cfg.BaseURL+"/api2/json"+path, body)
 	if err != nil {
 		return "", err
 	}
+	req.ContentLength = int64(len(prologue)) + spec.SizeBytes + int64(len(epilogue))
 	req.Header.Set("Authorization", "PVEAPIToken="+d.cfg.TokenID+"="+d.cfg.Secret)
-	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req.Header.Set("Content-Type", "multipart/form-data; boundary="+boundary)
 
 	resp, err := d.uploadClient.Do(req)
 	if err != nil {

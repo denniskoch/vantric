@@ -85,6 +85,9 @@ type ISOUploadSpec struct {
 	Zone     string
 	Storage  string
 	Filename string
+	// SizeBytes must be exact: Proxmox rejects chunked transfer
+	// encoding, so the upload needs a Content-Length up front.
+	SizeBytes int64
 }
 
 // TaskStatus is a long-running hypervisor operation (image import,

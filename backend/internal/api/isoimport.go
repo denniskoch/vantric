@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -120,12 +121,23 @@ func (s *Server) uploadISO(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, "filename must be a plain name ending in .iso or .img")
 		return
 	}
+	// The hypervisor needs an exact length up front, so refuse a body
+	// that didn't declare one rather than failing halfway through.
+	if r.ContentLength <= 0 {
+		s.err(w, http.StatusLengthRequired, "upload requires a Content-Length")
+		return
+	}
 	taskID, err := driver.UploadISO(r.Context(), hypervisor.ISOUploadSpec{
-		Zone:     zone,
-		Storage:  storage,
-		Filename: filename,
+		Zone:      zone,
+		Storage:   storage,
+		Filename:  filename,
+		SizeBytes: r.ContentLength,
 	}, r.Body)
 	if err != nil {
+		// Responding while the client is still sending makes proxies
+		// report a broken pipe instead of this error, so absorb what's
+		// left of the body first (bounded, in case it's enormous).
+		_, _ = io.CopyN(io.Discard, r.Body, 32<<20)
 		s.fail(w, err, "uploading image")
 		return
 	}
