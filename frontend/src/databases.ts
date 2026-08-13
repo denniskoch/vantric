@@ -26,7 +26,14 @@ export const sslModes = [
   { value: 'disable', label: 'Disable — never encrypt' },
 ]
 
+/** The account an admin normally connects as. */
+export const defaultUsers: Record<string, string> = {
+  postgres: 'postgres',
+  mysql: 'root',
+}
+
 export const engineDefaults = (engine: DatabaseEngine) => ({
   port: defaultPorts[engine] ?? 5432,
   database: defaultDatabase[engine] ?? '',
+  username: defaultUsers[engine] ?? '',
 })

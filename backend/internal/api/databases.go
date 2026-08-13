@@ -362,6 +362,7 @@ func (s *Server) createDatabaseUser(w http.ResponseWriter, r *http.Request) {
 	}
 	var req struct {
 		Name     string `json:"name"`
+		Host     string `json:"host"`
 		Password string `json:"password"`
 		CanLogin bool   `json:"canLogin"`
 		CreateDB bool   `json:"createDb"`
@@ -380,6 +381,7 @@ func (s *Server) createDatabaseUser(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := driver.CreateUser(r.Context(), database.UserSpec{
 		Name:     req.Name,
+		Host:     req.Host,
 		Password: req.Password,
 		CanLogin: req.CanLogin,
 		CreateDB: req.CreateDB,
@@ -411,7 +413,7 @@ func (s *Server) setDatabaseUserPassword(w http.ResponseWriter, r *http.Request)
 		s.err(w, http.StatusBadRequest, "not a valid user name")
 		return
 	}
-	if err := driver.SetPassword(r.Context(), name, req.Password); err != nil {
+	if err := driver.SetPassword(r.Context(), name, r.URL.Query().Get("host"), req.Password); err != nil {
 		s.fail(w, err, "setting password")
 		return
 	}
@@ -428,7 +430,7 @@ func (s *Server) dropDatabaseUser(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, "not a valid user name")
 		return
 	}
-	if err := driver.DropUser(r.Context(), name); err != nil {
+	if err := driver.DropUser(r.Context(), name, r.URL.Query().Get("host")); err != nil {
 		s.fail(w, err, "dropping user")
 		return
 	}

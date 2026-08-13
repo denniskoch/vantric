@@ -336,7 +336,7 @@ export interface DNSRecord {
   comment?: string
 }
 
-export type DatabaseEngine = 'postgres'
+export type DatabaseEngine = 'postgres' | 'mysql'
 
 export interface DatabaseServerInfo {
   version: string
@@ -398,6 +398,8 @@ export interface DatabaseUser {
   replication: boolean
   memberOf: string[] | null
   connectionLimit: number
+  /** Ships with the server (mysql.sys and friends) — not droppable. */
+  system: boolean
 }
 
 export interface DatabaseConnection {
@@ -635,21 +637,38 @@ export const api = {
     request<DatabaseUser[]>(`/database/servers/${serverId}/users`),
   createDatabaseUser: (
     serverId: string,
-    body: { name: string; password: string; canLogin: boolean; createDb: boolean },
+    body: {
+      name: string
+      host?: string
+      password: string
+      canLogin: boolean
+      createDb: boolean
+    },
   ) =>
     request<void>(`/database/servers/${serverId}/users`, {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  setDatabaseUserPassword: (serverId: string, name: string, password: string) =>
-    request<void>(`/database/servers/${serverId}/users/${encodeURIComponent(name)}/password`, {
-      method: 'PUT',
-      body: JSON.stringify({ password }),
-    }),
-  dropDatabaseUser: (serverId: string, name: string) =>
-    request<void>(`/database/servers/${serverId}/users/${encodeURIComponent(name)}`, {
-      method: 'DELETE',
-    }),
+  // host is MySQL's other half of a user identity; ignored elsewhere.
+  setDatabaseUserPassword: (
+    serverId: string,
+    name: string,
+    password: string,
+    host?: string,
+  ) =>
+    request<void>(
+      `/database/servers/${serverId}/users/${encodeURIComponent(name)}/password${
+        host ? `?host=${encodeURIComponent(host)}` : ''
+      }`,
+      { method: 'PUT', body: JSON.stringify({ password }) },
+    ),
+  dropDatabaseUser: (serverId: string, name: string, host?: string) =>
+    request<void>(
+      `/database/servers/${serverId}/users/${encodeURIComponent(name)}${
+        host ? `?host=${encodeURIComponent(host)}` : ''
+      }`,
+      { method: 'DELETE' },
+    ),
   listDatabaseConnections: (serverId: string) =>
     request<DatabaseConnection[]>(`/database/servers/${serverId}/connections`),
 

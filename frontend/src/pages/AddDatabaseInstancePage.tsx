@@ -119,9 +119,15 @@ function ConnectionForm({ editing }: { editing: DatabaseServer | null }) {
           onChange={(e) => {
             const type = e.target.value as DatabaseEngine
             const defaults = engineDefaults(type)
-            setForm({ ...form, type, port: defaults.port, database: defaults.database })
+            setForm({
+              ...form,
+              type,
+              port: defaults.port,
+              database: defaults.database,
+              username: defaults.username,
+            })
           }}
-          helperText="MySQL/MariaDB is planned; PostgreSQL is the engine supported today"
+          helperText="Picking one sets the usual port and admin database"
           fullWidth
         >
           {engines.map((engine) => (

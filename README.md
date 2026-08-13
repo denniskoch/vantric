@@ -6,6 +6,7 @@ your homelab hypervisor the way you'd manage Compute Engine instances.
 - **Backend**: Go — REST API, SQLite storage, pluggable hypervisor drivers
 - **Frontend**: React + TypeScript + MUI (Vite)
 - **Hypervisors**: Proxmox VE (via API token), plus a mock driver for development
+- **Databases**: PostgreSQL and MySQL/MariaDB servers you already run, connected read/write
 
 ## Quick start (Docker, no cluster needed)
 

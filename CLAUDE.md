@@ -77,7 +77,7 @@ Dockerfile).
   structured data and are list/delete only, not mangled through a text
   field.
 - Databases follow the same split again: `internal/database.Driver` is
-  the boundary (PostgreSQL first, MySQL/MariaDB next), servers are DB
+  the boundary (PostgreSQL and MySQL/MariaDB), servers are DB
   records with a write-only password, one live driver per record in
   `database.Registry`, and a factory maps engine → implementation.
   These are servers that ALREADY EXIST in the lab — the console
@@ -87,6 +87,11 @@ Dockerfile).
   DDL can't take bind parameters, so identifiers are checked against
   `identRe` in the API layer AND quoted by the driver; the engine's own
   databases are flagged `System` and refused for deletion.
+- The two engines disagree about identity and ownership, and the
+  interface carries both: a MySQL user is name@host (so DropUser and
+  SetPassword take a host, ignored by PostgreSQL) while a PostgreSQL
+  database has an owner (ignored by MySQL, which uses grants). The UI
+  branches on `server.type` for these two fields only.
 - Keep store SQL portable between SQLite and Postgres: TEXT ids, RFC3339
   TEXT timestamps, no engine-specific types. Postgres is planned, not wired.
 - Frontend talks only to `/api/v1` via `src/api/client.ts` (typed client);

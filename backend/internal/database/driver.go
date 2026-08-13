@@ -78,7 +78,10 @@ type DatabaseSpec struct {
 }
 
 type UserSpec struct {
-	Name     string
+	Name string
+	// Host is MySQL's other half of the identity; "%" (any host) when
+	// blank. Engines without it ignore the field.
+	Host     string
 	Password string
 	CanLogin bool
 	CreateDB bool
@@ -97,8 +100,10 @@ type Driver interface {
 	CreateDatabase(ctx context.Context, spec DatabaseSpec) error
 	DropDatabase(ctx context.Context, name string) error
 	CreateUser(ctx context.Context, spec UserSpec) error
-	DropUser(ctx context.Context, name string) error
-	SetPassword(ctx context.Context, name, password string) error
+	// Users are addressed by name and host, since MySQL identities are
+	// the pair; engines without hosts ignore the second argument.
+	DropUser(ctx context.Context, name, host string) error
+	SetPassword(ctx context.Context, name, host, password string) error
 	// Close releases the pool; called when a server is edited or
 	// removed, so connections don't leak.
 	Close()

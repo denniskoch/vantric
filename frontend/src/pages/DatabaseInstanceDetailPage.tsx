@@ -61,6 +61,7 @@ export default function DatabaseInstanceDetailPage() {
   const [droppingDatabase, setDroppingDatabase] = useState<Database | null>(null)
   const [newUser, setNewUser] = useState<{
     name: string
+    host: string
     password: string
     canLogin: boolean
     createDb: boolean
@@ -129,6 +130,7 @@ export default function DatabaseInstanceDetailPage() {
     mutationFn: () =>
       api.createDatabaseUser(id, {
         name: newUser!.name.trim(),
+        host: hostScoped ? newUser!.host.trim() || '%' : undefined,
         password: newUser!.password,
         canLogin: newUser!.canLogin,
         createDb: newUser!.createDb,
@@ -140,7 +142,7 @@ export default function DatabaseInstanceDetailPage() {
     onError,
   })
   const dropUser = useMutation({
-    mutationFn: (user: DatabaseUser) => api.dropDatabaseUser(id, user.name),
+    mutationFn: (user: DatabaseUser) => api.dropDatabaseUser(id, user.name, user.host),
     onSuccess: () => {
       setDroppingUser(null)
       refresh()
@@ -152,7 +154,12 @@ export default function DatabaseInstanceDetailPage() {
   })
   const setPassword = useMutation({
     mutationFn: () =>
-      api.setDatabaseUserPassword(id, passwordFor!.user.name, passwordFor!.password),
+      api.setDatabaseUserPassword(
+        id,
+        passwordFor!.user.name,
+        passwordFor!.password,
+        passwordFor!.user.host,
+      ),
     onSuccess: () => setPasswordFor(null),
     onError,
   })
@@ -187,6 +194,10 @@ export default function DatabaseInstanceDetailPage() {
   }
 
   const connected = server.status === 'connected'
+  // MySQL identities are user@host and its databases have no owner;
+  // PostgreSQL is the other way round.
+  const hostScoped = server.type === 'mysql'
+  const hasOwners = server.type === 'postgres'
   const newDatabaseError = newDatabase ? identifierError(newDatabase.name) : null
   const newUserError = newUser ? identifierError(newUser.name) : null
 
@@ -321,7 +332,7 @@ export default function DatabaseInstanceDetailPage() {
                           />
                         )}
                       </TableCell>
-                      <TableCell>{db.owner}</TableCell>
+                      <TableCell>{db.owner || '—'}</TableCell>
                       <TableCell align="right">
                         {db.sizeBytes ? formatBytes(db.sizeBytes) : '—'}
                       </TableCell>
@@ -369,7 +380,13 @@ export default function DatabaseInstanceDetailPage() {
                 startIcon={<AddBoxIcon />}
                 disabled={!connected}
                 onClick={() =>
-                  setNewUser({ name: '', password: '', canLogin: true, createDb: false })
+                  setNewUser({
+                    name: '',
+                    host: '%',
+                    password: '',
+                    canLogin: true,
+                    createDb: false,
+                  })
                 }
               >
                 Create user
@@ -390,8 +407,11 @@ export default function DatabaseInstanceDetailPage() {
                 </TableHead>
                 <TableBody>
                   {users.map((user) => (
-                    <TableRow key={user.name} hover>
-                      <TableCell>{user.name}</TableCell>
+                    <TableRow key={`${user.name}@${user.host}`} hover>
+                      <TableCell>
+                        {user.name}
+                        {user.host && <Box component="span" sx={{ color: '#5f6368' }}>@{user.host}</Box>}
+                      </TableCell>
                       <TableCell>{yesNo(user.canLogin)}</TableCell>
                       <TableCell>{yesNo(user.superuser)}</TableCell>
                       <TableCell>{yesNo(user.createDb)}</TableCell>
@@ -492,6 +512,7 @@ export default function DatabaseInstanceDetailPage() {
           <KeyIcon fontSize="small" sx={{ mr: 1 }} /> Set password
         </MenuItem>
         <MenuItem
+          disabled={userMenu?.user.system}
           onClick={() => {
             setDroppingUser(userMenu?.user ?? null)
             setUserMenu(null)
@@ -500,6 +521,11 @@ export default function DatabaseInstanceDetailPage() {
         >
           <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Drop user
         </MenuItem>
+        {userMenu?.user.system && (
+          <Typography sx={{ fontSize: 12, color: '#5f6368', px: 2, py: 1, maxWidth: 260 }}>
+            The server ships with this account and uses it internally.
+          </Typography>
+        )}
       </Menu>
 
       {/* Create database */}
@@ -515,6 +541,7 @@ export default function DatabaseInstanceDetailPage() {
             helperText={newDatabaseError ?? 'Letters, digits, underscore or hyphen'}
             fullWidth
           />
+          {hasOwners && (
           <TextField
             label="Owner"
             size="small"
@@ -533,6 +560,7 @@ export default function DatabaseInstanceDetailPage() {
               </MenuItem>
             ))}
           </TextField>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setNewDatabase(null)}>Cancel</Button>
@@ -561,6 +589,16 @@ export default function DatabaseInstanceDetailPage() {
             helperText={newUserError ?? 'Letters, digits, underscore or hyphen'}
             fullWidth
           />
+          {hostScoped && (
+            <TextField
+              label="Host"
+              size="small"
+              value={newUser?.host ?? '%'}
+              onChange={(e) => setNewUser({ ...newUser!, host: e.target.value })}
+              helperText="Where this account may connect from. % means anywhere."
+              fullWidth
+            />
+          )}
           <TextField
             label="Password"
             size="small"

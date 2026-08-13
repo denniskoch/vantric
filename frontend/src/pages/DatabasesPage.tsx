@@ -75,7 +75,7 @@ export default function DatabasesPage() {
                     {serverName(db.serverId)}
                   </Link>
                 </TableCell>
-                <TableCell>{db.owner}</TableCell>
+                <TableCell>{db.owner || '—'}</TableCell>
                 <TableCell align="right">{db.sizeBytes ? formatBytes(db.sizeBytes) : '—'}</TableCell>
                 <TableCell>{db.encoding}</TableCell>
                 <TableCell align="right">{db.connections}</TableCell>

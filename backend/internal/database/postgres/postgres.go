@@ -244,14 +244,15 @@ func (d *Driver) CreateUser(ctx context.Context, spec database.UserSpec) error {
 	return nil
 }
 
-func (d *Driver) DropUser(ctx context.Context, name string) error {
+// Roles have no host in PostgreSQL; the argument is ignored.
+func (d *Driver) DropUser(ctx context.Context, name, _ string) error {
 	if _, err := d.pool.Exec(ctx, "DROP ROLE "+quote(name)); err != nil {
 		return fmt.Errorf("postgres: %w", err)
 	}
 	return nil
 }
 
-func (d *Driver) SetPassword(ctx context.Context, name, password string) error {
+func (d *Driver) SetPassword(ctx context.Context, name, _, password string) error {
 	stmt := "ALTER ROLE " + quote(name) + " PASSWORD " + quoteLiteral(password)
 	if _, err := d.pool.Exec(ctx, stmt); err != nil {
 		return fmt.Errorf("postgres: %w", err)
