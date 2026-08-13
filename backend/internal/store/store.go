@@ -84,6 +84,14 @@ var migrations = []string{
 		created_at TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	)`,
+	`CREATE TABLE IF NOT EXISTS dns_providers (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL UNIQUE,
+		type TEXT NOT NULL,
+		token TEXT NOT NULL DEFAULT '',
+		account_id TEXT NOT NULL DEFAULT '',
+		created_at TEXT NOT NULL
+	)`,
 	`CREATE TABLE IF NOT EXISTS machine_types (
 		name TEXT PRIMARY KEY,
 		description TEXT NOT NULL DEFAULT '',

@@ -14,6 +14,8 @@ import (
 
 	"lab-cloud-manager/internal/api"
 	"lab-cloud-manager/internal/config"
+	"lab-cloud-manager/internal/dns"
+	dnsfactory "lab-cloud-manager/internal/dns/factory"
 	"lab-cloud-manager/internal/hypervisor"
 	"lab-cloud-manager/internal/hypervisor/factory"
 	"lab-cloud-manager/internal/store"
@@ -46,8 +48,10 @@ func main() {
 
 	registry := hypervisor.NewRegistry()
 	loadRegistry(ctx, st, registry, log)
+	dnsRegistry := dns.NewRegistry()
+	loadDNSRegistry(ctx, st, dnsRegistry, log)
 
-	server := api.New(st, registry, log, cfg.StaticDir)
+	server := api.New(st, registry, dnsRegistry, log, cfg.StaticDir)
 	reconciler := api.NewReconciler(st, registry, log, 2*time.Second)
 	go reconciler.Run(ctx)
 
@@ -82,6 +86,25 @@ func loadRegistry(ctx context.Context, st *store.Store, registry *hypervisor.Reg
 		registry.Set(servers[i].ID, driver)
 	}
 	log.Info("hypervisor registry loaded", "servers", len(servers))
+}
+
+// loadDNSRegistry builds a live provider for every configured DNS
+// account.
+func loadDNSRegistry(ctx context.Context, st *store.Store, registry *dns.Registry, log *slog.Logger) {
+	providers, err := st.ListDNSProviders(ctx)
+	if err != nil {
+		log.Error("listing dns providers", "error", err)
+		return
+	}
+	for i := range providers {
+		provider, err := dnsfactory.Build(&providers[i])
+		if err != nil {
+			log.Error("building dns provider", "provider", providers[i].Name, "error", err)
+			continue
+		}
+		registry.Set(providers[i].ID, provider)
+	}
+	log.Info("dns registry loaded", "providers", len(providers))
 }
 
 // seedServerFromConfig registers an initial server on first run, driven

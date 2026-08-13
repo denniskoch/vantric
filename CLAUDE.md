@@ -60,6 +60,13 @@ Dockerfile).
   in-memory registry in internal/api/buildtemplate.go, because the
   sequence outlives its request. A build interrupted by a restart
   leaves a VM, not a template — it shows up in VM instances.
+- DNS mirrors the hypervisor split: `internal/dns.Provider` is the
+  boundary (Cloudflare first), providers are DB records with a
+  write-only token, one live provider per record in `dns.Registry`, and
+  a factory maps type → implementation. Zone listings span all
+  providers and stamp each zone with its `providerId`. Provider
+  credentials are verified against the API before being stored, so a
+  saved provider is known-good.
 - Keep store SQL portable between SQLite and Postgres: TEXT ids, RFC3339
   TEXT timestamps, no engine-specific types. Postgres is planned, not wired.
 - Frontend talks only to `/api/v1` via `src/api/client.ts` (typed client);

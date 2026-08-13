@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 
+	"lab-cloud-manager/internal/dns"
 	"lab-cloud-manager/internal/hypervisor"
 	"lab-cloud-manager/internal/store"
 )
@@ -20,16 +21,24 @@ import (
 var nameRe = regexp.MustCompile(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`)
 
 type Server struct {
-	store     *store.Store
-	registry  *hypervisor.Registry
-	log       *slog.Logger
-	staticDir string
-	builds    *buildRegistry
+	store       *store.Store
+	registry    *hypervisor.Registry
+	dnsRegistry *dns.Registry
+	log         *slog.Logger
+	staticDir   string
+	builds      *buildRegistry
 }
 
-func New(st *store.Store, registry *hypervisor.Registry, log *slog.Logger, staticDir string) *Server {
+func New(
+	st *store.Store,
+	registry *hypervisor.Registry,
+	dnsRegistry *dns.Registry,
+	log *slog.Logger,
+	staticDir string,
+) *Server {
 	return &Server{
-		store: st, registry: registry, log: log, staticDir: staticDir,
+		store: st, registry: registry, dnsRegistry: dnsRegistry,
+		log: log, staticDir: staticDir,
 		builds: newBuildRegistry(),
 	}
 }
@@ -70,6 +79,7 @@ func (s *Server) Router() http.Handler {
 		r.Delete("/servers/{id}", s.deleteServer)
 
 		s.containerRoutes(r)
+		s.dnsRoutes(r)
 
 		r.Get("/instances", s.listInstances)
 		r.Post("/instances", s.createInstance)

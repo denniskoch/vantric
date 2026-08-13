@@ -17,6 +17,8 @@ import ArchiveIcon from '@mui/icons-material/Archive'
 import DatasetIcon from '@mui/icons-material/Dataset'
 import ViewInArIcon from '@mui/icons-material/ViewInAr'
 import TravelExploreIcon from '@mui/icons-material/TravelExplore'
+import PublicIcon from '@mui/icons-material/Public'
+import VpnKeyIcon from '@mui/icons-material/VpnKey'
 
 export interface SectionItem {
   label: string
@@ -169,7 +171,30 @@ export const sections: Section[] = [
     prefix: '/dns',
     home: '/dns/overview',
     items: [{ label: 'Overview', icon: DashboardIcon, to: '/dns/overview' }],
-    groups: [],
+    groups: [
+      {
+        label: 'Zones',
+        items: [
+          {
+            label: 'Zones',
+            icon: PublicIcon,
+            to: '/dns/zones',
+            hint: 'Domains managed through your DNS providers',
+          },
+        ],
+      },
+      {
+        label: 'Settings',
+        items: [
+          {
+            label: 'Providers',
+            icon: VpnKeyIcon,
+            to: '/dns/providers',
+            hint: 'DNS accounts this console manages zones through',
+          },
+        ],
+      },
+    ],
     description: 'Internal name resolution for lab services.',
   },
 ]

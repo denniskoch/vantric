@@ -285,6 +285,46 @@ export interface ISODownloadRequest {
   verifyCertificates: boolean
 }
 
+export type DNSProviderType = 'cloudflare'
+
+export interface DNSProvider {
+  id: string
+  name: string
+  type: DNSProviderType
+  accountId: string
+  hasToken: boolean
+  status: 'connected' | 'unreachable' | 'unknown'
+  zones: number
+  error?: string
+  createdAt: string
+}
+
+export interface DNSProviderRequest {
+  name: string
+  type: DNSProviderType
+  token: string
+  accountId: string
+}
+
+export interface DNSAccount {
+  id: string
+  name: string
+}
+
+export interface DNSZone {
+  providerId: string
+  id: string
+  name: string
+  status: string
+  nameservers: string[] | null
+  accountId: string
+  accountName: string
+  type: string
+  paused: boolean
+  records: number
+  createdAt: number
+}
+
 export interface MachineType {
   name: string
   description: string
@@ -474,6 +514,24 @@ export const api = {
     }),
   deleteMachineType: (name: string) =>
     request<void>(`/machine-types/${name}`, { method: 'DELETE' }),
+
+  listDNSProviders: () => request<DNSProvider[]>('/dns/providers'),
+  createDNSProvider: (body: DNSProviderRequest) =>
+    request<DNSProvider>('/dns/providers', { method: 'POST', body: JSON.stringify(body) }),
+  updateDNSProvider: (id: string, body: DNSProviderRequest) =>
+    request<DNSProvider>(`/dns/providers/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteDNSProvider: (id: string) =>
+    request<void>(`/dns/providers/${id}`, { method: 'DELETE' }),
+  listDNSAccounts: (providerId: string) =>
+    request<DNSAccount[]>(`/dns/accounts?provider=${providerId}`),
+  listDNSZones: () => request<DNSZone[]>('/dns/zones'),
+  createDNSZone: (providerId: string, body: { name: string; accountId?: string; type?: string }) =>
+    request<DNSZone>(`/dns/zones?provider=${providerId}`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  deleteDNSZone: (providerId: string, zoneId: string) =>
+    request<void>(`/dns/zones/${zoneId}?provider=${providerId}`, { method: 'DELETE' }),
 
   listInstances: () => request<Instance[]>('/instances'),
   getInstance: (name: string) => request<Instance>(`/instances/${name}/`),
