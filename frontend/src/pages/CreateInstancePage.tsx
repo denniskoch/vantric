@@ -67,6 +67,11 @@ export default function CreateInstancePage() {
     queryFn: () => api.listImages(serverId),
     enabled: Boolean(serverId),
   })
+  const { data: bridges = [] } = useQuery({ queryKey: ['bridges'], queryFn: api.listBridges })
+
+  // Bridges are per-node, so only the chosen zone's are attachable.
+  const zoneBridges = bridges.filter((b) => b.serverId === serverId && b.zone === zone)
+  const bridge = zoneBridges.find((b) => b.name === netBridge)
 
   const connected = servers.filter((s) => s.status === 'connected')
   if (!serverId && connected.length > 0) {
@@ -329,20 +334,41 @@ export default function CreateInstancePage() {
               <TextField
                 label="Bridge"
                 size="small"
+                select
                 value={netBridge}
                 onChange={(e) => setNetBridge(e.target.value)}
-                placeholder="vmbr0"
-                helperText="Hypervisor network bridge for the primary interface"
-                sx={{ maxWidth: 320 }}
-              />
+                disabled={!zone}
+                helperText={
+                  !zone
+                    ? 'Pick a zone first (Machine configuration)'
+                    : zoneBridges.length === 0
+                      ? 'No bridges reported on this node'
+                      : "Leave blank to keep the image's own network"
+                }
+                sx={{ maxWidth: 420 }}
+              >
+                <MenuItem value="">
+                  <em>Image default</em>
+                </MenuItem>
+                {zoneBridges.map((b) => (
+                  <MenuItem key={b.name} value={b.name}>
+                    {b.name}
+                    {b.comment ? ` — ${b.comment}` : ''}
+                  </MenuItem>
+                ))}
+              </TextField>
               <TextField
                 label="VLAN tag"
                 size="small"
                 type="number"
                 value={vlanTag || ''}
                 onChange={(e) => setVlanTag(Number(e.target.value) || 0)}
-                disabled={!netBridge}
-                helperText="Optional 802.1Q VLAN tag"
+                disabled={!netBridge || !bridge?.vlanAware}
+                helperText={
+                  netBridge && bridge && !bridge.vlanAware
+                    ? `${bridge.name} is not VLAN aware`
+                    : 'Optional 802.1Q VLAN tag'
+                }
                 slotProps={{ htmlInput: { min: 1, max: 4094 } }}
                 sx={{ maxWidth: 220 }}
               />

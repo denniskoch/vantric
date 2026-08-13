@@ -240,6 +240,17 @@ export interface TemplateBuild {
   startedAt: string
 }
 
+export interface Bridge {
+  serverId: string
+  name: string
+  zone: string
+  cidr: string
+  comment: string
+  active: boolean
+  vlanAware: boolean
+  ports: string
+}
+
 export interface Datastore {
   serverId: string
   id: string
@@ -318,6 +329,7 @@ export const api = {
   // Catalog listings span every server; pass a server id to narrow
   // (the create flows do, since placement is per-server).
   listZones: (serverId: string) => request<Zone[]>(`/zones?server=${serverId}`),
+  listBridges: () => request<Bridge[]>('/bridges'),
   listImages: (serverId?: string) =>
     request<Image[]>(serverId ? `/images?server=${serverId}` : '/images'),
   listDisks: () => request<Disk[]>('/disks'),

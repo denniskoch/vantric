@@ -40,6 +40,7 @@ func (s *Server) Router() http.Handler {
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/zones", s.listZones)
+		r.Get("/bridges", s.listBridges)
 		r.Get("/images", s.listImages)
 		r.Get("/disks", s.listDisks)
 		r.Get("/snapshots", s.listSnapshots)

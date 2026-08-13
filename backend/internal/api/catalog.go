@@ -64,6 +64,25 @@ func (s *Server) listZones(w http.ResponseWriter, r *http.Request) {
 	s.json(w, http.StatusOK, zones)
 }
 
+func (s *Server) listBridges(w http.ResponseWriter, r *http.Request) {
+	bridges, err := listAcrossServers(s, r,
+		func(ctx context.Context, d hypervisor.Driver) ([]hypervisor.Bridge, error) {
+			return d.Bridges(ctx)
+		},
+		func(b *hypervisor.Bridge, id string) { b.ServerID = id })
+	if err != nil {
+		s.fail(w, err, "bridges")
+		return
+	}
+	slices.SortFunc(bridges, func(a, b hypervisor.Bridge) int {
+		if c := strings.Compare(a.Zone, b.Zone); c != 0 {
+			return c
+		}
+		return strings.Compare(a.Name, b.Name)
+	})
+	s.json(w, http.StatusOK, bridges)
+}
+
 func (s *Server) listImages(w http.ResponseWriter, r *http.Request) {
 	images, err := listAcrossServers(s, r,
 		func(ctx context.Context, d hypervisor.Driver) ([]hypervisor.Image, error) {

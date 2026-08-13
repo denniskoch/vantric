@@ -100,6 +100,15 @@ func (d *Driver) Images(ctx context.Context) ([]hypervisor.Image, error) {
 	return append([]hypervisor.Image{}, d.images...), nil
 }
 
+func (d *Driver) Bridges(ctx context.Context) ([]hypervisor.Bridge, error) {
+	return []hypervisor.Bridge{
+		{Name: "vmbr0", Zone: "lab-node-a", CIDR: "10.20.0.2/24", Comment: "lab LAN",
+			Active: true, VLANAware: true, Ports: "eno1"},
+		{Name: "vmbr1", Zone: "lab-node-a", Comment: "isolated", Active: true},
+		{Name: "vmbr0", Zone: "lab-node-b", CIDR: "10.20.0.3/24", Active: true, VLANAware: true, Ports: "eno1"},
+	}, nil
+}
+
 func (d *Driver) CloudImages(ctx context.Context) ([]hypervisor.CloudImage, error) {
 	return []hypervisor.CloudImage{
 		{ID: "local:import/debian-13-genericcloud-amd64.qcow2", Name: "debian-13-genericcloud-amd64.qcow2",

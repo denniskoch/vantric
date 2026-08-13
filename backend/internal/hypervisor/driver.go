@@ -116,6 +116,20 @@ type TaskStatus struct {
 // tarball) that containers are provisioned from.
 type CTTemplate = Volume
 
+// Bridge is a network bridge a NIC can attach to. Bridges are per-node.
+type Bridge struct {
+	// ServerID is filled in by the API layer, not the driver.
+	ServerID string `json:"serverId"`
+	Name     string `json:"name"` // vmbr0
+	Zone     string `json:"zone"`
+	// CIDR is the bridge's own address, when it has one.
+	CIDR      string `json:"cidr"`
+	Comment   string `json:"comment"`
+	Active    bool   `json:"active"`
+	VLANAware bool   `json:"vlanAware"`
+	Ports     string `json:"ports"`
+}
+
 // Datastore is a storage pool VMs and media live on.
 type Datastore struct {
 	// ServerID is filled in by the API layer, not the driver.
@@ -331,6 +345,8 @@ type Driver interface {
 	// template) by volume id. taskID may be empty when the backend
 	// deletes synchronously.
 	DeleteVolume(ctx context.Context, zone, volumeID string) (taskID string, err error)
+	// Bridges lists the network bridges instances can attach to.
+	Bridges(ctx context.Context) ([]Bridge, error)
 	// CloudImages lists disk images available to build templates from.
 	CloudImages(ctx context.Context) ([]CloudImage, error)
 	// BuildTemplate creates a VM from a cloud image and converts it to a

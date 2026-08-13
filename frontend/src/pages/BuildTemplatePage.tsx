@@ -51,7 +51,7 @@ export default function BuildTemplatePage() {
   // Hardware
   const [bios, setBios] = useState('seabios')
   const [machineType, setMachineType] = useState('q35')
-  const [netBridge, setNetBridge] = useState('vmbr0')
+  const [netBridge, setNetBridge] = useState('')
   const [vlanTag, setVlanTag] = useState(0)
   const [enableAgent, setEnableAgent] = useState(true)
 
@@ -66,6 +66,7 @@ export default function BuildTemplatePage() {
     queryKey: ['datastores'],
     queryFn: api.listDatastores,
   })
+  const { data: bridges = [] } = useQuery({ queryKey: ['bridges'], queryFn: api.listBridges })
 
   const connected = servers.filter((s) => s.status === 'connected')
   if (!serverId && connected.length > 0) setServerId(connected[0].id)
@@ -73,6 +74,11 @@ export default function BuildTemplatePage() {
   const images = cloudImages.filter((i) => i.serverId === serverId)
   const image = images.find((i) => i.id === sourceVolume)
   // Disk storage must accept VM images and live on the image's node.
+  // Bridges live on the image's node.
+  const zoneBridges = bridges.filter(
+    (b) => b.serverId === serverId && (!image || b.zone === image.zone),
+  )
+  const bridge = zoneBridges.find((b) => b.name === netBridge)
   const diskTargets = datastores.filter(
     (d) =>
       d.serverId === serverId &&
@@ -137,7 +143,7 @@ export default function BuildTemplatePage() {
     {
       id: 'hardware',
       label: 'Hardware',
-      summary: `${bios}, ${machineType}${netBridge ? `, ${netBridge}` : ''}`,
+      summary: `${bios}, ${machineType}, ${netBridge || 'no network'}`,
     },
   ]
 
@@ -446,17 +452,38 @@ export default function BuildTemplatePage() {
                 <TextField
                   label="Bridge"
                   size="small"
+                  select
                   value={netBridge}
                   onChange={(e) => setNetBridge(e.target.value)}
-                  helperText="Blank leaves the template without a NIC"
-                />
+                  helperText={
+                    zoneBridges.length === 0
+                      ? 'No bridges reported on this node'
+                      : 'Blank leaves the template without a NIC'
+                  }
+                  sx={{ minWidth: 300 }}
+                >
+                  <MenuItem value="">
+                    <em>No network</em>
+                  </MenuItem>
+                  {zoneBridges.map((b) => (
+                    <MenuItem key={b.name} value={b.name}>
+                      {b.name}
+                      {b.comment ? ` — ${b.comment}` : ''}
+                    </MenuItem>
+                  ))}
+                </TextField>
                 <TextField
                   label="VLAN tag"
                   size="small"
                   type="number"
                   value={vlanTag || ''}
                   onChange={(e) => setVlanTag(Number(e.target.value) || 0)}
-                  disabled={!netBridge}
+                  disabled={!netBridge || !bridge?.vlanAware}
+                  helperText={
+                    netBridge && bridge && !bridge.vlanAware
+                      ? `${bridge.name} is not VLAN aware`
+                      : ' '
+                  }
                   slotProps={{ htmlInput: { min: 1, max: 4094 } }}
                 />
               </Box>
