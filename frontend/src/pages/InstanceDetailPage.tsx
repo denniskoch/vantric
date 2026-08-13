@@ -400,6 +400,14 @@ export default function InstanceDetailPage() {
               <DetailTable
                 rows={[
                   { label: 'Cloud-init user', value: detail?.cloudInitUser || '—' },
+                  { label: 'IP configuration', value: detail?.ipConfig || 'image default' },
+                  { label: 'Nameservers', value: detail?.nameservers || 'host default' },
+                  { label: 'Search domain', value: detail?.searchDomain || 'host default' },
+                  {
+                    label: 'Upgrade packages on boot',
+                    value: detail?.upgradePackages ? 'Yes' : 'No',
+                  },
+                  { label: 'Datasource format', value: detail?.datasource || 'default' },
                   {
                     label: 'SSH keys',
                     value: detail?.sshKeys?.length ? (

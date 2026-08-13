@@ -19,7 +19,9 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CircleIcon from '@mui/icons-material/Circle'
 import ErrorIcon from '@mui/icons-material/Error'
-import { api } from '../api/client'
+import { api, emptyCloudInit } from '../api/client'
+import type { CloudInitConfig } from '../api/client'
+import CloudInitFields from '../components/CloudInitFields'
 
 // GCP-style sectioned create flow: a left stepper with per-section
 // summaries and a persistent Create/Cancel bar.
@@ -45,9 +47,8 @@ export default function CreateInstancePage() {
   // Networking
   const [netBridge, setNetBridge] = useState('')
   const [vlanTag, setVlanTag] = useState(0)
-  // Security
-  const [cloudInitUser, setCloudInitUser] = useState('')
-  const [sshKeys, setSshKeys] = useState('')
+  // Security (cloud-init)
+  const [cloudInit, setCloudInit] = useState<CloudInitConfig>(emptyCloudInit)
   // Advanced
   const [description, setDescription] = useState('')
   const [protection, setProtection] = useState(false)
@@ -97,8 +98,7 @@ export default function CreateInstancePage() {
         imageId,
         netBridge: netBridge || undefined,
         vlanTag: vlanTag || undefined,
-        cloudInitUser: cloudInitUser || undefined,
-        sshKeys: sshKeys || undefined,
+        cloudInit,
         description: description || undefined,
         protected: protection,
       }),
@@ -143,7 +143,13 @@ export default function CreateInstancePage() {
     {
       id: 'security',
       label: 'Security',
-      summary: sshKeys.trim() ? 'SSH keys configured' : 'VM access',
+      summary: [
+        cloudInit.user || 'default user',
+        cloudInit.dhcp ? 'DHCP' : cloudInit.address || 'static',
+        cloudInit.sshKeys.trim() ? 'SSH keys' : null,
+      ]
+        .filter(Boolean)
+        .join(', '),
     },
     {
       id: 'advanced',
@@ -377,29 +383,12 @@ export default function CreateInstancePage() {
 
           {section === 'security' && (
             <>
-              <Typography variant="h6">Security</Typography>
+              <Typography variant="h6">Security and access</Typography>
               <Typography variant="body2" color="text.secondary">
-                VM access via cloud-init. Requires a cloud-init enabled image.
+                Applied by cloud-init on first boot. Requires a cloud-init enabled
+                image — the templates built by the wizard are.
               </Typography>
-              <TextField
-                label="Login user"
-                size="small"
-                value={cloudInitUser}
-                onChange={(e) => setCloudInitUser(e.target.value)}
-                helperText="Leave blank to keep the image default"
-                sx={{ maxWidth: 320 }}
-              />
-              <TextField
-                label="SSH public keys"
-                size="small"
-                multiline
-                minRows={4}
-                value={sshKeys}
-                onChange={(e) => setSshKeys(e.target.value)}
-                placeholder="ssh-ed25519 AAAA... user@host"
-                helperText="One key per line, added to the login user's authorized keys"
-                fullWidth
-              />
+              <CloudInitFields value={cloudInit} onChange={setCloudInit} />
             </>
           )}
 

@@ -123,6 +123,19 @@ Base path `/api/v1`:
 Projects (GCP-style resource grouping) were dropped pre-ship and may
 return as a post-ship enhancement.
 
+## Cloud-init
+
+Instances and templates configure guests through Proxmox's cloud-init
+support: login user and password, SSH keys, IPv4/IPv6 addressing
+(DHCP, SLAAC or static), nameservers and search domain, package
+upgrade on first boot, and the datasource format (NoCloud or
+ConfigDrive 2). Blank fields leave the image's own defaults alone.
+
+Arbitrary user-data YAML (`cicustom`) is deliberately not supported:
+it needs a datastore with `snippets` content, and the Proxmox REST API
+can't write snippet files — only SSH can, which is a much broader
+credential than the scoped API token this app uses.
+
 ## Ideas for later
 
 - **osquery**: run osquery on guests and surface it in the console, so

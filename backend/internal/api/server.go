@@ -263,20 +263,19 @@ func (s *Server) instanceOSInfo(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name          string `json:"name"`
-		ServerID      string `json:"serverId"`
-		Zone          string `json:"zone"`
-		MachineType   string `json:"machineType"`
-		CPUs          int    `json:"cpus"`
-		MemoryMB      int    `json:"memoryMb"`
-		DiskGB        int    `json:"diskGb"`
-		ImageID       string `json:"imageId"`
-		NetBridge     string `json:"netBridge"`
-		VLANTag       int    `json:"vlanTag"`
-		CloudInitUser string `json:"cloudInitUser"`
-		SSHKeys       string `json:"sshKeys"`
-		Description   string `json:"description"`
-		Protected     bool   `json:"protected"`
+		Name        string           `json:"name"`
+		ServerID    string           `json:"serverId"`
+		Zone        string           `json:"zone"`
+		MachineType string           `json:"machineType"`
+		CPUs        int              `json:"cpus"`
+		MemoryMB    int              `json:"memoryMb"`
+		DiskGB      int              `json:"diskGb"`
+		ImageID     string           `json:"imageId"`
+		NetBridge   string           `json:"netBridge"`
+		VLANTag     int              `json:"vlanTag"`
+		CloudInit   cloudInitRequest `json:"cloudInit"`
+		Description string           `json:"description"`
+		Protected   bool             `json:"protected"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		s.err(w, http.StatusBadRequest, "invalid JSON body")
@@ -320,6 +319,12 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cloudInit, err := req.CloudInit.toCloudInit()
+	if err != nil {
+		s.err(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	driverID, err := driver.Create(r.Context(), hypervisor.InstanceSpec{
 		Name:          req.Name,
 		Zone:          req.Zone,
@@ -329,8 +334,7 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		ImageID:       req.ImageID,
 		NetworkBridge: req.NetBridge,
 		VLANTag:       req.VLANTag,
-		CloudInitUser: req.CloudInitUser,
-		SSHKeys:       req.SSHKeys,
+		CloudInit:     cloudInit,
 		Description:   req.Description,
 	})
 	if err != nil {

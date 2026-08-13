@@ -30,14 +30,14 @@ func (d *Driver) rrdData(ctx context.Context, base string, timeframe hypervisor.
 		timeframe = hypervisor.TimeframeHour
 	}
 	var rows []struct {
-		Time       int64   `json:"time"`
-		CPU        float64 `json:"cpu"` // fraction 0..1
-		Mem        float64 `json:"mem"`
-		MaxMem     float64 `json:"maxmem"`
-		DiskRead   float64 `json:"diskread"`
-		DiskWrite  float64 `json:"diskwrite"`
-		NetIn      float64 `json:"netin"`
-		NetOut     float64 `json:"netout"`
+		Time      int64   `json:"time"`
+		CPU       float64 `json:"cpu"` // fraction 0..1
+		Mem       float64 `json:"mem"`
+		MaxMem    float64 `json:"maxmem"`
+		DiskRead  float64 `json:"diskread"`
+		DiskWrite float64 `json:"diskwrite"`
+		NetIn     float64 `json:"netin"`
+		NetOut    float64 `json:"netout"`
 	}
 	path := fmt.Sprintf("%s?timeframe=%s&cf=AVERAGE", base, timeframe)
 	if err := d.do(ctx, http.MethodGet, path, nil, &rows); err != nil {

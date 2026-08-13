@@ -171,22 +171,20 @@ func (s *Server) buildTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 	serverID := r.URL.Query().Get("server")
 	var req struct {
-		Name          string `json:"name"`
-		Zone          string `json:"zone"`
-		SourceVolume  string `json:"sourceVolume"`
-		DiskStorage   string `json:"diskStorage"`
-		DiskGB        int    `json:"diskGb"`
-		CPUs          int    `json:"cpus"`
-		MemoryMB      int    `json:"memoryMb"`
-		NetworkBridge string `json:"netBridge"`
-		VLANTag       int    `json:"vlanTag"`
-		CloudInitUser string `json:"cloudInitUser"`
-		SSHKeys       string `json:"sshKeys"`
-		IPConfig      string `json:"ipConfig"`
-		BIOS          string `json:"bios"`
-		MachineType   string `json:"machineType"`
-		EnableAgent   bool   `json:"enableAgent"`
-		Description   string `json:"description"`
+		Name          string           `json:"name"`
+		Zone          string           `json:"zone"`
+		SourceVolume  string           `json:"sourceVolume"`
+		DiskStorage   string           `json:"diskStorage"`
+		DiskGB        int              `json:"diskGb"`
+		CPUs          int              `json:"cpus"`
+		MemoryMB      int              `json:"memoryMb"`
+		NetworkBridge string           `json:"netBridge"`
+		VLANTag       int              `json:"vlanTag"`
+		CloudInit     cloudInitRequest `json:"cloudInit"`
+		BIOS          string           `json:"bios"`
+		MachineType   string           `json:"machineType"`
+		EnableAgent   bool             `json:"enableAgent"`
+		Description   string           `json:"description"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		s.err(w, http.StatusBadRequest, "invalid JSON body")
@@ -213,6 +211,12 @@ func (s *Server) buildTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cloudInit, err := req.CloudInit.toCloudInit()
+	if err != nil {
+		s.err(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	spec := hypervisor.TemplateSpec{
 		Name:          req.Name,
 		Zone:          req.Zone,
@@ -223,9 +227,7 @@ func (s *Server) buildTemplate(w http.ResponseWriter, r *http.Request) {
 		MemoryMB:      req.MemoryMB,
 		NetworkBridge: req.NetworkBridge,
 		VLANTag:       req.VLANTag,
-		CloudInitUser: req.CloudInitUser,
-		SSHKeys:       req.SSHKeys,
-		IPConfig:      req.IPConfig,
+		CloudInit:     cloudInit,
 		BIOS:          req.BIOS,
 		MachineType:   req.MachineType,
 		EnableAgent:   req.EnableAgent,

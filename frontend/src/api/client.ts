@@ -86,6 +86,11 @@ export interface InstanceDetail {
   uptimeSeconds: number
   cloudInitUser: string
   sshKeys: string[] | null
+  nameservers: string
+  searchDomain: string
+  upgradePackages: boolean
+  datasource: string
+  ipConfig: string
   nics: NIC[] | null
   disks: AttachedDisk[] | null
   devices: Device[] | null
@@ -219,9 +224,7 @@ export interface TemplateBuildRequest {
   memoryMb: number
   netBridge?: string
   vlanTag?: number
-  cloudInitUser?: string
-  sshKeys?: string
-  ipConfig?: string
+  cloudInit: CloudInitConfig
   bios?: string
   machineType?: string
   enableAgent: boolean
@@ -289,6 +292,39 @@ export interface MachineType {
   memoryMb: number
 }
 
+/** Guest configuration handed to cloud-init. */
+export interface CloudInitConfig {
+  user: string
+  password: string
+  sshKeys: string
+  nameservers: string
+  searchDomain: string
+  upgradePackages: boolean
+  datasource: string
+  dhcp: boolean
+  address: string
+  gateway: string
+  ipv6Mode: 'none' | 'dhcp' | 'slaac' | 'static'
+  address6: string
+  gateway6: string
+}
+
+export const emptyCloudInit: CloudInitConfig = {
+  user: '',
+  password: '',
+  sshKeys: '',
+  nameservers: '',
+  searchDomain: '',
+  upgradePackages: false,
+  datasource: '',
+  dhcp: true,
+  address: '',
+  gateway: '',
+  ipv6Mode: 'none',
+  address6: '',
+  gateway6: '',
+}
+
 export interface CreateInstanceRequest {
   name: string
   serverId: string
@@ -300,8 +336,7 @@ export interface CreateInstanceRequest {
   imageId: string
   netBridge?: string
   vlanTag?: number
-  cloudInitUser?: string
-  sshKeys?: string
+  cloudInit: CloudInitConfig
   description?: string
   protected?: boolean
 }

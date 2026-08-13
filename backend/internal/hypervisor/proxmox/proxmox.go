@@ -111,11 +111,11 @@ func (d *Driver) Zones(ctx context.Context) ([]hypervisor.Zone, error) {
 }
 
 type clusterVM struct {
-	VMID     int     `json:"vmid"`
-	Name     string  `json:"name"`
-	Node     string  `json:"node"`
-	Status   string  `json:"status"`
-	Template int     `json:"template"`
+	VMID     int    `json:"vmid"`
+	Name     string `json:"name"`
+	Node     string `json:"node"`
+	Status   string `json:"status"`
+	Template int    `json:"template"`
 	// Type distinguishes "qemu" VMs from "lxc" containers; the
 	// cluster/resources?type=vm endpoint returns BOTH.
 	Type    string  `json:"type"`
@@ -221,14 +221,7 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 		}
 		cfg.Set("net0", net0)
 	}
-	if spec.CloudInitUser != "" {
-		cfg.Set("ciuser", spec.CloudInitUser)
-	}
-	if keys := strings.TrimSpace(spec.SSHKeys); keys != "" {
-		// Proxmox expects the sshkeys value itself URL-encoded (it is
-		// then form-encoded again on the wire).
-		cfg.Set("sshkeys", url.QueryEscape(keys))
-	}
+	applyCloudInit(cfg, spec.CloudInit)
 	cfgPath := fmt.Sprintf("/nodes/%s/qemu/%s/config", spec.Zone, nextID)
 	if err := d.do(ctx, http.MethodPost, cfgPath, cfg, nil); err != nil {
 		return nextID, nil // instance exists; config can be fixed manually

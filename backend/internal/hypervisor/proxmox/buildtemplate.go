@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"lab-cloud-manager/internal/hypervisor"
@@ -117,15 +116,7 @@ func (d *Driver) BuildTemplate(ctx context.Context, spec hypervisor.TemplateSpec
 		// UEFI needs somewhere to keep its variables.
 		form.Set("efidisk0", fmt.Sprintf("%s:0,efitype=4m,pre-enrolled-keys=0", spec.DiskStorage))
 	}
-	if spec.CloudInitUser != "" {
-		form.Set("ciuser", spec.CloudInitUser)
-	}
-	if keys := strings.TrimSpace(spec.SSHKeys); keys != "" {
-		form.Set("sshkeys", url.QueryEscape(keys))
-	}
-	if spec.IPConfig != "" {
-		form.Set("ipconfig0", spec.IPConfig)
-	}
+	applyCloudInit(form, spec.CloudInit)
 	if spec.Description != "" {
 		form.Set("description", spec.Description)
 	}

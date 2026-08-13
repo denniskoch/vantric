@@ -163,6 +163,38 @@ type Snapshot struct {
 	IncludesRAM bool `json:"includesRam"`
 }
 
+// IPConfig is one NIC's cloud-init addressing. It stays structured
+// here; drivers format it in their own syntax.
+type IPConfig struct {
+	DHCP    bool
+	Address string // CIDR, e.g. 192.168.1.50/24
+	Gateway string
+	// DHCP6, SLAAC and Address6 are mutually exclusive; SLAAC means
+	// "derive from router advertisements".
+	DHCP6    bool
+	SLAAC    bool
+	Address6 string
+	Gateway6 string
+}
+
+// CloudInit is the guest configuration handed to a VM's cloud-init
+// datasource. Empty fields are left to the image's own defaults.
+type CloudInit struct {
+	User string
+	// Password is sent to the hypervisor to hash; it is never read back.
+	Password string
+	SSHKeys  string // authorized public keys, one per line
+	// Nameservers and SearchDomain override the host's DNS settings.
+	Nameservers  string
+	SearchDomain string
+	// UpgradePackages runs a package upgrade on first boot.
+	UpgradePackages bool
+	// Datasource selects the cloud-init format ("nocloud",
+	// "configdrive2"); empty leaves the hypervisor default.
+	Datasource string
+	IP         IPConfig
+}
+
 // InstanceSpec describes an instance to create.
 type InstanceSpec struct {
 	Name     string
@@ -176,9 +208,8 @@ type InstanceSpec struct {
 	NetworkBridge string
 	VLANTag       int
 
-	// Cloud-init access (optional; drivers may ignore if unsupported).
-	CloudInitUser string
-	SSHKeys       string // authorized public keys, one per line
+	// CloudInit is optional; drivers may ignore it if unsupported.
+	CloudInit CloudInit
 
 	// Description is free-form metadata, mirrored to the hypervisor
 	// where supported.
@@ -241,12 +272,17 @@ type InstanceDetail struct {
 	GuestAgent     bool     `json:"guestAgent"`
 	HostProtected  bool     `json:"hostProtected"` // hypervisor-side protection flag
 	// CreatedAt is unix seconds as recorded by the hypervisor; 0 when unknown.
-	CreatedAt     int64          `json:"createdAt"`
-	CloudInitUser string         `json:"cloudInitUser"`
-	SSHKeys       []string       `json:"sshKeys"`
-	NICs          []NIC          `json:"nics"`
-	Disks         []AttachedDisk `json:"disks"`
-	Devices       []Device       `json:"devices"`
+	CreatedAt       int64          `json:"createdAt"`
+	CloudInitUser   string         `json:"cloudInitUser"`
+	SSHKeys         []string       `json:"sshKeys"`
+	Nameservers     string         `json:"nameservers"`
+	SearchDomain    string         `json:"searchDomain"`
+	UpgradePackages bool           `json:"upgradePackages"`
+	Datasource      string         `json:"datasource"`
+	IPConfig        string         `json:"ipConfig"`
+	NICs            []NIC          `json:"nics"`
+	Disks           []AttachedDisk `json:"disks"`
+	Devices         []Device       `json:"devices"`
 }
 
 // TemplateSpec describes a cloud-image VM template to build. The
@@ -265,14 +301,11 @@ type TemplateSpec struct {
 	MemoryMB      int
 	NetworkBridge string
 	VLANTag       int
-	CloudInitUser string
-	SSHKeys       string
-	// IPConfig is "dhcp" or a Proxmox ipconfig string.
-	IPConfig    string
-	BIOS        string // seabios (default) or ovmf
-	MachineType string // i440fx or q35
-	EnableAgent bool
-	Description string
+	CloudInit     CloudInit
+	BIOS          string // seabios (default) or ovmf
+	MachineType   string // i440fx or q35
+	EnableAgent   bool
+	Description   string
 }
 
 // MetricPoint is one sample of an instance's resource usage.

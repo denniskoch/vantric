@@ -23,7 +23,9 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CircleIcon from '@mui/icons-material/Circle'
 import ErrorIcon from '@mui/icons-material/Error'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
-import { api } from '../api/client'
+import { api, emptyCloudInit } from '../api/client'
+import type { CloudInitConfig } from '../api/client'
+import CloudInitFields from '../components/CloudInitFields'
 import { formatBytes } from '../format'
 
 type SectionID = 'image' | 'template' | 'cloudinit' | 'hardware'
@@ -46,9 +48,7 @@ export default function BuildTemplatePage() {
   const [cpus, setCpus] = useState(2)
   const [memoryMb, setMemoryMb] = useState(2048)
   // Cloud-init
-  const [cloudInitUser, setCloudInitUser] = useState('')
-  const [sshKeys, setSshKeys] = useState('')
-  const [ipConfig, setIpConfig] = useState('dhcp')
+  const [cloudInit, setCloudInit] = useState<CloudInitConfig>(emptyCloudInit)
   // Hardware
   const [bios, setBios] = useState('seabios')
   const [machineType, setMachineType] = useState('q35')
@@ -107,9 +107,7 @@ export default function BuildTemplatePage() {
         memoryMb,
         netBridge: netBridge || undefined,
         vlanTag: vlanTag || undefined,
-        cloudInitUser: cloudInitUser || undefined,
-        sshKeys: sshKeys || undefined,
-        ipConfig: ipConfig || undefined,
+        cloudInit,
         bios,
         machineType,
         enableAgent,
@@ -139,7 +137,7 @@ export default function BuildTemplatePage() {
     {
       id: 'cloudinit',
       label: 'Cloud-init',
-      summary: cloudInitUser ? `${cloudInitUser}, ${ipConfig}` : `Default user, ${ipConfig}`,
+      summary: `${cloudInit.user || 'default user'}, ${cloudInit.dhcp ? 'DHCP' : cloudInit.address || 'static'}`,
     },
     {
       id: 'hardware',
@@ -380,36 +378,10 @@ export default function BuildTemplatePage() {
             <>
               <Typography variant="h6">Cloud-init</Typography>
               <Typography variant="body2" color="text.secondary">
-                Baked into the template; instances cloned from it inherit these and can
-                override them at create time.
+                Baked into the template. Instances cloned from it inherit these and
+                can override them at create time.
               </Typography>
-              <TextField
-                label="Default user"
-                size="small"
-                value={cloudInitUser}
-                onChange={(e) => setCloudInitUser(e.target.value)}
-                helperText="Leave blank to keep the image's own default (debian, ubuntu, …)"
-                sx={{ maxWidth: 320 }}
-              />
-              <TextField
-                label="SSH public keys"
-                size="small"
-                multiline
-                minRows={3}
-                value={sshKeys}
-                onChange={(e) => setSshKeys(e.target.value)}
-                placeholder="ssh-ed25519 AAAA... user@host"
-                helperText="One key per line"
-                fullWidth
-              />
-              <TextField
-                label="IP configuration"
-                size="small"
-                value={ipConfig}
-                onChange={(e) => setIpConfig(e.target.value)}
-                helperText="dhcp, or ip=192.168.1.50/24,gw=192.168.1.1"
-                sx={{ maxWidth: 420 }}
-              />
+              <CloudInitFields value={cloudInit} onChange={setCloudInit} />
             </>
           )}
 
