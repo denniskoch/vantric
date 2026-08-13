@@ -136,13 +136,13 @@ export default function ServersPage() {
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 0.5 }}>
-        <Typography variant="h5">Servers</Typography>
+        <Typography variant="h5">Hypervisors</Typography>
         <Button variant="contained" size="small" startIcon={<AddBoxIcon />} onClick={openCreate}>
-          Add server
+          Add hypervisor
         </Button>
       </Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Virtualization hosts that back your instances. Each server provides
+        Virtualization hosts that back your instances. Each one provides
         zones (its nodes) and images (its templates).
       </Typography>
 
@@ -158,7 +158,7 @@ export default function ServersPage() {
             <TableRow>
               <TableCell>Status</TableCell>
               <TableCell>Name</TableCell>
-              <TableCell>Hypervisor</TableCell>
+              <TableCell>Type</TableCell>
               <TableCell>Endpoint</TableCell>
               <TableCell align="right">Nodes</TableCell>
               <TableCell align="right" />
@@ -200,7 +200,9 @@ export default function ServersPage() {
             {servers.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} align="center" sx={{ py: 6, color: '#5f6368' }}>
-                  {isLoading ? 'Loading…' : 'No servers registered. Click "Add server" to connect a hypervisor.'}
+                  {isLoading
+                    ? 'Loading…'
+                    : 'No hypervisors registered. Click "Add hypervisor" to connect one.'}
                 </TableCell>
               </TableRow>
             )}
@@ -209,7 +211,7 @@ export default function ServersPage() {
       </TableContainer>
 
       <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>{editing ? `Edit ${editing.name}` : 'Add server'}</DialogTitle>
+        <DialogTitle>{editing ? `Edit ${editing.name}` : 'Add hypervisor'}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: '8px !important' }}>
           <TextField
             label="Name"

@@ -15,7 +15,7 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 /**
- * Compute Engine's landing page: the shared section template, with a
+ * Compute's landing page: the shared section template, with a
  * live summary of what's running in the slot above the page cards.
  */
 export default function OverviewPage() {
@@ -40,7 +40,7 @@ export default function OverviewPage() {
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3 }}>
         <Stat label="VM instances" value={`${running(instances)}/${instances.length}`} />
         <Stat label="CT instances" value={`${running(containers)}/${containers.length}`} />
-        <Stat label="Servers connected" value={`${connected}/${servers.length}`} />
+        <Stat label="Hypervisors connected" value={`${connected}/${servers.length}`} />
       </Box>
     </SectionLandingPage>
   )

@@ -55,7 +55,7 @@ export interface Section {
 export const sections: Section[] = [
   {
     id: 'compute',
-    label: 'Compute Engine',
+    label: 'Compute',
     icon: MemoryIcon,
     prefix: '/compute',
     home: '/compute/overview',
@@ -100,20 +100,16 @@ export const sections: Section[] = [
         ],
       },
       {
-        // Physical virtualization hosts (e.g. Proxmox nodes) live here.
-        label: 'Bare Metal Solution',
-        items: [
-          {
-            label: 'Servers',
-            icon: DnsIcon,
-            to: '/compute/servers',
-            hint: 'Virtualization hosts backing everything else',
-          },
-        ],
-      },
-      {
+        // Hypervisor hosts are credentials for a compute backend, the
+        // same shape as DNS providers — so they live under Settings.
         label: 'Settings',
         items: [
+          {
+            label: 'Hypervisors',
+            icon: DnsIcon,
+            to: '/compute/settings/hypervisors',
+            hint: 'Virtualization hosts backing everything else',
+          },
           {
             label: 'Machine types',
             icon: TuneIcon,

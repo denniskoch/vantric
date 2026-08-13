@@ -239,7 +239,7 @@ export default function CreateInstancePage() {
                 onChange={(e) => selectServer(e.target.value)}
                 helperText={
                   servers.length === 0
-                    ? 'No servers registered — add one under Bare Metal Solution → Servers'
+                    ? 'No hypervisors registered — add one under Settings → Hypervisors'
                     : undefined
                 }
                 fullWidth

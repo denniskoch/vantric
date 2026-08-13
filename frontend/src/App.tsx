@@ -67,7 +67,8 @@ export default function App() {
           element={<AddMediaPage kind={cloudImageKind} />}
         />
         <Route path="/compute/datastores" element={<DatastoresPage />} />
-        <Route path="/compute/servers" element={<ServersPage />} />
+        <Route path="/compute/settings/hypervisors" element={<ServersPage />} />
+        <Route path="/compute/servers" element={<Navigate to="/compute/settings/hypervisors" replace />} />
         <Route path="/compute/settings/machine-types" element={<MachineTypesPage />} />
       </Route>
     </Routes>

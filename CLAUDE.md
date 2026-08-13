@@ -25,7 +25,8 @@ Dockerfile).
   (`factory.Types` + `Build`) — that alone exposes them in the API and the
   Servers GUI type dropdown.
 - Servers (virtualization hosts) are DB records managed in the GUI
-  (Bare Metal Solution → Servers), one live driver per server held in
+  (Compute → Settings → Hypervisors; they are backend credentials, the
+  same shape as DNS providers), one live driver per server held in
   `hypervisor.Registry` keyed by server ID. Catalog listings (zones,
   images, disks, snapshots, isos, ct-templates, datastores) span ALL
   servers by default and stamp each item with its `serverId`, so list
@@ -96,7 +97,7 @@ Dockerfile).
   both menus.
 - Every section lands on the same template, `pages/SectionLandingPage.tsx`:
   header, an optional summary slot, then cards for the section's nav
-  items grouped as the left nav groups them. Compute Engine's overview
+  items grouped as the left nav groups them. Compute's overview
   supplies live counts through that slot; sections with no pages yet
   render their `planned` list instead. Landing copy (`description`,
   `planned`, per-item `hint`) lives in nav.tsx with everything else, so

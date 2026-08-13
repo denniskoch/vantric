@@ -109,7 +109,7 @@ func loadDNSRegistry(ctx context.Context, st *store.Store, registry *dns.Registr
 
 // seedServerFromConfig registers an initial server on first run, driven
 // by the legacy config (LCM_DRIVER etc). After that, servers are managed
-// in the GUI under Compute Engine → Bare Metal Solution → Servers.
+// in the GUI under Compute → Settings → Hypervisors.
 func seedServerFromConfig(ctx context.Context, st *store.Store, cfg config.Config, log *slog.Logger) {
 	n, err := st.CountServers(ctx)
 	if err != nil {
