@@ -11,6 +11,7 @@ import SectionLandingPage from './pages/SectionLandingPage'
 import DNSZonesPage from './pages/DNSZonesPage'
 import DNSZoneDetailPage from './pages/DNSZoneDetailPage'
 import RecordSetPage from './pages/RecordSetPage'
+import CreateZonePage from './pages/CreateZonePage'
 import DNSProvidersPage from './pages/DNSProvidersPage'
 import ServersPage from './pages/ServersPage'
 import MachineTypesPage from './pages/MachineTypesPage'
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="/docker/overview" element={<SectionLandingPage />} />
         <Route path="/dns/overview" element={<SectionLandingPage />} />
         <Route path="/dns/zones" element={<DNSZonesPage />} />
+        <Route path="/dns/zones/create" element={<CreateZonePage />} />
         <Route path="/dns/zones/:providerId/:zoneId" element={<DNSZoneDetailPage />} />
         <Route path="/dns/zones/:providerId/:zoneId/records/new" element={<RecordSetPage />} />
         <Route path="/dns/zones/:providerId/:zoneId/records/edit" element={<RecordSetPage />} />

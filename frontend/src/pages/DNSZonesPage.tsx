@@ -1,14 +1,10 @@
 import { useState } from 'react'
-import { Link as RouterLink } from 'react-router-dom'
+import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
   Box,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   IconButton,
   Link,
   Menu,
@@ -20,7 +16,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Tooltip,
   Typography,
 } from '@mui/material'
@@ -32,15 +27,10 @@ import PendingIcon from '@mui/icons-material/Pending'
 import { api } from '../api/client'
 import type { DNSZone } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
-import { domainError, domainRe } from '../validation'
 
 export default function DNSZonesPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [createOpen, setCreateOpen] = useState(false)
-  const [providerId, setProviderId] = useState('')
-  const [name, setName] = useState('')
-  const [accountId, setAccountId] = useState('')
-  const [zoneType, setZoneType] = useState('full')
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
   const [menuZone, setMenuZone] = useState<DNSZone | null>(null)
   const [confirming, setConfirming] = useState<DNSZone | null>(null)
@@ -57,31 +47,8 @@ export default function DNSZonesPage() {
   })
 
   const connected = providers.filter((p) => p.status === 'connected')
-  if (!providerId && connected.length > 0) setProviderId(connected[0].id)
-
-  // Accounts come from the provider, so zones land in the right one.
-  const { data: accounts = [] } = useQuery({
-    queryKey: ['dnsAccounts', providerId],
-    queryFn: () => api.listDNSAccounts(providerId),
-    enabled: Boolean(providerId) && createOpen,
-  })
 
   const providerName = (id: string) => providers.find((p) => p.id === id)?.name ?? '—'
-
-  const create = useMutation({
-    mutationFn: () =>
-      api.createDNSZone(providerId, {
-        name,
-        accountId: accountId || undefined,
-        type: zoneType,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dnsZones'] })
-      setCreateOpen(false)
-      setName('')
-    },
-    onError: (e: Error) => setError(e.message),
-  })
 
   const remove = useMutation({
     mutationFn: (zone: DNSZone) => api.deleteDNSZone(zone.providerId, zone.id),
@@ -95,9 +62,6 @@ export default function DNSZonesPage() {
     },
   })
 
-  const nameFieldError = domainError(name)
-  const valid = domainRe.test(name.trim().toLowerCase()) && Boolean(providerId)
-
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 0.5 }}>
@@ -107,7 +71,7 @@ export default function DNSZonesPage() {
           size="small"
           startIcon={<AddBoxIcon />}
           disabled={connected.length === 0}
-          onClick={() => setCreateOpen(true)}
+          onClick={() => navigate('/dns/zones/create')}
         >
           Create zone
         </Button>
@@ -204,83 +168,6 @@ export default function DNSZonesPage() {
           <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Delete
         </MenuItem>
       </Menu>
-
-      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Create zone</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: '8px !important' }}>
-          <TextField
-            label="Provider"
-            size="small"
-            select
-            value={providerId}
-            onChange={(e) => {
-              setProviderId(e.target.value)
-              setAccountId('')
-            }}
-            fullWidth
-          >
-            {providers.map((p) => (
-              <MenuItem key={p.id} value={p.id} disabled={p.status !== 'connected'}>
-                {p.name} ({p.status})
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            label="Domain"
-            size="small"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="example.com"
-            error={Boolean(nameFieldError)}
-            helperText={nameFieldError ?? 'The apex domain, without a scheme or trailing dot'}
-            fullWidth
-          />
-          <TextField
-            label="Account"
-            size="small"
-            select
-            value={accountId}
-            onChange={(e) => setAccountId(e.target.value)}
-            helperText={
-              accounts.length === 0
-                ? "Uses the provider's default account"
-                : 'Which account the zone is created in'
-            }
-            fullWidth
-          >
-            <MenuItem value="">
-              <em>Provider default</em>
-            </MenuItem>
-            {accounts.map((a) => (
-              <MenuItem key={a.id} value={a.id}>
-                {a.name}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            label="Setup"
-            size="small"
-            select
-            value={zoneType}
-            onChange={(e) => setZoneType(e.target.value)}
-            helperText="Full points the whole domain here by changing its nameservers at the registrar; partial leaves the domain where it is."
-            fullWidth
-          >
-            <MenuItem value="full">Full — this provider answers for the domain</MenuItem>
-            <MenuItem value="partial">Partial — keep the current nameservers</MenuItem>
-          </TextField>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCreateOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            disabled={!valid || create.isPending}
-            onClick={() => create.mutate()}
-          >
-            Create
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       <ConfirmDeleteDialog
         open={Boolean(confirming)}
