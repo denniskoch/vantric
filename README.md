@@ -147,6 +147,19 @@ credential than the scoped API token this app uses.
 
 ## Ideas for later
 
+- **PowerDNS as an internal provider**: `dns.Provider` already has room
+  for it, but three things need doing first. A provider record has no
+  endpoint — Cloudflare's is a constant — so self-hosted providers need
+  `baseUrl` (and a self-signed TLS opt-out) the way servers have. Auth
+  is an `X-API-Key` header rather than a bearer token. And PowerDNS is
+  natively RRset-shaped: one PATCH replaces a whole set, so the
+  per-record diffing that `saveDNSRecordSet` does for Cloudflare should
+  move behind the interface — `SaveRecordSet`/`DeleteRecordSet` on the
+  provider, with Cloudflare doing its own diff. Cheaper to change while
+  Cloudflare is the only implementation. Cloudflare-only fields (the
+  proxy toggle, full/partial setup) then want a capability check so the
+  form can hide what a provider doesn't have, the way `ContainerDriver`
+  works for hypervisors.
 - **osquery**: run osquery on guests and surface it in the console, so
   OS Info goes beyond what the QEMU guest agent reports — installed
   packages, listening ports, users, running processes — and becomes
