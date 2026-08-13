@@ -46,9 +46,6 @@ export interface Section {
   groups: SectionGroup[]
   /** one-line description for the section landing page */
   description: string
-  /** what the section will offer, while it has no pages yet */
-  planned?: string[]
-  comingSoon?: boolean
 }
 
 // Global navigation: one entry per product section. Adding a section
@@ -130,80 +127,50 @@ export const sections: Section[] = [
     label: 'Storage',
     icon: StorageIcon,
     prefix: '/storage',
-    home: '/storage',
-    items: [],
+    home: '/storage/overview',
+    items: [{ label: 'Overview', icon: DashboardIcon, to: '/storage/overview' }],
     groups: [],
     description: 'Shared storage for the lab, beyond the disks attached to instances.',
-    planned: [
-      'Network shares (NFS, SMB) as first-class resources',
-      'Object storage buckets',
-      'Backup jobs and retention',
-    ],
-    comingSoon: true,
   },
   {
     id: 'network',
     label: 'Network',
     icon: LanIcon,
     prefix: '/network',
-    home: '/network',
-    items: [],
+    home: '/network/overview',
+    items: [{ label: 'Overview', icon: DashboardIcon, to: '/network/overview' }],
     groups: [],
     description: 'Bridges, VLANs and firewall rules across your hosts.',
-    planned: [
-      'Bridges and VLANs as managed resources, not just pickers',
-      'Firewall rules per instance and per host',
-      'IP address inventory',
-    ],
-    comingSoon: true,
   },
   {
     id: 'databases',
     label: 'Databases',
     icon: DatasetIcon,
     prefix: '/databases',
-    home: '/databases',
-    items: [],
+    home: '/databases/overview',
+    items: [{ label: 'Overview', icon: DashboardIcon, to: '/databases/overview' }],
     groups: [],
     description: 'Managed database instances, the way Cloud SQL presents them.',
-    planned: [
-      'Provision Postgres and MySQL instances from templates',
-      'Scheduled backups and restore',
-      'Connection details and users',
-    ],
-    comingSoon: true,
   },
   {
     id: 'docker',
     label: 'Docker',
     icon: ViewInArIcon,
     prefix: '/docker',
-    home: '/docker',
-    items: [],
+    home: '/docker/overview',
+    items: [{ label: 'Overview', icon: DashboardIcon, to: '/docker/overview' }],
     groups: [],
     description: 'Container workloads running on your Docker hosts.',
-    planned: [
-      'Containers and images per host',
-      'Compose stacks as a deployable unit',
-      'Registry credentials',
-    ],
-    comingSoon: true,
   },
   {
     id: 'dns',
     label: 'DNS',
     icon: TravelExploreIcon,
     prefix: '/dns',
-    home: '/dns',
-    items: [],
+    home: '/dns/overview',
+    items: [{ label: 'Overview', icon: DashboardIcon, to: '/dns/overview' }],
     groups: [],
     description: 'Internal name resolution for lab services.',
-    planned: [
-      'Zones and records',
-      'Automatic records for new instances',
-      'Upstream resolvers and split-horizon views',
-    ],
-    comingSoon: true,
   },
 ]
 

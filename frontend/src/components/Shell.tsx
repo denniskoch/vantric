@@ -184,16 +184,13 @@ export default function Shell() {
                 <s.icon fontSize="small" />
               </ListItemIcon>
               <ListItemText primary={s.label} />
-              {s.comingSoon && (
-                <Chip label="soon" size="small" sx={{ fontSize: 10, height: 18 }} />
-              )}
             </ListItemButton>
           ))}
         </List>
       </Drawer>
 
       {/* Section navigation: permanent while inside a section. */}
-      {section && (section.items.length > 0 || section.groups.length > 0) && (
+      {section && (
         <Drawer
           variant="permanent"
           sx={{

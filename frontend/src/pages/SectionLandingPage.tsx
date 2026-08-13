@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link as RouterLink, useLocation } from 'react-router-dom'
-import { Alert, Box, Paper, Typography } from '@mui/material'
+import { Box, Paper, Typography } from '@mui/material'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import { sectionFor } from '../components/nav'
 import type { SectionItem } from '../components/nav'
@@ -8,7 +8,6 @@ import type { SectionItem } from '../components/nav'
 /**
  * The landing page every section shares: a header, an optional summary
  * supplied by the section itself, and cards for the pages it contains.
- * Sections with no pages yet show what they're planned to hold instead.
  */
 export default function SectionLandingPage({ children }: { children?: ReactNode }) {
   const location = useLocation()
@@ -54,28 +53,6 @@ export default function SectionLandingPage({ children }: { children?: ReactNode 
         </Box>
       ))}
 
-      {section.comingSoon && (
-        <>
-          <Alert severity="info" sx={{ mb: 2 }}>
-            This section isn't built yet — it's here so the shape of the console is
-            visible.
-          </Alert>
-          {section.planned && (
-            <Paper variant="outlined" sx={{ p: 2.5 }}>
-              <Typography sx={{ fontSize: 16, mb: 1.5 }}>Planned</Typography>
-              <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#5f6368' }}>
-                {section.planned.map((entry) => (
-                  <li key={entry}>
-                    <Typography variant="body2" sx={{ mb: 0.5 }}>
-                      {entry}
-                    </Typography>
-                  </li>
-                ))}
-              </Box>
-            </Paper>
-          )}
-        </>
-      )}
     </Box>
   )
 }

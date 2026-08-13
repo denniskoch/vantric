@@ -25,12 +25,17 @@ export default function App() {
       <Route element={<Shell />}>
         <Route path="/" element={<Navigate to="/compute/instances" replace />} />
         <Route path="/compute/overview" element={<OverviewPage />} />
-        {/* Sections without pages yet still land somewhere real. */}
-        <Route path="/storage" element={<SectionLandingPage />} />
-        <Route path="/network" element={<SectionLandingPage />} />
-        <Route path="/databases" element={<SectionLandingPage />} />
-        <Route path="/docker" element={<SectionLandingPage />} />
-        <Route path="/dns" element={<SectionLandingPage />} />
+        {/* Every section has an overview, on the shared landing template. */}
+        <Route path="/storage/overview" element={<SectionLandingPage />} />
+        <Route path="/network/overview" element={<SectionLandingPage />} />
+        <Route path="/databases/overview" element={<SectionLandingPage />} />
+        <Route path="/docker/overview" element={<SectionLandingPage />} />
+        <Route path="/dns/overview" element={<SectionLandingPage />} />
+        <Route path="/storage" element={<Navigate to="/storage/overview" replace />} />
+        <Route path="/network" element={<Navigate to="/network/overview" replace />} />
+        <Route path="/databases" element={<Navigate to="/databases/overview" replace />} />
+        <Route path="/docker" element={<Navigate to="/docker/overview" replace />} />
+        <Route path="/dns" element={<Navigate to="/dns/overview" replace />} />
         <Route path="/compute/instances" element={<InstancesPage />} />
         <Route path="/compute/instances/create" element={<CreateInstancePage />} />
         <Route path="/compute/instances/:name" element={<InstanceDetailPage />} />
