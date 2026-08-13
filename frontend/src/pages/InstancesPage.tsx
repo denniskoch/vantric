@@ -106,7 +106,8 @@ export default function InstancesPage() {
               <TableCell>Name</TableCell>
               <TableCell>Server</TableCell>
               <TableCell>Zone</TableCell>
-              <TableCell>Machine type</TableCell>
+              <TableCell align="right">vCPUs</TableCell>
+              <TableCell align="right">Memory (MB)</TableCell>
               <TableCell>Internal IP</TableCell>
               <TableCell>External IP</TableCell>
               <TableCell align="right" />
@@ -132,11 +133,8 @@ export default function InstancesPage() {
                 </TableCell>
                 <TableCell>{serverName(inst.serverId)}</TableCell>
                 <TableCell>{inst.zone}</TableCell>
-                <TableCell>
-                  {inst.machineType === 'custom' || !inst.machineType
-                    ? `custom (${inst.cpus} vCPU, ${inst.memoryMb} MB)`
-                    : inst.machineType}
-                </TableCell>
+                <TableCell align="right">{inst.cpus}</TableCell>
+                <TableCell align="right">{inst.memoryMb}</TableCell>
                 <TableCell>{inst.internalIp || '—'}</TableCell>
                 <TableCell>{inst.externalIp || '—'}</TableCell>
                 <TableCell align="right">
@@ -148,7 +146,7 @@ export default function InstancesPage() {
             ))}
             {instances.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={10} align="center" sx={{ py: 6, color: '#5f6368' }}>
                   {isLoading
                     ? 'Loading…'
                     : 'No VM instances yet. Click "Create instance" to get started.'}
