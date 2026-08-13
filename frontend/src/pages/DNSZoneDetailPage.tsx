@@ -33,7 +33,6 @@ import CloudIcon from '@mui/icons-material/Cloud'
 import { api } from '../api/client'
 import DetailTable from '../components/DetailTable'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
-import RecordSetDialog from '../components/RecordSetDialog'
 import { canEdit, formatTTL, recordData, toRecordSets } from '../dnsRecords'
 import type { RecordSet } from '../dnsRecords'
 
@@ -44,11 +43,11 @@ export default function DNSZoneDetailPage() {
   const [tab, setTab] = useState('records')
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [editorOpen, setEditorOpen] = useState(false)
-  const [editingSet, setEditingSet] = useState<RecordSet | null>(null)
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
   const [menuSet, setMenuSet] = useState<RecordSet | null>(null)
   const [deletingSet, setDeletingSet] = useState<RecordSet | null>(null)
+
+  const zonePath = `/dns/zones/${providerId}/${zoneId}`
 
   const { data: providers = [] } = useQuery({
     queryKey: ['dnsProviders'],
@@ -218,10 +217,7 @@ export default function DNSZoneDetailPage() {
             variant="contained"
             size="small"
             startIcon={<AddBoxIcon />}
-            onClick={() => {
-              setEditingSet(null)
-              setEditorOpen(true)
-            }}
+            onClick={() => navigate(`${zonePath}/records/new`)}
           >
             Add record set
           </Button>
@@ -295,8 +291,11 @@ export default function DNSZoneDetailPage() {
         <MenuItem
           disabled={!menuSet || !canEdit(menuSet.type)}
           onClick={() => {
-            setEditingSet(menuSet)
-            setEditorOpen(true)
+            if (menuSet) {
+              navigate(
+                `${zonePath}/records/edit?name=${encodeURIComponent(menuSet.name)}&type=${menuSet.type}`,
+              )
+            }
             setMenuAnchor(null)
           }}
         >
@@ -317,20 +316,6 @@ export default function DNSZoneDetailPage() {
           </Typography>
         )}
       </Menu>
-
-      {editorOpen && (
-        <RecordSetDialog
-          key={editingSet ? `${editingSet.name}|${editingSet.type}` : 'new'}
-          zone={zone}
-          sets={sets}
-          editing={editingSet}
-          onClose={() => setEditorOpen(false)}
-          onSaved={() => {
-            setEditorOpen(false)
-            queryClient.invalidateQueries({ queryKey: ['dnsRecords', providerId, zoneId] })
-          }}
-        />
-      )}
 
       <ConfirmDeleteDialog
         open={Boolean(deletingSet)}

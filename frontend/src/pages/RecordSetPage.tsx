@@ -1,14 +1,11 @@
 import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
   Box,
   Button,
   Checkbox,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   FormControlLabel,
   IconButton,
   InputAdornment,
@@ -17,6 +14,7 @@ import {
   Typography,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CloseIcon from '@mui/icons-material/Close'
 import { api } from '../api/client'
 import type { DNSZone } from '../api/client'
@@ -25,6 +23,7 @@ import {
   hasPriority,
   proxyableTypes,
   relativeName,
+  toRecordSets,
   valueExamples,
   valueLabels,
 } from '../dnsRecords'
@@ -45,20 +44,19 @@ interface FormValue {
   priority: string
 }
 
-export default function RecordSetDialog({
+/** The form itself, mounted only once its zone and records are loaded
+ *  so the fields can start from the set being edited. */
+function RecordSetForm({
   zone,
   sets,
   editing,
-  onClose,
-  onSaved,
 }: {
   zone: DNSZone
-  /** Existing sets, so a create can't collide with one. */
   sets: RecordSet[]
   editing: RecordSet | null
-  onClose: () => void
-  onSaved: () => void
 }) {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [name, setName] = useState(editing ? relativeName(editing.name, zone.name) : '')
   const [type, setType] = useState(editing?.type ?? 'A')
   const [values, setValues] = useState<FormValue[]>(
@@ -73,7 +71,9 @@ export default function RecordSetDialog({
   const [proxied, setProxied] = useState(editing?.proxied ?? false)
   const [error, setError] = useState<string | null>(null)
 
-  const fullName = name.trim() && name.trim() !== '@' ? `${name.trim().toLowerCase()}.${zone.name}` : zone.name
+  const zonePath = `/dns/zones/${zone.providerId}/${zone.id}`
+  const fullName =
+    name.trim() && name.trim() !== '@' ? `${name.trim().toLowerCase()}.${zone.name}` : zone.name
   const proxyable = proxyableTypes.includes(type)
   // Cloudflare serves proxied records on its own TTL, so the field
   // would be a lie if it stayed editable.
@@ -84,10 +84,7 @@ export default function RecordSetDialog({
   const cnameConflict =
     !editing &&
     sets.some(
-      (s) =>
-        s.name === fullName &&
-        s.type !== type &&
-        (s.type === 'CNAME' || type === 'CNAME'),
+      (s) => s.name === fullName && s.type !== type && (s.type === 'CNAME' || type === 'CNAME'),
     )
 
   const nameError =
@@ -118,7 +115,10 @@ export default function RecordSetDialog({
           priority: hasPriority(type) ? Number(v.priority) || 0 : 0,
         })),
       }),
-    onSuccess: onSaved,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dnsRecords', zone.providerId, zone.id] })
+      navigate(zonePath)
+    },
     onError: (e: Error) => setError(e.message),
   })
 
@@ -128,15 +128,21 @@ export default function RecordSetDialog({
   const label = valueLabels[type] ?? 'Value'
 
   return (
-    <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{editing ? 'Edit record set' : 'Create record set'}</DialogTitle>
-      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: '8px !important' }}>
-        {error && (
-          <Alert severity="error" onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
+    <Box sx={{ p: 3, display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+        <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate(zonePath)}>
+          {zone.name}
+        </Button>
+        <Typography variant="h5">{editing ? 'Edit record set' : 'Create record set'}</Typography>
+      </Box>
 
+      {error && (
+        <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, maxWidth: 680 }}>
         <TextField
           label="DNS name"
           size="small"
@@ -182,7 +188,11 @@ export default function RecordSetDialog({
         {proxyable && (
           <FormControlLabel
             control={
-              <Checkbox size="small" checked={proxied} onChange={(e) => setProxied(e.target.checked)} />
+              <Checkbox
+                size="small"
+                checked={proxied}
+                onChange={(e) => setProxied(e.target.checked)}
+              />
             }
             label="Proxy through the provider (hides the origin address)"
           />
@@ -198,7 +208,7 @@ export default function RecordSetDialog({
             disabled={ttlAutomatic}
             error={Boolean(ttlFieldError)}
             helperText={ttlFieldError ?? ' '}
-            sx={{ width: 140 }}
+            sx={{ width: 160 }}
           />
           <TextField
             label="TTL unit"
@@ -207,7 +217,7 @@ export default function RecordSetDialog({
             value={ttlUnit}
             onChange={(e) => setTtlUnit(e.target.value)}
             disabled={ttlAutomatic}
-            sx={{ width: 140 }}
+            sx={{ width: 160 }}
           >
             {Object.keys(ttlUnits).map((unit) => (
               <MenuItem key={unit} value={unit}>
@@ -230,7 +240,7 @@ export default function RecordSetDialog({
         </Box>
 
         <Box>
-          <Typography sx={{ fontSize: 16, color: '#202124', mb: 1 }}>{label}</Typography>
+          <Typography sx={{ fontSize: 16, color: '#202124', mb: 1.5 }}>{label}</Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {values.map((value, i) => (
               <Box key={i} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
@@ -242,7 +252,7 @@ export default function RecordSetDialog({
                     value={value.priority}
                     onChange={(e) => setValue(i, { priority: e.target.value })}
                     helperText=" "
-                    sx={{ width: 110 }}
+                    sx={{ width: 120 }}
                   />
                 )}
                 <TextField
@@ -255,7 +265,11 @@ export default function RecordSetDialog({
                   fullWidth
                 />
                 {values.length > 1 && (
-                  <IconButton size="small" sx={{ mt: 0.5 }} onClick={() => setValues(values.filter((_, j) => j !== i))}>
+                  <IconButton
+                    size="small"
+                    sx={{ mt: 0.5 }}
+                    onClick={() => setValues(values.filter((_, j) => j !== i))}
+                  >
                     <CloseIcon fontSize="small" />
                   </IconButton>
                 )}
@@ -277,13 +291,86 @@ export default function RecordSetDialog({
             </Typography>
           )}
         </Box>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" disabled={!valid || save.isPending} onClick={() => save.mutate()}>
+      </Box>
+
+      {/* Persistent action bar, GCP-style */}
+      <Box sx={{ display: 'flex', gap: 1, pt: 2, mt: 3, borderTop: '1px solid #dadce0' }}>
+        <Button
+          variant="contained"
+          disabled={!valid || save.isPending}
+          onClick={() => save.mutate()}
+        >
           {editing ? 'Save' : 'Create'}
         </Button>
-      </DialogActions>
-    </Dialog>
+        <Button onClick={() => navigate(zonePath)}>Cancel</Button>
+      </Box>
+    </Box>
   )
+}
+
+export default function RecordSetPage() {
+  const { providerId = '', zoneId = '' } = useParams()
+  const [params] = useSearchParams()
+  const navigate = useNavigate()
+  const editingName = params.get('name')
+  const editingType = params.get('type')
+
+  const { data: zone, error: zoneError } = useQuery({
+    queryKey: ['dnsZone', providerId, zoneId],
+    queryFn: () => api.getDNSZone(providerId, zoneId),
+  })
+  const { data: records, error: recordsError } = useQuery({
+    queryKey: ['dnsRecords', providerId, zoneId],
+    queryFn: () => api.listDNSRecords(providerId, zoneId),
+  })
+
+  const failure = (zoneError ?? recordsError) as Error | undefined
+  if (failure) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Button
+          size="small"
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate(`/dns/zones/${providerId}/${zoneId}`)}
+        >
+          Back
+        </Button>
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {failure.message}
+        </Alert>
+      </Box>
+    )
+  }
+
+  if (!zone || !records) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Typography color="text.secondary">Loading zone…</Typography>
+      </Box>
+    )
+  }
+
+  const sets = toRecordSets(records)
+  const editing = editingName
+    ? (sets.find((s) => s.name === editingName && s.type === editingType) ?? null)
+    : null
+
+  if (editingName && !editing) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert
+          severity="warning"
+          action={
+            <Button size="small" onClick={() => navigate(`/dns/zones/${providerId}/${zoneId}`)}>
+              Back to zone
+            </Button>
+          }
+        >
+          No {editingType} record set for {editingName} — it may have been deleted.
+        </Alert>
+      </Box>
+    )
+  }
+
+  return <RecordSetForm zone={zone} sets={sets} editing={editing} />
 }
