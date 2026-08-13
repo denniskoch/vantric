@@ -66,6 +66,10 @@ Dockerfile).
   server state lives in TanStack Query (3s polling), not local state.
 - UI style: GCP-inspired via MUI + the custom theme in `src/theme.ts`
   (Google blue #1a73e8, white surfaces, #dadce0 borders, dense tables).
+- No authentication yet. The account avatar and menu in the app bar are
+  a stub reading from `currentUser` in `src/components/Shell.tsx`; wiring
+  real sign-in should mean replacing that constant and enabling the
+  menu's actions.
 - Navigation model (mirrors GCP): the hamburger opens a temporary global
   menu for switching between Lab Cloud sections; each section then has a
   permanent left nav with collapsible groups (GCP-style). Sections and

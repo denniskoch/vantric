@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   AppBar,
+  Avatar,
   Box,
   Chip,
   Collapse,
@@ -12,6 +13,9 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Menu,
+  MenuItem,
+  Divider,
   Toolbar,
   Typography,
 } from '@mui/material'
@@ -22,6 +26,19 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { sections, sectionFor } from './nav'
 import type { SectionItem } from './nav'
+
+/**
+ * Stand-in for the signed-in user. There is no authentication yet;
+ * when there is, this is what should come from it.
+ */
+const currentUser = {
+  name: 'Lab administrator',
+  email: 'local access — no sign-in yet',
+  initial: 'L',
+}
+
+/** Account menu entries, inert until authentication exists. */
+const accountActions = ['Manage your account', 'Switch account', 'Sign out']
 
 const SECTION_NAV_WIDTH = 256
 const GLOBAL_NAV_WIDTH = 280
@@ -46,6 +63,7 @@ function NavItem({ item }: { item: SectionItem }) {
 export default function Shell() {
   const [globalNavOpen, setGlobalNavOpen] = useState(false)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [accountMenu, setAccountMenu] = useState<null | HTMLElement>(null)
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -94,6 +112,49 @@ export default function Shell() {
             />
           </Box>
           <Box sx={{ flex: 1 }} />
+
+          {/* Account. Stubbed until there's authentication: everything
+              here reads from `currentUser`, so signing a real user in
+              should only mean replacing that. */}
+          <IconButton
+            size="small"
+            onClick={(e) => setAccountMenu(e.currentTarget)}
+            aria-label={`Account: ${currentUser.name}`}
+            aria-haspopup="menu"
+          >
+            <Avatar sx={{ width: 30, height: 30, bgcolor: '#1a73e8', fontSize: 14 }}>
+              {currentUser.initial}
+            </Avatar>
+          </IconButton>
+          <Menu
+            anchorEl={accountMenu}
+            open={Boolean(accountMenu)}
+            onClose={() => setAccountMenu(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            slotProps={{ paper: { sx: { width: 300 } } }}
+          >
+            <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Avatar sx={{ width: 36, height: 36, bgcolor: '#1a73e8', fontSize: 16 }}>
+                {currentUser.initial}
+              </Avatar>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography sx={{ fontSize: 13, color: '#202124' }}>
+                  {currentUser.name}
+                </Typography>
+                <Typography sx={{ fontSize: 12, color: '#5f6368' }}>
+                  {currentUser.email}
+                </Typography>
+              </Box>
+            </Box>
+            <Divider />
+            {accountActions.map((action) => (
+              <MenuItem key={action} disabled sx={{ fontSize: 13 }}>
+                {action}
+                <Chip label="soon" size="small" sx={{ ml: 'auto', fontSize: 10, height: 18 }} />
+              </MenuItem>
+            ))}
+          </Menu>
         </Toolbar>
       </AppBar>
 
