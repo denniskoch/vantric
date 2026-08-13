@@ -337,6 +337,16 @@ export interface DNSRecord {
   comment?: string
 }
 
+/** A record set is saved whole: the values replace what's there. */
+export interface DNSRecordSetRequest {
+  name: string
+  type: string
+  ttl: number
+  proxied: boolean
+  comment?: string
+  values: { content: string; priority: number }[]
+}
+
 export interface MachineType {
   name: string
   description: string
@@ -546,6 +556,18 @@ export const api = {
     request<DNSZone>(`/dns/zones/${zoneId}?provider=${providerId}`),
   listDNSRecords: (providerId: string, zoneId: string) =>
     request<DNSRecord[]>(`/dns/zones/${zoneId}/records?provider=${providerId}`),
+  saveDNSRecordSet: (providerId: string, zoneId: string, body: DNSRecordSetRequest) =>
+    request<DNSRecord[]>(`/dns/zones/${zoneId}/record-sets?provider=${providerId}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  deleteDNSRecordSet: (providerId: string, zoneId: string, name: string, type: string) =>
+    request<void>(
+      `/dns/zones/${zoneId}/record-sets?provider=${providerId}&name=${encodeURIComponent(
+        name,
+      )}&type=${type}`,
+      { method: 'DELETE' },
+    ),
   deleteDNSZone: (providerId: string, zoneId: string) =>
     request<void>(`/dns/zones/${zoneId}?provider=${providerId}`, { method: 'DELETE' }),
 

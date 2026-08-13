@@ -123,6 +123,8 @@ Base path `/api/v1`:
 - `GET /dns/zones` (spans providers), `POST /dns/zones?provider=`,
   `GET /dns/zones/{id}?provider=`,
   `GET /dns/zones/{id}/records?provider=`,
+  `PUT /dns/zones/{id}/record-sets?provider=`,
+  `DELETE /dns/zones/{id}/record-sets?provider=&name=&type=`,
   `DELETE /dns/zones/{id}?provider=`
 - `GET /containers`, `GET/DELETE /containers/{name}/`,
   `POST /containers/{name}/{start|stop|reset|protection}`

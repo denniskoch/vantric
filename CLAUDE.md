@@ -67,6 +67,14 @@ Dockerfile).
   providers and stamp each zone with its `providerId`. Provider
   credentials are verified against the API before being stored, so a
   saved provider is known-good.
+- DNS records are edited as RECORD SETS — every record sharing a name
+  and type, the Cloud DNS model. Providers address records one at a
+  time, so the set is an API-layer concept: saving one diffs the
+  values against what's there (update the pairs, create or delete the
+  difference) in `saveDNSRecordSet`. Only types whose value is a plain
+  string (A, AAAA, CNAME, MX, NS, TXT) are editable; CAA/SRV carry
+  structured data and are list/delete only, not mangled through a text
+  field.
 - Keep store SQL portable between SQLite and Postgres: TEXT ids, RFC3339
   TEXT timestamps, no engine-specific types. Postgres is planned, not wired.
 - Frontend talks only to `/api/v1` via `src/api/client.ts` (typed client);

@@ -6,6 +6,9 @@ import {
   Box,
   Button,
   Chip,
+  IconButton,
+  Menu,
+  MenuItem,
   Paper,
   Table,
   TableBody,
@@ -21,45 +24,18 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import DeleteIcon from '@mui/icons-material/Delete'
+import AddBoxIcon from '@mui/icons-material/AddBox'
+import EditIcon from '@mui/icons-material/Edit'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import PendingIcon from '@mui/icons-material/Pending'
 import CloudIcon from '@mui/icons-material/Cloud'
 import { api } from '../api/client'
-import type { DNSRecord } from '../api/client'
 import DetailTable from '../components/DetailTable'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
-
-/** A record set is every record sharing a name and type, the way Cloud
- *  DNS presents them — Cloudflare returns them one row per value. */
-interface RecordSet {
-  name: string
-  type: string
-  ttl: number
-  records: DNSRecord[]
-}
-
-function toRecordSets(records: DNSRecord[]): RecordSet[] {
-  const sets = new Map<string, RecordSet>()
-  for (const record of records) {
-    const key = `${record.name}|${record.type}`
-    const set = sets.get(key)
-    if (set) {
-      set.records.push(record)
-    } else {
-      sets.set(key, { name: record.name, type: record.type, ttl: record.ttl, records: [record] })
-    }
-  }
-  return [...sets.values()]
-}
-
-const formatTTL = (ttl: number) => (ttl <= 1 ? 'Automatic' : ttl.toLocaleString())
-
-/** These types carry their priority ahead of the value — including a
- *  priority of 0, which is a real setting, not a missing one. */
-const prioritized = new Set(['MX', 'SRV', 'URI'])
-
-const recordData = (record: DNSRecord) =>
-  prioritized.has(record.type) ? `${record.priority} ${record.content}` : record.content
+import RecordSetDialog from '../components/RecordSetDialog'
+import { canEdit, formatTTL, recordData, toRecordSets } from '../dnsRecords'
+import type { RecordSet } from '../dnsRecords'
 
 export default function DNSZoneDetailPage() {
   const { providerId = '', zoneId = '' } = useParams()
@@ -68,6 +44,11 @@ export default function DNSZoneDetailPage() {
   const [tab, setTab] = useState('records')
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [editorOpen, setEditorOpen] = useState(false)
+  const [editingSet, setEditingSet] = useState<RecordSet | null>(null)
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
+  const [menuSet, setMenuSet] = useState<RecordSet | null>(null)
+  const [deletingSet, setDeletingSet] = useState<RecordSet | null>(null)
 
   const { data: providers = [] } = useQuery({
     queryKey: ['dnsProviders'],
@@ -96,6 +77,19 @@ export default function DNSZoneDetailPage() {
     queryClient.invalidateQueries({ queryKey: ['dnsZone', providerId, zoneId] })
     queryClient.invalidateQueries({ queryKey: ['dnsRecords', providerId, zoneId] })
   }
+
+  const removeSet = useMutation({
+    mutationFn: (set: RecordSet) =>
+      api.deleteDNSRecordSet(providerId, zoneId, set.name, set.type),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dnsRecords', providerId, zoneId] })
+      setDeletingSet(null)
+    },
+    onError: (e: Error) => {
+      setError(e.message)
+      setDeletingSet(null)
+    },
+  })
 
   const remove = useMutation({
     mutationFn: () => api.deleteDNSZone(providerId, zoneId),
@@ -219,6 +213,19 @@ export default function DNSZoneDetailPage() {
             {(recordsError as Error).message}
           </Alert>
         )}
+        <Box sx={{ mb: 2 }}>
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<AddBoxIcon />}
+            onClick={() => {
+              setEditingSet(null)
+              setEditorOpen(true)
+            }}
+          >
+            Add record set
+          </Button>
+        </Box>
         <TableContainer component={Paper} variant="outlined">
           <Table size="small">
             <TableHead>
@@ -227,6 +234,7 @@ export default function DNSZoneDetailPage() {
                 <TableCell>Type</TableCell>
                 <TableCell align="right">TTL (seconds)</TableCell>
                 <TableCell>Record data</TableCell>
+                <TableCell align="right" />
               </TableRow>
             </TableHead>
             <TableBody>
@@ -258,11 +266,22 @@ export default function DNSZoneDetailPage() {
                       ))}
                     </Box>
                   </TableCell>
+                  <TableCell align="right">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        setMenuAnchor(e.currentTarget)
+                        setMenuSet(set)
+                      }}
+                    >
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                  </TableCell>
                 </TableRow>
               ))}
               {sets.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                  <TableCell colSpan={5} align="center" sx={{ py: 6, color: '#5f6368' }}>
                     {recordsLoading ? 'Loading…' : 'This zone has no records.'}
                   </TableCell>
                 </TableRow>
@@ -271,6 +290,58 @@ export default function DNSZoneDetailPage() {
           </Table>
         </TableContainer>
       </Box>
+
+      <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
+        <MenuItem
+          disabled={!menuSet || !canEdit(menuSet.type)}
+          onClick={() => {
+            setEditingSet(menuSet)
+            setEditorOpen(true)
+            setMenuAnchor(null)
+          }}
+        >
+          <EditIcon fontSize="small" sx={{ mr: 1 }} /> Edit
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setDeletingSet(menuSet)
+            setMenuAnchor(null)
+          }}
+          sx={{ color: '#d93025' }}
+        >
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Delete
+        </MenuItem>
+        {menuSet && !canEdit(menuSet.type) && (
+          <Typography sx={{ fontSize: 12, color: '#5f6368', px: 2, py: 1, maxWidth: 260 }}>
+            {menuSet.type} records carry structured data — edit them at the provider.
+          </Typography>
+        )}
+      </Menu>
+
+      {editorOpen && (
+        <RecordSetDialog
+          key={editingSet ? `${editingSet.name}|${editingSet.type}` : 'new'}
+          zone={zone}
+          sets={sets}
+          editing={editingSet}
+          onClose={() => setEditorOpen(false)}
+          onSaved={() => {
+            setEditorOpen(false)
+            queryClient.invalidateQueries({ queryKey: ['dnsRecords', providerId, zoneId] })
+          }}
+        />
+      )}
+
+      <ConfirmDeleteDialog
+        open={Boolean(deletingSet)}
+        title={`Delete the ${deletingSet?.type} record set for ${deletingSet?.name}?`}
+        body={`This removes ${deletingSet?.records.length ?? 0} record${
+          deletingSet?.records.length === 1 ? '' : 's'
+        }: ${deletingSet?.records.map(recordData).join(', ')}`}
+        pending={removeSet.isPending}
+        onCancel={() => setDeletingSet(null)}
+        onConfirm={() => deletingSet && removeSet.mutate(deletingSet)}
+      />
 
       <ConfirmDeleteDialog
         open={confirming}

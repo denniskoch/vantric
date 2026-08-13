@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"regexp"
 	"slices"
@@ -37,6 +38,8 @@ func (s *Server) dnsRoutes(r chi.Router) {
 	r.Post("/dns/zones", s.createDNSZone)
 	r.Get("/dns/zones/{id}", s.getDNSZone)
 	r.Get("/dns/zones/{id}/records", s.listDNSRecords)
+	r.Put("/dns/zones/{id}/record-sets", s.saveDNSRecordSet)
+	r.Delete("/dns/zones/{id}/record-sets", s.deleteDNSRecordSet)
 	r.Delete("/dns/zones/{id}", s.deleteDNSZone)
 }
 
@@ -304,6 +307,187 @@ func (s *Server) listDNSRecords(w http.ResponseWriter, r *http.Request) {
 		return strings.Compare(a.Content, b.Content)
 	})
 	s.json(w, http.StatusOK, records)
+}
+
+// Record sets are this app's unit of editing: every record sharing a
+// name and type, saved together the way Cloud DNS presents them.
+// Providers address records one at a time, so saving a set is a diff
+// against what's there — pair values up, update those, then create or
+// delete the difference.
+
+// editableRecordTypes are the types whose value is a plain string at
+// the provider. CAA, SRV and friends carry structured data, so they
+// list and delete fine but are left to the provider's own UI to edit
+// rather than silently mangled here.
+var editableRecordTypes = []string{"A", "AAAA", "CNAME", "MX", "NS", "TXT"}
+
+type recordValue struct {
+	Content  string `json:"content"`
+	Priority int    `json:"priority"`
+}
+
+type recordSetRequest struct {
+	Name    string        `json:"name"`
+	Type    string        `json:"type"`
+	TTL     int           `json:"ttl"`
+	Proxied bool          `json:"proxied"`
+	Comment string        `json:"comment"`
+	Values  []recordValue `json:"values"`
+}
+
+// recordSetName normalises a name and checks it belongs to the zone.
+func recordSetName(name, zone string) (string, error) {
+	name = strings.ToLower(strings.TrimSpace(name))
+	name = strings.TrimSuffix(name, ".")
+	if name == "" || name == "@" {
+		return zone, nil
+	}
+	if name != zone && !strings.HasSuffix(name, "."+zone) {
+		return "", fmt.Errorf("%q is outside the %s zone", name, zone)
+	}
+	if !domainRe.MatchString(name) {
+		return "", fmt.Errorf("%q is not a valid DNS name", name)
+	}
+	return name, nil
+}
+
+// setRecords picks the records belonging to one set, in a stable order
+// so pairing old values with new ones is repeatable.
+func setRecords(records []dns.Record, name, recordType string) []dns.Record {
+	var set []dns.Record
+	for _, record := range records {
+		if strings.EqualFold(record.Name, name) && record.Type == recordType {
+			set = append(set, record)
+		}
+	}
+	slices.SortFunc(set, func(a, b dns.Record) int { return strings.Compare(a.ID, b.ID) })
+	return set
+}
+
+func (s *Server) saveDNSRecordSet(w http.ResponseWriter, r *http.Request) {
+	provider := s.dnsProvider(w, r)
+	if provider == nil {
+		return
+	}
+	zoneID := chi.URLParam(r, "id")
+	var req recordSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	req.Type = strings.ToUpper(strings.TrimSpace(req.Type))
+	if !slices.Contains(editableRecordTypes, req.Type) {
+		s.err(w, http.StatusBadRequest, fmt.Sprintf("%s records can't be edited here", req.Type))
+		return
+	}
+	if len(req.Values) == 0 {
+		s.err(w, http.StatusBadRequest, "a record set needs at least one value")
+		return
+	}
+	if req.Type == "CNAME" && len(req.Values) > 1 {
+		s.err(w, http.StatusBadRequest, "a CNAME record set holds exactly one value")
+		return
+	}
+	for _, value := range req.Values {
+		if strings.TrimSpace(value.Content) == "" {
+			s.err(w, http.StatusBadRequest, "every value needs content")
+			return
+		}
+	}
+
+	zone, err := provider.Zone(r.Context(), zoneID)
+	if err != nil {
+		s.fail(w, err, "zone")
+		return
+	}
+	name, err := recordSetName(req.Name, zone.Name)
+	if err != nil {
+		s.err(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	existing, err := provider.Records(r.Context(), zoneID)
+	if err != nil {
+		s.fail(w, err, "dns records")
+		return
+	}
+	// A name is either a CNAME or everything else — never both.
+	for _, record := range existing {
+		if !strings.EqualFold(record.Name, name) || record.Type == req.Type {
+			continue
+		}
+		if record.Type == "CNAME" || req.Type == "CNAME" {
+			s.err(w, http.StatusConflict,
+				"a name may have either one CNAME record set or record sets of other types, but not both")
+			return
+		}
+	}
+
+	current := setRecords(existing, name, req.Type)
+	saved := []dns.Record{}
+	for i, value := range req.Values {
+		spec := dns.RecordSpec{
+			Name:     name,
+			Type:     req.Type,
+			Content:  strings.TrimSpace(value.Content),
+			TTL:      req.TTL,
+			Priority: value.Priority,
+			Proxied:  req.Proxied,
+			Comment:  req.Comment,
+		}
+		var record *dns.Record
+		if i < len(current) {
+			record, err = provider.UpdateRecord(r.Context(), zoneID, current[i].ID, spec)
+		} else {
+			record, err = provider.CreateRecord(r.Context(), zoneID, spec)
+		}
+		if err != nil {
+			s.fail(w, err, "saving record")
+			return
+		}
+		saved = append(saved, *record)
+	}
+	// Values removed from the set are records the provider still holds.
+	for _, record := range current[min(len(req.Values), len(current)):] {
+		if err := provider.DeleteRecord(r.Context(), zoneID, record.ID); err != nil {
+			s.fail(w, err, "removing record")
+			return
+		}
+	}
+	s.json(w, http.StatusOK, saved)
+}
+
+// deleteDNSRecordSet removes every record in the set named by the
+// ?name= and ?type= query parameters.
+func (s *Server) deleteDNSRecordSet(w http.ResponseWriter, r *http.Request) {
+	provider := s.dnsProvider(w, r)
+	if provider == nil {
+		return
+	}
+	zoneID := chi.URLParam(r, "id")
+	name := strings.TrimSuffix(strings.ToLower(r.URL.Query().Get("name")), ".")
+	recordType := strings.ToUpper(r.URL.Query().Get("type"))
+	if name == "" || recordType == "" {
+		s.err(w, http.StatusBadRequest, "name and type query parameters are required")
+		return
+	}
+	records, err := provider.Records(r.Context(), zoneID)
+	if err != nil {
+		s.fail(w, err, "dns records")
+		return
+	}
+	set := setRecords(records, name, recordType)
+	if len(set) == 0 {
+		s.err(w, http.StatusNotFound, "record set: not found")
+		return
+	}
+	for _, record := range set {
+		if err := provider.DeleteRecord(r.Context(), zoneID, record.ID); err != nil {
+			s.fail(w, err, "deleting record")
+			return
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) createDNSZone(w http.ResponseWriter, r *http.Request) {

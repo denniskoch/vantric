@@ -56,6 +56,18 @@ type Record struct {
 	Comment string `json:"comment,omitempty"`
 }
 
+// RecordSpec describes a record to create or replace.
+type RecordSpec struct {
+	// Name is the fully qualified record name, e.g. "www.example.com".
+	Name     string
+	Type     string
+	Content  string
+	TTL      int
+	Priority int
+	Proxied  bool
+	Comment  string
+}
+
 // ZoneSpec describes a zone to create.
 type ZoneSpec struct {
 	Name      string
@@ -77,6 +89,11 @@ type Provider interface {
 	// current even when the list is stale.
 	Zone(ctx context.Context, zoneID string) (*Zone, error)
 	Records(ctx context.Context, zoneID string) ([]Record, error)
+	// Records are addressed one at a time; the API layer builds record
+	// sets on top of these, since providers don't share that concept.
+	CreateRecord(ctx context.Context, zoneID string, spec RecordSpec) (*Record, error)
+	UpdateRecord(ctx context.Context, zoneID, recordID string, spec RecordSpec) (*Record, error)
+	DeleteRecord(ctx context.Context, zoneID, recordID string) error
 	CreateZone(ctx context.Context, spec ZoneSpec) (*Zone, error)
 	DeleteZone(ctx context.Context, zoneID string) error
 }

@@ -209,42 +209,103 @@ func (d *Driver) Zone(ctx context.Context, zoneID string) (*dns.Zone, error) {
 	return &zone, nil
 }
 
+// cfRecord is Cloudflare's DNS record shape.
+type cfRecord struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Content  string `json:"content"`
+	TTL      int    `json:"ttl"`
+	Priority int    `json:"priority"`
+	Proxied  bool   `json:"proxied"`
+	Comment  string `json:"comment"`
+}
+
+func (r cfRecord) toRecord() dns.Record {
+	return dns.Record{
+		ID:       r.ID,
+		Name:     r.Name,
+		Type:     r.Type,
+		Content:  r.Content,
+		TTL:      r.TTL,
+		Priority: r.Priority,
+		Proxied:  r.Proxied,
+		Comment:  r.Comment,
+	}
+}
+
 // Records lists every record in a zone, following pagination.
 func (d *Driver) Records(ctx context.Context, zoneID string) ([]dns.Record, error) {
 	records := []dns.Record{}
 	for page := 1; ; page++ {
-		var res []struct {
-			ID       string `json:"id"`
-			Name     string `json:"name"`
-			Type     string `json:"type"`
-			Content  string `json:"content"`
-			TTL      int    `json:"ttl"`
-			Priority int    `json:"priority"`
-			Proxied  bool   `json:"proxied"`
-			Comment  string `json:"comment"`
-		}
+		var res []cfRecord
 		path := fmt.Sprintf("/zones/%s/dns_records?per_page=100&page=%d", zoneID, page)
 		env, err := d.do(ctx, http.MethodGet, path, nil, &res)
 		if err != nil {
 			return nil, err
 		}
 		for _, r := range res {
-			records = append(records, dns.Record{
-				ID:       r.ID,
-				Name:     r.Name,
-				Type:     r.Type,
-				Content:  r.Content,
-				TTL:      r.TTL,
-				Priority: r.Priority,
-				Proxied:  r.Proxied,
-				Comment:  r.Comment,
-			})
+			records = append(records, r.toRecord())
 		}
 		if env.Info.TotalPages <= page || len(res) == 0 {
 			break
 		}
 	}
 	return records, nil
+}
+
+// recordBody builds the write payload. Cloudflare rejects fields that
+// don't apply to a type — priority only means something for MX and
+// SRV, proxying only for the types it can proxy — so each is sent only
+// where it belongs.
+func recordBody(spec dns.RecordSpec) map[string]any {
+	ttl := spec.TTL
+	if ttl <= 0 {
+		ttl = 1 // 1 is Cloudflare's "automatic"
+	}
+	body := map[string]any{
+		"name":    spec.Name,
+		"type":    spec.Type,
+		"content": spec.Content,
+		"ttl":     ttl,
+	}
+	switch spec.Type {
+	case "MX", "SRV", "URI":
+		body["priority"] = spec.Priority
+	}
+	switch spec.Type {
+	case "A", "AAAA", "CNAME":
+		body["proxied"] = spec.Proxied
+	}
+	if spec.Comment != "" {
+		body["comment"] = spec.Comment
+	}
+	return body
+}
+
+func (d *Driver) CreateRecord(ctx context.Context, zoneID string, spec dns.RecordSpec) (*dns.Record, error) {
+	var res cfRecord
+	path := "/zones/" + zoneID + "/dns_records"
+	if _, err := d.do(ctx, http.MethodPost, path, recordBody(spec), &res); err != nil {
+		return nil, err
+	}
+	record := res.toRecord()
+	return &record, nil
+}
+
+func (d *Driver) UpdateRecord(ctx context.Context, zoneID, recordID string, spec dns.RecordSpec) (*dns.Record, error) {
+	var res cfRecord
+	path := "/zones/" + zoneID + "/dns_records/" + recordID
+	if _, err := d.do(ctx, http.MethodPut, path, recordBody(spec), &res); err != nil {
+		return nil, err
+	}
+	record := res.toRecord()
+	return &record, nil
+}
+
+func (d *Driver) DeleteRecord(ctx context.Context, zoneID, recordID string) error {
+	_, err := d.do(ctx, http.MethodDelete, "/zones/"+zoneID+"/dns_records/"+recordID, nil, nil)
+	return err
 }
 
 func (d *Driver) CreateZone(ctx context.Context, spec dns.ZoneSpec) (*dns.Zone, error) {
