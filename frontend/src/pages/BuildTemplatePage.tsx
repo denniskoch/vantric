@@ -205,7 +205,7 @@ export default function BuildTemplatePage() {
   }
 
   return (
-    <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
+    <Box sx={{ p: 3, display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
         <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate('/compute/vm-templates')}>
           Back
@@ -223,7 +223,7 @@ export default function BuildTemplatePage() {
         </Alert>
       )}
 
-      <Box sx={{ display: 'flex', gap: 3, flex: 1, minHeight: 0 }}>
+      <Box sx={{ display: 'flex', gap: 3 }}>
         <Paper variant="outlined" sx={{ width: 260, flexShrink: 0, alignSelf: 'flex-start' }}>
           <List dense disablePadding>
             {sections.map((sec) => (

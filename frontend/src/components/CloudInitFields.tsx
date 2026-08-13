@@ -8,26 +8,23 @@ import {
 } from '@mui/material'
 import type { CloudInitConfig } from '../api/client'
 
-/**
- * The cloud-init settings shared by the create-instance and
- * build-template flows. Everything is optional: blank fields leave the
- * image's own defaults alone.
- */
-export default function CloudInitFields({
-  value,
-  onChange,
-}: {
+interface Props {
   value: CloudInitConfig
   onChange: (next: CloudInitConfig) => void
-}) {
+}
+
+/**
+ * Cloud-init settings, split so each group can sit in the section it
+ * belongs to: addressing under Networking, credentials under Security,
+ * first-boot behaviour under Advanced. Everything is optional — blank
+ * fields leave the image's own defaults alone.
+ */
+export function CloudInitLoginFields({ value, onChange }: Props) {
   const set = <K extends keyof CloudInitConfig>(key: K, v: CloudInitConfig[K]) =>
     onChange({ ...value, [key]: v })
 
   return (
     <>
-      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-        Login
-      </Typography>
       <Box sx={{ display: 'flex', gap: 2 }}>
         <TextField
           label="Default user"
@@ -59,7 +56,17 @@ export default function CloudInitFields({
         fullWidth
       />
 
-      <Typography variant="body2" sx={{ fontWeight: 500, mt: 1 }}>
+    </>
+  )
+}
+
+export function CloudInitNetworkFields({ value, onChange }: Props) {
+  const set = <K extends keyof CloudInitConfig>(key: K, v: CloudInitConfig[K]) =>
+    onChange({ ...value, [key]: v })
+
+  return (
+    <>
+      <Typography variant="body2" sx={{ fontWeight: 500 }}>
         IPv4
       </Typography>
       <FormControlLabel
@@ -128,7 +135,7 @@ export default function CloudInitFields({
       )}
 
       <Typography variant="body2" sx={{ fontWeight: 500, mt: 1 }}>
-        DNS and first boot
+        DNS
       </Typography>
       <Box sx={{ display: 'flex', gap: 2 }}>
         <TextField
@@ -149,6 +156,16 @@ export default function CloudInitFields({
           sx={{ flex: 1 }}
         />
       </Box>
+    </>
+  )
+}
+
+export function CloudInitAdvancedFields({ value, onChange }: Props) {
+  const set = <K extends keyof CloudInitConfig>(key: K, v: CloudInitConfig[K]) =>
+    onChange({ ...value, [key]: v })
+
+  return (
+    <>
       <FormControlLabel
         control={
           <Checkbox
@@ -172,6 +189,17 @@ export default function CloudInitFields({
         <MenuItem value="nocloud">NoCloud (most Linux images)</MenuItem>
         <MenuItem value="configdrive2">ConfigDrive 2 (OpenStack-style)</MenuItem>
       </TextField>
+    </>
+  )
+}
+
+/** All groups together, for a form with a single cloud-init section. */
+export default function CloudInitFields(props: Props) {
+  return (
+    <>
+      <CloudInitLoginFields {...props} />
+      <CloudInitNetworkFields {...props} />
+      <CloudInitAdvancedFields {...props} />
     </>
   )
 }

@@ -251,7 +251,7 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
   }
 
   return (
-    <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
+    <Box sx={{ p: 3, display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
         <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate(kind.listPath)}>
           Back
@@ -265,7 +265,7 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
         </Alert>
       )}
 
-      <Box sx={{ display: 'flex', gap: 3, flex: 1, minHeight: 0 }}>
+      <Box sx={{ display: 'flex', gap: 3 }}>
         <Paper variant="outlined" sx={{ width: 260, flexShrink: 0, alignSelf: 'flex-start' }}>
           <List dense disablePadding>
             {sections.map((sec) => (

@@ -21,7 +21,11 @@ import CircleIcon from '@mui/icons-material/Circle'
 import ErrorIcon from '@mui/icons-material/Error'
 import { api, emptyCloudInit } from '../api/client'
 import type { CloudInitConfig } from '../api/client'
-import CloudInitFields from '../components/CloudInitFields'
+import {
+  CloudInitAdvancedFields,
+  CloudInitLoginFields,
+  CloudInitNetworkFields,
+} from '../components/CloudInitFields'
 
 // GCP-style sectioned create flow: a left stepper with per-section
 // summaries and a persistent Create/Cancel bar.
@@ -136,17 +140,18 @@ export default function CreateInstancePage() {
     {
       id: 'networking',
       label: 'Networking',
-      summary: netBridge
-        ? `${netBridge}${vlanTag ? ` (VLAN ${vlanTag})` : ''}`
-        : 'Image default network',
+      summary: [
+        netBridge ? `${netBridge}${vlanTag ? ` (VLAN ${vlanTag})` : ''}` : 'image default',
+        cloudInit.dhcp ? 'DHCP' : cloudInit.address || 'static',
+      ].join(', '),
     },
     {
       id: 'security',
       label: 'Security',
       summary: [
         cloudInit.user || 'default user',
-        cloudInit.dhcp ? 'DHCP' : cloudInit.address || 'static',
         cloudInit.sshKeys.trim() ? 'SSH keys' : null,
+        cloudInit.password ? 'password' : null,
       ]
         .filter(Boolean)
         .join(', '),
@@ -159,7 +164,7 @@ export default function CreateInstancePage() {
   ]
 
   return (
-    <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
+    <Box sx={{ p: 3, display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
         <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate('/compute/instances')}>
           Back
@@ -173,7 +178,7 @@ export default function CreateInstancePage() {
         </Alert>
       )}
 
-      <Box sx={{ display: 'flex', gap: 3, flex: 1, minHeight: 0 }}>
+      <Box sx={{ display: 'flex', gap: 3 }}>
         {/* Section stepper */}
         <Paper variant="outlined" sx={{ width: 260, flexShrink: 0, alignSelf: 'flex-start' }}>
           <List dense disablePadding>
@@ -378,6 +383,11 @@ export default function CreateInstancePage() {
                 slotProps={{ htmlInput: { min: 1, max: 4094 } }}
                 sx={{ maxWidth: 220 }}
               />
+              <Divider sx={{ my: 1 }} />
+              <Typography variant="body2" color="text.secondary">
+                Guest addressing, applied by cloud-init on first boot.
+              </Typography>
+              <CloudInitNetworkFields value={cloudInit} onChange={setCloudInit} />
             </>
           )}
 
@@ -388,7 +398,7 @@ export default function CreateInstancePage() {
                 Applied by cloud-init on first boot. Requires a cloud-init enabled
                 image — the templates built by the wizard are.
               </Typography>
-              <CloudInitFields value={cloudInit} onChange={setCloudInit} />
+              <CloudInitLoginFields value={cloudInit} onChange={setCloudInit} />
             </>
           )}
 
@@ -414,6 +424,11 @@ export default function CreateInstancePage() {
                 }
                 label="Enable deletion protection"
               />
+              <Divider sx={{ my: 1 }} />
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                Cloud-init
+              </Typography>
+              <CloudInitAdvancedFields value={cloudInit} onChange={setCloudInit} />
             </>
           )}
         </Paper>
