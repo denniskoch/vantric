@@ -39,7 +39,16 @@ export const theme = createTheme({
     },
     MuiTableCell: {
       styleOverrides: {
-        root: { fontSize: 13, borderBottomColor: '#e8eaed' },
+        root: {
+          fontSize: 13,
+          borderBottomColor: '#e8eaed',
+          // Row height is set by whatever is tallest in the cell, so
+          // the controls that live in tables are tightened with it —
+          // otherwise padded icon buttons undo the denser rows.
+          '& .MuiIconButton-sizeSmall': { padding: 4 },
+          '& .MuiCheckbox-root': { padding: 4 },
+        },
+        sizeSmall: { padding: '3px 12px' },
         head: { color: '#5f6368', fontWeight: 500, whiteSpace: 'nowrap' },
       },
     },

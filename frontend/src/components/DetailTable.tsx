@@ -35,7 +35,7 @@ export default function DetailTable({ rows }: { rows: DetailRow[] }) {
       sx={{
         border: '1px solid #e8eaed',
         '& tr:nth-of-type(odd)': { bgcolor: '#f8f9fa' },
-        '& td': { border: 0, py: 1 },
+        '& td': { border: 0, py: 0.75 },
       }}
     >
       <TableBody>
