@@ -29,6 +29,8 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import HelpIcon from '@mui/icons-material/Help'
 import { api } from '../api/client'
+import BrandIcon from '../components/BrandIcon'
+import { dnsBrand } from '../brands'
 import type { DNSProvider, DNSProviderRequest, DNSProviderType } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import { resourceNameError, resourceNameRe } from '../validation'
@@ -169,10 +171,15 @@ export default function DNSProvidersPage() {
                 <TableCell>{provider.name}</TableCell>
                 <TableCell>
                   <Chip
+                    icon={
+                      dnsBrand(provider.type) ? (
+                        <BrandIcon icon={dnsBrand(provider.type)!} size={12} />
+                      ) : undefined
+                    }
                     label={typeLabels[provider.type] ?? provider.type}
                     size="small"
                     variant="outlined"
-                    sx={{ fontSize: 11, height: 20 }}
+                    sx={{ fontSize: 11, height: 20, '& .MuiChip-icon': { ml: 0.75, mr: -0.25 } }}
                   />
                 </TableCell>
                 <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>

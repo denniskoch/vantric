@@ -21,6 +21,7 @@ import AddBoxIcon from '@mui/icons-material/AddBox'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { api } from '../api/client'
+import VolumeName from '../components/VolumeName'
 import type { ISO } from '../api/client'
 import { formatBytes } from '../format'
 import { useServerNames } from '../useServerNames'
@@ -88,7 +89,9 @@ export default function ISOsPage() {
           <TableBody>
             {isos.map((iso) => (
               <TableRow key={`${iso.serverId}/${iso.id}`} hover>
-                <TableCell>{iso.name}</TableCell>
+                <TableCell>
+                  <VolumeName name={iso.name} />
+                </TableCell>
                 <TableCell>{iso.storage}</TableCell>
                 <TableCell>{serverName(iso.serverId)}</TableCell>
                 <TableCell>{iso.zone}</TableCell>

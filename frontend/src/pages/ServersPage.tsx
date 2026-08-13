@@ -33,6 +33,8 @@ import HelpIcon from '@mui/icons-material/Help'
 import { api } from '../api/client'
 import type { Server, ServerRequest, ServerType } from '../api/client'
 import { resourceNameError, resourceNameRe, urlError } from '../validation'
+import BrandIcon from '../components/BrandIcon'
+import { hypervisorBrand } from '../brands'
 
 const typeLabels: Record<ServerType, string> = {
   proxmox: 'Proxmox VE',
@@ -173,10 +175,15 @@ export default function ServersPage() {
                 <TableCell>{server.name}</TableCell>
                 <TableCell>
                   <Chip
+                    icon={
+                      hypervisorBrand(server.type) ? (
+                        <BrandIcon icon={hypervisorBrand(server.type)!} size={12} />
+                      ) : undefined
+                    }
                     label={typeLabels[server.type] ?? server.type}
                     size="small"
                     variant="outlined"
-                    sx={{ fontSize: 11, height: 20 }}
+                    sx={{ fontSize: 11, height: 20, '& .MuiChip-icon': { ml: 0.75, mr: -0.25 } }}
                   />
                 </TableCell>
                 <TableCell>{server.baseUrl || '—'}</TableCell>

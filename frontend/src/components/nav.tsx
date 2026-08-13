@@ -15,11 +15,19 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import FolderSpecialIcon from '@mui/icons-material/FolderSpecial'
 import ArchiveIcon from '@mui/icons-material/Archive'
 import DatasetIcon from '@mui/icons-material/Dataset'
-import ViewInArIcon from '@mui/icons-material/ViewInAr'
 import TravelExploreIcon from '@mui/icons-material/TravelExplore'
 import PublicIcon from '@mui/icons-material/Public'
 import VpnKeyIcon from '@mui/icons-material/VpnKey'
 import TableChartIcon from '@mui/icons-material/TableChart'
+import { createSvgIcon } from '@mui/material/utils'
+import { siDocker } from 'simple-icons'
+
+// The Docker section is Docker, so it gets the whale. createSvgIcon
+// wraps the path so it behaves like every other MUI icon here — sized
+// and coloured by the list item rather than carrying brand colour.
+// Sections that span engines (Databases) keep a generic icon: an
+// elephant would claim PostgreSQL for a list that also holds MySQL.
+const DockerIcon = createSvgIcon(<path d={siDocker.path} />, 'Docker')
 
 export interface SectionItem {
   label: string
@@ -173,7 +181,7 @@ export const sections: Section[] = [
   {
     id: 'docker',
     label: 'Docker',
-    icon: ViewInArIcon,
+    icon: DockerIcon,
     prefix: '/docker',
     home: '/docker/overview',
     items: [{ label: 'Overview', icon: DashboardIcon, to: '/docker/overview' }],

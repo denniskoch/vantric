@@ -42,6 +42,8 @@ import type { Database, DatabaseUser } from '../api/client'
 import DetailTable from '../components/DetailTable'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import { engineLabels } from '../databases'
+import BrandIcon from '../components/BrandIcon'
+import { databaseBrand } from '../brands'
 import { formatBytes, formatDuration } from '../format'
 import { identifierError } from '../validation'
 
@@ -198,6 +200,7 @@ export default function DatabaseInstanceDetailPage() {
   // PostgreSQL is the other way round.
   const hostScoped = server.type === 'mysql'
   const hasOwners = server.type === 'postgres'
+  const brand = databaseBrand(server.type, server.info?.version)
   const newDatabaseError = newDatabase ? identifierError(newDatabase.name) : null
   const newUserError = newUser ? identifierError(newUser.name) : null
 
@@ -218,6 +221,7 @@ export default function DatabaseInstanceDetailPage() {
             <ErrorIcon sx={{ color: '#d93025', fontSize: 20 }} />
           )}
         </Tooltip>
+        {brand && <BrandIcon icon={brand} size={20} />}
         <Typography variant="h5">{server.name}</Typography>
         <Box sx={{ flex: 1 }} />
         <Button size="small" startIcon={<RefreshIcon />} onClick={refresh}>
@@ -254,7 +258,10 @@ export default function DatabaseInstanceDetailPage() {
 
         <DetailTable
           rows={[
-            { label: 'Engine', value: engineLabels[server.type] ?? server.type },
+            {
+              label: 'Engine',
+              value: brand?.title ?? engineLabels[server.type] ?? server.type,
+            },
             { label: 'Version', value: server.info?.version ?? '—' },
             { label: 'Endpoint', value: `${server.host}:${server.port}` },
             { label: 'Connecting as', value: `${server.username} → ${server.database}` },

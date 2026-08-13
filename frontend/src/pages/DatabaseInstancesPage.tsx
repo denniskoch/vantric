@@ -31,6 +31,8 @@ import { api } from '../api/client'
 import type { DatabaseServer } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import { engineLabels } from '../databases'
+import BrandIcon from '../components/BrandIcon'
+import { databaseBrand } from '../brands'
 import { formatBytes } from '../format'
 
 function StatusGlyph({ server }: { server: DatabaseServer }) {
@@ -46,6 +48,22 @@ function StatusGlyph({ server }: { server: DatabaseServer }) {
     <Tooltip title={server.error ? `${server.status}: ${server.error}` : server.status}>
       <span style={{ display: 'inline-flex', verticalAlign: 'middle' }}>{icon}</span>
     </Tooltip>
+  )
+}
+
+/** MariaDB only reveals itself in the version banner, so the chip
+ *  reads the brand from the server rather than its engine type. */
+function EngineChip({ server }: { server: DatabaseServer }) {
+  const brand = databaseBrand(server.type, server.info?.version)
+  const mariadb = brand?.title === 'MariaDB'
+  return (
+    <Chip
+      icon={brand ? <BrandIcon icon={brand} size={12} /> : undefined}
+      label={mariadb ? 'MariaDB' : (engineLabels[server.type] ?? server.type)}
+      size="small"
+      variant="outlined"
+      sx={{ fontSize: 11, height: 20, '& .MuiChip-icon': { ml: 0.75, mr: -0.25 } }}
+    />
   )
 }
 
@@ -130,12 +148,7 @@ export default function DatabaseInstancesPage() {
                   </Link>
                 </TableCell>
                 <TableCell>
-                  <Chip
-                    label={engineLabels[server.type] ?? server.type}
-                    size="small"
-                    variant="outlined"
-                    sx={{ fontSize: 11, height: 20 }}
-                  />
+                  <EngineChip server={server} />
                 </TableCell>
                 <TableCell>{server.info?.version ?? '—'}</TableCell>
                 <TableCell>

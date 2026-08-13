@@ -31,6 +31,8 @@ import DetailTable, { DetailSection } from '../components/DetailTable'
 import TimeSeriesChart from '../components/TimeSeriesChart'
 import { chart } from '../chartPalette'
 import { formatBytes, formatBytesPerSec, formatPercent, formatUptime } from '../format'
+import BrandIcon from '../components/BrandIcon'
+import { osBrand } from '../brands'
 
 type TabID = 'details' | 'observability' | 'os'
 
@@ -539,7 +541,17 @@ export default function InstanceDetailPage() {
                 <DetailTable
                   rows={[
                     { label: 'Hostname', value: osInfo.hostname || '—' },
-                    { label: 'OS name', value: osInfo.name || '—' },
+                    {
+                      label: 'OS name',
+                      value: (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {osBrand(osInfo.name) && (
+                            <BrandIcon icon={osBrand(osInfo.name)!} size={16} />
+                          )}
+                          {osInfo.name || '—'}
+                        </Box>
+                      ),
+                    },
                     { label: 'Version', value: osInfo.version || '—' },
                     { label: 'Kernel release', value: osInfo.kernelRelease || '—' },
                     { label: 'Kernel version', value: osInfo.kernelVersion || '—' },
