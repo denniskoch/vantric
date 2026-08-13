@@ -14,6 +14,9 @@ import DiscFullIcon from '@mui/icons-material/DiscFull'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import FolderSpecialIcon from '@mui/icons-material/FolderSpecial'
 import ArchiveIcon from '@mui/icons-material/Archive'
+import DatasetIcon from '@mui/icons-material/Dataset'
+import ViewInArIcon from '@mui/icons-material/ViewInAr'
+import TravelExploreIcon from '@mui/icons-material/TravelExplore'
 
 export interface SectionItem {
   label: string
@@ -105,6 +108,36 @@ export const sections: Section[] = [
     icon: LanIcon,
     prefix: '/network',
     home: '/network',
+    items: [],
+    groups: [],
+    comingSoon: true,
+  },
+  {
+    id: 'databases',
+    label: 'Databases',
+    icon: DatasetIcon,
+    prefix: '/databases',
+    home: '/databases',
+    items: [],
+    groups: [],
+    comingSoon: true,
+  },
+  {
+    id: 'docker',
+    label: 'Docker',
+    icon: ViewInArIcon,
+    prefix: '/docker',
+    home: '/docker',
+    items: [],
+    groups: [],
+    comingSoon: true,
+  },
+  {
+    id: 'dns',
+    label: 'DNS',
+    icon: TravelExploreIcon,
+    prefix: '/dns',
+    home: '/dns',
     items: [],
     groups: [],
     comingSoon: true,
