@@ -93,11 +93,33 @@ Design notes:
 
 Base path `/api/v1`:
 
-- `GET /zones`, `GET /images`
+- `GET /zones`, `GET /images`, `GET /isos`, `GET /ct-templates`,
+  `GET /datastores`, `GET /disks`, `GET /snapshots` (all take `?server=`)
 - `GET/POST /machine-types`, `DELETE /machine-types/{name}`
+- `GET /servers`, `POST /servers`, `PUT/DELETE /servers/{id}`,
+  `GET /server-types`
 - `GET/POST /instances`
 - `GET/DELETE /instances/{name}/`
-- `POST /instances/{name}/{start|stop|reset}`
+- `POST /instances/{name}/{start|stop|reset|protection}`
+- `GET /instances/{name}/{describe|metrics|os-info}` — live hypervisor
+  reads for the detail view (`metrics` takes `?timeframe=hour|day|week|month`)
+- `GET /containers`, `GET/DELETE /containers/{name}/`,
+  `POST /containers/{name}/{start|stop|reset|protection}`
 
 Projects (GCP-style resource grouping) were dropped pre-ship and may
 return as a post-ship enhancement.
+
+## Ideas for later
+
+- **osquery**: run osquery on guests and surface it in the console, so
+  OS Info goes beyond what the QEMU guest agent reports — installed
+  packages, listening ports, users, running processes — and becomes
+  queryable fleet-wide rather than per-VM. Would need an agent-install
+  story (cloud-init) plus a collection endpoint; the OS Info tab is the
+  natural home for it.
+- **Console access**: noVNC/serial console proxying (Proxmox exposes
+  both), mirroring GCP's SSH-in-browser button.
+- **CT provisioning**: create flow for containers (template picker,
+  rootfs storage/size, unprivileged flag) — the CT Templates page
+  already lists the sources.
+- **Create from ISO**: an alternative boot source in the VM create flow.

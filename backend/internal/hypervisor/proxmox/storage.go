@@ -44,24 +44,15 @@ func (d *Driver) Disks(ctx context.Context) ([]hypervisor.Disk, error) {
 }
 
 func parseDisk(key, val string, vm clusterVM) hypervisor.Disk {
-	disk := hypervisor.Disk{
+	spec := parseDiskSpec(key, val)
+	return hypervisor.Disk{
 		ID:      fmt.Sprintf("%d/%s", vm.VMID, key),
-		Name:    key,
+		Name:    spec.Name,
 		InUseBy: vm.Name,
 		Zone:    vm.Node,
+		Storage: spec.Storage,
+		SizeGB:  spec.SizeGB,
 	}
-	parts := strings.Split(val, ",")
-	if vol := parts[0]; strings.Contains(vol, ":") {
-		storageAndName := strings.SplitN(vol, ":", 2)
-		disk.Storage = storageAndName[0]
-		disk.Name = storageAndName[1]
-	}
-	for _, part := range parts[1:] {
-		if after, found := strings.CutPrefix(part, "size="); found {
-			disk.SizeGB = parseSizeGB(after)
-		}
-	}
-	return disk
 }
 
 // parseSizeGB converts Proxmox size strings ("32G", "512M", "1T") to GB.

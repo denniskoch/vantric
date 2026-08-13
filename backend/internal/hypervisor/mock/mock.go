@@ -6,6 +6,7 @@ package mock
 import (
 	"context"
 	"fmt"
+	"math"
 	"math/rand"
 	"sync"
 	"time"
@@ -168,6 +169,104 @@ func (d *Driver) Get(ctx context.Context, driverID string) (*hypervisor.Instance
 	d.tick(vm)
 	s := vm.state
 	return &s, nil
+}
+
+func (d *Driver) Describe(ctx context.Context, driverID string) (*hypervisor.InstanceDetail, error) {
+	d.mu.Lock()
+	vm, ok := d.vms[driverID]
+	if !ok {
+		d.mu.Unlock()
+		return nil, hypervisor.ErrNotFound
+	}
+	d.tick(vm)
+	state := vm.state
+	created := vm.created
+	d.mu.Unlock()
+
+	return &hypervisor.InstanceDetail{
+		InstanceState: state,
+		Description:   "Mock instance for development",
+		Tags:          []string{"mock", "lab"},
+		OSType:        "l26",
+		CPUType:       "host",
+		Architecture:  "x86_64",
+		Sockets:       1,
+		BootOrder:     "order=scsi0;net0",
+		OnBoot:        true,
+		GuestAgent:    true,
+		CreatedAt:     created.Unix(),
+		CloudInitUser: "labadmin",
+		SSHKeys:       []string{"ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAMOCKKEY labadmin@mock"},
+		NICs: []hypervisor.NIC{{
+			Name: "net0", Model: "virtio", MAC: "BC:24:11:00:" + driverID[:2] + ":0A",
+			Bridge: "vmbr0", Firewall: true, IPAddress: state.InternalIP,
+		}},
+		Disks: []hypervisor.AttachedDisk{
+			{Interface: "scsi0", Name: fmt.Sprintf("vm-%s-disk-0", driverID), Storage: "local-lvm",
+				SizeGB: state.DiskGB, Media: "disk", SSD: true, Discard: true},
+			{Interface: "ide2", Name: "iso/debian-12.7.0-amd64-netinst.iso", Storage: "local", Media: "cdrom"},
+		},
+	}, nil
+}
+
+// Metrics synthesizes a plausible series so the observability charts
+// have something to render in development.
+func (d *Driver) Metrics(ctx context.Context, driverID string, timeframe hypervisor.MetricTimeframe) ([]hypervisor.MetricPoint, error) {
+	d.mu.Lock()
+	vm, ok := d.vms[driverID]
+	if !ok {
+		d.mu.Unlock()
+		return nil, hypervisor.ErrNotFound
+	}
+	maxMem := float64(vm.state.MemoryMB) * 1024 * 1024
+	running := vm.state.Status == hypervisor.StatusRunning
+	d.mu.Unlock()
+
+	step, count := int64(60), 60
+	switch timeframe {
+	case hypervisor.TimeframeDay:
+		step, count = 300, 288
+	case hypervisor.TimeframeWeek:
+		step, count = 1800, 336
+	case hypervisor.TimeframeMonth:
+		step, count = 7200, 360
+	}
+	start := time.Now().Unix() - int64(count)*step
+	points := make([]hypervisor.MetricPoint, 0, count)
+	for i := range count {
+		t := start + int64(i)*step
+		p := hypervisor.MetricPoint{Time: t, MaxMemoryBytes: maxMem}
+		if running {
+			phase := float64(i) / 8
+			p.CPUPercent = 12 + 9*math.Sin(phase) + rand.Float64()*6
+			p.MemoryBytes = maxMem * (0.42 + 0.08*math.Sin(phase/3) + rand.Float64()*0.03)
+			p.NetInBytes = 18000 + 9000*math.Sin(phase/2) + rand.Float64()*4000
+			p.NetOutBytes = 9000 + 5000*math.Cos(phase/2) + rand.Float64()*2500
+			p.DiskReadBytes = rand.Float64() * 42000
+			p.DiskWriteBytes = rand.Float64() * 26000
+		}
+		points = append(points, p)
+	}
+	return points, nil
+}
+
+func (d *Driver) OSInfo(ctx context.Context, driverID string) (*hypervisor.OSInfo, error) {
+	d.mu.Lock()
+	_, ok := d.vms[driverID]
+	d.mu.Unlock()
+	if !ok {
+		return nil, hypervisor.ErrNotFound
+	}
+	return &hypervisor.OSInfo{
+		Available:     true,
+		Hostname:      "mock-guest",
+		Name:          "Debian GNU/Linux 12 (bookworm)",
+		Version:       "12 (bookworm)",
+		KernelRelease: "6.1.0-25-amd64",
+		KernelVersion: "#1 SMP PREEMPT_DYNAMIC Debian 6.1.106-3",
+		Machine:       "x86_64",
+		OSType:        "l26",
+	}, nil
 }
 
 func (d *Driver) Start(ctx context.Context, driverID string) error {

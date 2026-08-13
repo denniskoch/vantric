@@ -75,6 +75,9 @@ func (s *Server) Router() http.Handler {
 		r.Post("/instances", s.createInstance)
 		r.Route("/instances/{instance}", func(r chi.Router) {
 			r.Get("/", s.getInstance)
+			r.Get("/describe", s.describeInstance)
+			r.Get("/metrics", s.instanceMetrics)
+			r.Get("/os-info", s.instanceOSInfo)
 			r.Delete("/", s.deleteInstance)
 			r.Post("/start", s.instanceAction("start"))
 			r.Post("/stop", s.instanceAction("stop"))
@@ -325,6 +328,75 @@ func (s *Server) getInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.json(w, http.StatusOK, inst)
+}
+
+// instanceDriver resolves an instance by name to its live driver.
+func (s *Server) instanceDriver(w http.ResponseWriter, r *http.Request) (*store.Instance, hypervisor.Driver) {
+	inst, err := s.store.GetInstance(r.Context(), chi.URLParam(r, "instance"))
+	if err != nil {
+		s.fail(w, err, "instance")
+		return nil, nil
+	}
+	driver, ok := s.registry.Get(inst.ServerID)
+	if !ok {
+		s.err(w, http.StatusConflict, "the server backing this instance is no longer registered")
+		return nil, nil
+	}
+	return inst, driver
+}
+
+// describeInstance reads full config straight from the hypervisor. This
+// is the documented exception to "handlers don't poll the driver": VM
+// config isn't mirrored in the store, and the detail view fetches it on
+// demand rather than on the list's polling interval.
+func (s *Server) describeInstance(w http.ResponseWriter, r *http.Request) {
+	inst, driver := s.instanceDriver(w, r)
+	if driver == nil {
+		return
+	}
+	detail, err := driver.Describe(r.Context(), inst.DriverID)
+	if err != nil {
+		s.fail(w, err, "describing instance")
+		return
+	}
+	s.json(w, http.StatusOK, detail)
+}
+
+func (s *Server) instanceMetrics(w http.ResponseWriter, r *http.Request) {
+	inst, driver := s.instanceDriver(w, r)
+	if driver == nil {
+		return
+	}
+	timeframe := hypervisor.MetricTimeframe(r.URL.Query().Get("timeframe"))
+	switch timeframe {
+	case "", hypervisor.TimeframeHour, hypervisor.TimeframeDay,
+		hypervisor.TimeframeWeek, hypervisor.TimeframeMonth:
+	default:
+		s.err(w, http.StatusBadRequest, "timeframe must be hour, day, week or month")
+		return
+	}
+	points, err := driver.Metrics(r.Context(), inst.DriverID, timeframe)
+	if err != nil {
+		s.fail(w, err, "instance metrics")
+		return
+	}
+	if points == nil {
+		points = []hypervisor.MetricPoint{}
+	}
+	s.json(w, http.StatusOK, points)
+}
+
+func (s *Server) instanceOSInfo(w http.ResponseWriter, r *http.Request) {
+	inst, driver := s.instanceDriver(w, r)
+	if driver == nil {
+		return
+	}
+	info, err := driver.OSInfo(r.Context(), inst.DriverID)
+	if err != nil {
+		s.fail(w, err, "instance os info")
+		return
+	}
+	s.json(w, http.StatusOK, info)
 }
 
 func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {

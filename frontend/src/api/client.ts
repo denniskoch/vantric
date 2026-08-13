@@ -29,6 +29,78 @@ export interface Instance {
   updatedAt: string
 }
 
+export interface NIC {
+  name: string
+  model: string
+  mac: string
+  bridge: string
+  vlanTag: number
+  firewall: boolean
+  ipAddress: string
+}
+
+export interface AttachedDisk {
+  interface: string
+  name: string
+  storage: string
+  sizeGb: number
+  media: string
+  ssd: boolean
+  discard: boolean
+}
+
+/** Full hypervisor-side config, read on demand for the detail view. */
+export interface InstanceDetail {
+  name: string
+  zone: string
+  status: InstanceStatus
+  cpus: number
+  memoryMb: number
+  diskGb: number
+  internalIp: string
+  externalIp: string
+  description: string
+  tags: string[] | null
+  osType: string
+  cpuType: string
+  architecture: string
+  sockets: number
+  bootOrder: string
+  onBoot: boolean
+  guestAgent: boolean
+  hostProtected: boolean
+  createdAt: number
+  uptimeSeconds: number
+  cloudInitUser: string
+  sshKeys: string[] | null
+  nics: NIC[] | null
+  disks: AttachedDisk[] | null
+}
+
+export interface MetricPoint {
+  time: number
+  cpuPercent: number
+  memoryBytes: number
+  maxMemoryBytes: number
+  diskReadBytes: number
+  diskWriteBytes: number
+  netInBytes: number
+  netOutBytes: number
+}
+
+export type MetricTimeframe = 'hour' | 'day' | 'week' | 'month'
+
+export interface OSInfo {
+  available: boolean
+  hostname: string
+  name: string
+  version: string
+  kernelRelease: string
+  kernelVersion: string
+  machine: string
+  osType: string
+}
+
 // Container (LXC) — deliberately separate from Instance: containers
 // list and provision differently.
 export interface Container {
@@ -201,6 +273,11 @@ export const api = {
 
   listInstances: () => request<Instance[]>('/instances'),
   getInstance: (name: string) => request<Instance>(`/instances/${name}/`),
+  describeInstance: (name: string) =>
+    request<InstanceDetail>(`/instances/${name}/describe`),
+  instanceMetrics: (name: string, timeframe: MetricTimeframe) =>
+    request<MetricPoint[]>(`/instances/${name}/metrics?timeframe=${timeframe}`),
+  instanceOSInfo: (name: string) => request<OSInfo>(`/instances/${name}/os-info`),
   createInstance: (body: CreateInstanceRequest) =>
     request<Instance>('/instances', {
       method: 'POST',

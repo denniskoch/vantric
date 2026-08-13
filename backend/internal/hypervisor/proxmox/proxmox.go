@@ -273,19 +273,21 @@ func (d *Driver) Get(ctx context.Context, driverID string) (*hypervisor.Instance
 		MaxMem  int64  `json:"maxmem"`
 		MaxDisk int64  `json:"maxdisk"`
 		Agent   int    `json:"agent"`
+		Uptime  int64  `json:"uptime"`
 	}
 	path := fmt.Sprintf("/nodes/%s/qemu/%s/status/current", node, driverID)
 	if err := d.do(ctx, http.MethodGet, path, nil, &cur); err != nil {
 		return nil, err
 	}
 	state := &hypervisor.InstanceState{
-		DriverID: driverID,
-		Name:     cur.Name,
-		Zone:     node,
-		Status:   mapStatus(cur.Status, cur.Lock),
-		CPUs:     cur.CPUs,
-		MemoryMB: int(cur.MaxMem / (1024 * 1024)),
-		DiskGB:   int(cur.MaxDisk / (1024 * 1024 * 1024)),
+		DriverID:      driverID,
+		Name:          cur.Name,
+		Zone:          node,
+		Status:        mapStatus(cur.Status, cur.Lock),
+		CPUs:          cur.CPUs,
+		MemoryMB:      int(cur.MaxMem / (1024 * 1024)),
+		DiskGB:        int(cur.MaxDisk / (1024 * 1024 * 1024)),
+		UptimeSeconds: cur.Uptime,
 	}
 	if state.Status == hypervisor.StatusRunning {
 		state.InternalIP = d.guestIP(ctx, node, driverID)

@@ -34,7 +34,10 @@ Dockerfile).
   TERMINATED. Drivers map native states to these.
 - The driver is the source of truth for runtime state (status/IPs); the
   store owns metadata. The reconciler (internal/api/reconciler.go) syncs
-  driver → store; handlers never poll the driver for reads.
+  driver → store; handlers never poll the driver for reads. The one
+  documented exception is the detail view's on-demand reads
+  (`/instances/{name}/describe|metrics|os-info`), since VM config and
+  RRD history aren't mirrored in the store.
 - The reconciler also ADOPTS VMs found on a server that the app didn't
   create (they appear as instances with deletion protection enabled) and
   removes instances whose VM vanished out-of-band. Driver.List must be

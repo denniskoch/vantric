@@ -117,17 +117,102 @@ type InstanceSpec struct {
 	Description string
 }
 
+// NIC is one virtual network interface of an instance.
+type NIC struct {
+	Name      string `json:"name"`  // net0
+	Model     string `json:"model"` // virtio, e1000, ...
+	MAC       string `json:"mac"`
+	Bridge    string `json:"bridge"`
+	VLANTag   int    `json:"vlanTag"`
+	Firewall  bool   `json:"firewall"`
+	IPAddress string `json:"ipAddress"` // from the guest agent, when available
+}
+
+// AttachedDisk is a disk as seen from an instance's own config, which
+// includes removable media the datastore-wide Disk listing skips.
+type AttachedDisk struct {
+	Interface string `json:"interface"` // scsi0, ide2, ...
+	Name      string `json:"name"`      // volume name or ISO volume ID
+	Storage   string `json:"storage"`
+	SizeGB    int    `json:"sizeGb"`
+	Media     string `json:"media"` // "disk" or "cdrom"
+	SSD       bool   `json:"ssd"`
+	Discard   bool   `json:"discard"`
+}
+
+// InstanceDetail is the full hypervisor-side description of an
+// instance, read on demand for the detail view. Fields a driver can't
+// supply stay zero.
+type InstanceDetail struct {
+	InstanceState
+	Description   string   `json:"description"`
+	Tags          []string `json:"tags"`
+	OSType        string   `json:"osType"`
+	CPUType       string   `json:"cpuType"` // GCP calls this "CPU platform"
+	Architecture  string   `json:"architecture"`
+	Sockets       int      `json:"sockets"`
+	BootOrder     string   `json:"bootOrder"`
+	OnBoot        bool     `json:"onBoot"`
+	GuestAgent    bool     `json:"guestAgent"`
+	HostProtected bool     `json:"hostProtected"` // hypervisor-side protection flag
+	// CreatedAt is unix seconds as recorded by the hypervisor; 0 when unknown.
+	CreatedAt     int64          `json:"createdAt"`
+	CloudInitUser string         `json:"cloudInitUser"`
+	SSHKeys       []string       `json:"sshKeys"`
+	NICs          []NIC          `json:"nics"`
+	Disks         []AttachedDisk `json:"disks"`
+}
+
+// MetricPoint is one sample of an instance's resource usage.
+type MetricPoint struct {
+	Time           int64   `json:"time"` // unix seconds
+	CPUPercent     float64 `json:"cpuPercent"`
+	MemoryBytes    float64 `json:"memoryBytes"`
+	MaxMemoryBytes float64 `json:"maxMemoryBytes"`
+	DiskReadBytes  float64 `json:"diskReadBytes"`
+	DiskWriteBytes float64 `json:"diskWriteBytes"`
+	NetInBytes     float64 `json:"netInBytes"`
+	NetOutBytes    float64 `json:"netOutBytes"`
+}
+
+// MetricTimeframe selects the resolution/range of a metrics query.
+type MetricTimeframe string
+
+const (
+	TimeframeHour  MetricTimeframe = "hour"
+	TimeframeDay   MetricTimeframe = "day"
+	TimeframeWeek  MetricTimeframe = "week"
+	TimeframeMonth MetricTimeframe = "month"
+)
+
+// OSInfo is guest operating system detail, reported by a guest agent.
+type OSInfo struct {
+	// Available is false when no agent answered; other fields are then
+	// best-effort from the hypervisor's own config.
+	Available     bool   `json:"available"`
+	Hostname      string `json:"hostname"`
+	Name          string `json:"name"` // "Debian GNU/Linux 12 (bookworm)"
+	Version       string `json:"version"`
+	KernelRelease string `json:"kernelRelease"`
+	KernelVersion string `json:"kernelVersion"`
+	Machine       string `json:"machine"`
+	OSType        string `json:"osType"` // hypervisor's configured guest type
+}
+
 // InstanceState is the driver's live view of an instance.
 type InstanceState struct {
-	DriverID   string
-	Name       string
-	Zone       string
-	Status     Status
-	CPUs       int
-	MemoryMB   int
-	DiskGB     int
-	InternalIP string
-	ExternalIP string
+	DriverID   string `json:"driverId"`
+	Name       string `json:"name"`
+	Zone       string `json:"zone"`
+	Status     Status `json:"status"`
+	CPUs       int    `json:"cpus"`
+	MemoryMB   int    `json:"memoryMb"`
+	DiskGB     int    `json:"diskGb"`
+	InternalIP string `json:"internalIp"`
+	ExternalIP string `json:"externalIp"`
+	// UptimeSeconds is 0 when the instance is stopped or the driver
+	// doesn't report it (List omits it; Get/Describe supply it).
+	UptimeSeconds int64 `json:"uptimeSeconds"`
 }
 
 // Driver is the hypervisor backend contract. Implementations must be
@@ -147,6 +232,14 @@ type Driver interface {
 	// and progress is observed via Get.
 	Create(ctx context.Context, spec InstanceSpec) (driverID string, err error)
 	Get(ctx context.Context, driverID string) (*InstanceState, error)
+	// Describe returns the instance's full configuration. It is read on
+	// demand for the detail view (not by the reconciler), so it may make
+	// several backend calls.
+	Describe(ctx context.Context, driverID string) (*InstanceDetail, error)
+	// Metrics returns resource-usage samples, oldest first.
+	Metrics(ctx context.Context, driverID string, timeframe MetricTimeframe) ([]MetricPoint, error)
+	// OSInfo reports guest OS detail; Available is false without an agent.
+	OSInfo(ctx context.Context, driverID string) (*OSInfo, error)
 	// List returns every (non-template) VM on the backend in one cheap
 	// call. Implementations may omit IPs here; callers use Get for
 	// per-instance detail.
