@@ -99,7 +99,8 @@ Base path `/api/v1`:
   narrows to one (used by the create flows)
 - `POST /isos/download` (hypervisor fetches a URL itself),
   `POST /isos/upload` (raw body streamed through to the hypervisor),
-  `GET /tasks/{taskId}` for import progress
+  `DELETE /isos?server=&zone=&volume=`, `GET /tasks/{taskId}` for
+  import progress
 - `GET/POST /machine-types`, `DELETE /machine-types/{name}`
 - `GET /servers`, `POST /servers`, `PUT/DELETE /servers/{id}`,
   `GET /server-types`
@@ -128,7 +129,7 @@ return as a post-ship enhancement.
   rootfs storage/size, unprivileged flag) — the CT Templates page
   already lists the sources.
 - **Create from ISO**: an alternative boot source in the VM create flow.
-- **Delete images**: ISOs and CT templates can be added but not removed
-  from the console yet.
+- **Delete CT templates**: ISOs can be removed from the console; CT
+  templates can't yet.
 - **CT template downloads**: Proxmox's appliance repo (`aplinfo`) would
   give CT Templates the same import flow ISOs now have.

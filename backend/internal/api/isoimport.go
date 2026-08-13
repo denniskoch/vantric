@@ -144,6 +144,33 @@ func (s *Server) uploadISO(w http.ResponseWriter, r *http.Request) {
 	s.json(w, http.StatusAccepted, map[string]string{"taskId": taskID})
 }
 
+// deleteISO removes an image. The volume id travels in the query string
+// because it contains both a colon and a slash.
+func (s *Server) deleteISO(w http.ResponseWriter, r *http.Request) {
+	driver := s.driverForServer(w, r)
+	if driver == nil {
+		return
+	}
+	q := r.URL.Query()
+	zone, volume := q.Get("zone"), q.Get("volume")
+	if zone == "" || volume == "" {
+		s.err(w, http.StatusBadRequest, "zone and volume are required")
+		return
+	}
+	// Only ISO volumes are deletable here; anything else (a VM disk,
+	// a backup) must not be removable through this endpoint.
+	if !strings.Contains(volume, ":iso/") {
+		s.err(w, http.StatusBadRequest, "volume is not an ISO image")
+		return
+	}
+	taskID, err := driver.DeleteISO(r.Context(), zone, volume)
+	if err != nil {
+		s.fail(w, err, "deleting image")
+		return
+	}
+	s.json(w, http.StatusOK, map[string]string{"taskId": taskID})
+}
+
 func (s *Server) taskStatus(w http.ResponseWriter, r *http.Request) {
 	driver := s.driverForServer(w, r)
 	if driver == nil {

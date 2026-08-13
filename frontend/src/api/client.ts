@@ -331,6 +331,10 @@ export const api = {
       xhr.onerror = () => reject(new Error('network error during upload'))
       xhr.send(file)
     }),
+  deleteISO: (serverId: string, zone: string, volume: string) => {
+    const query = new URLSearchParams({ server: serverId, zone, volume })
+    return request<{ taskId: string }>(`/isos?${query}`, { method: 'DELETE' })
+  },
   getTask: (serverId: string, taskId: string) =>
     request<TaskStatus>(`/tasks/${encodeURIComponent(taskId)}?server=${serverId}`),
   listCTTemplates: () => request<CTTemplate[]>('/ct-templates'),

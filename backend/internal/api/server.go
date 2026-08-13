@@ -42,6 +42,7 @@ func (s *Server) Router() http.Handler {
 		r.Get("/isos", s.listISOs)
 		r.Post("/isos/download", s.downloadISO)
 		r.Post("/isos/upload", s.uploadISO)
+		r.Delete("/isos", s.deleteISO)
 		r.Get("/tasks/{taskId}", s.taskStatus)
 		r.Get("/datastores", s.listDatastores)
 		r.Get("/ct-templates", s.listCTTemplates)

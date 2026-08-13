@@ -92,6 +92,27 @@ func (d *Driver) UploadISO(ctx context.Context, spec hypervisor.ISOUploadSpec, c
 	return env.Data, nil
 }
 
+// DeleteISO removes a volume. The storage is part of the volume id
+// ("local:iso/debian.iso"), so only the node has to be supplied.
+func (d *Driver) DeleteISO(ctx context.Context, zone, volumeID string) (string, error) {
+	storage, _, found := strings.Cut(volumeID, ":")
+	if !found || storage == "" {
+		return "", fmt.Errorf("proxmox: %q is not a volume id", volumeID)
+	}
+	// Deleting can return a task id or null depending on the storage
+	// backend, so decode into a nullable string.
+	var upid *string
+	path := fmt.Sprintf("/nodes/%s/storage/%s/content/%s",
+		zone, storage, url.PathEscape(volumeID))
+	if err := d.do(ctx, http.MethodDelete, path, nil, &upid); err != nil {
+		return "", err
+	}
+	if upid == nil {
+		return "", nil
+	}
+	return *upid, nil
+}
+
 // TaskStatus reports on a UPID. The node is encoded in the UPID itself
 // (UPID:node:…), so callers don't have to track it.
 func (d *Driver) TaskStatus(ctx context.Context, taskID string) (*hypervisor.TaskStatus, error) {

@@ -364,6 +364,18 @@ func (d *Driver) startImport(zone, storage, filename string, after time.Duration
 	return id
 }
 
+func (d *Driver) DeleteISO(ctx context.Context, zone, volumeID string) (string, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for i, iso := range d.isos {
+		if iso.ID == volumeID {
+			d.isos = append(d.isos[:i], d.isos[i+1:]...)
+			return "", nil
+		}
+	}
+	return "", hypervisor.ErrNotFound
+}
+
 func (d *Driver) TaskStatus(ctx context.Context, taskID string) (*hypervisor.TaskStatus, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
