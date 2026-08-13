@@ -55,6 +55,11 @@ Dockerfile).
   future drivers without containers stay simple. Proxmox's
   cluster/resources?type=vm returns BOTH qemu and lxc: always filter by
   the resource Type field.
+- Template builds (cloud image → import disk → cloud-init drive →
+  serial console → convert) run detached in a goroutine tracked by an
+  in-memory registry in internal/api/buildtemplate.go, because the
+  sequence outlives its request. A build interrupted by a restart
+  leaves a VM, not a template — it shows up in VM instances.
 - Keep store SQL portable between SQLite and Postgres: TEXT ids, RFC3339
   TEXT timestamps, no engine-specific types. Postgres is planned, not wired.
 - Frontend talks only to `/api/v1` via `src/api/client.ts` (typed client);

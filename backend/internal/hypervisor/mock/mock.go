@@ -100,6 +100,47 @@ func (d *Driver) Images(ctx context.Context) ([]hypervisor.Image, error) {
 	return append([]hypervisor.Image{}, d.images...), nil
 }
 
+func (d *Driver) CloudImages(ctx context.Context) ([]hypervisor.CloudImage, error) {
+	return []hypervisor.CloudImage{
+		{ID: "local:import/debian-13-genericcloud-amd64.qcow2", Name: "debian-13-genericcloud-amd64.qcow2",
+			Zone: "lab-node-a", Storage: "local", SizeBytes: 361758720, CreatedAt: time.Now().Add(-3 * 24 * time.Hour).Unix()},
+		{ID: "local:import/noble-server-cloudimg-amd64.img", Name: "noble-server-cloudimg-amd64.img",
+			Zone: "lab-node-a", Storage: "local", SizeBytes: 601309184, CreatedAt: time.Now().Add(-9 * 24 * time.Hour).Unix()},
+	}, nil
+}
+
+// BuildTemplate walks the same steps as the real driver so the wizard's
+// progress display can be exercised in development.
+func (d *Driver) BuildTemplate(ctx context.Context, spec hypervisor.TemplateSpec, progress func(string)) (string, error) {
+	for _, step := range []string{
+		"Allocating a VM ID",
+		"Creating the VM and importing the disk",
+		fmt.Sprintf("Resizing the disk to %d GB", spec.DiskGB),
+		"Converting to a template",
+	} {
+		if progress != nil {
+			progress(step)
+		}
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-time.After(2 * time.Second):
+		}
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.nextID++
+	id := fmt.Sprintf("%d", d.nextID)
+	d.images = append(d.images, hypervisor.Image{
+		ID: id, Name: spec.Name, Zone: spec.Zone,
+		Description: "Built from " + spec.SourceVolume,
+	})
+	if progress != nil {
+		progress("Template ready")
+	}
+	return id, nil
+}
+
 func (d *Driver) DeleteImage(ctx context.Context, imageID string) (string, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()

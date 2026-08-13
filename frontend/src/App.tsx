@@ -4,6 +4,7 @@ import InstancesPage from './pages/InstancesPage'
 import CreateInstancePage from './pages/CreateInstancePage'
 import InstanceDetailPage from './pages/InstanceDetailPage'
 import VMTemplatesPage from './pages/VMTemplatesPage'
+import BuildTemplatePage from './pages/BuildTemplatePage'
 import CTTemplatesPage from './pages/CTTemplatesPage'
 import OverviewPage from './pages/OverviewPage'
 import ServersPage from './pages/ServersPage'
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/compute/containers" element={<ContainersPage />} />
         <Route path="/compute/containers/:name" element={<ContainerDetailPage />} />
         <Route path="/compute/vm-templates" element={<VMTemplatesPage />} />
+        <Route path="/compute/vm-templates/build" element={<BuildTemplatePage />} />
         <Route path="/compute/ct-templates" element={<CTTemplatesPage />} />
         {/* legacy path */}
         <Route path="/compute/images" element={<Navigate to="/compute/vm-templates" replace />} />

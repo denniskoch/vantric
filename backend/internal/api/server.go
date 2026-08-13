@@ -24,10 +24,14 @@ type Server struct {
 	registry  *hypervisor.Registry
 	log       *slog.Logger
 	staticDir string
+	builds    *buildRegistry
 }
 
 func New(st *store.Store, registry *hypervisor.Registry, log *slog.Logger, staticDir string) *Server {
-	return &Server{store: st, registry: registry, log: log, staticDir: staticDir}
+	return &Server{
+		store: st, registry: registry, log: log, staticDir: staticDir,
+		builds: newBuildRegistry(),
+	}
 }
 
 func (s *Server) Router() http.Handler {
@@ -45,6 +49,10 @@ func (s *Server) Router() http.Handler {
 		r.Delete("/isos", s.deleteVolume("iso", "an ISO image"))
 		r.Delete("/ct-templates", s.deleteVolume("vztmpl", "a CT template"))
 		r.Delete("/images/{id}", s.deleteImage)
+		r.Get("/cloud-images", s.listCloudImages)
+		r.Post("/cloud-images/download", s.downloadCloudImage)
+		r.Post("/vm-templates/build", s.buildTemplate)
+		r.Get("/vm-templates/builds/{id}", s.templateBuildStatus)
 		r.Get("/tasks/{taskId}", s.taskStatus)
 		r.Get("/datastores", s.listDatastores)
 		r.Get("/ct-templates", s.listCTTemplates)

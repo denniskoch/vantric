@@ -204,8 +204,41 @@ export interface ISO {
   createdAt: number
 }
 
-// CT templates share the ISO listing shape (storage content volumes).
+// CT templates and cloud images share the ISO listing shape — all are
+// datastore volumes, differing only in content type.
 export type CTTemplate = ISO
+export type CloudImage = ISO
+
+export interface TemplateBuildRequest {
+  name: string
+  zone: string
+  sourceVolume: string
+  diskStorage: string
+  diskGb: number
+  cpus: number
+  memoryMb: number
+  netBridge?: string
+  vlanTag?: number
+  cloudInitUser?: string
+  sshKeys?: string
+  ipConfig?: string
+  bios?: string
+  machineType?: string
+  enableAgent: boolean
+  description?: string
+}
+
+export interface TemplateBuild {
+  id: string
+  name: string
+  serverId: string
+  step: string
+  steps: string[]
+  running: boolean
+  imageId: string
+  error: string
+  startedAt: string
+}
 
 export interface Datastore {
   serverId: string
@@ -347,6 +380,18 @@ export const api = {
   getTask: (serverId: string, taskId: string) =>
     request<TaskStatus>(`/tasks/${encodeURIComponent(taskId)}?server=${serverId}`),
   listCTTemplates: () => request<CTTemplate[]>('/ct-templates'),
+  listCloudImages: () => request<CloudImage[]>('/cloud-images'),
+  downloadCloudImage: (serverId: string, body: ISODownloadRequest) =>
+    request<{ taskId: string }>(`/cloud-images/download?server=${serverId}`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  buildTemplate: (serverId: string, body: TemplateBuildRequest) =>
+    request<TemplateBuild>(`/vm-templates/build?server=${serverId}`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  getTemplateBuild: (id: string) => request<TemplateBuild>(`/vm-templates/builds/${id}`),
   listDatastores: () => request<Datastore[]>('/datastores'),
 
   listServers: () => request<Server[]>('/servers'),

@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { Link as RouterLink } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
   Box,
+  Button,
   IconButton,
   Menu,
   MenuItem,
@@ -15,6 +17,7 @@ import {
   TableRow,
   Typography,
 } from '@mui/material'
+import AddBoxIcon from '@mui/icons-material/AddBox'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { api } from '../api/client'
@@ -61,9 +64,18 @@ export default function VMTemplatesPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>
-        VM templates
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+        <Typography variant="h5">VM templates</Typography>
+        <Button
+          component={RouterLink}
+          to="/compute/vm-templates/build"
+          variant="contained"
+          size="small"
+          startIcon={<AddBoxIcon />}
+        >
+          Build template
+        </Button>
+      </Box>
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>

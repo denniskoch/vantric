@@ -52,8 +52,9 @@ type Disk struct {
 	SizeGB   int    `json:"sizeGb"`
 }
 
-// ISO is an installer/media image available on a datastore.
-type ISO struct {
+// Volume is a file on a datastore. ISOs, container templates and cloud
+// images differ only in content type, so they share this shape.
+type Volume struct {
 	// ServerID is filled in by the API layer, not the driver.
 	ServerID  string `json:"serverId"`
 	ID        string `json:"id"` // volume ID, e.g. "local:iso/debian-12.iso"
@@ -65,6 +66,13 @@ type ISO struct {
 	CreatedAt int64 `json:"createdAt"`
 }
 
+// ISO is an installer/media image available on a datastore.
+type ISO = Volume
+
+// CloudImage is a disk image (qcow2/raw) a VM template can be built
+// from, held in a datastore's "import" content.
+type CloudImage = Volume
+
 // ISODownloadSpec asks the hypervisor to fetch an image itself, so the
 // bytes never pass through this app.
 type ISODownloadSpec struct {
@@ -72,6 +80,9 @@ type ISODownloadSpec struct {
 	Storage  string
 	Filename string
 	URL      string
+	// Content is the datastore content type: "iso" (default) or
+	// "import" for cloud disk images.
+	Content string
 	// Checksum is optional; ChecksumAlgorithm must be set alongside it
 	// (md5, sha1, sha224, sha256, sha384, sha512).
 	Checksum          string
@@ -103,17 +114,7 @@ type TaskStatus struct {
 
 // CTTemplate is a container root-filesystem template (Proxmox vztmpl
 // tarball) that containers are provisioned from.
-type CTTemplate struct {
-	// ServerID is filled in by the API layer, not the driver.
-	ServerID  string `json:"serverId"`
-	ID        string `json:"id"` // volume ID, e.g. "local:vztmpl/debian-12-standard_..."
-	Name      string `json:"name"`
-	Zone      string `json:"zone"`
-	Storage   string `json:"storage"`
-	SizeBytes int64  `json:"sizeBytes"`
-	// CreatedAt is unix seconds; 0 when unknown.
-	CreatedAt int64 `json:"createdAt"`
-}
+type CTTemplate = Volume
 
 // Datastore is a storage pool VMs and media live on.
 type Datastore struct {
@@ -231,6 +232,32 @@ type InstanceDetail struct {
 	Devices       []Device       `json:"devices"`
 }
 
+// TemplateSpec describes a cloud-image VM template to build. The
+// result is a template configured the way cloud images expect: an
+// imported disk, a cloud-init drive, and a serial console.
+type TemplateSpec struct {
+	Name string
+	Zone string
+	// SourceVolume is a datastore volume holding the disk image, e.g.
+	// "local:import/debian-13-genericcloud-amd64.qcow2".
+	SourceVolume string
+	DiskStorage  string
+	// DiskGB grows the imported disk when larger than the image.
+	DiskGB        int
+	CPUs          int
+	MemoryMB      int
+	NetworkBridge string
+	VLANTag       int
+	CloudInitUser string
+	SSHKeys       string
+	// IPConfig is "dhcp" or a Proxmox ipconfig string.
+	IPConfig    string
+	BIOS        string // seabios (default) or ovmf
+	MachineType string // i440fx or q35
+	EnableAgent bool
+	Description string
+}
+
 // MetricPoint is one sample of an instance's resource usage.
 type MetricPoint struct {
 	Time           int64   `json:"time"` // unix seconds
@@ -304,6 +331,12 @@ type Driver interface {
 	// template) by volume id. taskID may be empty when the backend
 	// deletes synchronously.
 	DeleteVolume(ctx context.Context, zone, volumeID string) (taskID string, err error)
+	// CloudImages lists disk images available to build templates from.
+	CloudImages(ctx context.Context) ([]CloudImage, error)
+	// BuildTemplate creates a VM from a cloud image and converts it to a
+	// template, reporting each step. It blocks for the whole sequence
+	// (disk import can take minutes), so callers run it detached.
+	BuildTemplate(ctx context.Context, spec TemplateSpec, progress func(step string)) (imageID string, err error)
 	// DeleteImage destroys a VM template. This removes a real VM and its
 	// disks, unlike DeleteVolume which removes a file.
 	DeleteImage(ctx context.Context, imageID string) (taskID string, err error)

@@ -103,6 +103,10 @@ Base path `/api/v1`:
   `DELETE /ct-templates?server=&zone=&volume=`,
   `DELETE /images/{id}?server=` (destroys a template VM),
   `GET /tasks/{taskId}` for import progress
+- `GET /cloud-images`, `POST /cloud-images/download` (disk images in a
+  datastore's `import` content)
+- `POST /vm-templates/build` + `GET /vm-templates/builds/{id}` — builds
+  a cloud-init template from a disk image, tracked step by step
 - `GET/POST /machine-types`, `DELETE /machine-types/{name}`
 - `GET /servers`, `POST /servers`, `PUT/DELETE /servers/{id}`,
   `GET /server-types`

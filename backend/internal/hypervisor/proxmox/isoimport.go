@@ -16,8 +16,12 @@ import (
 // DownloadISO asks the node to fetch the image itself; the bytes never
 // pass through this app.
 func (d *Driver) DownloadISO(ctx context.Context, spec hypervisor.ISODownloadSpec) (string, error) {
+	content := spec.Content
+	if content == "" {
+		content = "iso"
+	}
 	form := url.Values{
-		"content":  {"iso"},
+		"content":  {content},
 		"filename": {spec.Filename},
 		"url":      {spec.URL},
 	}
