@@ -102,16 +102,33 @@ func (d *Driver) do(ctx context.Context, method, path string, body any, out any)
 	return &env, nil
 }
 
-// Verify checks the token is live and usable.
+// Verify checks the token can do what this app needs.
+//
+// /user/tokens/verify only answers for user-owned tokens: an
+// account-owned token is verified under its account and fails that
+// call even though it works fine. So a failure there falls back to
+// listing zones, which is the capability actually required — if that
+// succeeds the token is good regardless of which kind it is.
 func (d *Driver) Verify(ctx context.Context) error {
 	var res struct {
 		Status string `json:"status"`
 	}
-	if _, err := d.do(ctx, http.MethodGet, "/user/tokens/verify", nil, &res); err != nil {
-		return err
+	verifyErr := func() error {
+		if _, err := d.do(ctx, http.MethodGet, "/user/tokens/verify", nil, &res); err != nil {
+			return err
+		}
+		if res.Status != "active" {
+			return fmt.Errorf("cloudflare: token status is %q", res.Status)
+		}
+		return nil
+	}()
+	if verifyErr == nil {
+		return nil
 	}
-	if res.Status != "active" {
-		return fmt.Errorf("cloudflare: token status is %q", res.Status)
+	if _, err := d.do(ctx, http.MethodGet, "/zones?per_page=1", nil, nil); err != nil {
+		// Report both: the second error is usually the informative one
+		// (bad token vs a token that simply can't read zones).
+		return fmt.Errorf("%w; listing zones also failed: %v", verifyErr, err)
 	}
 	return nil
 }

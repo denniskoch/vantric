@@ -136,6 +136,7 @@ func (s *Server) createDNSProvider(w http.ResponseWriter, r *http.Request) {
 	// Reject credentials that don't work rather than storing a provider
 	// that can never connect.
 	if err := provider.Verify(r.Context()); err != nil {
+		s.log.Warn("dns provider rejected", "name", p.Name, "type", p.Type, "error", err)
 		s.err(w, http.StatusBadRequest, err.Error())
 		return
 	}
