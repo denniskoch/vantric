@@ -300,9 +300,13 @@ type Driver interface {
 	// UploadISO streams an image to the hypervisor. content is consumed
 	// as it arrives; implementations must not buffer it whole.
 	UploadISO(ctx context.Context, spec ISOUploadSpec, content io.Reader) (taskID string, err error)
-	// DeleteISO removes an image by volume id. taskID may be empty when
-	// the backend deletes synchronously.
-	DeleteISO(ctx context.Context, zone, volumeID string) (taskID string, err error)
+	// DeleteVolume removes a storage volume (an ISO or a container
+	// template) by volume id. taskID may be empty when the backend
+	// deletes synchronously.
+	DeleteVolume(ctx context.Context, zone, volumeID string) (taskID string, err error)
+	// DeleteImage destroys a VM template. This removes a real VM and its
+	// disks, unlike DeleteVolume which removes a file.
+	DeleteImage(ctx context.Context, imageID string) (taskID string, err error)
 	// TaskStatus reports on a task previously returned by this driver.
 	TaskStatus(ctx context.Context, taskID string) (*TaskStatus, error)
 

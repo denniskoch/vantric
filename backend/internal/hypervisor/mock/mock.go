@@ -31,13 +31,15 @@ type task struct {
 }
 
 type Driver struct {
-	mu       sync.Mutex
-	nextID   int
-	nextTask int
-	vms      map[string]*instance
-	cts      map[string]*instance
-	isos     []hypervisor.ISO
-	tasks    map[string]*task
+	mu          sync.Mutex
+	nextID      int
+	nextTask    int
+	vms         map[string]*instance
+	cts         map[string]*instance
+	isos        []hypervisor.ISO
+	images      []hypervisor.Image
+	ctTemplates []hypervisor.CTTemplate
+	tasks       map[string]*task
 }
 
 func New() *Driver {
@@ -51,6 +53,17 @@ func New() *Driver {
 				Zone: "lab-node-a", Storage: "local", SizeBytes: 663748608, CreatedAt: time.Now().Add(-90 * 24 * time.Hour).Unix()},
 			{ID: "local:iso/ubuntu-24.04.1-live-server-amd64.iso", Name: "ubuntu-24.04.1-live-server-amd64.iso",
 				Zone: "lab-node-a", Storage: "local", SizeBytes: 2754981888, CreatedAt: time.Now().Add(-30 * 24 * time.Hour).Unix()},
+		},
+		images: []hypervisor.Image{
+			{ID: "9000", Name: "debian-12-cloudinit", Zone: "lab-node-a", Description: "Debian 12 (bookworm) cloud-init template"},
+			{ID: "9001", Name: "ubuntu-2404-cloudinit", Zone: "lab-node-a", Description: "Ubuntu 24.04 LTS cloud-init template"},
+			{ID: "9002", Name: "alpine-321", Zone: "lab-node-b", Description: "Alpine Linux 3.21 template"},
+		},
+		ctTemplates: []hypervisor.CTTemplate{
+			{ID: "local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst", Name: "debian-12-standard_12.7-1_amd64.tar.zst",
+				Zone: "lab-node-a", Storage: "local", SizeBytes: 130150400, CreatedAt: time.Now().Add(-60 * 24 * time.Hour).Unix()},
+			{ID: "local:vztmpl/alpine-3.21-default_20241217_amd64.tar.xz", Name: "alpine-3.21-default_20241217_amd64.tar.xz",
+				Zone: "lab-node-a", Storage: "local", SizeBytes: 3355443, CreatedAt: time.Now().Add(-20 * 24 * time.Hour).Unix()},
 		},
 	}
 	// Seed a couple of containers so the CT pages have data in dev.
@@ -82,11 +95,21 @@ func (d *Driver) Zones(ctx context.Context) ([]hypervisor.Zone, error) {
 }
 
 func (d *Driver) Images(ctx context.Context) ([]hypervisor.Image, error) {
-	return []hypervisor.Image{
-		{ID: "9000", Name: "debian-12-cloudinit", Zone: "lab-node-a", Description: "Debian 12 (bookworm) cloud-init template"},
-		{ID: "9001", Name: "ubuntu-2404-cloudinit", Zone: "lab-node-a", Description: "Ubuntu 24.04 LTS cloud-init template"},
-		{ID: "9002", Name: "alpine-321", Zone: "lab-node-b", Description: "Alpine Linux 3.21 template"},
-	}, nil
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return append([]hypervisor.Image{}, d.images...), nil
+}
+
+func (d *Driver) DeleteImage(ctx context.Context, imageID string) (string, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for i, img := range d.images {
+		if img.ID == imageID {
+			d.images = append(d.images[:i], d.images[i+1:]...)
+			return "", nil
+		}
+	}
+	return "", hypervisor.ErrNotFound
 }
 
 // Disks reports one boot disk per VM, mimicking Proxmox naming.
@@ -364,12 +387,18 @@ func (d *Driver) startImport(zone, storage, filename string, after time.Duration
 	return id
 }
 
-func (d *Driver) DeleteISO(ctx context.Context, zone, volumeID string) (string, error) {
+func (d *Driver) DeleteVolume(ctx context.Context, zone, volumeID string) (string, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	for i, iso := range d.isos {
 		if iso.ID == volumeID {
 			d.isos = append(d.isos[:i], d.isos[i+1:]...)
+			return "", nil
+		}
+	}
+	for i, tpl := range d.ctTemplates {
+		if tpl.ID == volumeID {
+			d.ctTemplates = append(d.ctTemplates[:i], d.ctTemplates[i+1:]...)
 			return "", nil
 		}
 	}
@@ -409,12 +438,9 @@ func (d *Driver) Datastores(ctx context.Context) ([]hypervisor.Datastore, error)
 // --- hypervisor.ContainerDriver ---
 
 func (d *Driver) CTTemplates(ctx context.Context) ([]hypervisor.CTTemplate, error) {
-	return []hypervisor.CTTemplate{
-		{ID: "local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst", Name: "debian-12-standard_12.7-1_amd64.tar.zst",
-			Zone: "lab-node-a", Storage: "local", SizeBytes: 130150400, CreatedAt: time.Now().Add(-60 * 24 * time.Hour).Unix()},
-		{ID: "local:vztmpl/alpine-3.21-default_20241217_amd64.tar.xz", Name: "alpine-3.21-default_20241217_amd64.tar.xz",
-			Zone: "lab-node-a", Storage: "local", SizeBytes: 3355443, CreatedAt: time.Now().Add(-20 * 24 * time.Hour).Unix()},
-	}, nil
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return append([]hypervisor.CTTemplate{}, d.ctTemplates...), nil
 }
 
 func (d *Driver) ListContainers(ctx context.Context) ([]hypervisor.InstanceState, error) {

@@ -144,28 +144,59 @@ func (s *Server) uploadISO(w http.ResponseWriter, r *http.Request) {
 	s.json(w, http.StatusAccepted, map[string]string{"taskId": taskID})
 }
 
-// deleteISO removes an image. The volume id travels in the query string
-// because it contains both a colon and a slash.
-func (s *Server) deleteISO(w http.ResponseWriter, r *http.Request) {
+// deleteVolume removes an ISO or CT template. The volume id travels in
+// the query string because it contains both a colon and a slash.
+// kind restricts which volumes an endpoint may touch: the underlying
+// storage-content path would happily delete VM disks and backups too.
+func (s *Server) deleteVolume(kind, label string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		driver := s.driverForServer(w, r)
+		if driver == nil {
+			return
+		}
+		q := r.URL.Query()
+		zone, volume := q.Get("zone"), q.Get("volume")
+		if zone == "" || volume == "" {
+			s.err(w, http.StatusBadRequest, "zone and volume are required")
+			return
+		}
+		if !strings.Contains(volume, ":"+kind+"/") {
+			s.err(w, http.StatusBadRequest, "volume is not "+label)
+			return
+		}
+		taskID, err := driver.DeleteVolume(r.Context(), zone, volume)
+		if err != nil {
+			s.fail(w, err, "deleting "+label)
+			return
+		}
+		s.json(w, http.StatusOK, map[string]string{"taskId": taskID})
+	}
+}
+
+// deleteImage destroys a VM template — a real VM and its disks, so it
+// refuses while any instance still records it as its source image.
+func (s *Server) deleteImage(w http.ResponseWriter, r *http.Request) {
 	driver := s.driverForServer(w, r)
 	if driver == nil {
 		return
 	}
-	q := r.URL.Query()
-	zone, volume := q.Get("zone"), q.Get("volume")
-	if zone == "" || volume == "" {
-		s.err(w, http.StatusBadRequest, "zone and volume are required")
-		return
-	}
-	// Only ISO volumes are deletable here; anything else (a VM disk,
-	// a backup) must not be removable through this endpoint.
-	if !strings.Contains(volume, ":iso/") {
-		s.err(w, http.StatusBadRequest, "volume is not an ISO image")
-		return
-	}
-	taskID, err := driver.DeleteISO(r.Context(), zone, volume)
+	imageID := chi.URLParam(r, "id")
+	serverID := r.URL.Query().Get("server")
+	instances, err := s.store.ListInstances(r.Context())
 	if err != nil {
-		s.fail(w, err, "deleting image")
+		s.fail(w, err, "instances")
+		return
+	}
+	for _, inst := range instances {
+		if inst.ServerID == serverID && inst.ImageID == imageID {
+			s.err(w, http.StatusConflict,
+				"instance "+inst.Name+" still records this template as its source image")
+			return
+		}
+	}
+	taskID, err := driver.DeleteImage(r.Context(), imageID)
+	if err != nil {
+		s.fail(w, err, "deleting VM template")
 		return
 	}
 	s.json(w, http.StatusOK, map[string]string{"taskId": taskID})

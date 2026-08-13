@@ -335,6 +335,15 @@ export const api = {
     const query = new URLSearchParams({ server: serverId, zone, volume })
     return request<{ taskId: string }>(`/isos?${query}`, { method: 'DELETE' })
   },
+  deleteCTTemplate: (serverId: string, zone: string, volume: string) => {
+    const query = new URLSearchParams({ server: serverId, zone, volume })
+    return request<{ taskId: string }>(`/ct-templates?${query}`, { method: 'DELETE' })
+  },
+  /** Destroys the template VM itself, not a file. */
+  deleteImage: (serverId: string, imageId: string) =>
+    request<{ taskId: string }>(`/images/${imageId}?server=${serverId}`, {
+      method: 'DELETE',
+    }),
   getTask: (serverId: string, taskId: string) =>
     request<TaskStatus>(`/tasks/${encodeURIComponent(taskId)}?server=${serverId}`),
   listCTTemplates: () => request<CTTemplate[]>('/ct-templates'),

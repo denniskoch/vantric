@@ -92,9 +92,10 @@ func (d *Driver) UploadISO(ctx context.Context, spec hypervisor.ISOUploadSpec, c
 	return env.Data, nil
 }
 
-// DeleteISO removes a volume. The storage is part of the volume id
-// ("local:iso/debian.iso"), so only the node has to be supplied.
-func (d *Driver) DeleteISO(ctx context.Context, zone, volumeID string) (string, error) {
+// DeleteVolume removes a storage volume. The storage is part of the
+// volume id ("local:iso/debian.iso"), so only the node has to be
+// supplied.
+func (d *Driver) DeleteVolume(ctx context.Context, zone, volumeID string) (string, error) {
 	storage, _, found := strings.Cut(volumeID, ":")
 	if !found || storage == "" {
 		return "", fmt.Errorf("proxmox: %q is not a volume id", volumeID)
@@ -107,6 +108,27 @@ func (d *Driver) DeleteISO(ctx context.Context, zone, volumeID string) (string, 
 	if err := d.do(ctx, http.MethodDelete, path, nil, &upid); err != nil {
 		return "", err
 	}
+	if upid == nil {
+		return "", nil
+	}
+	return *upid, nil
+}
+
+// DeleteImage destroys a template VM along with its disks. Templates
+// can't be running, so there's no shutdown step.
+func (d *Driver) DeleteImage(ctx context.Context, imageID string) (string, error) {
+	node, err := d.node(ctx, imageID)
+	if err != nil {
+		return "", err
+	}
+	var upid *string
+	path := fmt.Sprintf("/nodes/%s/qemu/%s?purge=1&destroy-unreferenced-disks=1", node, imageID)
+	if err := d.do(ctx, http.MethodDelete, path, nil, &upid); err != nil {
+		return "", err
+	}
+	d.mu.Lock()
+	delete(d.nodeOf, imageID)
+	d.mu.Unlock()
 	if upid == nil {
 		return "", nil
 	}

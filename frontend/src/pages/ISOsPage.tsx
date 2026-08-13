@@ -5,11 +5,6 @@ import {
   Alert,
   Box,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   IconButton,
   Menu,
   MenuItem,
@@ -29,6 +24,7 @@ import { api } from '../api/client'
 import type { ISO } from '../api/client'
 import { formatBytes } from '../format'
 import { useServerNames } from '../useServerNames'
+import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 
 export default function ISOsPage() {
   const queryClient = useQueryClient()
@@ -136,27 +132,16 @@ export default function ISOsPage() {
         </MenuItem>
       </Menu>
 
-      <Dialog open={Boolean(confirming)} onClose={() => setConfirming(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Delete {confirming?.name}?</DialogTitle>
-        <DialogContent>
-          <DialogContentText sx={{ fontSize: 13 }}>
-            This permanently removes the image from {confirming?.storage} on{' '}
-            {confirming ? serverName(confirming.serverId) : ''}. Instances currently
-            booting from it will lose the media.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirming(null)}>Cancel</Button>
-          <Button
-            color="error"
-            variant="contained"
-            disabled={remove.isPending}
-            onClick={() => confirming && remove.mutate(confirming)}
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDeleteDialog
+        open={Boolean(confirming)}
+        title={`Delete ${confirming?.name}?`}
+        body={`This permanently removes the image from ${confirming?.storage} on ${
+          confirming ? serverName(confirming.serverId) : ''
+        }. Instances currently booting from it will lose the media.`}
+        pending={remove.isPending}
+        onCancel={() => setConfirming(null)}
+        onConfirm={() => confirming && remove.mutate(confirming)}
+      />
     </Box>
   )
 }
