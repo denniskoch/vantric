@@ -325,6 +325,18 @@ export interface DNSZone {
   createdAt: number
 }
 
+export interface DNSRecord {
+  id: string
+  name: string
+  type: string
+  content: string
+  /** Seconds; 1 means the provider chooses. */
+  ttl: number
+  priority: number
+  proxied: boolean
+  comment?: string
+}
+
 export interface MachineType {
   name: string
   description: string
@@ -530,6 +542,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  getDNSZone: (providerId: string, zoneId: string) =>
+    request<DNSZone>(`/dns/zones/${zoneId}?provider=${providerId}`),
+  listDNSRecords: (providerId: string, zoneId: string) =>
+    request<DNSRecord[]>(`/dns/zones/${zoneId}/records?provider=${providerId}`),
   deleteDNSZone: (providerId: string, zoneId: string) =>
     request<void>(`/dns/zones/${zoneId}?provider=${providerId}`, { method: 'DELETE' }),
 

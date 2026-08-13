@@ -9,6 +9,7 @@ import CTTemplatesPage from './pages/CTTemplatesPage'
 import OverviewPage from './pages/OverviewPage'
 import SectionLandingPage from './pages/SectionLandingPage'
 import DNSZonesPage from './pages/DNSZonesPage'
+import DNSZoneDetailPage from './pages/DNSZoneDetailPage'
 import DNSProvidersPage from './pages/DNSProvidersPage'
 import ServersPage from './pages/ServersPage'
 import MachineTypesPage from './pages/MachineTypesPage'
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="/docker/overview" element={<SectionLandingPage />} />
         <Route path="/dns/overview" element={<SectionLandingPage />} />
         <Route path="/dns/zones" element={<DNSZonesPage />} />
+        <Route path="/dns/zones/:providerId/:zoneId" element={<DNSZoneDetailPage />} />
         <Route path="/dns/providers" element={<DNSProvidersPage />} />
         <Route path="/storage" element={<Navigate to="/storage/overview" replace />} />
         <Route path="/network" element={<Navigate to="/network/overview" replace />} />

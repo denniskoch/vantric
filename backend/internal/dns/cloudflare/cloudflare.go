@@ -200,6 +200,53 @@ func (d *Driver) Zones(ctx context.Context) ([]dns.Zone, error) {
 	return zones, nil
 }
 
+func (d *Driver) Zone(ctx context.Context, zoneID string) (*dns.Zone, error) {
+	var res cfZone
+	if _, err := d.do(ctx, http.MethodGet, "/zones/"+zoneID, nil, &res); err != nil {
+		return nil, err
+	}
+	zone := res.toZone()
+	return &zone, nil
+}
+
+// Records lists every record in a zone, following pagination.
+func (d *Driver) Records(ctx context.Context, zoneID string) ([]dns.Record, error) {
+	records := []dns.Record{}
+	for page := 1; ; page++ {
+		var res []struct {
+			ID       string `json:"id"`
+			Name     string `json:"name"`
+			Type     string `json:"type"`
+			Content  string `json:"content"`
+			TTL      int    `json:"ttl"`
+			Priority int    `json:"priority"`
+			Proxied  bool   `json:"proxied"`
+			Comment  string `json:"comment"`
+		}
+		path := fmt.Sprintf("/zones/%s/dns_records?per_page=100&page=%d", zoneID, page)
+		env, err := d.do(ctx, http.MethodGet, path, nil, &res)
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range res {
+			records = append(records, dns.Record{
+				ID:       r.ID,
+				Name:     r.Name,
+				Type:     r.Type,
+				Content:  r.Content,
+				TTL:      r.TTL,
+				Priority: r.Priority,
+				Proxied:  r.Proxied,
+				Comment:  r.Comment,
+			})
+		}
+		if env.Info.TotalPages <= page || len(res) == 0 {
+			break
+		}
+	}
+	return records, nil
+}
+
 func (d *Driver) CreateZone(ctx context.Context, spec dns.ZoneSpec) (*dns.Zone, error) {
 	accountID := spec.AccountID
 	if accountID == "" {

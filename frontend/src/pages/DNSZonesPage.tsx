@@ -5,12 +5,12 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   IconButton,
+  Link,
   Menu,
   MenuItem,
   Paper,
@@ -143,9 +143,6 @@ export default function DNSZonesPage() {
               <TableCell>Name</TableCell>
               <TableCell>Provider</TableCell>
               <TableCell>Account</TableCell>
-              <TableCell>Mode</TableCell>
-              <TableCell>Nameservers</TableCell>
-              <TableCell>Created</TableCell>
               <TableCell align="right" />
             </TableRow>
           </TableHead>
@@ -161,23 +158,17 @@ export default function DNSZonesPage() {
                     )}
                   </Tooltip>
                 </TableCell>
-                <TableCell>{zone.name}</TableCell>
+                <TableCell>
+                  <Link
+                    component={RouterLink}
+                    to={`/dns/zones/${zone.providerId}/${zone.id}`}
+                    underline="hover"
+                  >
+                    {zone.name}
+                  </Link>
+                </TableCell>
                 <TableCell>{providerName(zone.providerId)}</TableCell>
                 <TableCell>{zone.accountName || '—'}</TableCell>
-                <TableCell>
-                  <Chip
-                    label={zone.type || 'full'}
-                    size="small"
-                    variant="outlined"
-                    sx={{ fontSize: 10, height: 18 }}
-                  />
-                </TableCell>
-                <TableCell sx={{ fontSize: 12, color: '#5f6368' }}>
-                  {zone.nameservers?.join(', ') || '—'}
-                </TableCell>
-                <TableCell>
-                  {zone.createdAt ? new Date(zone.createdAt * 1000).toLocaleDateString() : '—'}
-                </TableCell>
                 <TableCell align="right">
                   <IconButton
                     size="small"
@@ -193,7 +184,7 @@ export default function DNSZonesPage() {
             ))}
             {zones.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 6, color: '#5f6368' }}>
                   {isLoading ? 'Loading…' : 'No zones found at your providers.'}
                 </TableCell>
               </TableRow>
@@ -267,16 +258,16 @@ export default function DNSZonesPage() {
             ))}
           </TextField>
           <TextField
-            label="Mode"
+            label="Setup"
             size="small"
             select
             value={zoneType}
             onChange={(e) => setZoneType(e.target.value)}
-            helperText="Full delegates the domain's nameservers; partial keeps them elsewhere"
+            helperText="Full points the whole domain here by changing its nameservers at the registrar; partial leaves the domain where it is."
             fullWidth
           >
-            <MenuItem value="full">Full — authoritative</MenuItem>
-            <MenuItem value="partial">Partial — CNAME setup</MenuItem>
+            <MenuItem value="full">Full — this provider answers for the domain</MenuItem>
+            <MenuItem value="partial">Partial — keep the current nameservers</MenuItem>
           </TextField>
         </DialogContent>
         <DialogActions>

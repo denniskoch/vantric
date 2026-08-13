@@ -35,6 +35,8 @@ func (s *Server) dnsRoutes(r chi.Router) {
 	r.Get("/dns/accounts", s.listDNSAccounts)
 	r.Get("/dns/zones", s.listDNSZones)
 	r.Post("/dns/zones", s.createDNSZone)
+	r.Get("/dns/zones/{id}", s.getDNSZone)
+	r.Get("/dns/zones/{id}/records", s.listDNSRecords)
 	r.Delete("/dns/zones/{id}", s.deleteDNSZone)
 }
 
@@ -262,6 +264,46 @@ func (s *Server) listDNSZones(w http.ResponseWriter, r *http.Request) {
 	}
 	slices.SortFunc(zones, func(a, b dns.Zone) int { return strings.Compare(a.Name, b.Name) })
 	s.json(w, http.StatusOK, zones)
+}
+
+// getDNSZone reads one zone live from its provider, so the detail view
+// doesn't depend on the list's refresh interval.
+func (s *Server) getDNSZone(w http.ResponseWriter, r *http.Request) {
+	provider := s.dnsProvider(w, r)
+	if provider == nil {
+		return
+	}
+	zone, err := provider.Zone(r.Context(), chi.URLParam(r, "id"))
+	if err != nil {
+		s.fail(w, err, "zone")
+		return
+	}
+	zone.ProviderID = r.URL.Query().Get("provider")
+	s.json(w, http.StatusOK, zone)
+}
+
+// listDNSRecords returns a zone's records sorted by name then type, so
+// the record-set grouping in the UI is stable across refreshes.
+func (s *Server) listDNSRecords(w http.ResponseWriter, r *http.Request) {
+	provider := s.dnsProvider(w, r)
+	if provider == nil {
+		return
+	}
+	records, err := provider.Records(r.Context(), chi.URLParam(r, "id"))
+	if err != nil {
+		s.fail(w, err, "dns records")
+		return
+	}
+	slices.SortFunc(records, func(a, b dns.Record) int {
+		if c := strings.Compare(a.Name, b.Name); c != 0 {
+			return c
+		}
+		if c := strings.Compare(a.Type, b.Type); c != 0 {
+			return c
+		}
+		return strings.Compare(a.Content, b.Content)
+	})
+	s.json(w, http.StatusOK, records)
 }
 
 func (s *Server) createDNSZone(w http.ResponseWriter, r *http.Request) {

@@ -38,6 +38,24 @@ type Zone struct {
 	CreatedAt int64 `json:"createdAt"`
 }
 
+// Record is a single DNS record inside a zone. The UI groups records
+// that share a name and type into a record set, the way Cloud DNS
+// presents them.
+type Record struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Type    string `json:"type"`
+	Content string `json:"content"`
+	// TTL is seconds; 1 means the provider picks it automatically.
+	TTL int `json:"ttl"`
+	// Priority applies to MX and SRV; 0 elsewhere.
+	Priority int `json:"priority"`
+	// Proxied is Cloudflare's orange cloud, ignored by providers
+	// without a proxy.
+	Proxied bool   `json:"proxied"`
+	Comment string `json:"comment,omitempty"`
+}
+
 // ZoneSpec describes a zone to create.
 type ZoneSpec struct {
 	Name      string
@@ -55,6 +73,10 @@ type Provider interface {
 	Verify(ctx context.Context) error
 	Accounts(ctx context.Context) ([]Account, error)
 	Zones(ctx context.Context) ([]Zone, error)
+	// Zone reads one zone. The detail view uses it so the page is
+	// current even when the list is stale.
+	Zone(ctx context.Context, zoneID string) (*Zone, error)
+	Records(ctx context.Context, zoneID string) ([]Record, error)
 	CreateZone(ctx context.Context, spec ZoneSpec) (*Zone, error)
 	DeleteZone(ctx context.Context, zoneID string) error
 }
