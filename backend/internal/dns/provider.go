@@ -31,9 +31,8 @@ type Zone struct {
 	AccountName string   `json:"accountName"`
 	// Type is the provider's zone mode: "full" when it is authoritative,
 	// "partial" for CNAME setups.
-	Type    string `json:"type"`
-	Paused  bool   `json:"paused"`
-	Records int    `json:"records"`
+	Type   string `json:"type"`
+	Paused bool   `json:"paused"`
 	// CreatedAt is unix seconds; 0 when the provider doesn't report it.
 	CreatedAt int64 `json:"createdAt"`
 }

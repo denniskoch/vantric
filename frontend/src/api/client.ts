@@ -321,7 +321,6 @@ export interface DNSZone {
   accountName: string
   type: string
   paused: boolean
-  records: number
   createdAt: number
 }
 
