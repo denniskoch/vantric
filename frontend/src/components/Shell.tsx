@@ -55,7 +55,13 @@ export default function Shell() {
     <Box sx={{ display: 'flex', height: '100vh' }}>
       <AppBar position="fixed" sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
         <Toolbar variant="dense" sx={{ gap: 1, minHeight: 48 }}>
-          <IconButton edge="start" onClick={() => setGlobalNavOpen(true)} size="small">
+          <IconButton
+            edge="start"
+            onClick={() => setGlobalNavOpen((open) => !open)}
+            aria-label={globalNavOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={globalNavOpen}
+            size="small"
+          >
             <MenuIcon />
           </IconButton>
           <Box
