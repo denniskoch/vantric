@@ -27,6 +27,7 @@ import { api, emptyCloudInit } from '../api/client'
 import type { CloudInitConfig } from '../api/client'
 import CloudInitFields from '../components/CloudInitFields'
 import { formatBytes } from '../format'
+import { resourceNameError } from '../validation'
 
 type SectionID = 'image' | 'template' | 'cloudinit' | 'hardware'
 
@@ -326,7 +327,11 @@ export default function BuildTemplatePage() {
                 size="small"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                helperText="Lowercase letters, numbers, hyphens. e.g. debian-13-cloud"
+                error={Boolean(resourceNameError(name))}
+                helperText={
+                  resourceNameError(name) ??
+                  'Lowercase letters, numbers, hyphens. e.g. debian-13-cloud'
+                }
                 fullWidth
               />
               <TextField

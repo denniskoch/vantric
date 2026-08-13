@@ -32,6 +32,7 @@ import ErrorIcon from '@mui/icons-material/Error'
 import HelpIcon from '@mui/icons-material/Help'
 import { api } from '../api/client'
 import type { Server, ServerRequest, ServerType } from '../api/client'
+import { resourceNameError, resourceNameRe, urlError } from '../validation'
 
 const typeLabels: Record<ServerType, string> = {
   proxmox: 'Proxmox VE',
@@ -122,7 +123,9 @@ export default function ServersPage() {
   }
 
   const isProxmox = form.type === 'proxmox'
-  const validName = /^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$/.test(form.name)
+  const nameError = resourceNameError(form.name)
+  const baseUrlError = urlError(form.baseUrl)
+  const validName = resourceNameRe.test(form.name)
   const valid =
     validName &&
     (!isProxmox ||
@@ -213,7 +216,8 @@ export default function ServersPage() {
             size="small"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            helperText="Lowercase letters, numbers, hyphens. e.g. pve-1"
+            error={Boolean(nameError)}
+            helperText={nameError ?? 'Lowercase letters, numbers, hyphens. e.g. pve-1'}
             fullWidth
           />
           <TextField
@@ -236,6 +240,8 @@ export default function ServersPage() {
                 value={form.baseUrl}
                 onChange={(e) => setForm({ ...form, baseUrl: e.target.value })}
                 placeholder="https://pve.lan:8006"
+                error={Boolean(baseUrlError)}
+                helperText={baseUrlError ?? ' '}
                 fullWidth
               />
               <TextField

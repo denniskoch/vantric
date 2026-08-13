@@ -71,6 +71,10 @@ Dockerfile).
   TEXT timestamps, no engine-specific types. Postgres is planned, not wired.
 - Frontend talks only to `/api/v1` via `src/api/client.ts` (typed client);
   server state lives in TanStack Query (3s polling), not local state.
+- Form validation lives in `src/validation.ts` and must SHOW itself: a
+  field turns red with the specific problem as soon as its value is
+  invalid. A disabled submit button is never the only signal — if a
+  rule gates submission, it needs a matching field error.
 - UI style: GCP-inspired via MUI + the custom theme in `src/theme.ts`
   (Google blue #1a73e8, white surfaces, #dadce0 borders, dense tables).
 - No authentication yet. The account avatar and menu in the app bar are

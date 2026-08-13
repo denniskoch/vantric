@@ -26,6 +26,7 @@ import {
   CloudInitLoginFields,
   CloudInitNetworkFields,
 } from '../components/CloudInitFields'
+import { resourceNameError } from '../validation'
 
 // GCP-style sectioned create flow: a left stepper with per-section
 // summaries and a persistent Create/Cancel bar.
@@ -223,7 +224,11 @@ export default function CreateInstancePage() {
                 size="small"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                helperText="Lowercase letters, numbers, hyphens. Must start with a letter."
+                error={Boolean(resourceNameError(name))}
+                helperText={
+                  resourceNameError(name) ??
+                  'Lowercase letters, numbers, hyphens. Must start with a letter.'
+                }
                 fullWidth
               />
               <TextField

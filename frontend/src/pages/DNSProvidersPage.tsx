@@ -31,6 +31,7 @@ import HelpIcon from '@mui/icons-material/Help'
 import { api } from '../api/client'
 import type { DNSProvider, DNSProviderRequest, DNSProviderType } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
+import { resourceNameError, resourceNameRe } from '../validation'
 
 const typeLabels: Record<DNSProviderType, string> = { cloudflare: 'Cloudflare' }
 
@@ -115,7 +116,8 @@ export default function DNSProvidersPage() {
     setDialogOpen(true)
   }
 
-  const validName = /^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$/.test(form.name)
+  const nameError = resourceNameError(form.name)
+  const validName = resourceNameRe.test(form.name)
   const valid = validName && (form.token !== '' || Boolean(editing?.hasToken))
 
   return (
@@ -210,7 +212,8 @@ export default function DNSProvidersPage() {
             size="small"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            helperText="Lowercase letters, numbers, hyphens. e.g. cloudflare-main"
+            error={Boolean(nameError)}
+            helperText={nameError ?? 'Lowercase letters, numbers, hyphens. e.g. cloudflare-main'}
             fullWidth
           />
           <TextField

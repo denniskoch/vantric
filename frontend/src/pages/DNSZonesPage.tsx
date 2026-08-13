@@ -32,8 +32,7 @@ import PendingIcon from '@mui/icons-material/Pending'
 import { api } from '../api/client'
 import type { DNSZone } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
-
-const domainRe = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/
+import { domainError, domainRe } from '../validation'
 
 export default function DNSZonesPage() {
   const queryClient = useQueryClient()
@@ -96,6 +95,7 @@ export default function DNSZonesPage() {
     },
   })
 
+  const nameFieldError = domainError(name)
   const valid = domainRe.test(name.trim().toLowerCase()) && Boolean(providerId)
 
   return (
@@ -240,7 +240,8 @@ export default function DNSZonesPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="example.com"
-            helperText="The apex domain, without a scheme or trailing dot"
+            error={Boolean(nameFieldError)}
+            helperText={nameFieldError ?? 'The apex domain, without a scheme or trailing dot'}
             fullWidth
           />
           <TextField

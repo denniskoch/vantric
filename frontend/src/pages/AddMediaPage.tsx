@@ -25,6 +25,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import { api } from '../api/client'
 import { formatBytes } from '../format'
+import { filenameError, urlError } from '../validation'
 
 type SectionID = 'source' | 'destination' | 'verification'
 type Method = 'url' | 'upload'
@@ -332,6 +333,8 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
                       if (filenameOk(guessed)) setFilename(guessed)
                     }}
                     placeholder={kind.urlPlaceholder}
+                    error={Boolean(urlError(url))}
+                    helperText={urlError(url) ?? ' '}
                     fullWidth
                   />
                 </>
@@ -368,7 +371,11 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
                 size="small"
                 value={filename}
                 onChange={(e) => setFilename(e.target.value)}
-                helperText={`File name on the datastore; must end in ${kind.extensionHint}`}
+                error={Boolean(filenameError(filename, kind.extensions, kind.extensionHint))}
+                helperText={
+                  filenameError(filename, kind.extensions, kind.extensionHint) ??
+                  `File name on the datastore; must end in ${kind.extensionHint}`
+                }
                 fullWidth
               />
             </>

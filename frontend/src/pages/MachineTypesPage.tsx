@@ -23,6 +23,7 @@ import AddBoxIcon from '@mui/icons-material/AddBox'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { api } from '../api/client'
 import type { MachineType } from '../api/client'
+import { resourceNameError, resourceNameRe } from '../validation'
 
 const emptyForm: MachineType = { name: '', description: '', cpus: 1, memoryMb: 1024 }
 
@@ -56,7 +57,8 @@ export default function MachineTypesPage() {
     onError: (e: Error) => setError(e.message),
   })
 
-  const validName = /^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$/.test(form.name)
+  const nameError = resourceNameError(form.name)
+  const validName = resourceNameRe.test(form.name)
 
   return (
     <Box sx={{ p: 3 }}>
@@ -130,7 +132,8 @@ export default function MachineTypesPage() {
             size="small"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            helperText="Lowercase letters, numbers, hyphens. e.g. hl-standard-8"
+            error={Boolean(nameError)}
+            helperText={nameError ?? 'Lowercase letters, numbers, hyphens. e.g. hl-standard-8'}
             fullWidth
           />
           <Box sx={{ display: 'flex', gap: 2 }}>
