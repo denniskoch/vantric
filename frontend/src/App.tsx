@@ -3,7 +3,8 @@ import Shell from './components/Shell'
 import InstancesPage from './pages/InstancesPage'
 import CreateInstancePage from './pages/CreateInstancePage'
 import InstanceDetailPage from './pages/InstanceDetailPage'
-import ImagesPage from './pages/ImagesPage'
+import VMTemplatesPage from './pages/VMTemplatesPage'
+import CTTemplatesPage from './pages/CTTemplatesPage'
 import OverviewPage from './pages/OverviewPage'
 import ServersPage from './pages/ServersPage'
 import MachineTypesPage from './pages/MachineTypesPage'
@@ -25,7 +26,10 @@ export default function App() {
         <Route path="/compute/instances/:name" element={<InstanceDetailPage />} />
         <Route path="/compute/containers" element={<ContainersPage />} />
         <Route path="/compute/containers/:name" element={<ContainerDetailPage />} />
-        <Route path="/compute/images" element={<ImagesPage />} />
+        <Route path="/compute/vm-templates" element={<VMTemplatesPage />} />
+        <Route path="/compute/ct-templates" element={<CTTemplatesPage />} />
+        {/* legacy path */}
+        <Route path="/compute/images" element={<Navigate to="/compute/vm-templates" replace />} />
         <Route path="/compute/disks" element={<DisksPage />} />
         <Route path="/compute/snapshots" element={<SnapshotsPage />} />
         <Route path="/compute/isos" element={<ISOsPage />} />

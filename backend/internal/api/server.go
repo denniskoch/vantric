@@ -58,6 +58,7 @@ func (s *Server) Router() http.Handler {
 		r.Get("/snapshots", s.listSnapshots)
 		r.Get("/isos", s.listISOs)
 		r.Get("/datastores", s.listDatastores)
+		r.Get("/ct-templates", s.listCTTemplates)
 		r.Get("/machine-types", s.listMachineTypes)
 		r.Post("/machine-types", s.createMachineType)
 		r.Delete("/machine-types/{name}", s.deleteMachineType)
@@ -202,6 +203,31 @@ func (s *Server) listISOs(w http.ResponseWriter, r *http.Request) {
 		return strings.Compare(a.Name, b.Name)
 	})
 	s.json(w, http.StatusOK, isos)
+}
+
+func (s *Server) listCTTemplates(w http.ResponseWriter, r *http.Request) {
+	driver := s.serverDriver(w, r)
+	if driver == nil {
+		return
+	}
+	// Servers without container support simply have no CT templates.
+	cd, ok := driver.(hypervisor.ContainerDriver)
+	if !ok {
+		s.json(w, http.StatusOK, []hypervisor.CTTemplate{})
+		return
+	}
+	templates, err := cd.CTTemplates(r.Context())
+	if err != nil {
+		s.fail(w, err, "ct templates")
+		return
+	}
+	if templates == nil {
+		templates = []hypervisor.CTTemplate{}
+	}
+	slices.SortFunc(templates, func(a, b hypervisor.CTTemplate) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	s.json(w, http.StatusOK, templates)
 }
 
 func (s *Server) listDatastores(w http.ResponseWriter, r *http.Request) {

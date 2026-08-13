@@ -217,6 +217,15 @@ func (d *Driver) Datastores(ctx context.Context) ([]hypervisor.Datastore, error)
 
 // --- hypervisor.ContainerDriver ---
 
+func (d *Driver) CTTemplates(ctx context.Context) ([]hypervisor.CTTemplate, error) {
+	return []hypervisor.CTTemplate{
+		{ID: "local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst", Name: "debian-12-standard_12.7-1_amd64.tar.zst",
+			Zone: "lab-node-a", Storage: "local", SizeBytes: 130150400, CreatedAt: time.Now().Add(-60 * 24 * time.Hour).Unix()},
+		{ID: "local:vztmpl/alpine-3.21-default_20241217_amd64.tar.xz", Name: "alpine-3.21-default_20241217_amd64.tar.xz",
+			Zone: "lab-node-a", Storage: "local", SizeBytes: 3355443, CreatedAt: time.Now().Add(-20 * 24 * time.Hour).Unix()},
+	}, nil
+}
+
 func (d *Driver) ListContainers(ctx context.Context) ([]hypervisor.InstanceState, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()

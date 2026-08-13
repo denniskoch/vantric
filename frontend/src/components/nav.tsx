@@ -12,6 +12,7 @@ import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
 import DiscFullIcon from '@mui/icons-material/DiscFull'
 import FolderSpecialIcon from '@mui/icons-material/FolderSpecial'
+import ArchiveIcon from '@mui/icons-material/Archive'
 
 export interface SectionItem {
   label: string
@@ -58,7 +59,6 @@ export const sections: Section[] = [
         items: [
           { label: 'VM instances', icon: ComputerIcon, to: '/compute/instances' },
           { label: 'CT instances', icon: Inventory2Icon, to: '/compute/containers' },
-          { label: 'Images', icon: AlbumIcon, to: '/compute/images' },
         ],
       },
       {
@@ -66,6 +66,8 @@ export const sections: Section[] = [
         items: [
           { label: 'Disks', icon: LayersIcon, to: '/compute/disks' },
           { label: 'Snapshots', icon: PhotoCameraIcon, to: '/compute/snapshots' },
+          { label: 'VM Templates', icon: AlbumIcon, to: '/compute/vm-templates' },
+          { label: 'CT Templates', icon: ArchiveIcon, to: '/compute/ct-templates' },
           { label: 'ISOs', icon: DiscFullIcon, to: '/compute/isos' },
           { label: 'Datastores', icon: FolderSpecialIcon, to: '/compute/datastores' },
         ],

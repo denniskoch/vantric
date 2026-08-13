@@ -113,6 +113,9 @@ export interface ISO {
   createdAt: number
 }
 
+// CT templates share the ISO listing shape (storage content volumes).
+export type CTTemplate = ISO
+
 export interface Datastore {
   id: string
   name: string
@@ -175,6 +178,8 @@ export const api = {
   listSnapshots: (serverId: string) =>
     request<Snapshot[]>(`/snapshots?server=${serverId}`),
   listISOs: (serverId: string) => request<ISO[]>(`/isos?server=${serverId}`),
+  listCTTemplates: (serverId: string) =>
+    request<CTTemplate[]>(`/ct-templates?server=${serverId}`),
   listDatastores: (serverId: string) =>
     request<Datastore[]>(`/datastores?server=${serverId}`),
 

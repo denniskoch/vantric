@@ -15,7 +15,9 @@ import {
 } from '@mui/material'
 import { api } from '../api/client'
 
-export default function ImagesPage() {
+// VM templates (Proxmox template VMs) — the sources "create instance"
+// clones from.
+export default function VMTemplatesPage() {
   const [serverId, setServerId] = useState('')
 
   const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
@@ -34,7 +36,7 @@ export default function ImagesPage() {
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-        <Typography variant="h5">Images</Typography>
+        <Typography variant="h5">VM templates</Typography>
         <TextField
           label="Server"
           size="small"
@@ -74,7 +76,7 @@ export default function ImagesPage() {
                     ? 'No connected servers — add one under Bare Metal Solution → Servers.'
                     : isLoading
                       ? 'Loading…'
-                      : 'No images (templates) found on this server.'}
+                      : 'No VM templates found on this server.'}
                 </TableCell>
               </TableRow>
             )}

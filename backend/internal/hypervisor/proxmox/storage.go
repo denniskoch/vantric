@@ -126,18 +126,28 @@ func (d *Driver) Datastores(ctx context.Context) ([]hypervisor.Datastore, error)
 	return datastores, nil
 }
 
-// ISOs lists ISO images across every datastore that holds them. Shared
-// datastores appear once per node in cluster resources, so volumes are
-// deduplicated by volume ID.
-func (d *Driver) ISOs(ctx context.Context) ([]hypervisor.ISO, error) {
+// contentItem is one volume of a given content type on a datastore.
+type contentItem struct {
+	VolID     string
+	Name      string
+	Node      string
+	Storage   string
+	SizeBytes int64
+	CreatedAt int64
+}
+
+// storageContent lists volumes of one content type ("iso", "vztmpl")
+// across every datastore that holds it. Shared datastores appear once
+// per node in cluster resources, so volumes are deduplicated by ID.
+func (d *Driver) storageContent(ctx context.Context, contentType string) ([]contentItem, error) {
 	storages, err := d.clusterStorages(ctx)
 	if err != nil {
 		return nil, err
 	}
-	isos := []hypervisor.ISO{}
+	items := []contentItem{}
 	seen := map[string]bool{}
 	for _, s := range storages {
-		if !strings.Contains(s.Content, "iso") || s.Status != "available" {
+		if !strings.Contains(s.Content, contentType) || s.Status != "available" {
 			continue
 		}
 		var content []struct {
@@ -145,7 +155,7 @@ func (d *Driver) ISOs(ctx context.Context) ([]hypervisor.ISO, error) {
 			Size  int64  `json:"size"`
 			CTime int64  `json:"ctime"`
 		}
-		path := fmt.Sprintf("/nodes/%s/storage/%s/content?content=iso", s.Node, s.Storage)
+		path := fmt.Sprintf("/nodes/%s/storage/%s/content?content=%s", s.Node, s.Storage, contentType)
 		if err := d.do(ctx, http.MethodGet, path, nil, &content); err != nil {
 			continue
 		}
@@ -158,17 +168,49 @@ func (d *Driver) ISOs(ctx context.Context) ([]hypervisor.ISO, error) {
 			if idx := strings.LastIndex(name, "/"); idx >= 0 {
 				name = name[idx+1:]
 			}
-			isos = append(isos, hypervisor.ISO{
-				ID:        c.VolID,
+			items = append(items, contentItem{
+				VolID:     c.VolID,
 				Name:      name,
-				Zone:      s.Node,
+				Node:      s.Node,
 				Storage:   s.Storage,
 				SizeBytes: c.Size,
 				CreatedAt: c.CTime,
 			})
 		}
 	}
+	return items, nil
+}
+
+// ISOs lists ISO images across every datastore that holds them.
+func (d *Driver) ISOs(ctx context.Context) ([]hypervisor.ISO, error) {
+	items, err := d.storageContent(ctx, "iso")
+	if err != nil {
+		return nil, err
+	}
+	isos := make([]hypervisor.ISO, 0, len(items))
+	for _, it := range items {
+		isos = append(isos, hypervisor.ISO{
+			ID: it.VolID, Name: it.Name, Zone: it.Node, Storage: it.Storage,
+			SizeBytes: it.SizeBytes, CreatedAt: it.CreatedAt,
+		})
+	}
 	return isos, nil
+}
+
+// CTTemplates lists container templates (vztmpl tarballs).
+func (d *Driver) CTTemplates(ctx context.Context) ([]hypervisor.CTTemplate, error) {
+	items, err := d.storageContent(ctx, "vztmpl")
+	if err != nil {
+		return nil, err
+	}
+	templates := make([]hypervisor.CTTemplate, 0, len(items))
+	for _, it := range items {
+		templates = append(templates, hypervisor.CTTemplate{
+			ID: it.VolID, Name: it.Name, Zone: it.Node, Storage: it.Storage,
+			SizeBytes: it.SizeBytes, CreatedAt: it.CreatedAt,
+		})
+	}
+	return templates, nil
 }
 
 // Snapshots lists snapshots of every (non-template) VM.
