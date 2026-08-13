@@ -102,6 +102,16 @@ Dockerfile).
   rule gates submission, it needs a matching field error.
 - UI style: GCP-inspired via MUI + the custom theme in `src/theme.ts`
   (Google blue #1a73e8, white surfaces, #dadce0 borders, dense tables).
+  NO PILL BORDERS: chips are borderless labels on a #f1f3f4 tint with
+  the standard 4px radius, set once in the theme's MuiChip override —
+  don't reintroduce an outline on a chip.
+- Brand marks (engines, hypervisors, DNS providers, guest operating
+  systems) come from simple-icons, drawn inline by
+  `components/BrandIcon.tsx` and looked up in `src/brands.ts`. Every
+  lookup keys off a string the backend already returns — an engine
+  type, a version banner, a file name — so adding a logo never needs
+  an API change. The app makes no outside requests: nothing is loaded
+  from a CDN.
 - No authentication yet. The account avatar and menu in the app bar are
   a stub reading from `currentUser` in `src/components/Shell.tsx`; wiring
   real sign-in should mean replacing that constant and enabling the

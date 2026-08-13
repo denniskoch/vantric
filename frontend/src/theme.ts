@@ -52,6 +52,18 @@ export const theme = createTheme({
         head: { color: '#5f6368', fontWeight: 500, whiteSpace: 'nowrap' },
       },
     },
+    MuiChip: {
+      styleOverrides: {
+        // No pill borders: labels sit on a tint with the same corner
+        // radius as everything else, rather than in an outlined pill.
+        root: { borderRadius: 4 },
+        outlined: {
+          border: 'none',
+          backgroundColor: '#f1f3f4',
+          color: '#3c4043',
+        },
+      },
+    },
     MuiListItemButton: {
       styleOverrides: {
         root: {

@@ -254,7 +254,13 @@ export default function DNSZoneDetailPage() {
                                 label="Proxied"
                                 size="small"
                                 variant="outlined"
-                                sx={{ fontSize: 10, height: 18, color: '#e8710a', borderColor: '#e8710a' }}
+                                sx={{
+                                  fontSize: 10,
+                                  height: 18,
+                                  color: '#e8710a',
+                                  bgcolor: '#fef7e0',
+                                  '& .MuiChip-icon': { color: 'inherit' },
+                                }}
                               />
                             </Tooltip>
                           )}
