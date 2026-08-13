@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { Box, Grid, Paper, Typography } from '@mui/material'
+import { Box, Paper, Typography } from '@mui/material'
 import { api } from '../api/client'
+import SectionLandingPage from './SectionLandingPage'
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <Paper variant="outlined" sx={{ p: 2, minWidth: 180 }}>
+    <Paper variant="outlined" sx={{ p: 2, minWidth: 160, flex: '1 1 160px' }}>
       <Typography variant="body2" color="text.secondary">
         {label}
       </Typography>
@@ -13,33 +14,34 @@ function Stat({ label, value }: { label: string; value: string | number }) {
   )
 }
 
+/**
+ * Compute Engine's landing page: the shared section template, with a
+ * live summary of what's running in the slot above the page cards.
+ */
 export default function OverviewPage() {
   const { data: instances = [] } = useQuery({
     queryKey: ['instances'],
     queryFn: api.listInstances,
     refetchInterval: 5000,
   })
+  const { data: containers = [] } = useQuery({
+    queryKey: ['containers'],
+    queryFn: api.listContainers,
+    refetchInterval: 5000,
+  })
   const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
 
-  const running = instances.filter((i) => i.status === 'RUNNING').length
+  const running = (list: { status: string }[]) =>
+    list.filter((i) => i.status === 'RUNNING').length
   const connected = servers.filter((s) => s.status === 'connected').length
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>
-        Overview
-      </Typography>
-      <Grid container spacing={2}>
-        <Grid>
-          <Stat label="VM instances" value={instances.length} />
-        </Grid>
-        <Grid>
-          <Stat label="Running" value={running} />
-        </Grid>
-        <Grid>
-          <Stat label="Servers" value={`${connected}/${servers.length}`} />
-        </Grid>
-      </Grid>
-    </Box>
+    <SectionLandingPage>
+      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3 }}>
+        <Stat label="VM instances" value={`${running(instances)}/${instances.length}`} />
+        <Stat label="CT instances" value={`${running(containers)}/${containers.length}`} />
+        <Stat label="Servers connected" value={`${connected}/${servers.length}`} />
+      </Box>
+    </SectionLandingPage>
   )
 }

@@ -173,7 +173,6 @@ export default function Shell() {
           {sections.map((s) => (
             <ListItemButton
               key={s.id}
-              disabled={s.comingSoon}
               selected={section?.id === s.id}
               onClick={() => {
                 navigate(s.home)

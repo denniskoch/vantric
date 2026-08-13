@@ -7,6 +7,7 @@ import VMTemplatesPage from './pages/VMTemplatesPage'
 import BuildTemplatePage from './pages/BuildTemplatePage'
 import CTTemplatesPage from './pages/CTTemplatesPage'
 import OverviewPage from './pages/OverviewPage'
+import SectionLandingPage from './pages/SectionLandingPage'
 import ServersPage from './pages/ServersPage'
 import MachineTypesPage from './pages/MachineTypesPage'
 import DisksPage from './pages/DisksPage'
@@ -24,6 +25,12 @@ export default function App() {
       <Route element={<Shell />}>
         <Route path="/" element={<Navigate to="/compute/instances" replace />} />
         <Route path="/compute/overview" element={<OverviewPage />} />
+        {/* Sections without pages yet still land somewhere real. */}
+        <Route path="/storage" element={<SectionLandingPage />} />
+        <Route path="/network" element={<SectionLandingPage />} />
+        <Route path="/databases" element={<SectionLandingPage />} />
+        <Route path="/docker" element={<SectionLandingPage />} />
+        <Route path="/dns" element={<SectionLandingPage />} />
         <Route path="/compute/instances" element={<InstancesPage />} />
         <Route path="/compute/instances/create" element={<CreateInstancePage />} />
         <Route path="/compute/instances/:name" element={<InstanceDetailPage />} />

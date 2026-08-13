@@ -75,9 +75,13 @@ Dockerfile).
   permanent left nav with collapsible groups (GCP-style). Sections and
   groups live in `src/components/nav.tsx` — adding entries there wires
   both menus.
-- Compute Engine nav groups: "Virtual machines" (VM instances, Images)
-  and "Bare Metal Solution" (Servers). Servers lists the virtualization
-  hosts; adding/registering new hosts will live there (planned).
+- Every section lands on the same template, `pages/SectionLandingPage.tsx`:
+  header, an optional summary slot, then cards for the section's nav
+  items grouped as the left nav groups them. Compute Engine's overview
+  supplies live counts through that slot; sections with no pages yet
+  render their `planned` list instead. Landing copy (`description`,
+  `planned`, per-item `hint`) lives in nav.tsx with everything else, so
+  a new section needs no new page component.
 - docker-compose dev caveat: file-change events don't cross the macOS→VM
   bind mount, so both watchers poll (air `poll = true`, vite
   `watch.usePolling`). Don't remove either.
