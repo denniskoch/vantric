@@ -14,6 +14,50 @@ import (
 
 var netKeyRe = regexp.MustCompile(`^net\d+$`)
 
+// firmwareDiskKeyRe matches storage volumes that aren't data disks:
+// EFI vars, TPM state, and disks detached but still allocated.
+var firmwareDiskKeyRe = regexp.MustCompile(`^(efidisk|tpmstate|unused)\d+$`)
+
+// deviceKinds maps repeatable hardware config keys to display names.
+// Proxmox allows several of each (serial0-3, usb0-4, hostpci0-15…), so
+// they're reported as a device list rather than fixed fields.
+var deviceKinds = []struct {
+	re   *regexp.Regexp
+	kind string
+}{
+	{regexp.MustCompile(`^serial\d+$`), "Serial port"},
+	{regexp.MustCompile(`^parallel\d+$`), "Parallel port"},
+	{regexp.MustCompile(`^usb\d+$`), "USB device"},
+	{regexp.MustCompile(`^hostpci\d+$`), "PCI passthrough"},
+	{regexp.MustCompile(`^audio\d+$`), "Audio device"},
+	{regexp.MustCompile(`^virtiofs\d+$`), "VirtioFS share"},
+	{regexp.MustCompile(`^numa\d+$`), "NUMA node"},
+	{regexp.MustCompile(`^rng\d+$`), "Entropy source"},
+	{regexp.MustCompile(`^ivshmem$`), "Shared memory"},
+	{regexp.MustCompile(`^watchdog$`), "Watchdog"},
+}
+
+func deviceKind(key string) (string, bool) {
+	for _, d := range deviceKinds {
+		if d.re.MatchString(key) {
+			return d.kind, true
+		}
+	}
+	return "", false
+}
+
+// firmwareMedia labels a non-data volume by its config key.
+func firmwareMedia(key string) string {
+	switch {
+	case strings.HasPrefix(key, "efidisk"):
+		return "efi"
+	case strings.HasPrefix(key, "tpmstate"):
+		return "tpm"
+	default:
+		return "unused"
+	}
+}
+
 // nicModels are the config keys Proxmox uses to name a NIC's model; the
 // model is the key of a netN value's first pair (e.g. "virtio=AA:BB:…").
 var nicModels = map[string]bool{
@@ -68,7 +112,7 @@ func parseDiskSpec(iface, val string) hypervisor.AttachedDisk {
 		}
 		switch key {
 		case "size":
-			disk.SizeGB = parseSizeGB(value)
+			disk.SizeBytes = parseSizeBytes(value)
 		case "media":
 			disk.Media = value
 		case "ssd":
@@ -136,20 +180,35 @@ func (d *Driver) Describe(ctx context.Context, driverID string) (*hypervisor.Ins
 	}
 
 	detail := &hypervisor.InstanceDetail{
-		InstanceState: *state,
-		Description:   strings.TrimSpace(cfgString(cfg, "description")),
-		OSType:        cfgString(cfg, "ostype"),
-		CPUType:       cfgString(cfg, "cpu"),
-		Architecture:  cfgString(cfg, "arch"),
-		Sockets:       cfgInt(cfg, "sockets"),
-		BootOrder:     cfgString(cfg, "boot"),
-		OnBoot:        cfgBool(cfg, "onboot"),
-		HostProtected: cfgBool(cfg, "protection"),
-		CreatedAt:     creationTime(cfgString(cfg, "meta")),
-		CloudInitUser: cfgString(cfg, "ciuser"),
+		InstanceState:  *state,
+		Description:    strings.TrimSpace(cfgString(cfg, "description")),
+		OSType:         cfgString(cfg, "ostype"),
+		CPUType:        cfgString(cfg, "cpu"),
+		Architecture:   cfgString(cfg, "arch"),
+		Sockets:        cfgInt(cfg, "sockets"),
+		BootOrder:      cfgString(cfg, "boot"),
+		BIOS:           cfgString(cfg, "bios"),
+		MachineType:    cfgString(cfg, "machine"),
+		Display:        cfgString(cfg, "vga"),
+		SCSIController: cfgString(cfg, "scsihw"),
+		OnBoot:         cfgBool(cfg, "onboot"),
+		HostProtected:  cfgBool(cfg, "protection"),
+		CreatedAt:      creationTime(cfgString(cfg, "meta")),
+		CloudInitUser:  cfgString(cfg, "ciuser"),
 	}
 	if detail.Architecture == "" {
 		detail.Architecture = "x86_64"
+	}
+	// Proxmox omits keys left at their default; report the effective value.
+	for field, fallback := range map[*string]string{
+		&detail.BIOS:           "seabios",
+		&detail.MachineType:    "i440fx",
+		&detail.Display:        "std",
+		&detail.SCSIController: "lsi",
+	} {
+		if *field == "" {
+			*field = fallback + " (default)"
+		}
 	}
 	if tags := cfgString(cfg, "tags"); tags != "" {
 		detail.Tags = strings.FieldsFunc(tags, func(r rune) bool { return r == ';' || r == ',' })
@@ -185,10 +244,21 @@ func (d *Driver) Describe(ctx context.Context, driverID string) (*hypervisor.Ins
 			detail.NICs = append(detail.NICs, nic)
 		case diskKeyRe.MatchString(key):
 			detail.Disks = append(detail.Disks, parseDiskSpec(key, val))
+		case firmwareDiskKeyRe.MatchString(key):
+			disk := parseDiskSpec(key, val)
+			disk.Media = firmwareMedia(key)
+			detail.Disks = append(detail.Disks, disk)
+		default:
+			if kind, ok := deviceKind(key); ok {
+				detail.Devices = append(detail.Devices, hypervisor.Device{
+					Key: key, Kind: kind, Value: val,
+				})
+			}
 		}
 	}
 	sortByName(detail.NICs, func(n hypervisor.NIC) string { return n.Name })
 	sortByName(detail.Disks, func(d hypervisor.AttachedDisk) string { return d.Interface })
+	sortByName(detail.Devices, func(d hypervisor.Device) string { return d.Key })
 	return detail, nil
 }
 
@@ -196,8 +266,8 @@ func (d *Driver) Describe(ctx context.Context, driverID string) (*hypervisor.Ins
 func (d *Driver) guestIPsByMAC(ctx context.Context, node, vmid string) map[string]string {
 	var res struct {
 		Result []struct {
-			Name string `json:"name"`
-			MAC  string `json:"hardware-address"`
+			Name  string `json:"name"`
+			MAC   string `json:"hardware-address"`
 			Addrs []struct {
 				Type string `json:"ip-address-type"`
 				Addr string `json:"ip-address"`

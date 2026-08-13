@@ -43,10 +43,18 @@ export interface AttachedDisk {
   interface: string
   name: string
   storage: string
-  sizeGb: number
+  sizeBytes: number
+  /** disk | cdrom | efi | tpm | unused */
   media: string
   ssd: boolean
   discard: boolean
+}
+
+/** Repeatable hardware (serial ports, USB, PCI passthrough, …). */
+export interface Device {
+  key: string
+  kind: string
+  value: string
 }
 
 /** Full hypervisor-side config, read on demand for the detail view. */
@@ -66,6 +74,11 @@ export interface InstanceDetail {
   architecture: string
   sockets: number
   bootOrder: string
+  bios: string
+  /** chipset (i440fx / q35) — distinct from the sizing preset */
+  machineType: string
+  display: string
+  scsiController: string
   onBoot: boolean
   guestAgent: boolean
   hostProtected: boolean
@@ -75,6 +88,7 @@ export interface InstanceDetail {
   sshKeys: string[] | null
   nics: NIC[] | null
   disks: AttachedDisk[] | null
+  devices: Device[] | null
 }
 
 export interface MetricPoint {

@@ -129,15 +129,28 @@ type NIC struct {
 }
 
 // AttachedDisk is a disk as seen from an instance's own config, which
-// includes removable media the datastore-wide Disk listing skips.
+// includes removable media and firmware volumes the datastore-wide Disk
+// listing skips.
 type AttachedDisk struct {
-	Interface string `json:"interface"` // scsi0, ide2, ...
+	Interface string `json:"interface"` // scsi0, ide2, efidisk0, unused0, ...
 	Name      string `json:"name"`      // volume name or ISO volume ID
 	Storage   string `json:"storage"`
-	SizeGB    int    `json:"sizeGb"`
-	Media     string `json:"media"` // "disk" or "cdrom"
-	SSD       bool   `json:"ssd"`
-	Discard   bool   `json:"discard"`
+	// SizeBytes is exact: firmware volumes are measured in KB/MB, so a
+	// GB-rounded size would misreport them.
+	SizeBytes int64 `json:"sizeBytes"`
+	// Media is "disk", "cdrom", "efi", "tpm" or "unused".
+	Media   string `json:"media"`
+	SSD     bool   `json:"ssd"`
+	Discard bool   `json:"discard"`
+}
+
+// Device is a hardware device attached to an instance. Devices of the
+// same kind can repeat (serial0/serial1, usb0…usb4, hostpci0…), so they
+// are reported as a list rather than fixed fields.
+type Device struct {
+	Key   string `json:"key"`   // serial0, usb1, hostpci0
+	Kind  string `json:"kind"`  // Serial port, USB device, PCI passthrough, …
+	Value string `json:"value"` // raw hypervisor configuration
 }
 
 // InstanceDetail is the full hypervisor-side description of an
@@ -145,22 +158,27 @@ type AttachedDisk struct {
 // supply stay zero.
 type InstanceDetail struct {
 	InstanceState
-	Description   string   `json:"description"`
-	Tags          []string `json:"tags"`
-	OSType        string   `json:"osType"`
-	CPUType       string   `json:"cpuType"` // GCP calls this "CPU platform"
-	Architecture  string   `json:"architecture"`
-	Sockets       int      `json:"sockets"`
-	BootOrder     string   `json:"bootOrder"`
-	OnBoot        bool     `json:"onBoot"`
-	GuestAgent    bool     `json:"guestAgent"`
-	HostProtected bool     `json:"hostProtected"` // hypervisor-side protection flag
+	Description    string   `json:"description"`
+	Tags           []string `json:"tags"`
+	OSType         string   `json:"osType"`
+	CPUType        string   `json:"cpuType"` // GCP calls this "CPU platform"
+	Architecture   string   `json:"architecture"`
+	Sockets        int      `json:"sockets"`
+	BootOrder      string   `json:"bootOrder"`
+	BIOS           string   `json:"bios"`           // seabios, ovmf (UEFI)
+	MachineType    string   `json:"machineType"`    // i440fx, q35 (chipset)
+	Display        string   `json:"display"`        // std, qxl, virtio, serial0, none
+	SCSIController string   `json:"scsiController"` // virtio-scsi-single, lsi, …
+	OnBoot         bool     `json:"onBoot"`
+	GuestAgent     bool     `json:"guestAgent"`
+	HostProtected  bool     `json:"hostProtected"` // hypervisor-side protection flag
 	// CreatedAt is unix seconds as recorded by the hypervisor; 0 when unknown.
 	CreatedAt     int64          `json:"createdAt"`
 	CloudInitUser string         `json:"cloudInitUser"`
 	SSHKeys       []string       `json:"sshKeys"`
 	NICs          []NIC          `json:"nics"`
 	Disks         []AttachedDisk `json:"disks"`
+	Devices       []Device       `json:"devices"`
 }
 
 // MetricPoint is one sample of an instance's resource usage.

@@ -51,27 +51,34 @@ func parseDisk(key, val string, vm clusterVM) hypervisor.Disk {
 		InUseBy: vm.Name,
 		Zone:    vm.Node,
 		Storage: spec.Storage,
-		SizeGB:  spec.SizeGB,
+		SizeGB:  int(spec.SizeBytes >> 30),
 	}
 }
 
-// parseSizeGB converts Proxmox size strings ("32G", "512M", "1T") to GB.
-func parseSizeGB(s string) int {
+// parseSizeBytes converts Proxmox size strings ("32G", "512M", "1T",
+// "528K") to bytes. A bare number is already bytes.
+func parseSizeBytes(s string) int64 {
 	if s == "" {
 		return 0
 	}
 	unit := s[len(s)-1]
-	n, err := strconv.Atoi(s[:len(s)-1])
+	if unit >= '0' && unit <= '9' {
+		n, _ := strconv.ParseInt(s, 10, 64)
+		return n
+	}
+	n, err := strconv.ParseInt(s[:len(s)-1], 10, 64)
 	if err != nil {
 		return 0
 	}
 	switch unit {
 	case 'T':
-		return n * 1024
+		return n << 40
 	case 'G':
-		return n
+		return n << 30
 	case 'M':
-		return (n + 1023) / 1024
+		return n << 20
+	case 'K':
+		return n << 10
 	default:
 		return 0
 	}

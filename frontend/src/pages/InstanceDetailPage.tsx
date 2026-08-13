@@ -34,6 +34,15 @@ import { formatBytes, formatBytesPerSec, formatPercent, formatUptime } from '../
 
 type TabID = 'details' | 'observability' | 'os'
 
+const mediaLabels: Record<string, string> = {
+  cdrom: 'CD-ROM',
+  efi: 'EFI vars',
+  tpm: 'TPM state',
+  unused: 'Unused (detached)',
+}
+
+const mediaLabel = (media: string) => mediaLabels[media] ?? 'Disk'
+
 export default function InstanceDetailPage() {
   const { name } = useParams<{ name: string }>()
   const navigate = useNavigate()
@@ -259,10 +268,42 @@ export default function InstanceDetailPage() {
                   { label: 'CPU platform', value: detail?.cpuType || '—' },
                   { label: 'Architecture', value: detail?.architecture || '—' },
                   { label: 'Guest OS type', value: detail?.osType || '—' },
+                  { label: 'BIOS', value: detail?.bios || '—' },
+                  { label: 'Chipset', value: detail?.machineType || '—' },
+                  { label: 'Display', value: detail?.display || '—' },
+                  { label: 'SCSI controller', value: detail?.scsiController || '—' },
                   { label: 'Boot order', value: detail?.bootOrder || '—' },
                 ]}
               />
             </DetailSection>
+
+            {/* Repeatable hardware: serial ports, USB, PCI passthrough, … */}
+            {detail?.devices?.length ? (
+              <DetailSection title="Hardware devices">
+                <TableContainer component={Paper} variant="outlined">
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Device</TableCell>
+                        <TableCell>Type</TableCell>
+                        <TableCell>Configuration</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {detail.devices.map((device) => (
+                        <TableRow key={device.key} hover>
+                          <TableCell>{device.key}</TableCell>
+                          <TableCell>{device.kind}</TableCell>
+                          <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
+                            {device.value}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </DetailSection>
+            ) : null}
 
             <DetailSection title="Networking">
               <DetailTable
@@ -323,7 +364,7 @@ export default function InstanceDetailPage() {
                       <TableCell>Interface</TableCell>
                       <TableCell>Name</TableCell>
                       <TableCell>Datastore</TableCell>
-                      <TableCell align="right">Size (GB)</TableCell>
+                      <TableCell align="right">Size</TableCell>
                       <TableCell>Media</TableCell>
                       <TableCell>Options</TableCell>
                     </TableRow>
@@ -334,8 +375,8 @@ export default function InstanceDetailPage() {
                         <TableCell>{disk.interface}</TableCell>
                         <TableCell>{disk.name}</TableCell>
                         <TableCell>{disk.storage || '—'}</TableCell>
-                        <TableCell align="right">{disk.sizeGb || '—'}</TableCell>
-                        <TableCell>{disk.media === 'cdrom' ? 'CD-ROM' : 'Disk'}</TableCell>
+                        <TableCell align="right">{formatBytes(disk.sizeBytes)}</TableCell>
+                        <TableCell>{mediaLabel(disk.media)}</TableCell>
                         <TableCell sx={{ color: '#5f6368', fontSize: 12 }}>
                           {[disk.ssd && 'SSD emulation', disk.discard && 'discard']
                             .filter(Boolean)
