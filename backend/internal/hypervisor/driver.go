@@ -96,6 +96,9 @@ type ISOUploadSpec struct {
 	Zone     string
 	Storage  string
 	Filename string
+	// Content is the datastore content type: "iso" (default) or
+	// "import" for cloud disk images.
+	Content string
 	// SizeBytes must be exact: Proxmox rejects chunked transfer
 	// encoding, so the upload needs a Content-Length up front.
 	SizeBytes int64

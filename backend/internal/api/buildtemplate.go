@@ -90,20 +90,6 @@ func (b *buildRegistry) get(id string) (TemplateBuild, bool) {
 // cloudImageExtensions are the disk formats Proxmox can import.
 var cloudImageExtensions = []string{".qcow2", ".raw", ".img", ".vmdk"}
 
-func safeImageFilename(name string) (string, bool) {
-	name = path.Base(strings.TrimSpace(name))
-	if name == "" || name == "." || strings.Contains(name, "/") {
-		return "", false
-	}
-	lower := strings.ToLower(name)
-	for _, ext := range cloudImageExtensions {
-		if strings.HasSuffix(lower, ext) {
-			return name, true
-		}
-	}
-	return "", false
-}
-
 func (s *Server) listCloudImages(w http.ResponseWriter, r *http.Request) {
 	images, err := listAcrossServers(s, r,
 		func(ctx context.Context, d hypervisor.Driver) ([]hypervisor.CloudImage, error) {
@@ -151,7 +137,7 @@ func (s *Server) downloadCloudImage(w http.ResponseWriter, r *http.Request) {
 	if req.Filename == "" {
 		req.Filename = path.Base(req.URL)
 	}
-	filename, ok := safeImageFilename(req.Filename)
+	filename, ok := safeFilename(req.Filename, cloudImageExtensions)
 	if !ok {
 		s.err(w, http.StatusBadRequest,
 			"filename must be a plain name ending in "+strings.Join(cloudImageExtensions, ", "))

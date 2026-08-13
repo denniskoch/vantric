@@ -104,7 +104,8 @@ Base path `/api/v1`:
   `DELETE /images/{id}?server=` (destroys a template VM),
   `GET /tasks/{taskId}` for import progress
 - `GET /bridges` — network bridges per node, for the NIC pickers
-- `GET /cloud-images`, `POST /cloud-images/download` (disk images in a
+- `GET /cloud-images`, `POST /cloud-images/{download,upload}`,
+  `DELETE /cloud-images?server=&zone=&volume=` (disk images in a
   datastore's `import` content)
 - `POST /vm-templates/build` + `GET /vm-templates/builds/{id}` — builds
   a cloud-init template from a disk image, tracked step by step

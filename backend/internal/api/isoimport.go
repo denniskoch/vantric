@@ -19,17 +19,22 @@ import (
 
 var checksumAlgorithms = []string{"md5", "sha1", "sha224", "sha256", "sha384", "sha512"}
 
-// safeFilename rejects path tricks and enforces an image extension.
-func safeFilename(name string) (string, bool) {
+// isoExtensions are the media formats an ISO datastore accepts.
+var isoExtensions = []string{".iso", ".img"}
+
+// safeFilename rejects path tricks and enforces an allowed extension.
+func safeFilename(name string, extensions []string) (string, bool) {
 	name = path.Base(strings.TrimSpace(name))
 	if name == "" || name == "." || name == "/" || strings.Contains(name, "/") {
 		return "", false
 	}
 	lower := strings.ToLower(name)
-	if !strings.HasSuffix(lower, ".iso") && !strings.HasSuffix(lower, ".img") {
-		return "", false
+	for _, ext := range extensions {
+		if strings.HasSuffix(lower, ext) {
+			return name, true
+		}
 	}
-	return name, true
+	return "", false
 }
 
 // driverForServer resolves a server id from the query string.
@@ -77,7 +82,7 @@ func (s *Server) downloadISO(w http.ResponseWriter, r *http.Request) {
 	if req.Filename == "" {
 		req.Filename = path.Base(req.URL)
 	}
-	filename, ok := safeFilename(req.Filename)
+	filename, ok := safeFilename(req.Filename, isoExtensions)
 	if !ok {
 		s.err(w, http.StatusBadRequest, "filename must be a plain name ending in .iso or .img")
 		return
@@ -102,46 +107,50 @@ func (s *Server) downloadISO(w http.ResponseWriter, r *http.Request) {
 	s.json(w, http.StatusAccepted, map[string]string{"taskId": taskID})
 }
 
-// uploadISO streams the raw request body to the hypervisor. The body is
-// the image itself (not multipart) so nothing is buffered on the way
+// uploadVolume streams the raw request body to the hypervisor. The body
+// is the image itself (not multipart) so nothing is buffered on the way
 // through; metadata rides in the query string.
-func (s *Server) uploadISO(w http.ResponseWriter, r *http.Request) {
-	driver := s.driverForServer(w, r)
-	if driver == nil {
-		return
+func (s *Server) uploadVolume(content string, extensions []string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		driver := s.driverForServer(w, r)
+		if driver == nil {
+			return
+		}
+		q := r.URL.Query()
+		zone, storage := q.Get("zone"), q.Get("storage")
+		if zone == "" || storage == "" {
+			s.err(w, http.StatusBadRequest, "zone and storage are required")
+			return
+		}
+		filename, ok := safeFilename(q.Get("filename"), extensions)
+		if !ok {
+			s.err(w, http.StatusBadRequest,
+				"filename must be a plain name ending in "+strings.Join(extensions, ", "))
+			return
+		}
+		// The hypervisor needs an exact length up front, so refuse a body
+		// that didn't declare one rather than failing halfway through.
+		if r.ContentLength <= 0 {
+			s.err(w, http.StatusLengthRequired, "upload requires a Content-Length")
+			return
+		}
+		taskID, err := driver.UploadISO(r.Context(), hypervisor.ISOUploadSpec{
+			Zone:      zone,
+			Storage:   storage,
+			Filename:  filename,
+			Content:   content,
+			SizeBytes: r.ContentLength,
+		}, r.Body)
+		if err != nil {
+			// Responding while the client is still sending makes proxies
+			// report a broken pipe instead of this error, so absorb what's
+			// left of the body first (bounded, in case it's enormous).
+			_, _ = io.CopyN(io.Discard, r.Body, 32<<20)
+			s.fail(w, err, "uploading image")
+			return
+		}
+		s.json(w, http.StatusAccepted, map[string]string{"taskId": taskID})
 	}
-	q := r.URL.Query()
-	zone, storage := q.Get("zone"), q.Get("storage")
-	if zone == "" || storage == "" {
-		s.err(w, http.StatusBadRequest, "zone and storage are required")
-		return
-	}
-	filename, ok := safeFilename(q.Get("filename"))
-	if !ok {
-		s.err(w, http.StatusBadRequest, "filename must be a plain name ending in .iso or .img")
-		return
-	}
-	// The hypervisor needs an exact length up front, so refuse a body
-	// that didn't declare one rather than failing halfway through.
-	if r.ContentLength <= 0 {
-		s.err(w, http.StatusLengthRequired, "upload requires a Content-Length")
-		return
-	}
-	taskID, err := driver.UploadISO(r.Context(), hypervisor.ISOUploadSpec{
-		Zone:      zone,
-		Storage:   storage,
-		Filename:  filename,
-		SizeBytes: r.ContentLength,
-	}, r.Body)
-	if err != nil {
-		// Responding while the client is still sending makes proxies
-		// report a broken pipe instead of this error, so absorb what's
-		// left of the body first (bounded, in case it's enormous).
-		_, _ = io.CopyN(io.Discard, r.Body, 32<<20)
-		s.fail(w, err, "uploading image")
-		return
-	}
-	s.json(w, http.StatusAccepted, map[string]string{"taskId": taskID})
 }
 
 // deleteVolume removes an ISO or CT template. The volume id travels in

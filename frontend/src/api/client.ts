@@ -325,6 +325,43 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json()
 }
 
+/**
+ * Uploads a file with progress. XHR rather than fetch, which can't
+ * report upload progress on multi-GB images.
+ */
+function uploadStream(
+  path: string,
+  serverId: string,
+  params: { zone: string; storage: string; filename: string },
+  file: File,
+  onProgress: (fraction: number) => void,
+) {
+  return new Promise<{ taskId: string }>((resolve, reject) => {
+    const query = new URLSearchParams({ server: serverId, ...params })
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `/api/v1${path}?${query}`)
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream')
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(e.loaded / e.total)
+    }
+    xhr.onload = () => {
+      let body: unknown
+      try {
+        body = JSON.parse(xhr.responseText)
+      } catch {
+        body = null
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(body as { taskId: string })
+      } else {
+        reject(new Error((body as { error?: string })?.error ?? xhr.statusText ?? 'upload failed'))
+      }
+    }
+    xhr.onerror = () => reject(new Error('network error during upload'))
+    xhr.send(file)
+  })
+}
+
 export const api = {
   // Catalog listings span every server; pass a server id to narrow
   // (the create flows do, since placement is per-server).
@@ -340,42 +377,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  /**
-   * Streams a file to the hypervisor. Uses XHR rather than fetch so the
-   * upload can report progress on multi-GB images.
-   */
+  /** Streams a file to the hypervisor with progress. */
   uploadISO: (
     serverId: string,
     params: { zone: string; storage: string; filename: string },
     file: File,
     onProgress: (fraction: number) => void,
-  ) =>
-    new Promise<{ taskId: string }>((resolve, reject) => {
-      const query = new URLSearchParams({ server: serverId, ...params })
-      const xhr = new XMLHttpRequest()
-      xhr.open('POST', `/api/v1/isos/upload?${query}`)
-      xhr.setRequestHeader('Content-Type', 'application/octet-stream')
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) onProgress(e.loaded / e.total)
-      }
-      xhr.onload = () => {
-        let body: unknown
-        try {
-          body = JSON.parse(xhr.responseText)
-        } catch {
-          body = null
-        }
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(body as { taskId: string })
-        } else {
-          const message =
-            (body as { error?: string })?.error ?? xhr.statusText ?? 'upload failed'
-          reject(new Error(message))
-        }
-      }
-      xhr.onerror = () => reject(new Error('network error during upload'))
-      xhr.send(file)
-    }),
+  ) => uploadStream('/isos/upload', serverId, params, file, onProgress),
   deleteISO: (serverId: string, zone: string, volume: string) => {
     const query = new URLSearchParams({ server: serverId, zone, volume })
     return request<{ taskId: string }>(`/isos?${query}`, { method: 'DELETE' })
@@ -398,6 +406,16 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  uploadCloudImage: (
+    serverId: string,
+    params: { zone: string; storage: string; filename: string },
+    file: File,
+    onProgress: (fraction: number) => void,
+  ) => uploadStream('/cloud-images/upload', serverId, params, file, onProgress),
+  deleteCloudImage: (serverId: string, zone: string, volume: string) => {
+    const query = new URLSearchParams({ server: serverId, zone, volume })
+    return request<{ taskId: string }>(`/cloud-images?${query}`, { method: 'DELETE' })
+  },
   buildTemplate: (serverId: string, body: TemplateBuildRequest) =>
     request<TemplateBuild>(`/vm-templates/build?server=${serverId}`, {
       method: 'POST',

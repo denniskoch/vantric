@@ -11,6 +11,7 @@ import LayersIcon from '@mui/icons-material/Layers'
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
 import DiscFullIcon from '@mui/icons-material/DiscFull'
+import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import FolderSpecialIcon from '@mui/icons-material/FolderSpecial'
 import ArchiveIcon from '@mui/icons-material/Archive'
 
@@ -68,6 +69,7 @@ export const sections: Section[] = [
           { label: 'Snapshots', icon: PhotoCameraIcon, to: '/compute/snapshots' },
           { label: 'VM Templates', icon: AlbumIcon, to: '/compute/vm-templates' },
           { label: 'CT Templates', icon: ArchiveIcon, to: '/compute/ct-templates' },
+          { label: 'Cloud images', icon: CloudUploadIcon, to: '/compute/cloud-images' },
           { label: 'ISOs', icon: DiscFullIcon, to: '/compute/isos' },
           { label: 'Datastores', icon: FolderSpecialIcon, to: '/compute/datastores' },
         ],

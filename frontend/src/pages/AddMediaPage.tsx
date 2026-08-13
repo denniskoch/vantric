@@ -29,9 +29,54 @@ import { formatBytes } from '../format'
 type SectionID = 'source' | 'destination' | 'verification'
 type Method = 'url' | 'upload'
 
-const filenameOk = (name: string) => /\.(iso|img)$/i.test(name.trim())
+/**
+ * ISOs and cloud images are the same flow over different datastore
+ * content types, so the page is parameterized rather than duplicated.
+ */
+export interface MediaKind {
+  title: string
+  /** datastore content type the destination must accept */
+  content: string
+  extensions: RegExp
+  extensionHint: string
+  /** value for the file picker's accept attribute */
+  accept: string
+  listPath: string
+  urlPlaceholder: string
+  urlBlurb: string
+  download: typeof api.downloadISO
+  upload: typeof api.uploadISO
+}
 
-export default function AddISOPage() {
+export const isoKind: MediaKind = {
+  title: 'Add an ISO',
+  content: 'iso',
+  extensions: /\.(iso|img)$/i,
+  extensionHint: '.iso or .img',
+  accept: '.iso,.img',
+  listPath: '/compute/isos',
+  urlPlaceholder: 'https://cdimage.debian.org/…/debian-13.0.0-amd64-netinst.iso',
+  urlBlurb: "The server downloads the image directly — the file doesn't pass through your browser.",
+  download: api.downloadISO,
+  upload: api.uploadISO,
+}
+
+export const cloudImageKind: MediaKind = {
+  title: 'Add a cloud image',
+  content: 'import',
+  extensions: /\.(qcow2|raw|img|vmdk)$/i,
+  extensionHint: '.qcow2, .raw, .img or .vmdk',
+  accept: '.qcow2,.raw,.img,.vmdk',
+  listPath: '/compute/cloud-images',
+  urlPlaceholder: 'https://cloud.debian.org/…/debian-13-genericcloud-amd64.qcow2',
+  urlBlurb:
+    'Cloud images come from your distro’s cloud-image site — Debian genericcloud, Ubuntu cloudimg, Fedora Cloud. The server downloads it directly.',
+  download: api.downloadCloudImage,
+  upload: api.uploadCloudImage,
+}
+
+export default function AddMediaPage({ kind }: { kind: MediaKind }) {
+  const filenameOk = (name: string) => kind.extensions.test(name.trim())
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const fileInput = useRef<HTMLInputElement>(null)
@@ -62,7 +107,7 @@ export default function AddISOPage() {
 
   // Only datastores on the chosen server that accept images.
   const targets = datastores.filter(
-    (d) => d.serverId === serverId && d.active && d.content.includes('iso'),
+    (d) => d.serverId === serverId && d.active && d.content.includes(kind.content),
   )
   const target = targets.find((d) => `${d.zone}/${d.name}` === datastore)
 
@@ -78,7 +123,7 @@ export default function AddISOPage() {
       if (!target) throw new Error('choose a destination datastore')
       if (method === 'upload') {
         if (!file) throw new Error('choose a file to upload')
-        const res = await api.uploadISO(
+        const res = await kind.upload(
           serverId,
           { zone: target.zone, storage: target.name, filename: filename || file.name },
           file,
@@ -86,7 +131,7 @@ export default function AddISOPage() {
         )
         return res.taskId
       }
-      const res = await api.downloadISO(serverId, {
+      const res = await kind.download(serverId, {
         zone: target.zone,
         storage: target.name,
         filename,
@@ -183,8 +228,8 @@ export default function AddISOPage() {
             <Button
               variant="contained"
               onClick={() => {
-                queryClient.invalidateQueries({ queryKey: ['isos'] })
-                navigate('/compute/isos')
+                queryClient.invalidateQueries({ queryKey: [kind.content === 'iso' ? 'isos' : 'cloudImages'] })
+                navigate(kind.listPath)
               }}
             >
               {done ? 'Done' : 'Run in background'}
@@ -208,10 +253,10 @@ export default function AddISOPage() {
   return (
     <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-        <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate('/compute/isos')}>
+        <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate(kind.listPath)}>
           Back
         </Button>
-        <Typography variant="h5">Add an ISO</Typography>
+        <Typography variant="h5">{kind.title}</Typography>
       </Box>
 
       {error && (
@@ -275,8 +320,7 @@ export default function AddISOPage() {
               {method === 'url' ? (
                 <>
                   <Typography variant="body2" color="text.secondary">
-                    The server downloads the image directly — the file doesn't pass
-                    through your browser.
+                    {kind.urlBlurb}
                   </Typography>
                   <TextField
                     label="Image URL"
@@ -287,7 +331,7 @@ export default function AddISOPage() {
                       const guessed = e.target.value.split('/').pop() ?? ''
                       if (filenameOk(guessed)) setFilename(guessed)
                     }}
-                    placeholder="https://cdimage.debian.org/…/debian-13.0.0-amd64-netinst.iso"
+                    placeholder={kind.urlPlaceholder}
                     fullWidth
                   />
                 </>
@@ -311,7 +355,7 @@ export default function AddISOPage() {
                     <input
                       ref={fileInput}
                       type="file"
-                      accept=".iso,.img"
+                      accept={kind.accept}
                       hidden
                       onChange={(e) => chooseFile(e.target.files?.[0] ?? null)}
                     />
@@ -324,7 +368,7 @@ export default function AddISOPage() {
                 size="small"
                 value={filename}
                 onChange={(e) => setFilename(e.target.value)}
-                helperText="File name on the datastore; must end in .iso or .img"
+                helperText={`File name on the datastore; must end in ${kind.extensionHint}`}
                 fullWidth
               />
             </>
@@ -358,8 +402,8 @@ export default function AddISOPage() {
                 onChange={(e) => setDatastore(e.target.value)}
                 helperText={
                   targets.length === 0
-                    ? 'No datastore on this server accepts ISO images'
-                    : 'Only datastores that accept ISO content are listed'
+                    ? `No datastore on this server accepts ${kind.content} content`
+                    : `Only datastores that accept ${kind.content} content are listed`
                 }
                 fullWidth
               >
@@ -433,7 +477,7 @@ export default function AddISOPage() {
         >
           {method === 'upload' ? 'Upload' : 'Download'}
         </Button>
-        <Button onClick={() => navigate('/compute/isos')}>Cancel</Button>
+        <Button onClick={() => navigate(kind.listPath)}>Cancel</Button>
       </Box>
     </Box>
   )

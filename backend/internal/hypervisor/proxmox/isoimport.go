@@ -55,12 +55,16 @@ func (d *Driver) UploadISO(ctx context.Context, spec hypervisor.ISOUploadSpec, c
 	if spec.SizeBytes <= 0 {
 		return "", fmt.Errorf("proxmox: upload needs the image size up front")
 	}
+	contentType := spec.Content
+	if contentType == "" {
+		contentType = "iso"
+	}
 	boundary := multipart.NewWriter(io.Discard).Boundary()
 	prologue := fmt.Sprintf(
-		"--%s\r\nContent-Disposition: form-data; name=\"content\"\r\n\r\niso\r\n"+
+		"--%s\r\nContent-Disposition: form-data; name=\"content\"\r\n\r\n%s\r\n"+
 			"--%s\r\nContent-Disposition: form-data; name=\"filename\"; filename=\"%s\"\r\n"+
 			"Content-Type: application/octet-stream\r\n\r\n",
-		boundary, boundary, multipartQuoteReplacer.Replace(spec.Filename))
+		boundary, contentType, boundary, multipartQuoteReplacer.Replace(spec.Filename))
 	epilogue := fmt.Sprintf("\r\n--%s--\r\n", boundary)
 
 	body := io.MultiReader(

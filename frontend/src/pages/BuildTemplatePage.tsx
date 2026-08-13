@@ -18,6 +18,7 @@ import {
   ToggleButtonGroup,
   Typography,
 } from '@mui/material'
+import { Link as RouterLink } from 'react-router-dom'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CircleIcon from '@mui/icons-material/Circle'
 import ErrorIcon from '@mui/icons-material/Error'
@@ -299,11 +300,22 @@ export default function BuildTemplatePage() {
                   </MenuItem>
                 ))}
               </TextField>
-              <Alert severity="info" sx={{ fontSize: 12 }}>
-                Cloud images come from your distro's cloud-image site — Debian's
-                genericcloud qcow2, Ubuntu's cloudimg, and so on. Download one with
-                "Add ISO"-style URL import into a datastore that accepts{' '}
-                <code>import</code> content.
+              <Alert
+                severity={images.length === 0 ? 'warning' : 'info'}
+                sx={{ fontSize: 12 }}
+                action={
+                  <Button
+                    size="small"
+                    component={RouterLink}
+                    to="/compute/cloud-images/add"
+                  >
+                    Add image
+                  </Button>
+                }
+              >
+                {images.length === 0
+                  ? 'No cloud images on this server yet — import one from your distro’s cloud-image site first.'
+                  : 'Need another? Import one from a URL or upload it.'}
               </Alert>
             </>
           )}
