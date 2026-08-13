@@ -1,8 +1,6 @@
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Box,
-  MenuItem,
   Paper,
   Table,
   TableBody,
@@ -10,52 +8,31 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Typography,
 } from '@mui/material'
 import { api } from '../api/client'
 import { formatBytes } from '../format'
+import { useServerNames } from '../useServerNames'
 
 export default function ISOsPage() {
-  const [serverId, setServerId] = useState('')
-
-  const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
+  const serverName = useServerNames()
   const { data: isos = [], isLoading } = useQuery({
-    queryKey: ['isos', serverId],
-    queryFn: () => api.listISOs(serverId),
-    enabled: Boolean(serverId),
+    queryKey: ['isos'],
+    queryFn: api.listISOs,
   })
-
-  const connected = servers.filter((s) => s.status === 'connected')
-  if (!serverId && connected.length > 0) {
-    setServerId(connected[0].id)
-  }
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-        <Typography variant="h5">ISOs</Typography>
-        <TextField
-          label="Server"
-          size="small"
-          select
-          value={serverId}
-          onChange={(e) => setServerId(e.target.value)}
-          sx={{ minWidth: 220 }}
-        >
-          {servers.map((s) => (
-            <MenuItem key={s.id} value={s.id} disabled={s.status !== 'connected'}>
-              {s.name} ({s.status})
-            </MenuItem>
-          ))}
-        </TextField>
-      </Box>
+      <Typography variant="h5" sx={{ mb: 2 }}>
+        ISOs
+      </Typography>
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>Datastore</TableCell>
+              <TableCell>Server</TableCell>
               <TableCell>Zone</TableCell>
               <TableCell align="right">Size</TableCell>
               <TableCell>Uploaded</TableCell>
@@ -63,9 +40,10 @@ export default function ISOsPage() {
           </TableHead>
           <TableBody>
             {isos.map((iso) => (
-              <TableRow key={iso.id} hover>
+              <TableRow key={`${iso.serverId}/${iso.id}`} hover>
                 <TableCell>{iso.name}</TableCell>
                 <TableCell>{iso.storage}</TableCell>
+                <TableCell>{serverName(iso.serverId)}</TableCell>
                 <TableCell>{iso.zone}</TableCell>
                 <TableCell align="right">{formatBytes(iso.sizeBytes)}</TableCell>
                 <TableCell>
@@ -75,12 +53,8 @@ export default function ISOsPage() {
             ))}
             {isos.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 6, color: '#5f6368' }}>
-                  {!serverId
-                    ? 'No connected servers — add one under Bare Metal Solution → Servers.'
-                    : isLoading
-                      ? 'Loading…'
-                      : 'No ISO images found on this server.'}
+                <TableCell colSpan={6} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                  {isLoading ? 'Loading…' : 'No ISO images found on your servers.'}
                 </TableCell>
               </TableRow>
             )}

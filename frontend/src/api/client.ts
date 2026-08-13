@@ -166,12 +166,15 @@ export interface Zone {
 }
 
 export interface Image {
+  serverId: string
   id: string
   name: string
+  zone: string
   description: string
 }
 
 export interface Disk {
+  serverId: string
   id: string
   name: string
   inUseBy: string
@@ -181,6 +184,7 @@ export interface Disk {
 }
 
 export interface Snapshot {
+  serverId: string
   id: string
   name: string
   vmName: string
@@ -191,6 +195,7 @@ export interface Snapshot {
 }
 
 export interface ISO {
+  serverId: string
   id: string
   name: string
   zone: string
@@ -203,6 +208,7 @@ export interface ISO {
 export type CTTemplate = ISO
 
 export interface Datastore {
+  serverId: string
   id: string
   name: string
   zone: string
@@ -258,16 +264,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  // Catalog listings span every server; pass a server id to narrow
+  // (the create flows do, since placement is per-server).
   listZones: (serverId: string) => request<Zone[]>(`/zones?server=${serverId}`),
-  listImages: (serverId: string) => request<Image[]>(`/images?server=${serverId}`),
-  listDisks: (serverId: string) => request<Disk[]>(`/disks?server=${serverId}`),
-  listSnapshots: (serverId: string) =>
-    request<Snapshot[]>(`/snapshots?server=${serverId}`),
-  listISOs: (serverId: string) => request<ISO[]>(`/isos?server=${serverId}`),
-  listCTTemplates: (serverId: string) =>
-    request<CTTemplate[]>(`/ct-templates?server=${serverId}`),
-  listDatastores: (serverId: string) =>
-    request<Datastore[]>(`/datastores?server=${serverId}`),
+  listImages: (serverId?: string) =>
+    request<Image[]>(serverId ? `/images?server=${serverId}` : '/images'),
+  listDisks: () => request<Disk[]>('/disks'),
+  listSnapshots: () => request<Snapshot[]>('/snapshots'),
+  listISOs: () => request<ISO[]>('/isos'),
+  listCTTemplates: () => request<CTTemplate[]>('/ct-templates'),
+  listDatastores: () => request<Datastore[]>('/datastores'),
 
   listServers: () => request<Server[]>('/servers'),
   createServer: (body: ServerRequest) =>

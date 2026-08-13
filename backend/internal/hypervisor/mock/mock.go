@@ -61,9 +61,9 @@ func (d *Driver) Zones(ctx context.Context) ([]hypervisor.Zone, error) {
 
 func (d *Driver) Images(ctx context.Context) ([]hypervisor.Image, error) {
 	return []hypervisor.Image{
-		{ID: "9000", Name: "debian-12-cloudinit", Description: "Debian 12 (bookworm) cloud-init template"},
-		{ID: "9001", Name: "ubuntu-2404-cloudinit", Description: "Ubuntu 24.04 LTS cloud-init template"},
-		{ID: "9002", Name: "alpine-321", Description: "Alpine Linux 3.21 template"},
+		{ID: "9000", Name: "debian-12-cloudinit", Zone: "lab-node-a", Description: "Debian 12 (bookworm) cloud-init template"},
+		{ID: "9001", Name: "ubuntu-2404-cloudinit", Zone: "lab-node-a", Description: "Ubuntu 24.04 LTS cloud-init template"},
+		{ID: "9002", Name: "alpine-321", Zone: "lab-node-b", Description: "Alpine Linux 3.21 template"},
 	}, nil
 }
 

@@ -26,8 +26,14 @@ Dockerfile).
   Servers GUI type dropdown.
 - Servers (virtualization hosts) are DB records managed in the GUI
   (Bare Metal Solution → Servers), one live driver per server held in
-  `hypervisor.Registry` keyed by server ID. Zones/images are per-server
-  (`?server=` param). Config seeds one server on first run only; after
+  `hypervisor.Registry` keyed by server ID. Catalog listings (zones,
+  images, disks, snapshots, isos, ct-templates, datastores) span ALL
+  servers by default and stamp each item with its `serverId`, so list
+  pages show a Server column instead of a server filter — see
+  `listAcrossServers` in internal/api/catalog.go. `?server=` narrows to
+  one server; the create flows use it since placement is per-server. A
+  server that errors is skipped and logged, not fatal to the page.
+  Config seeds one server on first run only; after
   that config driver settings are ignored. Server secrets never leave the
   backend (`json:"-"`; API exposes `hasSecret`).
 - Instance statuses are GCP's: PROVISIONING, STAGING, RUNNING, STOPPING,

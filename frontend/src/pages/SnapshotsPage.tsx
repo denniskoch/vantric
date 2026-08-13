@@ -1,11 +1,9 @@
-import { useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   Box,
   Chip,
   Link,
-  MenuItem,
   Paper,
   Table,
   TableBody,
@@ -13,52 +11,31 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Typography,
 } from '@mui/material'
 import { api } from '../api/client'
+import { useServerNames } from '../useServerNames'
 
 export default function SnapshotsPage() {
-  const [serverId, setServerId] = useState('')
-
-  const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
+  const serverName = useServerNames()
   const { data: snapshots = [], isLoading } = useQuery({
-    queryKey: ['snapshots', serverId],
-    queryFn: () => api.listSnapshots(serverId),
-    enabled: Boolean(serverId),
+    queryKey: ['snapshots'],
+    queryFn: api.listSnapshots,
     refetchInterval: 10000,
   })
 
-  const connected = servers.filter((s) => s.status === 'connected')
-  if (!serverId && connected.length > 0) {
-    setServerId(connected[0].id)
-  }
-
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-        <Typography variant="h5">Snapshots</Typography>
-        <TextField
-          label="Server"
-          size="small"
-          select
-          value={serverId}
-          onChange={(e) => setServerId(e.target.value)}
-          sx={{ minWidth: 220 }}
-        >
-          {servers.map((s) => (
-            <MenuItem key={s.id} value={s.id} disabled={s.status !== 'connected'}>
-              {s.name} ({s.status})
-            </MenuItem>
-          ))}
-        </TextField>
-      </Box>
+      <Typography variant="h5" sx={{ mb: 2 }}>
+        Snapshots
+      </Typography>
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>VM</TableCell>
+              <TableCell>Server</TableCell>
               <TableCell>Zone</TableCell>
               <TableCell>Description</TableCell>
               <TableCell>Created</TableCell>
@@ -67,7 +44,7 @@ export default function SnapshotsPage() {
           </TableHead>
           <TableBody>
             {snapshots.map((snap) => (
-              <TableRow key={snap.id} hover>
+              <TableRow key={`${snap.serverId}/${snap.id}`} hover>
                 <TableCell>{snap.name}</TableCell>
                 <TableCell>
                   <Link
@@ -78,6 +55,7 @@ export default function SnapshotsPage() {
                     {snap.vmName}
                   </Link>
                 </TableCell>
+                <TableCell>{serverName(snap.serverId)}</TableCell>
                 <TableCell>{snap.zone}</TableCell>
                 <TableCell>{snap.description || '—'}</TableCell>
                 <TableCell>
@@ -92,12 +70,8 @@ export default function SnapshotsPage() {
             ))}
             {snapshots.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 6, color: '#5f6368' }}>
-                  {!serverId
-                    ? 'No connected servers — add one under Bare Metal Solution → Servers.'
-                    : isLoading
-                      ? 'Loading…'
-                      : 'No snapshots found on this server.'}
+                <TableCell colSpan={7} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                  {isLoading ? 'Loading…' : 'No snapshots found on your servers.'}
                 </TableCell>
               </TableRow>
             )}

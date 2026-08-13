@@ -148,9 +148,9 @@ func (d *Driver) Images(ctx context.Context) ([]hypervisor.Image, error) {
 		}
 		if vm.Template == 1 {
 			images = append(images, hypervisor.Image{
-				ID:          strconv.Itoa(vm.VMID),
-				Name:        vm.Name,
-				Description: fmt.Sprintf("Template %d on %s", vm.VMID, vm.Node),
+				ID:   strconv.Itoa(vm.VMID),
+				Name: vm.Name,
+				Zone: vm.Node,
 			})
 		}
 	}

@@ -8,8 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
-	"slices"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -30,21 +28,6 @@ type Server struct {
 
 func New(st *store.Store, registry *hypervisor.Registry, log *slog.Logger, staticDir string) *Server {
 	return &Server{store: st, registry: registry, log: log, staticDir: staticDir}
-}
-
-// serverDriver resolves the ?server= query param to a live driver.
-func (s *Server) serverDriver(w http.ResponseWriter, r *http.Request) hypervisor.Driver {
-	id := r.URL.Query().Get("server")
-	if id == "" {
-		s.err(w, http.StatusBadRequest, "server query parameter is required")
-		return nil
-	}
-	driver, ok := s.registry.Get(id)
-	if !ok {
-		s.err(w, http.StatusNotFound, "server: not found")
-		return nil
-	}
-	return driver
 }
 
 func (s *Server) Router() http.Handler {
@@ -115,144 +98,6 @@ func (s *Server) fail(w http.ResponseWriter, err error, context string) {
 	}
 	s.log.Error(context, "error", err)
 	s.err(w, http.StatusInternalServerError, context+": "+err.Error())
-}
-
-// --- catalog ---
-
-func (s *Server) listZones(w http.ResponseWriter, r *http.Request) {
-	driver := s.serverDriver(w, r)
-	if driver == nil {
-		return
-	}
-	zones, err := driver.Zones(r.Context())
-	if err != nil {
-		s.fail(w, err, "zones")
-		return
-	}
-	s.json(w, http.StatusOK, zones)
-}
-
-func (s *Server) listImages(w http.ResponseWriter, r *http.Request) {
-	driver := s.serverDriver(w, r)
-	if driver == nil {
-		return
-	}
-	images, err := driver.Images(r.Context())
-	if err != nil {
-		s.fail(w, err, "images")
-		return
-	}
-	if images == nil {
-		images = []hypervisor.Image{}
-	}
-	s.json(w, http.StatusOK, images)
-}
-
-func (s *Server) listDisks(w http.ResponseWriter, r *http.Request) {
-	driver := s.serverDriver(w, r)
-	if driver == nil {
-		return
-	}
-	disks, err := driver.Disks(r.Context())
-	if err != nil {
-		s.fail(w, err, "disks")
-		return
-	}
-	if disks == nil {
-		disks = []hypervisor.Disk{}
-	}
-	slices.SortFunc(disks, func(a, b hypervisor.Disk) int {
-		if c := strings.Compare(a.InUseBy, b.InUseBy); c != 0 {
-			return c
-		}
-		return strings.Compare(a.Name, b.Name)
-	})
-	s.json(w, http.StatusOK, disks)
-}
-
-func (s *Server) listSnapshots(w http.ResponseWriter, r *http.Request) {
-	driver := s.serverDriver(w, r)
-	if driver == nil {
-		return
-	}
-	snapshots, err := driver.Snapshots(r.Context())
-	if err != nil {
-		s.fail(w, err, "snapshots")
-		return
-	}
-	if snapshots == nil {
-		snapshots = []hypervisor.Snapshot{}
-	}
-	slices.SortFunc(snapshots, func(a, b hypervisor.Snapshot) int {
-		return int(b.CreatedAt - a.CreatedAt) // newest first
-	})
-	s.json(w, http.StatusOK, snapshots)
-}
-
-func (s *Server) listISOs(w http.ResponseWriter, r *http.Request) {
-	driver := s.serverDriver(w, r)
-	if driver == nil {
-		return
-	}
-	isos, err := driver.ISOs(r.Context())
-	if err != nil {
-		s.fail(w, err, "isos")
-		return
-	}
-	if isos == nil {
-		isos = []hypervisor.ISO{}
-	}
-	slices.SortFunc(isos, func(a, b hypervisor.ISO) int {
-		return strings.Compare(a.Name, b.Name)
-	})
-	s.json(w, http.StatusOK, isos)
-}
-
-func (s *Server) listCTTemplates(w http.ResponseWriter, r *http.Request) {
-	driver := s.serverDriver(w, r)
-	if driver == nil {
-		return
-	}
-	// Servers without container support simply have no CT templates.
-	cd, ok := driver.(hypervisor.ContainerDriver)
-	if !ok {
-		s.json(w, http.StatusOK, []hypervisor.CTTemplate{})
-		return
-	}
-	templates, err := cd.CTTemplates(r.Context())
-	if err != nil {
-		s.fail(w, err, "ct templates")
-		return
-	}
-	if templates == nil {
-		templates = []hypervisor.CTTemplate{}
-	}
-	slices.SortFunc(templates, func(a, b hypervisor.CTTemplate) int {
-		return strings.Compare(a.Name, b.Name)
-	})
-	s.json(w, http.StatusOK, templates)
-}
-
-func (s *Server) listDatastores(w http.ResponseWriter, r *http.Request) {
-	driver := s.serverDriver(w, r)
-	if driver == nil {
-		return
-	}
-	datastores, err := driver.Datastores(r.Context())
-	if err != nil {
-		s.fail(w, err, "datastores")
-		return
-	}
-	if datastores == nil {
-		datastores = []hypervisor.Datastore{}
-	}
-	slices.SortFunc(datastores, func(a, b hypervisor.Datastore) int {
-		if c := strings.Compare(a.Zone, b.Zone); c != 0 {
-			return c
-		}
-		return strings.Compare(a.Name, b.Name)
-	})
-	s.json(w, http.StatusOK, datastores)
 }
 
 // --- machine types ---

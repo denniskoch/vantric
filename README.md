@@ -94,7 +94,9 @@ Design notes:
 Base path `/api/v1`:
 
 - `GET /zones`, `GET /images`, `GET /isos`, `GET /ct-templates`,
-  `GET /datastores`, `GET /disks`, `GET /snapshots` (all take `?server=`)
+  `GET /datastores`, `GET /disks`, `GET /snapshots` — span every
+  registered server, each item stamped with `serverId`; `?server=`
+  narrows to one (used by the create flows)
 - `GET/POST /machine-types`, `DELETE /machine-types/{name}`
 - `GET /servers`, `POST /servers`, `PUT/DELETE /servers/{id}`,
   `GET /server-types`

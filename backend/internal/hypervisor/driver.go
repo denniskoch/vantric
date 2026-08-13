@@ -31,23 +31,30 @@ type Zone struct {
 // Image is a bootable source for new instances. On Proxmox this is a
 // template VM identified by its VMID.
 type Image struct {
+	// ServerID is filled in by the API layer, not the driver.
+	ServerID    string `json:"serverId"`
 	ID          string `json:"id"`
 	Name        string `json:"name"`
+	Zone        string `json:"zone"`
 	Description string `json:"description"`
 }
 
 // Disk is a virtual disk attached to an instance.
 type Disk struct {
-	ID      string `json:"id"`      // driver-scoped, e.g. "101/scsi0"
-	Name    string `json:"name"`    // volume name, e.g. "vm-101-disk-0"
-	InUseBy string `json:"inUseBy"` // VM name the disk is attached to
-	Zone    string `json:"zone"`
-	Storage string `json:"storage"` // storage pool
-	SizeGB  int    `json:"sizeGb"`
+	// ServerID is filled in by the API layer, not the driver.
+	ServerID string `json:"serverId"`
+	ID       string `json:"id"`      // driver-scoped, e.g. "101/scsi0"
+	Name     string `json:"name"`    // volume name, e.g. "vm-101-disk-0"
+	InUseBy  string `json:"inUseBy"` // VM name the disk is attached to
+	Zone     string `json:"zone"`
+	Storage  string `json:"storage"` // storage pool
+	SizeGB   int    `json:"sizeGb"`
 }
 
 // ISO is an installer/media image available on a datastore.
 type ISO struct {
+	// ServerID is filled in by the API layer, not the driver.
+	ServerID  string `json:"serverId"`
 	ID        string `json:"id"` // volume ID, e.g. "local:iso/debian-12.iso"
 	Name      string `json:"name"`
 	Zone      string `json:"zone"`
@@ -60,6 +67,8 @@ type ISO struct {
 // CTTemplate is a container root-filesystem template (Proxmox vztmpl
 // tarball) that containers are provisioned from.
 type CTTemplate struct {
+	// ServerID is filled in by the API layer, not the driver.
+	ServerID  string `json:"serverId"`
 	ID        string `json:"id"` // volume ID, e.g. "local:vztmpl/debian-12-standard_..."
 	Name      string `json:"name"`
 	Zone      string `json:"zone"`
@@ -71,6 +80,8 @@ type CTTemplate struct {
 
 // Datastore is a storage pool VMs and media live on.
 type Datastore struct {
+	// ServerID is filled in by the API layer, not the driver.
+	ServerID   string `json:"serverId"`
 	ID         string `json:"id"` // e.g. "pve1/local-lvm"
 	Name       string `json:"name"`
 	Zone       string `json:"zone"`
@@ -84,6 +95,8 @@ type Datastore struct {
 
 // Snapshot is a point-in-time VM snapshot.
 type Snapshot struct {
+	// ServerID is filled in by the API layer, not the driver.
+	ServerID    string `json:"serverId"`
 	ID          string `json:"id"` // driver-scoped, e.g. "101/pre-upgrade"
 	Name        string `json:"name"`
 	VMName      string `json:"vmName"`
