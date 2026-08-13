@@ -1,6 +1,8 @@
+import { Link as RouterLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   Box,
+  Button,
   Paper,
   Table,
   TableBody,
@@ -10,6 +12,7 @@ import {
   TableRow,
   Typography,
 } from '@mui/material'
+import AddBoxIcon from '@mui/icons-material/AddBox'
 import { api } from '../api/client'
 import { formatBytes } from '../format'
 import { useServerNames } from '../useServerNames'
@@ -23,9 +26,18 @@ export default function ISOsPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>
-        ISOs
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+        <Typography variant="h5">ISOs</Typography>
+        <Button
+          component={RouterLink}
+          to="/compute/isos/add"
+          variant="contained"
+          size="small"
+          startIcon={<AddBoxIcon />}
+        >
+          Add ISO
+        </Button>
+      </Box>
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>

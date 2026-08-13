@@ -13,6 +13,7 @@ import SnapshotsPage from './pages/SnapshotsPage'
 import ContainersPage from './pages/ContainersPage'
 import ContainerDetailPage from './pages/ContainerDetailPage'
 import ISOsPage from './pages/ISOsPage'
+import AddISOPage from './pages/AddISOPage'
 import DatastoresPage from './pages/DatastoresPage'
 
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/compute/disks" element={<DisksPage />} />
         <Route path="/compute/snapshots" element={<SnapshotsPage />} />
         <Route path="/compute/isos" element={<ISOsPage />} />
+        <Route path="/compute/isos/add" element={<AddISOPage />} />
         <Route path="/compute/datastores" element={<DatastoresPage />} />
         <Route path="/compute/servers" element={<ServersPage />} />
         <Route path="/compute/settings/machine-types" element={<MachineTypesPage />} />

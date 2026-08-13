@@ -5,6 +5,7 @@ package hypervisor
 import (
 	"context"
 	"errors"
+	"io"
 )
 
 // Status values mirror GCP Compute Engine instance states.
@@ -62,6 +63,39 @@ type ISO struct {
 	SizeBytes int64  `json:"sizeBytes"`
 	// CreatedAt is unix seconds; 0 when unknown.
 	CreatedAt int64 `json:"createdAt"`
+}
+
+// ISODownloadSpec asks the hypervisor to fetch an image itself, so the
+// bytes never pass through this app.
+type ISODownloadSpec struct {
+	Zone     string // node to run the download on
+	Storage  string
+	Filename string
+	URL      string
+	// Checksum is optional; ChecksumAlgorithm must be set alongside it
+	// (md5, sha1, sha224, sha256, sha384, sha512).
+	Checksum          string
+	ChecksumAlgorithm string
+	// VerifyCertificates guards TLS verification of the source URL.
+	VerifyCertificates bool
+}
+
+// ISOUploadSpec describes an image streamed up from the browser.
+type ISOUploadSpec struct {
+	Zone     string
+	Storage  string
+	Filename string
+}
+
+// TaskStatus is a long-running hypervisor operation (image import,
+// clone, …). Status is "running" or "stopped"; ExitStatus is set once
+// stopped ("OK" on success).
+type TaskStatus struct {
+	ID         string `json:"id"`
+	Status     string `json:"status"`
+	ExitStatus string `json:"exitStatus"`
+	Running    bool   `json:"running"`
+	Succeeded  bool   `json:"succeeded"`
 }
 
 // CTTemplate is a container root-filesystem template (Proxmox vztmpl
@@ -257,6 +291,14 @@ type Driver interface {
 	Snapshots(ctx context.Context) ([]Snapshot, error)
 	ISOs(ctx context.Context) ([]ISO, error)
 	Datastores(ctx context.Context) ([]Datastore, error)
+	// DownloadISO has the hypervisor fetch an image from a URL and
+	// returns the id of the task doing the work.
+	DownloadISO(ctx context.Context, spec ISODownloadSpec) (taskID string, err error)
+	// UploadISO streams an image to the hypervisor. content is consumed
+	// as it arrives; implementations must not buffer it whole.
+	UploadISO(ctx context.Context, spec ISOUploadSpec, content io.Reader) (taskID string, err error)
+	// TaskStatus reports on a task previously returned by this driver.
+	TaskStatus(ctx context.Context, taskID string) (*TaskStatus, error)
 
 	// Create provisions an instance and returns its driver-specific ID.
 	// It should return quickly; provisioning continues asynchronously

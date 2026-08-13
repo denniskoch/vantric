@@ -220,6 +220,24 @@ export interface Datastore {
   shared: boolean
 }
 
+export interface TaskStatus {
+  id: string
+  status: string
+  exitStatus: string
+  running: boolean
+  succeeded: boolean
+}
+
+export interface ISODownloadRequest {
+  zone: string
+  storage: string
+  filename: string
+  url: string
+  checksum?: string
+  checksumAlgorithm?: string
+  verifyCertificates: boolean
+}
+
 export interface MachineType {
   name: string
   description: string
@@ -272,6 +290,49 @@ export const api = {
   listDisks: () => request<Disk[]>('/disks'),
   listSnapshots: () => request<Snapshot[]>('/snapshots'),
   listISOs: () => request<ISO[]>('/isos'),
+  downloadISO: (serverId: string, body: ISODownloadRequest) =>
+    request<{ taskId: string }>(`/isos/download?server=${serverId}`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  /**
+   * Streams a file to the hypervisor. Uses XHR rather than fetch so the
+   * upload can report progress on multi-GB images.
+   */
+  uploadISO: (
+    serverId: string,
+    params: { zone: string; storage: string; filename: string },
+    file: File,
+    onProgress: (fraction: number) => void,
+  ) =>
+    new Promise<{ taskId: string }>((resolve, reject) => {
+      const query = new URLSearchParams({ server: serverId, ...params })
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', `/api/v1/isos/upload?${query}`)
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream')
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(e.loaded / e.total)
+      }
+      xhr.onload = () => {
+        let body: unknown
+        try {
+          body = JSON.parse(xhr.responseText)
+        } catch {
+          body = null
+        }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(body as { taskId: string })
+        } else {
+          const message =
+            (body as { error?: string })?.error ?? xhr.statusText ?? 'upload failed'
+          reject(new Error(message))
+        }
+      }
+      xhr.onerror = () => reject(new Error('network error during upload'))
+      xhr.send(file)
+    }),
+  getTask: (serverId: string, taskId: string) =>
+    request<TaskStatus>(`/tasks/${encodeURIComponent(taskId)}?server=${serverId}`),
   listCTTemplates: () => request<CTTemplate[]>('/ct-templates'),
   listDatastores: () => request<Datastore[]>('/datastores'),
 

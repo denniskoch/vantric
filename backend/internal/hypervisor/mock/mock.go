@@ -6,6 +6,7 @@ package mock
 import (
 	"context"
 	"fmt"
+	"io"
 	"math"
 	"math/rand"
 	"sync"
@@ -22,15 +23,36 @@ type instance struct {
 	at   time.Time
 }
 
+// task is a simulated long-running import.
+type task struct {
+	done    time.Time
+	iso     hypervisor.ISO
+	applied bool
+}
+
 type Driver struct {
-	mu     sync.Mutex
-	nextID int
-	vms    map[string]*instance
-	cts    map[string]*instance
+	mu       sync.Mutex
+	nextID   int
+	nextTask int
+	vms      map[string]*instance
+	cts      map[string]*instance
+	isos     []hypervisor.ISO
+	tasks    map[string]*task
 }
 
 func New() *Driver {
-	d := &Driver{nextID: 100, vms: map[string]*instance{}, cts: map[string]*instance{}}
+	d := &Driver{
+		nextID: 100,
+		vms:    map[string]*instance{},
+		cts:    map[string]*instance{},
+		tasks:  map[string]*task{},
+		isos: []hypervisor.ISO{
+			{ID: "local:iso/debian-12.7.0-amd64-netinst.iso", Name: "debian-12.7.0-amd64-netinst.iso",
+				Zone: "lab-node-a", Storage: "local", SizeBytes: 663748608, CreatedAt: time.Now().Add(-90 * 24 * time.Hour).Unix()},
+			{ID: "local:iso/ubuntu-24.04.1-live-server-amd64.iso", Name: "ubuntu-24.04.1-live-server-amd64.iso",
+				Zone: "lab-node-a", Storage: "local", SizeBytes: 2754981888, CreatedAt: time.Now().Add(-30 * 24 * time.Hour).Unix()},
+		},
+	}
 	// Seed a couple of containers so the CT pages have data in dev.
 	d.cts["200"] = &instance{
 		created: time.Now(),
@@ -304,11 +326,60 @@ func (d *Driver) transition(driverID string, now, then hypervisor.Status, after 
 }
 
 func (d *Driver) ISOs(ctx context.Context) ([]hypervisor.ISO, error) {
-	return []hypervisor.ISO{
-		{ID: "local:iso/debian-12.7.0-amd64-netinst.iso", Name: "debian-12.7.0-amd64-netinst.iso",
-			Zone: "lab-node-a", Storage: "local", SizeBytes: 663748608, CreatedAt: time.Now().Add(-90 * 24 * time.Hour).Unix()},
-		{ID: "local:iso/ubuntu-24.04.1-live-server-amd64.iso", Name: "ubuntu-24.04.1-live-server-amd64.iso",
-			Zone: "lab-node-a", Storage: "local", SizeBytes: 2754981888, CreatedAt: time.Now().Add(-30 * 24 * time.Hour).Unix()},
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return append([]hypervisor.ISO{}, d.isos...), nil
+}
+
+// DownloadISO simulates a server-side fetch: the task "runs" briefly,
+// then the image appears in the listing.
+func (d *Driver) DownloadISO(ctx context.Context, spec hypervisor.ISODownloadSpec) (string, error) {
+	return d.startImport(spec.Zone, spec.Storage, spec.Filename, 6*time.Second, 0), nil
+}
+
+func (d *Driver) UploadISO(ctx context.Context, spec hypervisor.ISOUploadSpec, content io.Reader) (string, error) {
+	// Drain the stream so the client sees a real transfer.
+	n, err := io.Copy(io.Discard, content)
+	if err != nil {
+		return "", err
+	}
+	return d.startImport(spec.Zone, spec.Storage, spec.Filename, 2*time.Second, n), nil
+}
+
+func (d *Driver) startImport(zone, storage, filename string, after time.Duration, size int64) string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.nextTask++
+	id := fmt.Sprintf("UPID:%s:mock:%d", zone, d.nextTask)
+	if size == 0 {
+		size = 1 << 30
+	}
+	d.tasks[id] = &task{
+		done: time.Now().Add(after),
+		iso: hypervisor.ISO{
+			ID: storage + ":iso/" + filename, Name: filename, Zone: zone,
+			Storage: storage, SizeBytes: size, CreatedAt: time.Now().Unix(),
+		},
+	}
+	return id
+}
+
+func (d *Driver) TaskStatus(ctx context.Context, taskID string) (*hypervisor.TaskStatus, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	t, ok := d.tasks[taskID]
+	if !ok {
+		return nil, hypervisor.ErrNotFound
+	}
+	if time.Now().Before(t.done) {
+		return &hypervisor.TaskStatus{ID: taskID, Status: "running", Running: true}, nil
+	}
+	if !t.applied {
+		t.applied = true
+		d.isos = append(d.isos, t.iso)
+	}
+	return &hypervisor.TaskStatus{
+		ID: taskID, Status: "stopped", ExitStatus: "OK", Succeeded: true,
 	}, nil
 }
 

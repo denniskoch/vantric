@@ -33,6 +33,9 @@ type Config struct {
 type Driver struct {
 	cfg    Config
 	client *http.Client
+	// uploadClient has no timeout: image uploads are multi-GB and are
+	// bounded by the request context instead.
+	uploadClient *http.Client
 
 	mu sync.Mutex
 	// vmid -> node cache so Get/Start/... don't need a cluster scan each time
@@ -45,9 +48,10 @@ func New(cfg Config) *Driver {
 		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 	return &Driver{
-		cfg:    cfg,
-		client: &http.Client{Timeout: 30 * time.Second, Transport: transport},
-		nodeOf: map[string]string{},
+		cfg:          cfg,
+		client:       &http.Client{Timeout: 30 * time.Second, Transport: transport},
+		uploadClient: &http.Client{Transport: transport},
+		nodeOf:       map[string]string{},
 	}
 }
 
