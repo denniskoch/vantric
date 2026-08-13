@@ -76,6 +76,17 @@ Dockerfile).
   string (A, AAAA, CNAME, MX, NS, TXT) are editable; CAA/SRV carry
   structured data and are list/delete only, not mangled through a text
   field.
+- Databases follow the same split again: `internal/database.Driver` is
+  the boundary (PostgreSQL first, MySQL/MariaDB next), servers are DB
+  records with a write-only password, one live driver per record in
+  `database.Registry`, and a factory maps engine → implementation.
+  These are servers that ALREADY EXIST in the lab — the console
+  connects to them and manages what's inside; it does not provision
+  them. Credentials are pinged before being stored. Database listings
+  span all servers and stamp each database with its `serverId`.
+  DDL can't take bind parameters, so identifiers are checked against
+  `identRe` in the API layer AND quoted by the driver; the engine's own
+  databases are flagged `System` and refused for deletion.
 - Keep store SQL portable between SQLite and Postgres: TEXT ids, RFC3339
   TEXT timestamps, no engine-specific types. Postgres is planned, not wired.
 - Frontend talks only to `/api/v1` via `src/api/client.ts` (typed client);

@@ -117,6 +117,15 @@ Base path `/api/v1`:
 - `POST /instances/{name}/{start|stop|reset|protection}`
 - `GET /instances/{name}/{describe|metrics|os-info}` — live hypervisor
   reads for the detail view (`metrics` takes `?timeframe=hour|day|week|month`)
+- `GET /database/engines`, `GET /database/servers`,
+  `POST /database/servers`, `GET/PUT/DELETE /database/servers/{id}`
+- `GET /database/databases` (spans servers, `?server=` narrows),
+  `POST /database/servers/{id}/databases`,
+  `DELETE /database/servers/{id}/databases/{name}`
+- `GET/POST /database/servers/{id}/users`,
+  `PUT /database/servers/{id}/users/{name}/password`,
+  `DELETE /database/servers/{id}/users/{name}`
+- `GET /database/servers/{id}/connections`
 - `GET /dns/providers`, `POST /dns/providers`,
   `PUT/DELETE /dns/providers/{id}`, `GET /dns/provider-types`,
   `GET /dns/accounts?provider=`

@@ -14,6 +14,8 @@ import (
 
 	"lab-cloud-manager/internal/api"
 	"lab-cloud-manager/internal/config"
+	"lab-cloud-manager/internal/database"
+	dbfactory "lab-cloud-manager/internal/database/factory"
 	"lab-cloud-manager/internal/dns"
 	dnsfactory "lab-cloud-manager/internal/dns/factory"
 	"lab-cloud-manager/internal/hypervisor"
@@ -51,7 +53,10 @@ func main() {
 	dnsRegistry := dns.NewRegistry()
 	loadDNSRegistry(ctx, st, dnsRegistry, log)
 
-	server := api.New(st, registry, dnsRegistry, log, cfg.StaticDir)
+	dbRegistry := database.NewRegistry()
+	loadDatabaseRegistry(ctx, st, dbRegistry, log)
+
+	server := api.New(st, registry, dnsRegistry, dbRegistry, log, cfg.StaticDir)
 	reconciler := api.NewReconciler(st, registry, log, 2*time.Second)
 	go reconciler.Run(ctx)
 
@@ -105,6 +110,26 @@ func loadDNSRegistry(ctx context.Context, st *store.Store, registry *dns.Registr
 		registry.Set(providers[i].ID, provider)
 	}
 	log.Info("dns registry loaded", "providers", len(providers))
+}
+
+// loadDatabaseRegistry builds a live driver for every configured
+// database server. A driver that can't be built is skipped, not fatal:
+// the console still runs with the rest.
+func loadDatabaseRegistry(ctx context.Context, st *store.Store, registry *database.Registry, log *slog.Logger) {
+	servers, err := st.ListDatabaseServers(ctx)
+	if err != nil {
+		log.Error("listing database servers", "error", err)
+		return
+	}
+	for i := range servers {
+		driver, err := dbfactory.Build(&servers[i])
+		if err != nil {
+			log.Error("building database driver", "server", servers[i].Name, "error", err)
+			continue
+		}
+		registry.Set(servers[i].ID, driver)
+	}
+	log.Info("database registry loaded", "servers", len(servers))
 }
 
 // seedServerFromConfig registers an initial server on first run, driven

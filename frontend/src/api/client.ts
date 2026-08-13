@@ -336,6 +336,81 @@ export interface DNSRecord {
   comment?: string
 }
 
+export type DatabaseEngine = 'postgres'
+
+export interface DatabaseServerInfo {
+  version: string
+  uptimeSeconds: number
+  sizeBytes: number
+  databases: number
+  connections: number
+  maxConnections: number
+}
+
+/** A database server this console connects to (Cloud SQL calls these
+ *  instances). Credentials live on the backend; the API reports
+ *  hasPassword. */
+export interface DatabaseServer {
+  id: string
+  name: string
+  type: DatabaseEngine
+  host: string
+  port: number
+  username: string
+  database: string
+  sslMode: string
+  hasPassword: boolean
+  status: 'connected' | 'unreachable' | 'unknown'
+  info?: DatabaseServerInfo
+  error?: string
+  createdAt: string
+}
+
+export interface DatabaseServerRequest {
+  name: string
+  type: DatabaseEngine
+  host: string
+  port: number
+  username: string
+  password: string
+  database: string
+  sslMode: string
+}
+
+export interface Database {
+  serverId: string
+  name: string
+  owner: string
+  sizeBytes: number
+  encoding: string
+  collation: string
+  connections: number
+  /** Owned by the engine (templates, catalogs) — never dropped here. */
+  system: boolean
+}
+
+export interface DatabaseUser {
+  name: string
+  host: string
+  canLogin: boolean
+  superuser: boolean
+  createDb: boolean
+  replication: boolean
+  memberOf: string[] | null
+  connectionLimit: number
+}
+
+export interface DatabaseConnection {
+  pid: number
+  user: string
+  database: string
+  clientAddr: string
+  appName: string
+  state: string
+  query: string
+  seconds: number
+}
+
 /** A record set is saved whole: the values replace what's there. */
 export interface DNSRecordSetRequest {
   name: string
@@ -535,6 +610,48 @@ export const api = {
     }),
   deleteMachineType: (name: string) =>
     request<void>(`/machine-types/${name}`, { method: 'DELETE' }),
+
+  listDatabaseEngines: () => request<DatabaseEngine[]>('/database/engines'),
+  listDatabaseServers: () => request<DatabaseServer[]>('/database/servers'),
+  getDatabaseServer: (id: string) => request<DatabaseServer>(`/database/servers/${id}`),
+  createDatabaseServer: (body: DatabaseServerRequest) =>
+    request<DatabaseServer>('/database/servers', { method: 'POST', body: JSON.stringify(body) }),
+  updateDatabaseServer: (id: string, body: DatabaseServerRequest) =>
+    request<DatabaseServer>(`/database/servers/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteDatabaseServer: (id: string) =>
+    request<void>(`/database/servers/${id}`, { method: 'DELETE' }),
+  listDatabases: (serverId?: string) =>
+    request<Database[]>(`/database/databases${serverId ? `?server=${serverId}` : ''}`),
+  createDatabase: (serverId: string, body: { name: string; owner?: string }) =>
+    request<void>(`/database/servers/${serverId}/databases`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  dropDatabase: (serverId: string, name: string) =>
+    request<void>(`/database/servers/${serverId}/databases/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    }),
+  listDatabaseUsers: (serverId: string) =>
+    request<DatabaseUser[]>(`/database/servers/${serverId}/users`),
+  createDatabaseUser: (
+    serverId: string,
+    body: { name: string; password: string; canLogin: boolean; createDb: boolean },
+  ) =>
+    request<void>(`/database/servers/${serverId}/users`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  setDatabaseUserPassword: (serverId: string, name: string, password: string) =>
+    request<void>(`/database/servers/${serverId}/users/${encodeURIComponent(name)}/password`, {
+      method: 'PUT',
+      body: JSON.stringify({ password }),
+    }),
+  dropDatabaseUser: (serverId: string, name: string) =>
+    request<void>(`/database/servers/${serverId}/users/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    }),
+  listDatabaseConnections: (serverId: string) =>
+    request<DatabaseConnection[]>(`/database/servers/${serverId}/connections`),
 
   listDNSProviders: () => request<DNSProvider[]>('/dns/providers'),
   createDNSProvider: (body: DNSProviderRequest) =>

@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 
+	"lab-cloud-manager/internal/database"
 	"lab-cloud-manager/internal/dns"
 	"lab-cloud-manager/internal/hypervisor"
 	"lab-cloud-manager/internal/store"
@@ -24,6 +25,7 @@ type Server struct {
 	store       *store.Store
 	registry    *hypervisor.Registry
 	dnsRegistry *dns.Registry
+	dbRegistry  *database.Registry
 	log         *slog.Logger
 	staticDir   string
 	builds      *buildRegistry
@@ -33,11 +35,12 @@ func New(
 	st *store.Store,
 	registry *hypervisor.Registry,
 	dnsRegistry *dns.Registry,
+	dbRegistry *database.Registry,
 	log *slog.Logger,
 	staticDir string,
 ) *Server {
 	return &Server{
-		store: st, registry: registry, dnsRegistry: dnsRegistry,
+		store: st, registry: registry, dnsRegistry: dnsRegistry, dbRegistry: dbRegistry,
 		log: log, staticDir: staticDir,
 		builds: newBuildRegistry(),
 	}
@@ -80,6 +83,7 @@ func (s *Server) Router() http.Handler {
 
 		s.containerRoutes(r)
 		s.dnsRoutes(r)
+		s.databaseRoutes(r)
 
 		r.Get("/instances", s.listInstances)
 		r.Post("/instances", s.createInstance)

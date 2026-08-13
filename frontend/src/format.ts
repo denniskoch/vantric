@@ -19,6 +19,16 @@ export function formatUptime(seconds: number): string {
   return `${minutes}m`
 }
 
+/**
+ * Like formatUptime but honest about short spans: a database session
+ * that started four seconds ago is "4s", not "0m".
+ */
+export function formatDuration(seconds: number): string {
+  if (seconds < 1) return '<1s'
+  if (seconds < 60) return `${Math.round(seconds)}s`
+  return formatUptime(seconds)
+}
+
 export function formatBytes(bytes: number): string {
   if (!bytes) return '—'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']

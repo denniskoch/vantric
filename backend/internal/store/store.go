@@ -92,6 +92,18 @@ var migrations = []string{
 		account_id TEXT NOT NULL DEFAULT '',
 		created_at TEXT NOT NULL
 	)`,
+	`CREATE TABLE IF NOT EXISTS database_servers (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL UNIQUE,
+		type TEXT NOT NULL,
+		host TEXT NOT NULL,
+		port INTEGER NOT NULL,
+		username TEXT NOT NULL DEFAULT '',
+		password TEXT NOT NULL DEFAULT '',
+		dbname TEXT NOT NULL DEFAULT '',
+		ssl_mode TEXT NOT NULL DEFAULT '',
+		created_at TEXT NOT NULL
+	)`,
 	`CREATE TABLE IF NOT EXISTS machine_types (
 		name TEXT PRIMARY KEY,
 		description TEXT NOT NULL DEFAULT '',

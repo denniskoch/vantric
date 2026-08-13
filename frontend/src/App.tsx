@@ -12,6 +12,10 @@ import DNSZonesPage from './pages/DNSZonesPage'
 import DNSZoneDetailPage from './pages/DNSZoneDetailPage'
 import RecordSetPage from './pages/RecordSetPage'
 import CreateZonePage from './pages/CreateZonePage'
+import DatabaseInstancesPage from './pages/DatabaseInstancesPage'
+import DatabaseInstanceDetailPage from './pages/DatabaseInstanceDetailPage'
+import AddDatabaseInstancePage from './pages/AddDatabaseInstancePage'
+import DatabasesPage from './pages/DatabasesPage'
 import DNSProvidersPage from './pages/DNSProvidersPage'
 import ServersPage from './pages/ServersPage'
 import MachineTypesPage from './pages/MachineTypesPage'
@@ -34,6 +38,11 @@ export default function App() {
         <Route path="/storage/overview" element={<SectionLandingPage />} />
         <Route path="/network/overview" element={<SectionLandingPage />} />
         <Route path="/databases/overview" element={<SectionLandingPage />} />
+        <Route path="/databases/instances" element={<DatabaseInstancesPage />} />
+        <Route path="/databases/instances/add" element={<AddDatabaseInstancePage />} />
+        <Route path="/databases/instances/:id" element={<DatabaseInstanceDetailPage />} />
+        <Route path="/databases/instances/:id/edit" element={<AddDatabaseInstancePage />} />
+        <Route path="/databases/databases" element={<DatabasesPage />} />
         <Route path="/docker/overview" element={<SectionLandingPage />} />
         <Route path="/dns/overview" element={<SectionLandingPage />} />
         <Route path="/dns/zones" element={<DNSZonesPage />} />

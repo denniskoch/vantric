@@ -103,6 +103,46 @@ export function recordValueError(type: string, value: string): string | null {
   }
 }
 
+/** A host to connect to: hostname, IPv4 or IPv6 literal. */
+export function hostError(value: string): string | null {
+  const host = value.trim()
+  if (!host) return null
+  if (/^https?:\/\//.test(host)) return 'Enter just the host, without http:// or https://'
+  if (host.includes('/')) return 'Enter just the host, without a path'
+  if (host.includes(':') && !host.startsWith('[')) {
+    return isIPv6(host) ? null : 'Put the port in its own field, not after a colon'
+  }
+  const bare = host.replace(/^\[|\]$/g, '')
+  if (isIPv4(bare) || isIPv6(bare)) return null
+  return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i.test(bare)
+    ? null
+    : 'Enter a hostname or IP address'
+}
+
+export function portError(value: number): string | null {
+  if (!value) return null
+  if (!Number.isInteger(value) || value < 1 || value > 65535) {
+    return 'Ports run from 1 to 65535'
+  }
+  return null
+}
+
+/**
+ * Identifiers for databases and users. These reach DDL, which can't
+ * take bind parameters, so the rule is deliberately narrow — the
+ * backend enforces the same shape.
+ */
+export function identifierError(value: string): string | null {
+  const name = value.trim()
+  if (!name) return null
+  if (!/^[A-Za-z_]/.test(name)) return 'Start with a letter or underscore'
+  if (!/^[A-Za-z_][A-Za-z0-9_$-]*$/.test(name)) {
+    return 'Use letters, digits, underscore or hyphen only'
+  }
+  if (name.length > 63) return 'Keep it under 64 characters'
+  return null
+}
+
 /** Providers cap how short or long a TTL may be. */
 export function ttlError(seconds: number): string | null {
   if (!seconds) return null

@@ -19,6 +19,7 @@ import ViewInArIcon from '@mui/icons-material/ViewInAr'
 import TravelExploreIcon from '@mui/icons-material/TravelExplore'
 import PublicIcon from '@mui/icons-material/Public'
 import VpnKeyIcon from '@mui/icons-material/VpnKey'
+import TableChartIcon from '@mui/icons-material/TableChart'
 
 export interface SectionItem {
   label: string
@@ -147,8 +148,27 @@ export const sections: Section[] = [
     prefix: '/databases',
     home: '/databases/overview',
     items: [{ label: 'Overview', icon: DashboardIcon, to: '/databases/overview' }],
-    groups: [],
-    description: 'Managed database instances, the way Cloud SQL presents them.',
+    groups: [
+      {
+        label: 'SQL',
+        items: [
+          {
+            label: 'Instances',
+            icon: StorageIcon,
+            to: '/databases/instances',
+            hint: 'Database servers this console connects to',
+          },
+          {
+            label: 'Databases',
+            icon: TableChartIcon,
+            to: '/databases/databases',
+            hint: 'Every database across your instances',
+          },
+        ],
+      },
+    ],
+    description:
+      'Database servers running in your lab, with the databases, users and connections inside them.',
   },
   {
     id: 'docker',
