@@ -37,8 +37,16 @@ consistent UI, and the correlation between tools — what's running vs
 what DNS publishes vs what the IPAM documents. Drift between systems
 is the app's own contribution; the systems' data is not.
 
-Corollary: don't build a worse version of a tool's deep features. Link
-out when the work belongs there.
+"Don't reimplement" is about the SOURCE OF TRUTH, not about what may
+appear on screen. A section that reads another tool's API and offers
+its everyday actions is exactly the point — an Identity section over
+authentik's API belongs here as much as Zones over Cloudflare's does.
+The test is whether this app invents a second copy of the data, not
+whether it renders or writes to the first one.
+
+Where the line does sit: a tool's deep, rare configuration — flow
+designers, trigger expressions, rule builders — stays in that tool.
+Surface the daily 90% here and link out for the rest.
 
 ## Architecture rules
 
