@@ -71,7 +71,17 @@ function ControllerForm({ editing }: { editing: NetworkProvider | null }) {
       backLabel="Controllers"
       error={error}
       onDismissError={() => setError(null)}
-      notice="Credentials are checked against the controller before it's saved. Newer UniFi releases issue a local API key under Settings → Control Plane → Integrations; older ones need a local account, and a read-only one is enough since this console only reads."
+      notice={
+        <>
+          Credentials are checked against the controller before it's saved, and
+          a read-only account is enough — this console only reads. A
+          self-hosted Network Application usually wants a local account and
+          lives on <code>:8443</code>; a UniFi OS console (Dream Machine, Cloud
+          Key) can issue a local API key under Control Plane → Integrations. A
+          key from <code>unifi.ui.com</code> is for the cloud Site Manager API
+          and won't authenticate here.
+        </>
+      }
       primaryLabel={editing ? 'Save' : 'Connect'}
       pendingLabel="Connecting…"
       primaryDisabled={!valid}
@@ -109,7 +119,7 @@ function ControllerForm({ editing }: { editing: NetworkProvider | null }) {
           onChange={(e) => setForm({ ...form, baseUrl: e.target.value })}
           placeholder="https://192.168.1.1"
           error={Boolean(baseUrlError)}
-          helperText={baseUrlError ?? 'A UniFi OS gateway, or a controller on :8443'}
+          helperText={baseUrlError ?? 'Self-hosted is usually https://host:8443'}
           sx={{ flex: 1 }}
         />
         <TextField
@@ -131,7 +141,7 @@ function ControllerForm({ editing }: { editing: NetworkProvider | null }) {
         helperText={
           editing?.hasCredentials
             ? 'Leave blank to keep what is stored'
-            : 'Preferred. Leave blank to use a local account instead.'
+            : 'UniFi OS consoles only. Self-hosted installs use the account below.'
         }
         fullWidth
       />
