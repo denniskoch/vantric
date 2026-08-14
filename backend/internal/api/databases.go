@@ -48,6 +48,8 @@ func (s *Server) databaseRoutes(r chi.Router) {
 	// it, so they are never part of a polled listing.
 	r.Get("/database/servers/{id}/databases/{name}/tables", s.listDatabaseTables)
 	r.Get("/database/servers/{id}/databases/{name}/grants", s.listDatabaseGrants)
+	r.Put("/database/servers/{id}/databases/{name}/access", s.grantDatabaseAccess)
+	r.Delete("/database/servers/{id}/databases/{name}/access", s.revokeDatabaseAccess)
 }
 
 // databaseServerView is the API shape: everything but the password,
@@ -489,4 +491,97 @@ func (s *Server) listDatabaseGrants(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.json(w, http.StatusOK, grants)
+}
+
+// accessRequest grants one user one level on one database — and
+// creates that user first when asked, because "make an account for
+// this app and let it in" is one job, not two pages.
+type accessRequest struct {
+	User string `json:"user"`
+	Host string `json:"host"`
+	// Level is read | readwrite | full.
+	Level string `json:"level"`
+	// CreateUser makes the account before granting; Password is
+	// required with it.
+	CreateUser bool   `json:"createUser"`
+	Password   string `json:"password"`
+}
+
+func (s *Server) grantDatabaseAccess(w http.ResponseWriter, r *http.Request) {
+	driver := s.dbDriver(w, r)
+	if driver == nil {
+		return
+	}
+	dbName := chi.URLParam(r, "name")
+	if !identRe.MatchString(dbName) {
+		s.err(w, http.StatusBadRequest, "that isn't a valid database name")
+		return
+	}
+	var req accessRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	req.User = strings.TrimSpace(req.User)
+	if !identRe.MatchString(req.User) {
+		s.err(w, http.StatusBadRequest, "that isn't a valid user name")
+		return
+	}
+	if !database.ValidAccessLevel(database.AccessLevel(req.Level)) {
+		s.err(w, http.StatusBadRequest, "pick an access level: read, readwrite or full")
+		return
+	}
+	if req.CreateUser {
+		if len(req.Password) < 8 {
+			s.err(w, http.StatusBadRequest, "a new user needs a password of at least 8 characters")
+			return
+		}
+		if err := driver.CreateUser(r.Context(), database.UserSpec{
+			Name:     req.User,
+			Host:     req.Host,
+			Password: req.Password,
+			CanLogin: true,
+		}); err != nil {
+			s.err(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		s.log.Info("database user created", "database", dbName, "user", req.User)
+	}
+	if err := driver.GrantAccess(r.Context(), database.AccessSpec{
+		Database: dbName,
+		User:     req.User,
+		Host:     req.Host,
+		Level:    database.AccessLevel(req.Level),
+	}); err != nil {
+		// A user created a moment ago but left without access is worse
+		// than either outcome alone, so say both halves happened.
+		if req.CreateUser {
+			s.err(w, http.StatusBadRequest,
+				"the user was created but granting access failed: "+err.Error())
+			return
+		}
+		s.err(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	s.log.Info("database access granted", "database", dbName, "user", req.User, "level", req.Level)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) revokeDatabaseAccess(w http.ResponseWriter, r *http.Request) {
+	driver := s.dbDriver(w, r)
+	if driver == nil {
+		return
+	}
+	dbName := chi.URLParam(r, "name")
+	user := r.URL.Query().Get("user")
+	if !identRe.MatchString(dbName) || !identRe.MatchString(user) {
+		s.err(w, http.StatusBadRequest, "that isn't a valid database or user name")
+		return
+	}
+	if err := driver.RevokeAccess(r.Context(), dbName, user, r.URL.Query().Get("host")); err != nil {
+		s.err(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	s.log.Info("database access revoked", "database", dbName, "user", user)
+	w.WriteHeader(http.StatusNoContent)
 }

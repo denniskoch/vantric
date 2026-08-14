@@ -3,7 +3,9 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"sort"
+	"strings"
 
 	"lab-cloud-manager/internal/database"
 )
@@ -114,4 +116,81 @@ func (d *Driver) Grants(ctx context.Context, dbName string) ([]database.Grant, e
 		return grants[i].Scope < grants[j].Scope
 	})
 	return grants, nil
+}
+
+// Granting access.
+//
+// MySQL keeps privileges on the database as a whole (`db`.*), so the
+// three levels are three privilege lists and nothing more — no schema
+// USAGE, no sequences, and no standing rule needed for future tables
+// because the grant was never per-table to begin with.
+
+func levelPrivileges(level database.AccessLevel) string {
+	switch level {
+	case database.AccessReadOnly:
+		return "SELECT"
+	case database.AccessReadWrite:
+		return "SELECT, INSERT, UPDATE, DELETE"
+	case database.AccessFull:
+		return "ALL PRIVILEGES"
+	}
+	return ""
+}
+
+func (d *Driver) GrantAccess(ctx context.Context, spec database.AccessSpec) error {
+	privileges := levelPrivileges(spec.Level)
+	if privileges == "" {
+		return fmt.Errorf("mysql: unknown access level %q", spec.Level)
+	}
+	host := spec.Host
+	if host == "" {
+		host = "%"
+	}
+	account := quoteLiteral(spec.User) + "@" + quoteLiteral(host)
+
+	// Clear first, so lowering someone's access is a reduction rather
+	// than an addition on top of what they already had.
+	if err := d.revokeOn(ctx, spec.Database, account); err != nil {
+		return fmt.Errorf("mysql: revoking existing access: %w", err)
+	}
+	if _, err := d.db.ExecContext(ctx,
+		"GRANT "+privileges+" ON "+quote(spec.Database)+".* TO "+account); err != nil {
+		return fmt.Errorf("mysql: %w", err)
+	}
+	return nil
+}
+
+func (d *Driver) RevokeAccess(ctx context.Context, dbName, user, host string) error {
+	if host == "" {
+		host = "%"
+	}
+	if err := d.revokeOn(ctx, dbName, quoteLiteral(user)+"@"+quoteLiteral(host)); err != nil {
+		return fmt.Errorf("mysql: %w", err)
+	}
+	return nil
+}
+
+// revokeOn clears one account's privileges on one database.
+//
+// Two statements, not one: "ALL PRIVILEGES, GRANT OPTION" together is
+// only valid in the global form with no ON clause, and scoped to a
+// database it is a syntax error.
+//
+// Having nothing to revoke is the normal case when granting to someone
+// new, and MySQL reports that as error 1141 — an answer, not a
+// failure.
+func (d *Driver) revokeOn(ctx context.Context, dbName, account string) error {
+	for _, what := range []string{"ALL PRIVILEGES", "GRANT OPTION"} {
+		_, err := d.db.ExecContext(ctx,
+			"REVOKE "+what+" ON "+quote(dbName)+".* FROM "+account)
+		if err != nil && !noSuchGrant(err) {
+			return err
+		}
+	}
+	return nil
+}
+
+func noSuchGrant(err error) bool {
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "1141") || strings.Contains(msg, "there is no such grant")
 }

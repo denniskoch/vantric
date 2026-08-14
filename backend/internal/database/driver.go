@@ -69,6 +69,36 @@ type Grant struct {
 	Privileges []string `json:"privileges"`
 }
 
+// AccessLevel is what this console grants. Three answers, not the
+// engine's full privilege matrix: "who can read this", "who can write
+// to it", "who owns it in practice" is the question people actually
+// bring to a console, and the two engines spell the same three answers
+// very differently. Anything finer stays in psql or the MySQL client.
+type AccessLevel string
+
+const (
+	AccessReadOnly  AccessLevel = "read"
+	AccessReadWrite AccessLevel = "readwrite"
+	AccessFull      AccessLevel = "full"
+)
+
+func ValidAccessLevel(level AccessLevel) bool {
+	switch level {
+	case AccessReadOnly, AccessReadWrite, AccessFull:
+		return true
+	}
+	return false
+}
+
+// AccessSpec is one grant of one level to one user on one database.
+type AccessSpec struct {
+	Database string
+	User     string
+	// Host is MySQL's half of the identity; ignored by PostgreSQL.
+	Host  string
+	Level AccessLevel
+}
+
 // User is a login role on the server.
 type User struct {
 	Name string `json:"name"`
@@ -126,6 +156,14 @@ type Driver interface {
 	// has to open a connection to the database itself.
 	Tables(ctx context.Context, dbName string) ([]Table, error)
 	Grants(ctx context.Context, dbName string) ([]Grant, error)
+	// GrantAccess gives a user one of the three levels on a database,
+	// replacing whatever they had. Implementations must cover objects
+	// created LATER too, or "read access" quietly stops applying the
+	// next time the app migrates.
+	GrantAccess(ctx context.Context, spec AccessSpec) error
+	// RevokeAccess takes it all back, including any standing rule about
+	// future objects.
+	RevokeAccess(ctx context.Context, dbName, user, host string) error
 	Users(ctx context.Context) ([]User, error)
 	Connections(ctx context.Context) ([]Connection, error)
 	CreateDatabase(ctx context.Context, spec DatabaseSpec) error

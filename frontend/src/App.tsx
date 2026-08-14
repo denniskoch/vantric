@@ -25,6 +25,7 @@ import DatabaseInstanceDetailPage from './pages/DatabaseInstanceDetailPage'
 import AddDatabaseInstancePage from './pages/AddDatabaseInstancePage'
 import DatabasesPage from './pages/DatabasesPage'
 import DatabaseDetailPage from './pages/DatabaseDetailPage'
+import DatabaseAccessPage from './pages/DatabaseAccessPage'
 import {
   NetworkNetworksPage,
   NetworkClientsPage,
@@ -98,6 +99,10 @@ export default function App() {
         <Route
           path="/databases/instances/:id/databases/:name"
           element={<DatabaseDetailPage />}
+        />
+        <Route
+          path="/databases/instances/:id/databases/:name/access"
+          element={<DatabaseAccessPage />}
         />
         <Route
           path="/databases/instances/:id/databases/create"

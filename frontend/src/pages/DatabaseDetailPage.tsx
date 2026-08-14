@@ -1,10 +1,15 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
   Box,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Paper,
   Table,
   TableBody,
@@ -18,7 +23,9 @@ import {
   Typography,
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import AddBoxIcon from '@mui/icons-material/AddBox'
 import { api } from '../api/client'
+import type { DatabaseGrant } from '../api/client'
 import DetailTable, { DetailSection } from '../components/DetailTable'
 import { formatBytes } from '../format'
 import { BrandLabel } from '../components/BrandIcon'
@@ -38,6 +45,11 @@ export default function DatabaseDetailPage() {
   const { id = '', name = '' } = useParams()
   const navigate = useNavigate()
   const [tab, setTab] = useState<TabID>('details')
+  const [revoking, setRevoking] = useState<DatabaseGrant | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+
+  const basePath = `/databases/instances/${id}/databases/${encodeURIComponent(name)}`
 
   const { data: server } = useQuery({
     queryKey: ['databaseServer', id],
@@ -73,6 +85,19 @@ export default function DatabaseDetailPage() {
     retry: false,
   })
 
+  const revoke = useMutation({
+    mutationFn: (g: DatabaseGrant) =>
+      api.revokeDatabaseAccess(id, name, granteeName(g.grantee), granteeHost(g.grantee)),
+    onSuccess: () => {
+      setRevoking(null)
+      queryClient.invalidateQueries({ queryKey: ['databaseGrants', id, name] })
+    },
+    onError: (e: Error) => {
+      setRevoking(null)
+      setError(e.message)
+    },
+  })
+
   // PostgreSQL has schemas and per-table owners; MySQL has neither, so
   // the columns disappear rather than printing a column of dashes.
   const isPostgres = server?.type === 'postgres'
@@ -104,6 +129,12 @@ export default function DatabaseDetailPage() {
       </Tabs>
 
       <Box sx={{ p: 3, maxWidth: 1100 }}>
+        {error && (
+          <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
         {tab === 'details' && (
           <DetailSection title="Basic information">
             <DetailTable
@@ -203,10 +234,23 @@ export default function DatabaseDetailPage() {
                 {(grantsError as Error).message}
               </Alert>
             )}
-            <DetailSection title="Permissions">
+            <DetailSection
+              title="Permissions"
+              action={
+                <Button
+                  size="small"
+                  startIcon={<AddBoxIcon />}
+                  onClick={() => navigate(`${basePath}/access`)}
+                >
+                  Grant access
+                </Button>
+              }
+            >
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                Who may do what, as the server reports it. Read-only here —
-                granting and revoking stays in {isPostgres ? 'psql' : 'the MySQL client'}.
+                Who may do what, as the server reports it. Granting here offers
+                read, read/write and full access — the three answers worth a
+                button; anything finer stays in{' '}
+                {isPostgres ? 'psql' : 'the MySQL client'}.
               </Typography>
               <TableContainer component={Paper} variant="outlined">
                 <Table size="small">
@@ -215,6 +259,7 @@ export default function DatabaseDetailPage() {
                       <TableCell>Grantee</TableCell>
                       <TableCell>On</TableCell>
                       <TableCell>Privileges</TableCell>
+                      <TableCell align="right" />
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -227,11 +272,36 @@ export default function DatabaseDetailPage() {
                         <TableCell sx={{ color: '#5f6368' }}>
                           {g.privileges.join(', ')}
                         </TableCell>
+                        <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                          {/* PUBLIC isn't a user you can revoke like one, and
+                              the owner's own rights aren't a grant to take. */}
+                          {g.grantee !== 'PUBLIC' && (
+                            <>
+                              <Button
+                                size="small"
+                                onClick={() =>
+                                  navigate(
+                                    `${basePath}/access?user=${encodeURIComponent(granteeName(g.grantee))}`,
+                                  )
+                                }
+                              >
+                                Change
+                              </Button>
+                              <Button
+                                size="small"
+                                color="error"
+                                onClick={() => setRevoking(g)}
+                              >
+                                Revoke
+                              </Button>
+                            </>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                     {grants.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={3} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                        <TableCell colSpan={4} align="center" sx={{ py: 6, color: '#5f6368' }}>
                           {grantsLoading
                             ? 'Loading…'
                             : 'No explicit grants — only the owner and superusers can reach this.'}
@@ -245,6 +315,41 @@ export default function DatabaseDetailPage() {
           </>
         )}
       </Box>
+
+      <Dialog open={Boolean(revoking)} onClose={() => setRevoking(null)}>
+        <DialogTitle>Revoke {revoking && granteeName(revoking.grantee)}'s access?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            They lose every privilege on {name}, including the standing rule
+            that would have covered tables created later. The account itself
+            stays — this only takes away its way into this database.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRevoking(null)}>Cancel</Button>
+          <Button
+            color="error"
+            disabled={revoke.isPending}
+            onClick={() => revoking && revoke.mutate(revoking)}
+          >
+            Revoke
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
+}
+
+// MySQL reports a grantee as 'user'@'host'; PostgreSQL reports a bare
+// role name. These split the two halves back out without the quotes.
+function granteeName(grantee: string): string {
+  const at = grantee.lastIndexOf('@')
+  const name = at === -1 ? grantee : grantee.slice(0, at)
+  return name.replace(/^'|'$/g, '')
+}
+
+function granteeHost(grantee: string): string {
+  const at = grantee.lastIndexOf('@')
+  if (at === -1) return ''
+  return grantee.slice(at + 1).replace(/^'|'$/g, '')
 }

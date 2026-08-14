@@ -150,6 +150,9 @@ and `/auth/me` needs a session cookie:
 - `GET /database/servers/{id}/databases/{name}/tables`,
   `GET /database/servers/{id}/databases/{name}/grants` — inside one
   database, read on demand for its detail view
+- `PUT /database/servers/{id}/databases/{name}/access` — grant a user
+  read/readwrite/full on one database, optionally creating that user in
+  the same call; `DELETE …/access?user=&host=` revokes
 - `GET /database/servers/{id}/connections`
 - `GET /network/provider-types`, `GET /network/providers`,
   `POST /network/providers`, `PUT/DELETE /network/providers/{id}`

@@ -45,6 +45,18 @@ export interface DatabaseTable {
   comment: string
 }
 
+/** The three answers a console offers, not the engine's full matrix. */
+export type AccessLevel = 'read' | 'readwrite' | 'full'
+
+export interface AccessRequest {
+  user: string
+  host: string
+  level: AccessLevel
+  /** Create the user first; password is required with it. */
+  createUser: boolean
+  password: string
+}
+
 /** What one grantee may do. scope is '' for the database itself. */
 export interface DatabaseGrant {
   grantee: string
@@ -1070,6 +1082,17 @@ export const api = {
   listDatabaseGrants: (serverId: string, name: string) =>
     request<DatabaseGrant[]>(
       `/database/servers/${serverId}/databases/${encodeURIComponent(name)}/grants`,
+    ),
+  grantDatabaseAccess: (serverId: string, name: string, body: AccessRequest) =>
+    request<void>(
+      `/database/servers/${serverId}/databases/${encodeURIComponent(name)}/access`,
+      { method: 'PUT', body: JSON.stringify(body) },
+    ),
+  revokeDatabaseAccess: (serverId: string, name: string, user: string, host: string) =>
+    request<void>(
+      `/database/servers/${serverId}/databases/${encodeURIComponent(name)}/access` +
+        `?user=${encodeURIComponent(user)}&host=${encodeURIComponent(host)}`,
+      { method: 'DELETE' },
     ),
   listDatabaseConnections: (serverId: string) =>
     request<DatabaseConnection[]>(`/database/servers/${serverId}/connections`),

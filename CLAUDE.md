@@ -192,7 +192,18 @@ Surface the daily 90% here and link out for the rest.
   TABLE_ROWS) — a console must not `COUNT(*)` a production table to
   draw a page — and an estimate of 0 renders as "—", since a table that
   has never been analysed reports 0 whatever its size. Permissions are
-  read-only: granting stays in psql, per the surface-the-daily-90% rule.
+  three LEVELS, not a privilege matrix: read, read/write, full — the
+  answers people bring to a console, which the two engines spell very
+  differently. Granting always REPLACES, so lowering someone's access
+  is a real reduction. PostgreSQL needs three things a naive GRANT
+  misses, and all three are why this is code rather than a text box:
+  USAGE on the schema (without it table privileges are unreachable),
+  sequences (a serial column fails on INSERT without them), and ALTER
+  DEFAULT PRIVILEGES **FOR ROLE the database owner** so the grant
+  covers tables created later — otherwise access silently lapses at the
+  next migration. MySQL grants on `db`.* and needs none of it. Revoking
+  clears the standing rule too, or the next CREATE TABLE hands access
+  back. Anything finer than the three levels stays in psql.
 - Engines share ONE nav item and one list, Cloud SQL-style — the
   engine is a column, not a section. Where engines genuinely differ,
   the fix is per-view, not per-nav-item: a cross-engine list drops the

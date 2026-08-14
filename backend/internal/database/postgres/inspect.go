@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -161,4 +162,158 @@ func sortedGrants(byKey map[string]*database.Grant) []database.Grant {
 		return grants[i].Scope < grants[j].Scope
 	})
 	return grants
+}
+
+// Granting access.
+//
+// Three levels, spelled out in PostgreSQL's terms. Two details make
+// the difference between a grant that works and one that looks like it
+// worked:
+//
+//   - USAGE on the schema. Table privileges are unreachable without
+//     it, so "read access" without USAGE is permission denied.
+//   - Sequences. A serial primary key needs USAGE on its sequence, so
+//     write access without it fails on the first INSERT.
+//
+// And ALTER DEFAULT PRIVILEGES, so the grant covers tables that don't
+// exist yet — otherwise access silently stops applying the next time
+// the app runs a migration.
+
+// grantStatements renders the level as statements to run inside the
+// database. schemaPublic is where an application's tables live unless
+// someone went out of their way; deeper layouts are a psql job.
+func grantStatements(level database.AccessLevel, user, owner string) []string {
+	u := quote(user)
+	stmts := []string{
+		"GRANT USAGE ON SCHEMA public TO " + u,
+	}
+	defaults := func(objects, privileges string) string {
+		// FOR ROLE the owner: default privileges attach to the role that
+		// CREATES the object, and that's whoever owns the database, not
+		// the console's login.
+		return "ALTER DEFAULT PRIVILEGES FOR ROLE " + quote(owner) +
+			" IN SCHEMA public GRANT " + privileges + " ON " + objects + " TO " + u
+	}
+	switch level {
+	case database.AccessReadOnly:
+		stmts = append(stmts,
+			"GRANT SELECT ON ALL TABLES IN SCHEMA public TO "+u,
+			"GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO "+u,
+			defaults("TABLES", "SELECT"),
+			defaults("SEQUENCES", "USAGE, SELECT"),
+		)
+	case database.AccessReadWrite:
+		stmts = append(stmts,
+			"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "+u,
+			"GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO "+u,
+			defaults("TABLES", "SELECT, INSERT, UPDATE, DELETE"),
+			defaults("SEQUENCES", "USAGE, SELECT, UPDATE"),
+		)
+	case database.AccessFull:
+		stmts = append(stmts,
+			"GRANT CREATE ON SCHEMA public TO "+u,
+			"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "+u,
+			"GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "+u,
+			defaults("TABLES", "ALL PRIVILEGES"),
+			defaults("SEQUENCES", "ALL PRIVILEGES"),
+		)
+	}
+	return stmts
+}
+
+func (d *Driver) GrantAccess(ctx context.Context, spec database.AccessSpec) error {
+	owner, err := d.databaseOwner(ctx, spec.Database)
+	if err != nil {
+		return err
+	}
+
+	// CONNECT lives on the database itself, in the shared catalog.
+	dbPrivileges := "CONNECT, TEMPORARY"
+	if spec.Level == database.AccessFull {
+		dbPrivileges = "ALL PRIVILEGES"
+	}
+	if _, err := d.pool.Exec(ctx, "GRANT "+dbPrivileges+" ON DATABASE "+
+		quote(spec.Database)+" TO "+quote(spec.User)); err != nil {
+		return fmt.Errorf("postgres: granting on database: %w", err)
+	}
+
+	conn, err := d.connectTo(ctx, spec.Database)
+	if err != nil {
+		return err
+	}
+	defer conn.Close(ctx)
+
+	// Start from nothing so lowering someone's access is a real
+	// reduction rather than an addition on top of what they had.
+	if err := revokeInDatabase(ctx, conn, spec.User, owner); err != nil {
+		return err
+	}
+	for _, stmt := range grantStatements(spec.Level, spec.User, owner) {
+		if _, err := conn.Exec(ctx, stmt); err != nil {
+			return fmt.Errorf("postgres: %s: %w", firstWords(stmt), err)
+		}
+	}
+	return nil
+}
+
+func (d *Driver) RevokeAccess(ctx context.Context, dbName, user, _ string) error {
+	owner, err := d.databaseOwner(ctx, dbName)
+	if err != nil {
+		return err
+	}
+	conn, err := d.connectTo(ctx, dbName)
+	if err != nil {
+		return err
+	}
+	defer conn.Close(ctx)
+	if err := revokeInDatabase(ctx, conn, user, owner); err != nil {
+		return err
+	}
+	if _, err := d.pool.Exec(ctx, "REVOKE ALL PRIVILEGES ON DATABASE "+
+		quote(dbName)+" FROM "+quote(user)); err != nil {
+		return fmt.Errorf("postgres: revoking on database: %w", err)
+	}
+	return nil
+}
+
+// revokeInDatabase clears everything inside one database, standing
+// rules for future objects included — a revoke that leaves those
+// behind hands access back the next time a table is created.
+func revokeInDatabase(ctx context.Context, conn *pgx.Conn, user, owner string) error {
+	u := quote(user)
+	for _, stmt := range []string{
+		"ALTER DEFAULT PRIVILEGES FOR ROLE " + quote(owner) +
+			" IN SCHEMA public REVOKE ALL ON TABLES FROM " + u,
+		"ALTER DEFAULT PRIVILEGES FOR ROLE " + quote(owner) +
+			" IN SCHEMA public REVOKE ALL ON SEQUENCES FROM " + u,
+		"REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM " + u,
+		"REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM " + u,
+		"REVOKE ALL PRIVILEGES ON SCHEMA public FROM " + u,
+	} {
+		if _, err := conn.Exec(ctx, stmt); err != nil {
+			return fmt.Errorf("postgres: %s: %w", firstWords(stmt), err)
+		}
+	}
+	return nil
+}
+
+func (d *Driver) databaseOwner(ctx context.Context, dbName string) (string, error) {
+	var owner string
+	err := d.pool.QueryRow(ctx,
+		`SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = $1`,
+		dbName).Scan(&owner)
+	if err != nil {
+		return "", fmt.Errorf("postgres: reading the owner of %q: %w", dbName, err)
+	}
+	return owner, nil
+}
+
+// firstWords labels a failing statement without pasting the whole
+// thing (and any identifier in it) into an error a user will read.
+func firstWords(stmt string) string {
+	words := strings.Fields(stmt)
+	if len(words) > 4 {
+		words = words[:4]
+	}
+	return strings.Join(words, " ")
 }
