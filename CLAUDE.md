@@ -71,9 +71,13 @@ Surface the daily 90% here and link out for the rest.
   guests keep running and re-adding the server re-adopts them. Refusing
   until its guests are deleted would make forgetting a credential the
   most dangerous button in the app.
-  Config seeds one server on first run only; after
-  that config driver settings are ignored. Server secrets never leave the
-  backend (`json:"-"`; API exposes `hasSecret`).
+  There is NO config path for adding one: hypervisors, like every other
+  backend, are added in the UI once the app is up — two ways in, one of
+  which silently applies only to an empty database, is a thing to
+  explain rather than a feature. config.yaml covers the app itself:
+  listen address, database, the first account, ssh options. Server
+  secrets never leave the backend (`json:"-"`; API exposes
+  `hasSecret`).
 - SIZING IS TYPED IN, not chosen from a catalog. Machine types were a
   GCP analogue (`hl-standard-2` and friends) that didn't earn its keep:
   a lab has one of everything, so "4 vCPU, 8 GB" is the answer rather

@@ -54,14 +54,6 @@ services:
       # The browser terminal's account provisioning (see config.example.yaml).
       LCM_SSH_PROVISION: ${LCM_SSH_PROVISION:-}
       LCM_SSH_PROVISION_SUDO: ${LCM_SSH_PROVISION_SUDO:-}
-      # Seeds ONE hypervisor on a first run and is ignored ever after —
-      # the everyday way to add one is Compute → Settings → Hypervisors,
-      # which verifies the credentials before storing them. "mock" is
-      # already the built-in default, so leaving these unset is fine.
-      LCM_DRIVER: ${LCM_DRIVER:-mock}
-      LCM_PROXMOX_URL: ${LCM_PROXMOX_URL:-}
-      LCM_PROXMOX_TOKEN_ID: ${LCM_PROXMOX_TOKEN_ID:-}
-      LCM_PROXMOX_SECRET: ${LCM_PROXMOX_SECRET:-}
     volumes:
       - app-data:/data
     ports:

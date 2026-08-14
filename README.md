@@ -20,8 +20,8 @@ vocabulary, so you stop jumping between fifteen consoles.
 
 ## Quick start
 
-Nothing but Docker required — the mock hypervisor driver means you don't
-need a Proxmox cluster to see the app work.
+Nothing but Docker required. There's a mock hypervisor you can add from
+the UI, so you can see the app work without a Proxmox cluster.
 
 ```bash
 docker compose --profile dev up
@@ -55,17 +55,17 @@ cd backend && go run ./cmd/server
 cd frontend && npm install && npm run dev
 ```
 
-`go run ./cmd/server` with no arguments uses the built-in defaults —
-SQLite in the working directory, the mock hypervisor. Add
-`-config ../config.yaml` once you have one (`cp config.example.yaml
-config.yaml`); it's gitignored, since it holds your Proxmox token.
+`go run ./cmd/server` with no arguments uses the built-in defaults, which
+is all you need: SQLite in the working directory. `-config ../config.yaml`
+(`cp config.example.yaml config.yaml`) is only for changing the listen
+address, the database path, the first account or the ssh options.
 
 ## Connecting your lab
 
-Every section connects the same way: a credential record you add in the
-GUI, verified against the real service before it's stored. Nothing but
-the first hypervisor can be seeded from config, so most of setup happens
-in the app.
+Every backend connects the same way: a credential record you add in the
+GUI, verified against the real service before it's stored. There's no
+config file for any of it — the app comes up first, and you add your lab
+to it from there.
 
 | To connect | Go to | You'll need |
 |---|---|---|
@@ -89,8 +89,7 @@ in the app.
    saying exactly that.
 3. Add it under Compute → Settings → Hypervisors. The credentials are
    verified before they're stored, so a saved hypervisor is one that
-   answers. Config can seed the first one instead (`driver: proxmox`
-   plus the `proxmox:` block) — first run only.
+   answers, and you can add as many as you run.
 
 Concept mapping:
 
@@ -115,14 +114,12 @@ Compose forwards only the variables listed in its `environment:` block,
 so a new setting needs adding there as well as to the config struct:
 
 ```bash
-LCM_DRIVER=proxmox \
-LCM_PROXMOX_URL=https://pve.example.lan:8006 \
-LCM_PROXMOX_TOKEN_ID='root@pam!labcloud' \
-LCM_PROXMOX_SECRET=xxxx \
 LCM_AUTH_BOOTSTRAP_EMAIL=you@example.com \
 LCM_AUTH_BOOTSTRAP_PASSWORD='something long' \
 docker compose --profile prod up --build -d
 ```
+
+Backends aren't configured here — sign in and add them in the UI.
 
 SQLite data persists in the `app-data` volume (`/data/labcloud.db`).
 That file holds your accounts, every backend credential and every

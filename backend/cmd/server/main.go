@@ -11,8 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/google/uuid"
-
 	"lab-cloud-manager/internal/api"
 	"lab-cloud-manager/internal/config"
 	"lab-cloud-manager/internal/database"
@@ -55,7 +53,6 @@ func main() {
 		log.Error("seeding the first account", "error", err)
 		os.Exit(1)
 	}
-	seedServerFromConfig(ctx, st, cfg, log)
 
 	registry := hypervisor.NewRegistry()
 	loadRegistry(ctx, st, registry, log)
@@ -187,41 +184,4 @@ func loadNetworkRegistry(ctx context.Context, st *store.Store, registry *network
 		registry.Set(providers[i].ID, provider)
 	}
 	log.Info("network registry loaded", "providers", len(providers))
-}
-
-// seedServerFromConfig registers an initial server on first run, driven
-// by the legacy config (LCM_DRIVER etc). After that, servers are managed
-// in the GUI under Compute → Settings → Hypervisors.
-func seedServerFromConfig(ctx context.Context, st *store.Store, cfg config.Config, log *slog.Logger) {
-	n, err := st.CountServers(ctx)
-	if err != nil {
-		log.Error("counting servers", "error", err)
-		return
-	}
-	if n > 0 {
-		return
-	}
-	var sv *store.Server
-	switch cfg.Driver {
-	case "proxmox":
-		sv = &store.Server{
-			ID:          uuid.NewString(),
-			Name:        "pve",
-			Type:        "proxmox",
-			BaseURL:     cfg.Proxmox.BaseURL,
-			TokenID:     cfg.Proxmox.TokenID,
-			Secret:      cfg.Proxmox.Secret,
-			InsecureTLS: cfg.Proxmox.InsecureSkipVerify,
-		}
-	case "mock", "":
-		sv = &store.Server{ID: uuid.NewString(), Name: "lab-sim", Type: "mock"}
-	default:
-		log.Error("unknown driver in config", "driver", cfg.Driver)
-		return
-	}
-	if err := st.CreateServer(ctx, sv); err != nil {
-		log.Error("seeding server", "error", err)
-		return
-	}
-	log.Info("seeded server from config", "name", sv.Name, "type", sv.Type)
 }

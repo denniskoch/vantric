@@ -9,17 +9,6 @@ database:
   driver: sqlite                # LCM_DB_DRIVER — "sqlite" now, "postgres" planned
   dsn: labcloud.db              # LCM_DB_DSN
 
-# Hypervisor backend: "mock" (development, no cluster needed) or "proxmox"
-driver: mock                    # LCM_DRIVER
-
-proxmox:
-  baseUrl: https://pve.example.lan:8006   # LCM_PROXMOX_URL
-  # Create under Datacenter → Permissions → API Tokens.
-  # Token needs VM.* privileges on the VMs/nodes it manages.
-  tokenId: root@pam!labcloud              # LCM_PROXMOX_TOKEN_ID
-  secret: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx  # LCM_PROXMOX_SECRET
-  insecureSkipVerify: true                # self-signed certs
-
 # The browser terminal.
 ssh:
   # Create the console's login on a guest that has never seen its key,
