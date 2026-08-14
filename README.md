@@ -167,6 +167,31 @@ credential than the scoped API token this app uses.
 
 ## Ideas for later
 
+- **Observability over Zabbix**: the console can't yet answer "what's
+  broken right now", which is the first question anyone brings to a
+  console. Zabbix already knows — read its API for current problems,
+  host availability and recent triggers rather than drawing new graphs
+  next to its old ones. This is also what makes a global home page
+  worth having: problems and recent activity as cards, the way GCP's
+  console home works.
+- **CI/CD over Woodpecker**: pipelines are console-shaped — a table of
+  recent runs, red or green, with a link out to the failing step.
+  Woodpecker has a REST API and an API token per user; Forgejo
+  supplies the repositories behind it. Triggering a rebuild is the one
+  write worth having; editing pipeline YAML stays in the repo.
+- **Certificates via TLSentinel**: expiry is a classic homelab outage
+  and nothing here tracks it. TLSentinel already monitors endpoints,
+  grades TLS configuration and alerts on expiry, and issues personal
+  API keys — the same credential shape every other provider in this
+  app uses. The section lists endpoints with days-to-expiry and grade,
+  and links out for the PKI toolbox and trust matrix. (Its own
+  database, tlsentinel-dev, is already on rowlf-pg.)
+- **Object storage**: the `s3` container and the Synology are invisible
+  here except as a name in a Proxmox datastore list, while every
+  backup lands on the latter. MinIO speaks the S3 API for buckets;
+  DSM's API reports volume health and capacity but needs a session
+  login with a dedicated read-only account, since it has no token
+  auth.
 - **PowerDNS as an internal provider**: `dns.Provider` already has room
   for it, but three things need doing first. A provider record has no
   endpoint — Cloudflare's is a constant — so self-hosted providers need
