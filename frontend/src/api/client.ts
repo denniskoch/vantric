@@ -25,6 +25,8 @@ export interface Instance {
   vlanTag: number
   description: string
   protected: boolean
+  /** The hypervisor's guest-type hint (l26, win11, …). */
+  osType: string
   createdAt: string
   updatedAt: string
 }

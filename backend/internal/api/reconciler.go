@@ -205,6 +205,26 @@ func (r *Reconciler) syncInstance(ctx context.Context, driver hypervisor.Driver,
 			r.log.Warn("reconciler: update failed", "name", inst.Name, "error", err)
 		}
 	}
+	r.fillOSType(ctx, driver, inst)
+}
+
+// fillOSType asks the hypervisor what kind of guest this is, once.
+// List doesn't carry it and it barely ever changes, so it's read on a
+// slow beat for instances still missing it and then left alone —
+// enough to know whether "connect" means SSH or RDP.
+func (r *Reconciler) fillOSType(ctx context.Context, driver hypervisor.Driver, inst *store.Instance) {
+	if inst.OSType != "" || r.sweeps%10 != 0 {
+		return
+	}
+	detail, err := driver.Describe(ctx, inst.DriverID)
+	if err != nil || detail.OSType == "" {
+		return
+	}
+	if err := r.store.SetInstanceOSType(ctx, inst.ID, detail.OSType); err != nil {
+		r.log.Warn("reconciler: os type update failed", "name", inst.Name, "error", err)
+		return
+	}
+	inst.OSType = detail.OSType
 }
 
 // adoptInstance records a VM found on the hypervisor that this app

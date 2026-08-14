@@ -10,25 +10,29 @@ import (
 var ErrNotFound = errors.New("store: not found")
 
 type Instance struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	ServerID    string    `json:"serverId"`
-	Zone        string    `json:"zone"`
-	MachineType string    `json:"machineType"`
-	CPUs        int       `json:"cpus"`
-	MemoryMB    int       `json:"memoryMb"`
-	DiskGB      int       `json:"diskGb"`
-	ImageID     string    `json:"imageId"`
-	Status      string    `json:"status"`
-	DriverID    string    `json:"driverId"`
-	InternalIP  string    `json:"internalIp"`
-	ExternalIP  string    `json:"externalIp"`
-	NetBridge   string    `json:"netBridge"`
-	VLANTag     int       `json:"vlanTag"`
-	Description string    `json:"description"`
-	Protected   bool      `json:"protected"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	ServerID    string `json:"serverId"`
+	Zone        string `json:"zone"`
+	MachineType string `json:"machineType"`
+	CPUs        int    `json:"cpus"`
+	MemoryMB    int    `json:"memoryMb"`
+	DiskGB      int    `json:"diskGb"`
+	ImageID     string `json:"imageId"`
+	Status      string `json:"status"`
+	DriverID    string `json:"driverId"`
+	InternalIP  string `json:"internalIp"`
+	ExternalIP  string `json:"externalIp"`
+	NetBridge   string `json:"netBridge"`
+	VLANTag     int    `json:"vlanTag"`
+	Description string `json:"description"`
+	Protected   bool   `json:"protected"`
+	// OSType is the hypervisor's guest-type hint (Proxmox's l26, win11,
+	// …). Filled in once per instance, and only used to decide whether
+	// "connect" means SSH or RDP.
+	OSType    string    `json:"osType"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 const timeFormat = time.RFC3339
@@ -42,7 +46,7 @@ func parseTime(s string) time.Time {
 
 const instanceCols = `id, name, server_id, zone, machine_type, cpus, memory_mb, disk_gb,
 	image_id, status, driver_id, internal_ip, external_ip, net_bridge, vlan_tag,
-	description, protected, created_at, updated_at`
+	description, protected, os_type, created_at, updated_at`
 
 func scanInstance(scan func(dest ...any) error) (*Instance, error) {
 	var i Instance
@@ -50,7 +54,7 @@ func scanInstance(scan func(dest ...any) error) (*Instance, error) {
 	var protected int
 	err := scan(&i.ID, &i.Name, &i.ServerID, &i.Zone, &i.MachineType, &i.CPUs, &i.MemoryMB,
 		&i.DiskGB, &i.ImageID, &i.Status, &i.DriverID, &i.InternalIP, &i.ExternalIP,
-		&i.NetBridge, &i.VLANTag, &i.Description, &protected, &created, &updated)
+		&i.NetBridge, &i.VLANTag, &i.Description, &protected, &i.OSType, &created, &updated)
 	if err != nil {
 		return nil, err
 	}
@@ -64,12 +68,20 @@ func (s *Store) CreateInstance(ctx context.Context, i *Instance) error {
 	ts := now()
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO instances (`+instanceCols+`)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		i.ID, i.Name, i.ServerID, i.Zone, i.MachineType, i.CPUs, i.MemoryMB, i.DiskGB,
 		i.ImageID, i.Status, i.DriverID, i.InternalIP, i.ExternalIP, i.NetBridge, i.VLANTag,
-		i.Description, boolInt(i.Protected), ts, ts)
+		i.Description, boolInt(i.Protected), i.OSType, ts, ts)
 	i.CreatedAt = parseTime(ts)
 	i.UpdatedAt = i.CreatedAt
+	return err
+}
+
+// SetInstanceOSType records the guest type once the hypervisor has
+// been asked for it.
+func (s *Store) SetInstanceOSType(ctx context.Context, id, osType string) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE instances SET os_type = ? WHERE id = ?`, osType, id)
 	return err
 }
 

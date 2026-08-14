@@ -76,6 +76,10 @@ Surface the daily 90% here and link out for the rest.
   documented exception is the detail view's on-demand reads
   (`/instances/{name}/describe|metrics|os-info`), since VM config and
   RRD history aren't mirrored in the store.
+- Instances carry an `osType` (Proxmox's l26, win11, …), filled once
+  per instance by the reconciler on a slow beat because List doesn't
+  report it and it never changes. Its only job is deciding whether
+  Connect offers SSH or RDP.
 - The reconciler also ADOPTS VMs found on a server that the app didn't
   create (they appear as instances with deletion protection enabled) and
   removes instances whose VM vanished out-of-band. Driver.List must be

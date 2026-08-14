@@ -6,6 +6,7 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	_ "modernc.org/sqlite"
 )
@@ -140,5 +141,18 @@ func (s *Store) migrate() error {
 			return fmt.Errorf("store: migration failed: %w", err)
 		}
 	}
+	// Columns added after a table shipped. SQLite has no
+	// ADD COLUMN IF NOT EXISTS, and re-adding one is the expected
+	// outcome on every boot after the first — so that error alone is
+	// not a failure.
+	for _, m := range columnMigrations {
+		if _, err := s.db.Exec(m); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+			return fmt.Errorf("store: migration failed: %w", err)
+		}
+	}
 	return nil
+}
+
+var columnMigrations = []string{
+	`ALTER TABLE instances ADD COLUMN os_type TEXT NOT NULL DEFAULT ''`,
 }
