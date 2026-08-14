@@ -1,9 +1,9 @@
 /**
- * How you'd reach a guest from your own machine.
+ * How you get into a guest.
  *
- * The console can't open a session itself — it has no console proxy —
- * so it hands you the thing your desktop already knows how to open,
- * and the command to paste when it doesn't.
+ * SSH the console proxies itself, so it opens in a browser window and
+ * needs nothing installed. RDP it can't, so Windows guests get the URI
+ * the desktop's own client already knows how to open.
  */
 export interface Connection {
   kind: 'SSH' | 'RDP'

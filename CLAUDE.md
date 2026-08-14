@@ -107,6 +107,12 @@ Surface the daily 90% here and link out for the rest.
   clicking Connect, granting root fleet-wide is not. `ssh.provision:
   false` turns the whole path off and the terminal goes back to
   printing the key to install (`GET /ssh-key`).
+- The instance detail view's Console tab is where every way into a
+  guest lives — display, serial, SSH/RDP — with what each one needs
+  spelled out (a stopped VM has no display; the serial console needs a
+  serial port, which is the usual reason it's missing). Only SSH is
+  proxied here; display and serial deep-link to the hypervisor's own
+  console until they are, because linking out beats a disabled button.
 - Instances carry an `osType` (Proxmox's l26, win11, …), filled once
   per instance by the reconciler on a slow beat because List doesn't
   report it and it never changes. Its only job is deciding whether

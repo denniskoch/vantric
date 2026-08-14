@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -24,6 +25,8 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
 import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import DeleteIcon from '@mui/icons-material/Delete'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import TerminalIcon from '@mui/icons-material/Terminal'
 import { api } from '../api/client'
 import type { MetricTimeframe } from '../api/client'
 import StatusIcon from '../components/StatusIcon'
@@ -33,8 +36,10 @@ import { chart } from '../chartPalette'
 import { formatBytes, formatBytesPerSec, formatPercent, formatUptime } from '../format'
 import BrandIcon from '../components/BrandIcon'
 import { osBrand } from '../brands'
+import { connectionFor } from '../connect'
+import { sshUsername } from '../user'
 
-type TabID = 'details' | 'observability' | 'os'
+type TabID = 'details' | 'observability' | 'os' | 'console'
 
 const mediaLabels: Record<string, string> = {
   cdrom: 'CD-ROM',
@@ -44,6 +49,24 @@ const mediaLabels: Record<string, string> = {
 }
 
 const mediaLabel = (media: string) => mediaLabels[media] ?? 'Disk'
+
+/**
+ * A deep link to the hypervisor's own console.
+ *
+ * The display and serial consoles aren't proxied here yet, and until
+ * they are, linking out beats a disabled button: Proxmox opens the
+ * same VM on the same node, one click away.
+ */
+function proxmoxConsoleURL(
+  baseUrl: string,
+  node: string,
+  vmid: string,
+  mode: 'novnc' | 'xtermjs',
+): string {
+  const params = new URLSearchParams({ console: 'kvm', vmid, node })
+  params.set(mode, '1')
+  return `${baseUrl.replace(/\/$/, '')}/?${params}`
+}
 
 export default function InstanceDetailPage() {
   const { name } = useParams<{ name: string }>()
@@ -119,6 +142,84 @@ export default function InstanceDetailPage() {
   const times = metrics.map((m) => m.time)
   const maxMemory = metrics.reduce((max, m) => Math.max(max, m.maxMemoryBytes), 0)
 
+  // Console access. A stopped VM has no display to attach to, and the
+  // serial console only exists if the VM was given a serial port —
+  // which is the usual reason it doesn't work, so say so rather than
+  // offering a button that opens a dead terminal.
+  const running = inst.status === 'RUNNING'
+  const serialPort = detail?.devices?.find((d) => d.kind === 'Serial port')
+  const hypervisorURL = server?.type === 'proxmox' ? server.baseUrl : ''
+  const connection = connectionFor(inst.osType, inst.internalIp, inst.name)
+  const hypervisorLink = (mode: 'novnc' | 'xtermjs') => (
+    <Button
+      size="small"
+      endIcon={<OpenInNewIcon />}
+      component="a"
+      target="_blank"
+      rel="noreferrer"
+      href={proxmoxConsoleURL(hypervisorURL, inst.zone, inst.driverId, mode)}
+    >
+      Open in Proxmox
+    </Button>
+  )
+
+  const consoleOptions: {
+    name: string
+    availability: string
+    ready: boolean
+    action?: ReactNode
+  }[] = [
+    {
+      name: 'Display (VNC)',
+      availability: !running
+        ? 'Instance is not running'
+        : !hypervisorURL
+          ? 'This hypervisor has no console URL'
+          : detail?.display || 'Default adapter',
+      ready: running && Boolean(hypervisorURL),
+      action: hypervisorLink('novnc'),
+    },
+    {
+      name: 'Serial',
+      availability: !serialPort
+        ? 'No serial port configured on this instance'
+        : !running
+          ? 'Instance is not running'
+          : `${serialPort.key} — ${serialPort.value}`,
+      ready: running && Boolean(serialPort) && Boolean(hypervisorURL),
+      action: hypervisorLink('xtermjs'),
+    },
+    {
+      name: connection?.kind === 'RDP' ? 'Remote Desktop' : 'SSH',
+      availability: !connection
+        ? 'No address known for this instance'
+        : connection.kind === 'RDP'
+          ? `${inst.internalIp}:${connection.port} — opens your own client`
+          : `${sshUsername()}@${inst.internalIp} — proxied by this console`,
+      ready: Boolean(connection),
+      action:
+        connection?.kind === 'RDP' ? (
+          <Button size="small" endIcon={<OpenInNewIcon />} component="a" href={connection.href}>
+            Open Remote Desktop
+          </Button>
+        ) : (
+          <Button
+            size="small"
+            endIcon={<TerminalIcon />}
+            onClick={() =>
+              window.open(
+                connection!.href,
+                `ssh-${inst.name}`,
+                'width=1024,height=640,menubar=no,toolbar=no,location=no,status=no',
+              )
+            }
+          >
+            Open terminal
+          </Button>
+        ),
+    },
+  ]
+
   return (
     <Box sx={{ pb: 4 }}>
       {/* Header */}
@@ -181,6 +282,7 @@ export default function InstanceDetailPage() {
         <Tab label="Details" value="details" sx={{ textTransform: 'none', minHeight: 44 }} />
         <Tab label="Observability" value="observability" sx={{ textTransform: 'none', minHeight: 44 }} />
         <Tab label="OS Info" value="os" sx={{ textTransform: 'none', minHeight: 44 }} />
+        <Tab label="Console" value="console" sx={{ textTransform: 'none', minHeight: 44 }} />
       </Tabs>
 
       <Box sx={{ p: 3, maxWidth: 1100 }}>
@@ -561,6 +663,43 @@ export default function InstanceDetailPage() {
                 />
               </DetailSection>
             )}
+          </>
+        )}
+
+        {tab === 'console' && (
+          <>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              The display and serial consoles still open on the hypervisor. Proxying
+              them through this app — the way the SSH terminal already is — is the
+              next step.
+            </Alert>
+
+            <DetailSection title="Console access">
+              <TableContainer component={Paper} variant="outlined">
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Console</TableCell>
+                      <TableCell>Availability</TableCell>
+                      <TableCell align="right" />
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {consoleOptions.map((option) => (
+                      <TableRow key={option.name} hover>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }}>{option.name}</TableCell>
+                        <TableCell sx={{ color: option.ready ? '#202124' : '#5f6368' }}>
+                          {option.availability}
+                        </TableCell>
+                        <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                          {option.ready && option.action}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </DetailSection>
           </>
         )}
       </Box>

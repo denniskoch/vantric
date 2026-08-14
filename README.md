@@ -228,8 +228,14 @@ credential than the scoped API token this app uses.
   queryable fleet-wide rather than per-VM. Would need an agent-install
   story (cloud-init) plus a collection endpoint; the OS Info tab is the
   natural home for it.
-- **Console access**: noVNC/serial console proxying (Proxmox exposes
-  both), mirroring GCP's SSH-in-browser button.
+- **Display and serial consoles**: SSH is already proxied in the
+  browser; the display (noVNC) and serial consoles are not. The
+  instance detail view has a Console tab holding all three, and for now
+  those two link out to the hypervisor's own console — Proxmox exposes
+  `vncproxy`/`termproxy` as websockets with a one-time ticket, so
+  bringing them in-app is the same shape as the SSH bridge. Serial
+  needs a serial port on the VM, which the Console tab reports because
+  it's the usual reason the option is missing.
 - **CT provisioning**: create flow for containers (template picker,
   rootfs storage/size, unprivileged flag) — the CT Templates page
   already lists the sources.
