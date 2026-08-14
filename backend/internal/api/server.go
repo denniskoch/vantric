@@ -37,7 +37,15 @@ type Server struct {
 	// dataDir is where the store lives; the console's SSH key sits
 	// beside it.
 	dataDir string
+	ssh     SSHOptions
 	builds  *buildRegistry
+}
+
+// SSHOptions is what the browser terminal is allowed to do to a guest
+// before it connects. See config.SSH, which supplies it.
+type SSHOptions struct {
+	Provision bool
+	Sudo      bool
 }
 
 func New(
@@ -50,11 +58,12 @@ func New(
 	log *slog.Logger,
 	staticDir string,
 	dataDir string,
+	sshOpts SSHOptions,
 ) *Server {
 	return &Server{
 		store: st, registry: registry, dnsRegistry: dnsRegistry, dbRegistry: dbRegistry,
 		identityRegistry: identityRegistry, networkRegistry: networkRegistry,
-		log: log, staticDir: staticDir, dataDir: dataDir,
+		log: log, staticDir: staticDir, dataDir: dataDir, ssh: sshOpts,
 		builds: newBuildRegistry(),
 	}
 }

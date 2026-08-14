@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -19,6 +20,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/ssh"
+
+	"lab-cloud-manager/internal/hypervisor"
+	"lab-cloud-manager/internal/store"
 )
 
 // Browser SSH: the console proxies a terminal rather than handing you
@@ -35,6 +39,9 @@ const (
 	sshMaxSession  = 4 * time.Hour
 	sshIdleLimit   = 30 * time.Minute
 	sshDialTimeout = 10 * time.Second
+	// Provisioning is a few guest-agent round trips; longer than this
+	// and the terminal should stop pretending it's about to work.
+	sshProvisionTimeout = 45 * time.Second
 )
 
 var sshUpgrader = websocket.Upgrader{
@@ -183,12 +190,32 @@ func (s *Server) instanceSSH(w http.ResponseWriter, r *http.Request) {
 	}
 	client, err := dialSSH(inst.InternalIP, auth, key)
 	if err != nil {
-		fail("%v", err)
-		// The overwhelmingly likely cause is that this guest has never
-		// seen the console's key, so say what to do about it.
-		fail("Add the console's key to %s@%s and try again:", auth.Username, inst.InternalIP)
-		_ = conn.WriteMessage(websocket.TextMessage, []byte("\r\n"+key.Public+"\r\n"))
-		return
+		// Almost always this guest has simply never seen the console's
+		// key. If the hypervisor can reach inside it, put the account
+		// there and try once more; otherwise say what to install.
+		note := func(format string, args ...any) {
+			_ = conn.WriteMessage(websocket.TextMessage,
+				[]byte("\r\n\x1b[90m"+fmt.Sprintf(format, args...)+"\x1b[0m\r\n"))
+		}
+		if provErr := s.provisionConsoleUser(r.Context(), inst, auth.Username, key, note); provErr != nil {
+			fail("%v", err)
+			if provErr != errNoProvisioner {
+				fail("%v", provErr)
+			}
+			fail("Add the console's key to %s@%s and try again:", auth.Username, inst.InternalIP)
+			_ = conn.WriteMessage(websocket.TextMessage, []byte("\r\n"+key.Public+"\r\n"))
+			return
+		}
+		// One retry, never a loop: if the account we just created still
+		// can't log in, something else is wrong and repeating won't
+		// find it.
+		client, err = dialSSH(inst.InternalIP, auth, key)
+		if err != nil {
+			fail("%v", err)
+			fail("The %s account was provisioned but still can't sign in — check sshd on this guest.",
+				auth.Username)
+			return
+		}
 	}
 	defer client.Close()
 
@@ -279,6 +306,60 @@ func (s *Server) instanceSSH(w http.ResponseWriter, r *http.Request) {
 
 	<-ctx.Done()
 	s.log.Info("ssh session closed", "instance", inst.Name, "user", auth.Username)
+}
+
+// errNoProvisioner means nothing was attempted — no driver, no
+// capability, or the operator turned provisioning off. The terminal
+// falls back to printing the key without claiming anything failed.
+var errNoProvisioner = errors.New("no guest provisioner")
+
+// provisionConsoleUser creates the console's login on a guest that has
+// never seen its key, using the hypervisor's guest agent.
+//
+// This is the one place the console does something root-equivalent
+// that nobody asked for by name, so it is narrow and it is loud: only
+// on an authentication failure, only for the account the console signs
+// in as, and it says so in the terminal and the server log.
+func (s *Server) provisionConsoleUser(
+	ctx context.Context,
+	inst *store.Instance,
+	username string,
+	key *sshKey,
+	note func(string, ...any),
+) error {
+	if !s.ssh.Provision {
+		return errNoProvisioner
+	}
+	// Windows guests have an agent too, and none of this applies to
+	// them — they connect over RDP.
+	if strings.HasPrefix(strings.ToLower(inst.OSType), "w") {
+		return errNoProvisioner
+	}
+	driver, ok := s.registry.Get(inst.ServerID)
+	if !ok {
+		return errNoProvisioner
+	}
+	provisioner, ok := driver.(hypervisor.GuestProvisioner)
+	if !ok {
+		return errNoProvisioner
+	}
+
+	note("Setting up console access on %s…", inst.Name)
+	ctx, cancel := context.WithTimeout(ctx, sshProvisionTimeout)
+	defer cancel()
+	err := provisioner.EnsureConsoleUser(ctx, inst.DriverID, hypervisor.ConsoleUser{
+		Username:  username,
+		PublicKey: key.Public,
+		Sudo:      s.ssh.Sudo,
+	})
+	if err != nil {
+		s.log.Warn("provisioning console user", "instance", inst.Name, "user", username, "error", err)
+		return err
+	}
+	s.log.Info("provisioned console user via guest agent",
+		"instance", inst.Name, "user", username, "sudo", s.ssh.Sudo)
+	note("Created %s on %s and installed the console's key.", username, inst.Name)
+	return nil
 }
 
 // dialSSH authenticates with whichever credential was supplied.

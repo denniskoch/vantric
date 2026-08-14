@@ -19,3 +19,15 @@ proxmox:
   tokenId: root@pam!labcloud              # LCM_PROXMOX_TOKEN_ID
   secret: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx  # LCM_PROXMOX_SECRET
   insecureSkipVerify: true                # self-signed certs
+
+# The browser terminal.
+ssh:
+  # Create the console's login on a guest that has never seen its key,
+  # through the hypervisor's guest agent — so Connect works on VMs this
+  # console adopted rather than created. Only ever runs after an
+  # authentication failure. Needs VM.Monitor on the Proxmox token.
+  provision: true               # LCM_SSH_PROVISION
+  # Give that account passwordless sudo. Off by default on purpose:
+  # the console signs in as an ordinary user so sudo still asks the
+  # question that makes you think.
+  provisionSudo: false          # LCM_SSH_PROVISION_SUDO

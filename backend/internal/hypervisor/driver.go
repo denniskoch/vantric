@@ -454,6 +454,35 @@ type BackupDriver interface {
 	Backups(ctx context.Context) ([]Backup, error)
 }
 
+// ConsoleUser is the account the console signs in as, and the key it
+// signs in with. Sudo is off unless the operator turns it on: creating
+// the account is implied by clicking Connect, granting root across the
+// fleet is not.
+type ConsoleUser struct {
+	Username  string
+	PublicKey string
+	Sudo      bool
+}
+
+// GuestProvisioner is an optional capability for backends that can
+// reach inside a running guest without credentials for it — Proxmox
+// through the QEMU guest agent. It exists to solve one problem: a VM
+// this console adopted has never heard of the console's key, so the
+// first Connect would fail forever.
+//
+// The method is deliberately this narrow. A general Exec would be far
+// easier to write and would turn the console into an unaudited root
+// shell on every guest — no sudo, nothing in the guest's auth log. So
+// the capability that crosses this boundary is "make an ordinary SSH
+// account exist", once, and everything afterwards goes over SSH like
+// any other client: real authentication, real sudo, real logging.
+//
+// Implementations must be idempotent — Connect may call this whenever
+// authentication fails.
+type GuestProvisioner interface {
+	EnsureConsoleUser(ctx context.Context, driverID string, user ConsoleUser) error
+}
+
 // ContainerDriver is an optional capability for backends that support
 // system containers (Proxmox LXC). Containers are deliberately a
 // separate resource from VMs: they list, provision, and behave

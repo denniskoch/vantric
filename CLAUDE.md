@@ -83,12 +83,30 @@ Surface the daily 90% here and link out for the rest.
   first frame — never as query parameters, which land in proxy logs.
   There is no credential prompt: the console generates its own ed25519
   key beside the database on first use and signs in as the local part
-  of `currentUser.email` (src/user.ts, the sign-in stub). Deploy the
-  public half — `GET /ssh-key`, or the line the terminal prints when
-  auth fails — to your guests. Host keys are not verified and the UI
-  says so. RDP has no proxy, so Windows guests
-  still get an `rdp://` URI for the desktop's own client. The Vite dev
-  proxy needs `ws: true` or the upgrade never reaches the backend.
+  of `currentUser.email` (src/user.ts, the sign-in stub) — never root.
+  Host keys are not verified and the UI says so. RDP has no proxy, so
+  Windows guests still get an `rdp://` URI for the desktop's own
+  client. The Vite dev proxy needs `ws: true` or the upgrade never
+  reaches the backend.
+- The console's account is PROVISIONED JUST IN TIME, the way a cloud
+  console does it: a guest this app adopted has never seen the key, so
+  the first Connect can only fail — and on that failure the console
+  creates the account through the hypervisor's guest agent and retries
+  ONCE (`hypervisor.GuestProvisioner`, a capability like
+  ContainerDriver; Proxmox's `agent/exec` in
+  hypervisor/proxmox/provision.go; needs VM.Monitor on the token).
+  The interface is deliberately `EnsureConsoleUser`, not a general
+  Exec: agent/exec is root inside the guest and leaves nothing in its
+  auth log, so it is used once to manufacture an ordinary SSH account
+  and never for the session itself. Everything after that is plain SSH
+  with real auth, real sudo, real logging. The provisioning script is
+  POSIX sh, idempotent, and replaces any line tagged
+  `lab-cloud-manager` rather than appending — so key rotation
+  self-heals on the next failed connect. Sudo is a SEPARATE decision
+  (`ssh.provisionSudo`, default off): creating a login is implied by
+  clicking Connect, granting root fleet-wide is not. `ssh.provision:
+  false` turns the whole path off and the terminal goes back to
+  printing the key to install (`GET /ssh-key`).
 - Instances carry an `osType` (Proxmox's l26, win11, …), filled once
   per instance by the reconciler on a slow beat because List doesn't
   report it and it never changes. Its only job is deciding whether
