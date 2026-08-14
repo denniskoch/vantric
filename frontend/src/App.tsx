@@ -61,6 +61,8 @@ import DatastoresPage from './pages/DatastoresPage'
 export default function App() {
   return (
     <Routes>
+      {/* Opened in its own window, so no shell around it. */}
+      <Route path="/compute/instances/:name/ssh" element={<InstanceSSHPage />} />
       <Route element={<Shell />}>
         <Route path="/" element={<Navigate to="/compute/instances" replace />} />
         <Route path="/compute/overview" element={<OverviewPage />} />
@@ -124,7 +126,6 @@ export default function App() {
         <Route path="/compute/instances" element={<InstancesPage />} />
         <Route path="/compute/instances/create" element={<CreateInstancePage />} />
         <Route path="/compute/instances/:name" element={<InstanceDetailPage />} />
-        <Route path="/compute/instances/:name/ssh" element={<InstanceSSHPage />} />
         <Route path="/compute/containers" element={<ContainersPage />} />
         <Route path="/compute/containers/:name" element={<ContainerDetailPage />} />
         <Route path="/compute/vm-templates" element={<VMTemplatesPage />} />

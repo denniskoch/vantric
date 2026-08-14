@@ -40,9 +40,19 @@ import StatusIcon from '../components/StatusIcon'
  */
 function ConnectCell({ instance }: { instance: Instance }) {
   const [menu, setMenu] = useState<null | HTMLElement>(null)
-  const navigate = useNavigate()
   const connection = connectionFor(instance.osType, instance.internalIp, instance.name)
   const running = instance.status === 'RUNNING'
+
+  // A terminal belongs in its own window: it outlives the page you
+  // launched it from, and you'll want the console beside it.
+  const openTerminal = () => {
+    if (!connection) return
+    window.open(
+      connection.href,
+      `ssh-${instance.name}`,
+      'width=1024,height=640,menubar=no,toolbar=no,location=no,status=no',
+    )
+  }
 
   if (!connection) {
     return (
@@ -68,13 +78,7 @@ function ConnectCell({ instance }: { instance: Instance }) {
   }
   return (
     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-      <Button
-        size="small"
-        disabled={!running}
-        component={RouterLink}
-        to={connection.href}
-        sx={{ minWidth: 0, px: 1 }}
-      >
+      <Button size="small" disabled={!running} onClick={openTerminal} sx={{ minWidth: 0, px: 1 }}>
         SSH
       </Button>
       <IconButton
@@ -89,7 +93,7 @@ function ConnectCell({ instance }: { instance: Instance }) {
         <MenuItem
           onClick={() => {
             setMenu(null)
-            navigate(connection.href)
+            openTerminal()
           }}
         >
           Open in browser window

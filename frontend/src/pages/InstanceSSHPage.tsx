@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Box, Button, Typography } from '@mui/material'
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import TerminalIcon from '@mui/icons-material/Terminal'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
@@ -20,7 +20,6 @@ import { sshUsername } from '../user'
  */
 export default function InstanceSSHPage() {
   const { name = '' } = useParams()
-  const navigate = useNavigate()
   const username = sshUsername()
 
   const terminalRef = useRef<HTMLDivElement>(null)
@@ -45,6 +44,7 @@ export default function InstanceSSHPage() {
     term.open(terminalRef.current)
     fit.fit()
 
+    document.title = `${name} — ssh`
     term.writeln(`\x1b[90mConnecting as ${username}…\x1b[0m`)
 
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -85,37 +85,45 @@ export default function InstanceSSHPage() {
   }, [name])
 
   return (
-    <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-        <Button
-          size="small"
-          startIcon={<ArrowBackIcon />}
-          onClick={() => {
-            socketRef.current?.close()
-            navigate('/compute/instances')
-          }}
-        >
-          VM instances
-        </Button>
-        <Typography variant="h5">{name}</Typography>
-        <Box component="span" sx={{ color: '#5f6368', fontSize: 14 }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        bgcolor: '#202124',
+        color: '#e8eaed',
+      }}
+    >
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          px: 2,
+          py: 1,
+          borderBottom: '1px solid #3c4043',
+        }}
+      >
+        <TerminalIcon sx={{ fontSize: 18, color: '#9aa0a6' }} />
+        <Typography sx={{ fontSize: 14 }}>{name}</Typography>
+        <Box component="span" sx={{ color: '#9aa0a6', fontSize: 13 }}>
           {username}@{instance?.internalIp ?? '…'}
         </Box>
         <Box sx={{ flex: 1 }} />
-        <Button size="small" onClick={() => socketRef.current?.close()}>
+        <Button
+          size="small"
+          sx={{ color: '#8ab4f8' }}
+          onClick={() => {
+            socketRef.current?.close()
+            window.close()
+          }}
+        >
           Disconnect
         </Button>
       </Box>
       <Box
         ref={terminalRef}
-        sx={{
-          flex: 1,
-          minHeight: 0,
-          bgcolor: '#202124',
-          borderRadius: 1,
-          p: 1,
-          '& .xterm': { height: '100%' },
-        }}
+        sx={{ flex: 1, minHeight: 0, p: 1, '& .xterm': { height: '100%' } }}
       />
     </Box>
   )
