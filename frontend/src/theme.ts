@@ -65,7 +65,12 @@ export const theme = createTheme({
             lineHeight: 1.5,
           },
         },
-        sizeSmall: { padding: '3px 12px' },
+        // A table cell treats height as a minimum, so this is the floor
+        // every row sits on. Set it rather than shrinking the checkbox
+        // below its own icon: a row with controls can't go under 28, so
+        // 28 is the house row and a text-only table matches it instead
+        // of running two pixels tighter.
+        sizeSmall: { padding: '3px 12px', height: 28 },
         head: { color: '#5f6368', fontWeight: 500, whiteSpace: 'nowrap' },
       },
     },

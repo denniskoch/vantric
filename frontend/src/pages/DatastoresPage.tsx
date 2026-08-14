@@ -24,7 +24,18 @@ function UsageBar({ used, total }: { used: number; total: number }) {
   const pct = Math.min(100, (used / total) * 100)
   return (
     <Box sx={{ minWidth: 180 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, mb: 0.3 }}>
+      {/* Label and bar together have to fit the standard row, so the
+          line is tightened rather than letting this one page stand
+          taller than every other table. */}
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          fontSize: 12,
+          lineHeight: 1.2,
+          mb: 0.25,
+        }}
+      >
         <span>
           {formatBytes(used)} / {formatBytes(total)}
         </span>
