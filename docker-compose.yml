@@ -9,6 +9,9 @@ services:
     working_dir: /src/backend
     command: go run github.com/air-verse/air@v1.63.0 -c .air.toml
     environment:
+      # Both load-bearing: the default listen address is 127.0.0.1, which
+      # nothing outside the container could reach, and the default DSN is
+      # relative — it would put the database in the bind-mounted repo.
       LCM_LISTEN: 0.0.0.0:8080
       LCM_DB_DSN: /data/labcloud.db
     volumes:
@@ -25,6 +28,8 @@ services:
     working_dir: /src/frontend
     command: sh -c "npm install && npm run dev -- --host"
     environment:
+      # Read by vite.config.ts; without it the proxy points at 127.0.0.1,
+      # which in this container is the frontend itself.
       LCM_API_TARGET: http://backend-dev:8080
     volumes:
       - .:/src
@@ -39,6 +44,20 @@ services:
     profiles: [prod]
     build: .
     environment:
+      # Anything the container should see has to be listed here — compose
+      # doesn't forward the shell's environment by prefix.
+      #
+      # The first account. This is the one that matters on a first run:
+      # leave the password unset and one is generated and logged once.
+      LCM_AUTH_BOOTSTRAP_EMAIL: ${LCM_AUTH_BOOTSTRAP_EMAIL:-}
+      LCM_AUTH_BOOTSTRAP_PASSWORD: ${LCM_AUTH_BOOTSTRAP_PASSWORD:-}
+      # The browser terminal's account provisioning (see config.example.yaml).
+      LCM_SSH_PROVISION: ${LCM_SSH_PROVISION:-}
+      LCM_SSH_PROVISION_SUDO: ${LCM_SSH_PROVISION_SUDO:-}
+      # Seeds ONE hypervisor on a first run and is ignored ever after —
+      # the everyday way to add one is Compute → Settings → Hypervisors,
+      # which verifies the credentials before storing them. "mock" is
+      # already the built-in default, so leaving these unset is fine.
       LCM_DRIVER: ${LCM_DRIVER:-mock}
       LCM_PROXMOX_URL: ${LCM_PROXMOX_URL:-}
       LCM_PROXMOX_TOKEN_ID: ${LCM_PROXMOX_TOKEN_ID:-}

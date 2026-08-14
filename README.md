@@ -110,7 +110,9 @@ docker compose --profile prod up --build -d   # everything on :8080
 ```
 
 Configuration is `config.yaml` (see `config.example.yaml`, which
-documents every setting) or `LCM_*` environment variables, which win:
+documents every setting) or `LCM_*` environment variables, which win.
+Compose forwards only the variables listed in its `environment:` block,
+so a new setting needs adding there as well as to the config struct:
 
 ```bash
 LCM_DRIVER=proxmox \
