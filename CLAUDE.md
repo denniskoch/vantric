@@ -76,6 +76,15 @@ Surface the daily 90% here and link out for the rest.
   documented exception is the detail view's on-demand reads
   (`/instances/{name}/describe|metrics|os-info`), since VM config and
   RRD history aren't mirrored in the store.
+- SSH is BROWSER-BASED and proxied by the console server
+  (internal/api/ssh.go): a websocket at
+  `/instances/{name}/ssh` carries an xterm.js terminal, so a guest need
+  only be reachable from the server. Credentials arrive as the socket's
+  first frame — never as query parameters, which land in proxy logs —
+  authenticate one session and are never stored. Host keys are not
+  verified and the UI says so. RDP has no proxy, so Windows guests
+  still get an `rdp://` URI for the desktop's own client. The Vite dev
+  proxy needs `ws: true` or the upgrade never reaches the backend.
 - Instances carry an `osType` (Proxmox's l26, win11, …), filled once
   per instance by the reconciler on a slow beat because List doesn't
   report it and it never changes. Its only job is deciding whether

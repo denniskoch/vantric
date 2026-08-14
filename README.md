@@ -119,6 +119,9 @@ Base path `/api/v1`:
 - `GET/POST /instances`
 - `GET/DELETE /instances/{name}/`
 - `POST /instances/{name}/{start|stop|reset|protection}`
+- `GET /instances/{name}/ssh` — websocket carrying a terminal; the
+  first frame is `{username, password|privateKey, cols, rows}`, later
+  frames are `{type: data|resize}`
 - `GET /instances/{name}/{describe|metrics|os-info}` — live hypervisor
   reads for the detail view (`metrics` takes `?timeframe=hour|day|week|month`)
 - `GET /database/engines`, `GET /database/servers`,

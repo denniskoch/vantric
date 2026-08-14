@@ -38,7 +38,7 @@ import StatusIcon from '../components/StatusIcon'
  *  can open and offers the command for when it can't. */
 function ConnectCell({ instance }: { instance: Instance }) {
   const [copied, setCopied] = useState(false)
-  const connection = connectionFor(instance.osType, instance.internalIp)
+  const connection = connectionFor(instance.osType, instance.internalIp, instance.name)
   const running = instance.status === 'RUNNING'
 
   if (!connection) {
@@ -52,12 +52,22 @@ function ConnectCell({ instance }: { instance: Instance }) {
   }
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-      <Tooltip title={running ? connection.command : 'Instance is not running'}>
+      <Tooltip
+        title={
+          !running
+            ? 'Instance is not running'
+            : connection.internal
+              ? 'Open a terminal in the browser'
+              : connection.command
+        }
+      >
         <span>
           <Button
             size="small"
-            href={connection.href}
             disabled={!running}
+            {...(connection.internal
+              ? { component: RouterLink, to: connection.href }
+              : { href: connection.href })}
             sx={{ minWidth: 0, px: 1 }}
           >
             {connection.kind}

@@ -3,6 +3,7 @@ import Shell from './components/Shell'
 import InstancesPage from './pages/InstancesPage'
 import CreateInstancePage from './pages/CreateInstancePage'
 import InstanceDetailPage from './pages/InstanceDetailPage'
+import InstanceSSHPage from './pages/InstanceSSHPage'
 import VMTemplatesPage from './pages/VMTemplatesPage'
 import BuildTemplatePage from './pages/BuildTemplatePage'
 import CTTemplatesPage from './pages/CTTemplatesPage'
@@ -123,6 +124,7 @@ export default function App() {
         <Route path="/compute/instances" element={<InstancesPage />} />
         <Route path="/compute/instances/create" element={<CreateInstancePage />} />
         <Route path="/compute/instances/:name" element={<InstanceDetailPage />} />
+        <Route path="/compute/instances/:name/ssh" element={<InstanceSSHPage />} />
         <Route path="/compute/containers" element={<ContainersPage />} />
         <Route path="/compute/containers/:name" element={<ContainerDetailPage />} />
         <Route path="/compute/vm-templates" element={<VMTemplatesPage />} />

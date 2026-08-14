@@ -11,7 +11,12 @@ export default defineConfig({
     watch: { usePolling: true, interval: 500 },
     proxy: {
       // In docker-compose dev the backend is another service, not localhost.
-      '/api': process.env.LCM_API_TARGET ?? 'http://127.0.0.1:8080',
+      // ws: the browser SSH terminal upgrades /api/v1/instances/*/ssh,
+      // and the proxy passes upgrades through only when asked.
+      '/api': {
+        target: process.env.LCM_API_TARGET ?? 'http://127.0.0.1:8080',
+        ws: true,
+      },
     },
   },
 })

@@ -105,6 +105,7 @@ func (s *Server) Router() http.Handler {
 			r.Get("/describe", s.describeInstance)
 			r.Get("/metrics", s.instanceMetrics)
 			r.Get("/os-info", s.instanceOSInfo)
+			r.Get("/ssh", s.instanceSSH)
 			r.Delete("/", s.deleteInstance)
 			r.Post("/start", s.instanceAction("start"))
 			r.Post("/stop", s.instanceAction("stop"))
