@@ -196,12 +196,16 @@ Surface the daily 90% here and link out for the rest.
   bind mount, so both watchers poll (air `poll = true`, vite
   `watch.usePolling`). Don't remove either.
 - Colima dev caveat: this stack's whole job is reaching lab services on
-  the LAN, and Colima's default route is the user-mode NIC, which
-  refuses RFC1918 destinations. Symptom: every hypervisor, database
-  and provider reads "unreachable" with `connect: connection refused`
-  at once, while the same address answers from the Mac — a routing
-  problem, not credentials. Fix is `preferredRoute: true` in
-  `~/.colima/default/colima.yaml` (needs a restart), or per-boot
+  the LAN. Colima's default route is the user-mode NIC, whose traffic
+  is NAT'd by a proxy on the host; that path does reach the LAN until
+  it doesn't — mid-session it can start refusing every 192.168.x
+  destination while the Mac still reaches them fine. Symptom: all
+  hypervisors, databases and providers read "unreachable" with
+  `connect: connection refused` in the same second, which is a route
+  failing, not five sets of credentials. The VM also has a vmnet
+  interface (`col0`) that talks to the LAN directly; sending lab
+  traffic over it avoids the proxy entirely — `preferredRoute: true`
+  in `~/.colima/default/colima.yaml` (needs a restart), or per-boot
   `colima ssh -- sudo ip route add <lab subnet> via 192.168.64.1 dev col0`.
 
 ## Config
