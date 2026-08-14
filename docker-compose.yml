@@ -7,6 +7,11 @@
 # your machine.
 services:
   app:
+    # Named, so it's the same container wherever this is checked out —
+    # compose otherwise derives it from the directory, and this repo
+    # lives at ~/…/lab-cloud-manager on one machine and
+    # /opt/cloud-console on another.
+    container_name: cloud-console
     build: .
     # Passed whole, so a new setting works without also being listed
     # here. A missing .env is fine: every setting has a default.
@@ -38,6 +43,7 @@ services:
   # guests; a Zero Trust policy is what stands between that and the
   # public internet.
   cloudflared:
+    container_name: cloud-console-tunnel
     image: cloudflare/cloudflared:latest
     command: tunnel --no-autoupdate run
     environment:

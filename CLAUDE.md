@@ -394,7 +394,11 @@ Surface the daily 90% here and link out for the rest.
   service in the one compose file — NO PROFILES, here or anywhere: a
   service you have to remember a flag to start is a service you'll
   think is missing. It needs `TUNNEL_TOKEN` in .env and restarts
-  without one, which is noisy but visible. It reaches `http://app:8080`
+  without one, which is noisy but visible. Both services carry a
+  `container_name` (`cloud-console`, `cloud-console-tunnel`) so
+  `docker logs cloud-console` is the same command on every host —
+  compose otherwise names them after the checkout directory, which
+  differs between machines. It reaches `http://app:8080`
   over the compose network; the published port stays for the LAN. `isTLS` already honours `X-Forwarded-Proto`,
   so the session cookie becomes Secure through the tunnel and stays
   usable over plain http on the LAN.
