@@ -14,6 +14,8 @@ import {
 } from '@mui/material'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { api } from '../api/client'
+import { BrandLabel } from '../components/BrandIcon'
+import { appBrand } from '../brands'
 
 export default function IdentityApplicationsPage() {
   const { data: providers = [] } = useQuery({
@@ -61,7 +63,9 @@ export default function IdentityApplicationsPage() {
           <TableBody>
             {apps.map((app) => (
               <TableRow key={app.id} hover>
-                <TableCell>{app.name}</TableCell>
+                <TableCell>
+                  <BrandLabel icon={appBrand(app.name)} label={app.name} />
+                </TableCell>
                 <TableCell sx={{ color: '#5f6368' }}>{app.slug}</TableCell>
                 <TableCell>{app.provider || '—'}</TableCell>
                 <TableCell>{app.providerType || '—'}</TableCell>

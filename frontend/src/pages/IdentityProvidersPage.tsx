@@ -26,6 +26,8 @@ import { api } from '../api/client'
 import type { IdentityProvider } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import { providerLabels } from '../identity'
+import { BrandLabel } from '../components/BrandIcon'
+import { identityBrand } from '../brands'
 
 export default function IdentityProvidersPage() {
   const navigate = useNavigate()
@@ -107,7 +109,12 @@ export default function IdentityProvidersPage() {
                   </Tooltip>
                 </TableCell>
                 <TableCell>{provider.name}</TableCell>
-                <TableCell>{providerLabels[provider.type] ?? provider.type}</TableCell>
+                <TableCell>
+                  <BrandLabel
+                    icon={identityBrand(provider.type)}
+                    label={providerLabels[provider.type] ?? provider.type}
+                  />
+                </TableCell>
                 <TableCell>{provider.baseUrl}</TableCell>
                 <TableCell>
                   {provider.info?.version ?? '—'}
