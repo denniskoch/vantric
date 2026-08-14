@@ -45,6 +45,8 @@ export default function App() {
         <Route path="/databases/instances/:id/edit" element={<AddDatabaseInstancePage />} />
         <Route path="/databases/databases" element={<DatabasesPage />} />
         <Route path="/docker/overview" element={<SectionLandingPage />} />
+        <Route path="/iam/overview" element={<SectionLandingPage />} />
+        <Route path="/identity/overview" element={<SectionLandingPage />} />
         <Route path="/dns/overview" element={<SectionLandingPage />} />
         <Route path="/dns/zones" element={<DNSZonesPage />} />
         <Route path="/dns/zones/create" element={<CreateZonePage />} />
@@ -56,6 +58,8 @@ export default function App() {
         <Route path="/network" element={<Navigate to="/network/overview" replace />} />
         <Route path="/databases" element={<Navigate to="/databases/overview" replace />} />
         <Route path="/docker" element={<Navigate to="/docker/overview" replace />} />
+        <Route path="/iam" element={<Navigate to="/iam/overview" replace />} />
+        <Route path="/identity" element={<Navigate to="/identity/overview" replace />} />
         <Route path="/dns" element={<Navigate to="/dns/overview" replace />} />
         <Route path="/compute/instances" element={<InstancesPage />} />
         <Route path="/compute/instances/create" element={<CreateInstancePage />} />

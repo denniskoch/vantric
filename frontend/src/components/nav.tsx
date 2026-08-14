@@ -20,6 +20,8 @@ import TravelExploreIcon from '@mui/icons-material/TravelExplore'
 import PublicIcon from '@mui/icons-material/Public'
 import VpnKeyIcon from '@mui/icons-material/VpnKey'
 import TableChartIcon from '@mui/icons-material/TableChart'
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
+import FingerprintIcon from '@mui/icons-material/Fingerprint'
 import { createSvgIcon } from '@mui/material/utils'
 import { siDocker } from 'simple-icons'
 
@@ -194,6 +196,31 @@ export const sections: Section[] = [
     items: [{ label: 'Overview', icon: DashboardIcon, to: '/docker/overview' }],
     groups: [],
     description: 'Container workloads running on your Docker hosts.',
+  },
+  {
+    // This console's own access control: who may sign in here and what
+    // they may do. Distinct from Identity Platform, which manages the
+    // identity provider the lab's services authenticate against.
+    id: 'iam',
+    label: 'IAM & Admin',
+    icon: AdminPanelSettingsIcon,
+    prefix: '/iam',
+    home: '/iam/overview',
+    items: [{ label: 'Overview', icon: DashboardIcon, to: '/iam/overview' }],
+    groups: [],
+    description:
+      'Who can use this console and what they can do — roles, permissions and audit for Lab Cloud itself.',
+  },
+  {
+    id: 'identity',
+    label: 'Identity Platform',
+    icon: FingerprintIcon,
+    prefix: '/identity',
+    home: '/identity/overview',
+    items: [{ label: 'Overview', icon: DashboardIcon, to: '/identity/overview' }],
+    groups: [],
+    description:
+      'The identity provider your lab services sign in through — users, groups, applications and login events, read from its own API.',
   },
   {
     id: 'dns',
