@@ -207,11 +207,6 @@ export const sections: Section[] = [
             to: '/network/clients',
             hint: 'What holds an address, leased or reserved',
           },
-        ],
-      },
-      {
-        label: 'Settings',
-        items: [
           {
             label: 'Controller',
             icon: VpnKeyIcon,
