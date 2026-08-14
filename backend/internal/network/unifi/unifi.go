@@ -275,11 +275,17 @@ func (p *Provider) siteIDs(ctx context.Context, site string) ([]network.Site, er
 }
 
 func (p *Provider) Info(ctx context.Context) (*network.Info, error) {
+	// Every site the login can see, not just the one this connection
+	// reads: a count that shrank with the pin would hide the others.
+	all, err := p.Sites(ctx)
+	if err != nil {
+		return nil, err
+	}
 	sites, err := p.siteIDs(ctx, "")
 	if err != nil {
 		return nil, err
 	}
-	info := &network.Info{Sites: len(sites)}
+	info := &network.Info{Sites: len(all)}
 	var sysinfo []struct {
 		Version string `json:"version"`
 	}
@@ -534,12 +540,14 @@ func (p *Provider) devicesIn(ctx context.Context, site network.Site) ([]network.
 // deviceKind translates UniFi's short type codes.
 func deviceKind(t string) string {
 	switch t {
-	case "ugw", "udm":
+	case "ugw", "udm", "uxg":
 		return "gateway"
 	case "usw":
 		return "switch"
 	case "uap":
 		return "ap"
+	case "umbb":
+		return "wan backup" // cellular failover
 	default:
 		return t
 	}
