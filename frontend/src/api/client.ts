@@ -32,6 +32,26 @@ export interface SSHKey {
   fingerprint: string
 }
 
+/** One table inside a database. Row counts are the engine's estimate. */
+export interface DatabaseTable {
+  schema: string
+  name: string
+  owner: string
+  rows: number
+  sizeBytes: number
+  /** MySQL's storage engine; empty on PostgreSQL. */
+  engine: string
+  collation: string
+  comment: string
+}
+
+/** What one grantee may do. scope is '' for the database itself. */
+export interface DatabaseGrant {
+  grantee: string
+  scope: string
+  privileges: string[]
+}
+
 export interface IAMUserRequest {
   email: string
   name: string
@@ -1042,6 +1062,14 @@ export const api = {
         host ? `?host=${encodeURIComponent(host)}` : ''
       }`,
       { method: 'DELETE' },
+    ),
+  listDatabaseTables: (serverId: string, name: string) =>
+    request<DatabaseTable[]>(
+      `/database/servers/${serverId}/databases/${encodeURIComponent(name)}/tables`,
+    ),
+  listDatabaseGrants: (serverId: string, name: string) =>
+    request<DatabaseGrant[]>(
+      `/database/servers/${serverId}/databases/${encodeURIComponent(name)}/grants`,
     ),
   listDatabaseConnections: (serverId: string) =>
     request<DatabaseConnection[]>(`/database/servers/${serverId}/connections`),

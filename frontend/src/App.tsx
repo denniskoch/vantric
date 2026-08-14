@@ -24,6 +24,7 @@ import DatabaseInstancesPage from './pages/DatabaseInstancesPage'
 import DatabaseInstanceDetailPage from './pages/DatabaseInstanceDetailPage'
 import AddDatabaseInstancePage from './pages/AddDatabaseInstancePage'
 import DatabasesPage from './pages/DatabasesPage'
+import DatabaseDetailPage from './pages/DatabaseDetailPage'
 import {
   NetworkNetworksPage,
   NetworkClientsPage,
@@ -94,6 +95,10 @@ export default function App() {
         <Route path="/databases/instances/:id" element={<DatabaseInstanceDetailPage />} />
         <Route path="/databases/instances/:id/edit" element={<AddDatabaseInstancePage />} />
         <Route path="/databases/databases" element={<DatabasesPage />} />
+        <Route
+          path="/databases/instances/:id/databases/:name"
+          element={<DatabaseDetailPage />}
+        />
         <Route
           path="/databases/instances/:id/databases/create"
           element={<CreateDatabasePage />}

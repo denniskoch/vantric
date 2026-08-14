@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
   Box,
   Button,
   IconButton,
+  Link,
   Menu,
   MenuItem,
   Paper,
@@ -267,7 +268,15 @@ export default function DatabaseInstanceDetailPage() {
                 <TableBody>
                   {databases.map((db) => (
                     <TableRow key={db.name} hover>
-                      <TableCell>{db.name}</TableCell>
+                      <TableCell>
+                        <Link
+                          component={RouterLink}
+                          to={`/databases/instances/${id}/databases/${encodeURIComponent(db.name)}`}
+                          underline="hover"
+                        >
+                          {db.name}
+                        </Link>
+                      </TableCell>
                       <TableCell>{db.system ? 'System' : 'User'}</TableCell>
                       {hasOwners && <TableCell>{db.owner}</TableCell>}
                       <TableCell align="right">

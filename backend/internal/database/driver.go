@@ -44,6 +44,31 @@ type Database struct {
 	System bool `json:"system"`
 }
 
+// Table is one table inside a database. Row counts are the engine's
+// own ESTIMATE — both engines keep one in their catalog, and counting
+// for real means a full scan of someone else's production table.
+type Table struct {
+	Schema string `json:"schema"`
+	Name   string `json:"name"`
+	Owner  string `json:"owner"`
+	Rows   int64  `json:"rows"`
+	// SizeBytes includes indexes.
+	SizeBytes int64 `json:"sizeBytes"`
+	// Engine is MySQL's storage engine (InnoDB, MyISAM); empty on
+	// PostgreSQL, which has one.
+	Engine    string `json:"engine"`
+	Collation string `json:"collation"`
+	Comment   string `json:"comment"`
+}
+
+// Grant is what one grantee may do to one thing. Scope is empty for a
+// privilege on the database itself, or "schema.table" for one table.
+type Grant struct {
+	Grantee    string   `json:"grantee"`
+	Scope      string   `json:"scope"`
+	Privileges []string `json:"privileges"`
+}
+
 // User is a login role on the server.
 type User struct {
 	Name string `json:"name"`
@@ -95,6 +120,12 @@ type Driver interface {
 	Ping(ctx context.Context) error
 	Info(ctx context.Context) (*ServerInfo, error)
 	Databases(ctx context.Context) ([]Database, error)
+	// Tables lists what's inside one database, and Grants who may touch
+	// it. Both are read on demand for the detail view, never polled:
+	// they query someone else's catalog and one of them (PostgreSQL)
+	// has to open a connection to the database itself.
+	Tables(ctx context.Context, dbName string) ([]Table, error)
+	Grants(ctx context.Context, dbName string) ([]Grant, error)
 	Users(ctx context.Context) ([]User, error)
 	Connections(ctx context.Context) ([]Connection, error)
 	CreateDatabase(ctx context.Context, spec DatabaseSpec) error

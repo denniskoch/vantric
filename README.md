@@ -147,6 +147,9 @@ and `/auth/me` needs a session cookie:
 - `GET/POST /database/servers/{id}/users`,
   `PUT /database/servers/{id}/users/{name}/password`,
   `DELETE /database/servers/{id}/users/{name}`
+- `GET /database/servers/{id}/databases/{name}/tables`,
+  `GET /database/servers/{id}/databases/{name}/grants` — inside one
+  database, read on demand for its detail view
 - `GET /database/servers/{id}/connections`
 - `GET /network/provider-types`, `GET /network/providers`,
   `POST /network/providers`, `PUT/DELETE /network/providers/{id}`

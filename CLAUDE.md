@@ -183,6 +183,16 @@ Surface the daily 90% here and link out for the rest.
   DDL can't take bind parameters, so identifiers are checked against
   `identRe` in the API layer AND quoted by the driver; the engine's own
   databases are flagged `System` and refused for deletion.
+- A database DRILLS IN to its own tabbed page (Details / Tables /
+  Permissions), the same template as a VM instance. Both extra tabs are
+  read ON DEMAND and never polled: they query someone else's catalog,
+  and PostgreSQL's is per-database, so `Tables` there opens a
+  short-lived connection to the target rather than adding a pool per
+  database. Row counts are the engine's ESTIMATE (n_live_tup/reltuples,
+  TABLE_ROWS) — a console must not `COUNT(*)` a production table to
+  draw a page — and an estimate of 0 renders as "—", since a table that
+  has never been analysed reports 0 whatever its size. Permissions are
+  read-only: granting stays in psql, per the surface-the-daily-90% rule.
 - Engines share ONE nav item and one list, Cloud SQL-style — the
   engine is a column, not a section. Where engines genuinely differ,
   the fix is per-view, not per-nav-item: a cross-engine list drops the

@@ -43,6 +43,11 @@ func (s *Server) databaseRoutes(r chi.Router) {
 	r.Put("/database/servers/{id}/users/{name}/password", s.setDatabaseUserPassword)
 	r.Delete("/database/servers/{id}/users/{name}", s.dropDatabaseUser)
 	r.Get("/database/servers/{id}/connections", s.listDatabaseConnections)
+	// Inside one database. Read on demand for the detail view — these
+	// query the target's own catalog and PostgreSQL has to connect to
+	// it, so they are never part of a polled listing.
+	r.Get("/database/servers/{id}/databases/{name}/tables", s.listDatabaseTables)
+	r.Get("/database/servers/{id}/databases/{name}/grants", s.listDatabaseGrants)
 }
 
 // databaseServerView is the API shape: everything but the password,
@@ -448,4 +453,40 @@ func (s *Server) listDatabaseConnections(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	s.json(w, http.StatusOK, connections)
+}
+
+func (s *Server) listDatabaseTables(w http.ResponseWriter, r *http.Request) {
+	driver := s.dbDriver(w, r)
+	if driver == nil {
+		return
+	}
+	name := chi.URLParam(r, "name")
+	if !identRe.MatchString(name) {
+		s.err(w, http.StatusBadRequest, "that isn't a valid database name")
+		return
+	}
+	tables, err := driver.Tables(r.Context(), name)
+	if err != nil {
+		s.fail(w, err, "tables")
+		return
+	}
+	s.json(w, http.StatusOK, tables)
+}
+
+func (s *Server) listDatabaseGrants(w http.ResponseWriter, r *http.Request) {
+	driver := s.dbDriver(w, r)
+	if driver == nil {
+		return
+	}
+	name := chi.URLParam(r, "name")
+	if !identRe.MatchString(name) {
+		s.err(w, http.StatusBadRequest, "that isn't a valid database name")
+		return
+	}
+	grants, err := driver.Grants(r.Context(), name)
+	if err != nil {
+		s.fail(w, err, "grants")
+		return
+	}
+	s.json(w, http.StatusOK, grants)
 }

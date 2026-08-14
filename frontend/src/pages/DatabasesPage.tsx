@@ -63,7 +63,15 @@ export default function DatabasesPage() {
           <TableBody>
             {databases.map((db) => (
               <TableRow key={`${db.serverId}/${db.name}`} hover>
-                <TableCell>{db.name}</TableCell>
+                <TableCell>
+                  <Link
+                    component={RouterLink}
+                    to={`/databases/instances/${db.serverId}/databases/${encodeURIComponent(db.name)}`}
+                    underline="hover"
+                  >
+                    {db.name}
+                  </Link>
+                </TableCell>
                 <TableCell>{db.system ? 'System' : 'User'}</TableCell>
                 <TableCell>
                   <Link
