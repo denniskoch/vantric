@@ -1,5 +1,38 @@
 // Typed client for the lab-cloud-manager REST API.
 
+/** A role in this console — not in the identity provider it manages. */
+export type RoleID = 'owner' | 'editor' | 'viewer'
+
+export interface Role {
+  id: RoleID
+  title: string
+  description: string
+}
+
+/** An account that can sign in to this console. */
+export interface IAMUser {
+  id: string
+  email: string
+  name: string
+  role: RoleID
+  /** False for an account with no local password (SSO-only, later). */
+  hasPassword: boolean
+  active: boolean
+  /** RFC3339, or empty if they've never signed in. */
+  lastLoginAt: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface IAMUserRequest {
+  email: string
+  name: string
+  role: RoleID
+  active: boolean
+  /** Only on create; changing a password is its own endpoint. */
+  password?: string
+}
+
 export type InstanceStatus =
   | 'PROVISIONING'
   | 'STAGING'
@@ -694,9 +727,18 @@ export interface CreateInstanceRequest {
   protected?: boolean
 }
 
+/**
+ * Thrown on a 401 so callers can tell "signed out" from "went wrong".
+ * The shell watches for it and sends you to the sign-in page rather
+ * than papering the console with error alerts.
+ */
+export class UnauthorizedError extends Error {}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api/v1${path}`, {
     headers: { 'Content-Type': 'application/json' },
+    // The session is an HttpOnly cookie; without this it isn't sent.
+    credentials: 'same-origin',
     ...init,
   })
   if (!res.ok) {
@@ -707,6 +749,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       // non-JSON error body; keep statusText
     }
+    if (res.status === 401) throw new UnauthorizedError(message)
     throw new Error(message)
   }
   if (res.status === 204) return undefined as T
@@ -751,6 +794,33 @@ function uploadStream(
 }
 
 export const api = {
+  // --- sign-in and this console's own accounts ---
+  login: (email: string, password: string) =>
+    request<IAMUser>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }),
+  logout: () => request<void>('/auth/logout', { method: 'POST' }),
+  me: () => request<IAMUser>('/auth/me'),
+  changeOwnPassword: (currentPassword: string, newPassword: string) =>
+    request<void>('/auth/password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+  listRoles: () => request<Role[]>('/iam/roles'),
+  listIAMUsers: () => request<IAMUser[]>('/iam/users'),
+  getIAMUser: (id: string) => request<IAMUser>(`/iam/users/${id}`),
+  createIAMUser: (body: IAMUserRequest) =>
+    request<IAMUser>('/iam/users', { method: 'POST', body: JSON.stringify(body) }),
+  updateIAMUser: (id: string, body: IAMUserRequest) =>
+    request<IAMUser>(`/iam/users/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteIAMUser: (id: string) => request<void>(`/iam/users/${id}`, { method: 'DELETE' }),
+  setIAMUserPassword: (id: string, password: string) =>
+    request<void>(`/iam/users/${id}/password`, {
+      method: 'PUT',
+      body: JSON.stringify({ password }),
+    }),
+
   // Catalog listings span every server; pass a server id to narrow
   // (the create flows do, since placement is per-server).
   listZones: (serverId: string) => request<Zone[]>(`/zones?server=${serverId}`),

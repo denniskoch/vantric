@@ -51,6 +51,11 @@ func main() {
 	defer stop()
 
 	ensureDefaultMachineTypes(ctx, st, log)
+	if err := api.EnsureBootstrapUser(ctx, st, log,
+		cfg.Auth.BootstrapEmail, cfg.Auth.BootstrapPassword); err != nil {
+		log.Error("seeding the first account", "error", err)
+		os.Exit(1)
+	}
 	seedServerFromConfig(ctx, st, cfg, log)
 
 	registry := hypervisor.NewRegistry()

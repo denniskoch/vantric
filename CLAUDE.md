@@ -257,10 +257,31 @@ Surface the daily 90% here and link out for the rest.
   type, a version banner, a file name — so adding a logo never needs
   an API change. The app makes no outside requests: nothing is loaded
   from a CDN.
-- No authentication yet. The account avatar and menu in the app bar are
-  a stub reading from `currentUser` in `src/components/Shell.tsx`; wiring
-  real sign-in should mean replacing that constant and enabling the
-  menu's actions.
+- AUTHENTICATION IS LOCAL FIRST and that is deliberate: signing in
+  through the lab's identity provider is the better everyday door, but
+  a console reachable only through another service is unreachable
+  exactly when that service is what's broken. So `iam_users` holds
+  email + bcrypt hash + role, and SSO joins it later rather than
+  replacing it (an account with an empty `password_hash` is what an
+  SSO-only user will look like).
+- Sessions are SERVER-SIDE rows in `iam_sessions`, keyed by a random
+  token in an HttpOnly cookie — not a self-contained token — so
+  signing out, disabling an account or resetting a password takes
+  effect on the next request instead of whenever a token expires. The
+  whole API sits behind `requireAuth`; only `/auth/{login,logout,me}`
+  are outside it, because the app has to be able to ask who it is
+  before it knows. `useSession()` in src/user.ts is the frontend's
+  answer, and Shell redirects to `/signin` when the answer is nobody.
+- The first owner is seeded on FIRST RUN ONLY from `auth.bootstrap*`
+  (same rule as the seeded hypervisor). With no password configured
+  one is generated and logged once — the only time a password is
+  written to the log, and better than a default nobody changes.
+- Roles (owner/editor/viewer, GCP's basic roles) are stored and shown
+  but NOT yet enforced per-endpoint; the Users page says so rather than
+  implying a guard that isn't there. One role per user for now; the
+  binding model is what it grows into. What IS enforced: the console
+  can't lose its last active owner, and you can't delete or disable the
+  account you're signed in as.
 - Navigation model (mirrors GCP): the hamburger opens a temporary global
   menu for switching between Lab Cloud sections; each section then has a
   permanent left nav with collapsible groups (GCP-style). Sections and

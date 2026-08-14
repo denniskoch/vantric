@@ -275,7 +275,19 @@ export const sections: Section[] = [
     prefix: '/iam',
     home: '/iam/overview',
     items: [{ label: 'Overview', icon: DashboardIcon, to: '/iam/overview' }],
-    groups: [],
+    groups: [
+      {
+        label: 'Access',
+        items: [
+          {
+            label: 'Users',
+            icon: PersonIcon,
+            to: '/iam/users',
+            hint: 'Accounts that can sign in to this console',
+          },
+        ],
+      },
+    ],
     description:
       'Who can use this console and what they can do — roles, permissions and audit for Lab Cloud itself.',
   },

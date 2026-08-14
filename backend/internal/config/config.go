@@ -19,6 +19,18 @@ type Config struct {
 	// (with SPA fallback). Empty in development, where Vite serves the UI.
 	StaticDir string `yaml:"staticDir"`
 	SSH       SSH    `yaml:"ssh"`
+	Auth      Auth   `yaml:"auth"`
+}
+
+// Auth seeds the first account. It applies on first run only — after
+// that, accounts live in IAM & Admin and these settings are ignored,
+// the same rule the seeded hypervisor follows.
+type Auth struct {
+	BootstrapEmail string `yaml:"bootstrapEmail"`
+	// BootstrapPassword, left empty, means one is generated and logged
+	// once at startup. Better a password in your terminal scrollback
+	// than a default everyone knows.
+	BootstrapPassword string `yaml:"bootstrapPassword"`
 }
 
 // SSH governs what the browser terminal may do to a guest before it
@@ -77,6 +89,8 @@ func Load(path string) (Config, error) {
 	overrideStr(&cfg.StaticDir, "LCM_STATIC_DIR")
 	overrideBool(&cfg.SSH.Provision, "LCM_SSH_PROVISION")
 	overrideBool(&cfg.SSH.ProvisionSudo, "LCM_SSH_PROVISION_SUDO")
+	overrideStr(&cfg.Auth.BootstrapEmail, "LCM_AUTH_BOOTSTRAP_EMAIL")
+	overrideStr(&cfg.Auth.BootstrapPassword, "LCM_AUTH_BOOTSTRAP_PASSWORD")
 	return cfg, nil
 }
 

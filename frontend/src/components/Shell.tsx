@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   AppBar,
@@ -25,16 +25,10 @@ import logoLight from '../assets/brand/kochlabs-logo-light.svg'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { sections, sectionFor } from './nav'
-import { currentUser } from '../user'
+import { api } from '../api/client'
+import { initialFor, useRefreshSession, useSession } from '../user'
 import type { SectionItem } from './nav'
 
-/**
- * Stand-in for the signed-in user. There is no authentication yet;
- * when there is, this is what should come from it.
- */
-
-/** Account menu entries, inert until authentication exists. */
-const accountActions = ['Manage your account', 'Switch account', 'Sign out']
 
 const SECTION_NAV_WIDTH = 256
 const GLOBAL_NAV_WIDTH = 280
@@ -62,8 +56,23 @@ export default function Shell() {
   const [accountMenu, setAccountMenu] = useState<null | HTMLElement>(null)
   const location = useLocation()
   const navigate = useNavigate()
+  const { user, loading, signedOut } = useSession()
+  const refreshSession = useRefreshSession()
 
   const section = sectionFor(location.pathname)
+
+  // The gate. Everything inside the shell needs a session, so an
+  // expired one sends you to sign in rather than filling the console
+  // with 401s — and remembers where you were going.
+  useEffect(() => {
+    if (signedOut) {
+      navigate('/signin', { replace: true, state: { from: location.pathname } })
+    }
+  }, [signedOut, navigate, location.pathname])
+
+  if (loading || signedOut) {
+    return <Box sx={{ height: '100vh', bgcolor: '#f8f9fa' }} />
+  }
 
   return (
     <Box sx={{ display: 'flex', height: '100vh' }}>
@@ -109,17 +118,16 @@ export default function Shell() {
           </Box>
           <Box sx={{ flex: 1 }} />
 
-          {/* Account. Stubbed until there's authentication: everything
-              here reads from `currentUser`, so signing a real user in
-              should only mean replacing that. */}
+          {/* Account. Reads the live session; the menu's actions are
+              real now that there's something to sign out of. */}
           <IconButton
             size="small"
             onClick={(e) => setAccountMenu(e.currentTarget)}
-            aria-label={`Account: ${currentUser.name}`}
+            aria-label={`Account: ${user?.name || user?.email || 'signed out'}`}
             aria-haspopup="menu"
           >
             <Avatar sx={{ width: 30, height: 30, bgcolor: '#1a73e8', fontSize: 14 }}>
-              {currentUser.initial}
+              {initialFor(user)}
             </Avatar>
           </IconButton>
           <Menu
@@ -132,24 +140,41 @@ export default function Shell() {
           >
             <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
               <Avatar sx={{ width: 36, height: 36, bgcolor: '#1a73e8', fontSize: 16 }}>
-                {currentUser.initial}
+                {initialFor(user)}
               </Avatar>
               <Box sx={{ minWidth: 0 }}>
                 <Typography sx={{ fontSize: 13, color: '#202124' }}>
-                  {currentUser.name}
+                  {user?.name || 'Signed out'}
                 </Typography>
                 <Typography sx={{ fontSize: 12, color: '#5f6368' }}>
-                  {currentUser.email}
+                  {user?.email}
                 </Typography>
               </Box>
+              {user && (
+                <Chip label={user.role} size="small" sx={{ ml: 'auto', fontSize: 10, height: 18 }} />
+              )}
             </Box>
             <Divider />
-            {accountActions.map((action) => (
-              <MenuItem key={action} disabled sx={{ fontSize: 13 }}>
-                {action}
-                <Chip label="soon" size="small" sx={{ ml: 'auto', fontSize: 10, height: 18 }} />
-              </MenuItem>
-            ))}
+            <MenuItem
+              sx={{ fontSize: 13 }}
+              onClick={() => {
+                setAccountMenu(null)
+                navigate('/iam/users')
+              }}
+            >
+              Manage accounts
+            </MenuItem>
+            <MenuItem
+              sx={{ fontSize: 13 }}
+              onClick={async () => {
+                setAccountMenu(null)
+                await api.logout()
+                await refreshSession()
+                navigate('/signin', { replace: true })
+              }}
+            >
+              Sign out
+            </MenuItem>
           </Menu>
         </Toolbar>
       </AppBar>

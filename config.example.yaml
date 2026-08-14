@@ -31,3 +31,11 @@ ssh:
   # the console signs in as an ordinary user so sudo still asks the
   # question that makes you think.
   provisionSudo: false          # LCM_SSH_PROVISION_SUDO
+
+# The first account, seeded on first run only. After that, accounts are
+# managed in IAM & Admin and these settings are ignored.
+auth:
+  bootstrapEmail: lab@localhost   # LCM_AUTH_BOOTSTRAP_EMAIL
+  # Leave empty and one is generated and printed to the log at startup —
+  # better a password in your scrollback than a default everyone knows.
+  bootstrapPassword: ''           # LCM_AUTH_BOOTSTRAP_PASSWORD

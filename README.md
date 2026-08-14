@@ -4,6 +4,7 @@ A home lab manager with a Google Cloud Console–inspired UI. Manage VMs on
 your homelab hypervisor the way you'd manage Compute Engine instances.
 
 - **Backend**: Go — REST API, SQLite storage, pluggable hypervisor drivers
+- **Sign-in**: local accounts (bcrypt) with server-side sessions; SSO later
 - **Frontend**: React + TypeScript + MUI (Vite)
 - **Hypervisors**: Proxmox VE (via API token), plus a mock driver for development
 - **Databases**: PostgreSQL and MySQL/MariaDB servers you already run, connected read/write
@@ -92,7 +93,14 @@ Design notes:
 
 ## API
 
-Base path `/api/v1`:
+Base path `/api/v1`. Everything except `/auth/login`, `/auth/logout`
+and `/auth/me` needs a session cookie:
+
+- `POST /auth/login` (email + password → session cookie),
+  `POST /auth/logout`, `GET /auth/me`, `POST /auth/password`
+  (change your own, needs the current one)
+- `GET /iam/roles`, `GET/POST /iam/users`,
+  `GET/PUT/DELETE /iam/users/{id}`, `PUT /iam/users/{id}/password`
 
 - `GET /zones`, `GET /images`, `GET /isos`, `GET /ct-templates`,
   `GET /datastores`, `GET /disks`, `GET /snapshots` — span every

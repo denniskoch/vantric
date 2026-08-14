@@ -133,6 +133,28 @@ var migrations = []string{
 		memory_mb INTEGER NOT NULL,
 		created_at TEXT NOT NULL
 	)`,
+	// This console's own accounts — distinct from the identity provider
+	// it manages. password_hash is empty for an account that signs in
+	// some other way, which is what SSO will look like when it lands.
+	`CREATE TABLE IF NOT EXISTS iam_users (
+		id TEXT PRIMARY KEY,
+		email TEXT NOT NULL UNIQUE,
+		name TEXT NOT NULL DEFAULT '',
+		role TEXT NOT NULL,
+		password_hash TEXT NOT NULL DEFAULT '',
+		active INTEGER NOT NULL DEFAULT 1,
+		last_login_at TEXT NOT NULL DEFAULT '',
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	)`,
+	// Sessions live server-side so signing out, or disabling an account,
+	// takes effect immediately — which a self-contained token can't do.
+	`CREATE TABLE IF NOT EXISTS iam_sessions (
+		token TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL REFERENCES iam_users(id),
+		created_at TEXT NOT NULL,
+		expires_at TEXT NOT NULL
+	)`,
 }
 
 func (s *Store) migrate() error {

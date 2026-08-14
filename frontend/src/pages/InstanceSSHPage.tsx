@@ -7,7 +7,7 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import { api } from '../api/client'
-import { sshUsername } from '../user'
+import { sshUsername, useSession } from '../user'
 
 /**
  * A terminal in the browser, proxied by the console server: the guest
@@ -20,7 +20,8 @@ import { sshUsername } from '../user'
  */
 export default function InstanceSSHPage() {
   const { name = '' } = useParams()
-  const username = sshUsername()
+  const { user } = useSession()
+  const username = sshUsername(user)
 
   const terminalRef = useRef<HTMLDivElement>(null)
   const socketRef = useRef<WebSocket | null>(null)
@@ -82,7 +83,7 @@ export default function InstanceSSHPage() {
     }
     // The session is opened once, when the page mounts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name])
+  }, [name, username])
 
   return (
     <Box

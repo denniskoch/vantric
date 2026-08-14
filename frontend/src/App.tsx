@@ -4,6 +4,10 @@ import InstancesPage from './pages/InstancesPage'
 import CreateInstancePage from './pages/CreateInstancePage'
 import InstanceDetailPage from './pages/InstanceDetailPage'
 import InstanceSSHPage from './pages/InstanceSSHPage'
+import SignInPage from './pages/SignInPage'
+import IAMUsersPage from './pages/IAMUsersPage'
+import IAMUserFormPage from './pages/IAMUserFormPage'
+import IAMPasswordPage from './pages/IAMPasswordPage'
 import VMTemplatesPage from './pages/VMTemplatesPage'
 import BuildTemplatePage from './pages/BuildTemplatePage'
 import CTTemplatesPage from './pages/CTTemplatesPage'
@@ -61,6 +65,8 @@ import DatastoresPage from './pages/DatastoresPage'
 export default function App() {
   return (
     <Routes>
+      {/* Outside the shell: it's what you see when you have no session. */}
+      <Route path="/signin" element={<SignInPage />} />
       {/* Opened in its own window, so no shell around it. */}
       <Route path="/compute/instances/:name/ssh" element={<InstanceSSHPage />} />
       <Route element={<Shell />}>
@@ -96,6 +102,10 @@ export default function App() {
         />
         <Route path="/docker/overview" element={<SectionLandingPage />} />
         <Route path="/iam/overview" element={<SectionLandingPage />} />
+        <Route path="/iam/users" element={<IAMUsersPage />} />
+        <Route path="/iam/users/create" element={<IAMUserFormPage />} />
+        <Route path="/iam/users/:id/edit" element={<IAMUserFormPage />} />
+        <Route path="/iam/users/:id/password" element={<IAMPasswordPage />} />
         <Route path="/identity/overview" element={<SectionLandingPage />} />
         <Route path="/identity/users" element={<IdentityUsersPage />} />
         <Route path="/identity/users/create" element={<IdentityUserCreatePage />} />

@@ -73,6 +73,32 @@ func (s *Server) Router() http.Handler {
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)
 
 	r.Route("/api/v1", func(r chi.Router) {
+		// Sign-in itself can't require being signed in, and /auth/me is
+		// how the app finds out which it is.
+		r.Post("/auth/login", s.login)
+		r.Post("/auth/logout", s.logout)
+		r.Get("/auth/me", s.currentUser)
+
+		r.Group(func(r chi.Router) {
+			r.Use(s.requireAuth)
+			s.protectedRoutes(r)
+		})
+	})
+
+	if s.staticDir != "" {
+		r.Handle("/*", spaHandler(s.staticDir))
+	}
+	return r
+}
+
+// protectedRoutes is everything behind a session — which is everything
+// else. A console that lets an anonymous visitor list your hypervisors
+// has already given away the map.
+func (s *Server) protectedRoutes(r chi.Router) {
+	{
+		r.Post("/auth/password", s.changeOwnPassword)
+		s.iamRoutes(r)
+
 		r.Get("/zones", s.listZones)
 		r.Get("/bridges", s.listBridges)
 		r.Get("/images", s.listImages)
@@ -126,12 +152,7 @@ func (s *Server) Router() http.Handler {
 			r.Post("/reset", s.instanceAction("reset"))
 			r.Post("/protection", s.setInstanceProtection)
 		})
-	})
-
-	if s.staticDir != "" {
-		r.Handle("/*", spaHandler(s.staticDir))
 	}
-	return r
 }
 
 // --- helpers ---
