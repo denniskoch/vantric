@@ -172,16 +172,12 @@ func (s *Server) updateServer(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) deleteServer(w http.ResponseWriter, r *http.Request) {
+	// Removing a hypervisor takes its guest records with it. That is a
+	// disconnect, not a deletion: the VMs and containers themselves are
+	// untouched and come back if the server is re-added. Requiring them
+	// to be destroyed first would make forgetting a credential the most
+	// dangerous button in the app.
 	id := chi.URLParam(r, "id")
-	n, err := s.store.CountInstancesOnServer(r.Context(), id)
-	if err != nil {
-		s.fail(w, err, "checking server instances")
-		return
-	}
-	if n > 0 {
-		s.err(w, http.StatusConflict, "server still has instances; delete them first")
-		return
-	}
 	if err := s.store.DeleteServer(r.Context(), id); err != nil {
 		s.fail(w, err, "deleting server")
 		return

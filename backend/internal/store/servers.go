@@ -100,15 +100,34 @@ func (s *Store) UpdateServer(ctx context.Context, sv *Server) error {
 	return nil
 }
 
+// DeleteServer forgets a hypervisor and the guests recorded against it.
+//
+// Those records are a MIRROR of what the driver reports, not the guests
+// themselves — nothing here reaches the hypervisor, and every VM and
+// container on it keeps running. Re-add the server and the reconciler
+// adopts them all back. The alternative, refusing until the guests are
+// gone, would mean destroying a lab to disconnect a credential.
 func (s *Store) DeleteServer(ctx context.Context, id string) error {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM servers WHERE id = ?`, id)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	for _, table := range []string{"containers", "instances"} {
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM `+table+` WHERE server_id = ?`, id); err != nil {
+			return err
+		}
+	}
+	res, err := tx.ExecContext(ctx, `DELETE FROM servers WHERE id = ?`, id)
 	if err != nil {
 		return err
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
 		return ErrNotFound
 	}
-	return nil
+	return tx.Commit()
 }
 
 func (s *Store) CountServers(ctx context.Context) (int, error) {
@@ -117,9 +136,3 @@ func (s *Store) CountServers(ctx context.Context) (int, error) {
 	return n, err
 }
 
-func (s *Store) CountInstancesOnServer(ctx context.Context, serverID string) (int, error) {
-	var n int
-	err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM instances WHERE server_id = ?`, serverID).Scan(&n)
-	return n, err
-}

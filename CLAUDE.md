@@ -65,6 +65,12 @@ Surface the daily 90% here and link out for the rest.
   `listAcrossServers` in internal/api/catalog.go. `?server=` narrows to
   one server; the create flows use it since placement is per-server. A
   server that errors is skipped and logged, not fatal to the page.
+  Removing a server is a DISCONNECT: it drops the server's instance and
+  container records in the same transaction (they mirror the driver and
+  mean nothing without it) and never touches the hypervisor, so the
+  guests keep running and re-adding the server re-adopts them. Refusing
+  until its guests are deleted would make forgetting a credential the
+  most dangerous button in the app.
   Config seeds one server on first run only; after
   that config driver settings are ignored. Server secrets never leave the
   backend (`json:"-"`; API exposes `hasSecret`).

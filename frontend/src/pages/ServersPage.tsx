@@ -5,6 +5,11 @@ import {
   Alert,
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
   Paper,
   Table,
@@ -53,20 +58,45 @@ export default function ServersPage() {
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
 
+  const [pendingRemoval, setPendingRemoval] = useState<Server | null>(null)
+
   const { data: servers = [], isLoading } = useQuery({
     queryKey: ['servers'],
     queryFn: api.listServers,
     refetchInterval: 10000,
   })
 
+  // What disappears from the console when this hypervisor does. The
+  // guests keep running; only the records go.
+  const { data: instances = [] } = useQuery({
+    queryKey: ['instances'],
+    queryFn: api.listInstances,
+  })
+  const { data: containers = [] } = useQuery({
+    queryKey: ['containers'],
+    queryFn: api.listContainers,
+  })
+  const guestCount = (serverId: string) => ({
+    instances: instances.filter((i) => i.serverId === serverId).length,
+    containers: containers.filter((c) => c.serverId === serverId).length,
+  })
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['servers'] })
+    queryClient.invalidateQueries({ queryKey: ['instances'] })
+    queryClient.invalidateQueries({ queryKey: ['containers'] })
   }
 
   const remove = useMutation({
     mutationFn: (id: string) => api.deleteServer(id),
-    onSuccess: invalidate,
-    onError: (e: Error) => setError(e.message),
+    onSuccess: () => {
+      setPendingRemoval(null)
+      invalidate()
+    },
+    onError: (e: Error) => {
+      setPendingRemoval(null)
+      setError(e.message)
+    },
   })
 
   return (
@@ -123,7 +153,7 @@ export default function ServersPage() {
                   </IconButton>
                   <IconButton
                     size="small"
-                    onClick={() => remove.mutate(server.id)}
+                    onClick={() => setPendingRemoval(server)}
                     disabled={remove.isPending}
                   >
                     <DeleteIcon fontSize="small" />
@@ -144,6 +174,41 @@ export default function ServersPage() {
         </Table>
       </TableContainer>
 
+      <Dialog open={Boolean(pendingRemoval)} onClose={() => setPendingRemoval(null)}>
+        <DialogTitle>Remove {pendingRemoval?.name}?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {pendingRemoval && describeRemoval(guestCount(pendingRemoval.id))}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPendingRemoval(null)}>Cancel</Button>
+          <Button
+            color="error"
+            disabled={remove.isPending}
+            onClick={() => pendingRemoval && remove.mutate(pendingRemoval.id)}
+          >
+            Remove
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
+}
+
+/**
+ * Removing a hypervisor is a disconnect, not a deletion — the guests
+ * keep running and come back if it's added again. Say both halves:
+ * what vanishes from the console, and what doesn't happen to the lab.
+ */
+function describeRemoval({ instances, containers }: { instances: number; containers: number }) {
+  const guests = [
+    instances && `${instances} instance${instances === 1 ? '' : 's'}`,
+    containers && `${containers} container${containers === 1 ? '' : 's'}`,
+  ].filter(Boolean)
+
+  if (guests.length === 0) {
+    return 'Its credentials are forgotten and it disappears from the catalogs. Nothing on the hypervisor changes.'
+  }
+  return `${guests.join(' and ')} will disappear from this console along with it. They keep running on the hypervisor — nothing is deleted there, and adding this server back adopts them again.`
 }
