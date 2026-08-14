@@ -21,6 +21,7 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
@@ -155,8 +156,20 @@ export default function IdentityUsersPage() {
                 <TableCell sx={{ color: user.active ? undefined : '#d93025' }}>
                   {user.active ? 'Active' : 'Disabled'}
                 </TableCell>
-                <TableCell sx={{ color: '#5f6368' }}>
-                  {user.groups?.join(', ') || '—'}
+                <TableCell
+                  sx={{
+                    color: '#5f6368',
+                    maxWidth: 240,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {/* A user in a dozen groups would otherwise wrap the
+                      row to several hundred pixels. */}
+                  <Tooltip title={user.groups?.join(', ') ?? ''}>
+                    <span>{user.groups?.join(', ') || '—'}</span>
+                  </Tooltip>
                 </TableCell>
                 <TableCell>{lastLogin(user.lastLogin)}</TableCell>
                 <TableCell align="right">

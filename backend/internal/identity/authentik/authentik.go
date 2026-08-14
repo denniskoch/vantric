@@ -281,7 +281,12 @@ func (p *Provider) Applications(ctx context.Context) ([]identity.Application, er
 			VerboseName string `json:"verbose_name"`
 		} `json:"provider_obj"`
 	}
-	found, err := listAll[akApp](ctx, p, "/core/applications/")
+	// Without superuser_full_list the endpoint returns only the
+	// applications the token's own user is allowed to launch, which for
+	// an admin account is usually a handful — the count in Info comes
+	// out of the same request's envelope and doesn't get filtered, so
+	// the two disagree until this is asked for explicitly.
+	found, err := listAll[akApp](ctx, p, "/core/applications/?superuser_full_list=true")
 	if err != nil {
 		return nil, err
 	}
