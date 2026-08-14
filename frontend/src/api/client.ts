@@ -357,9 +357,14 @@ export interface DNSRecord {
 
 export type NetworkProviderType = 'unifi'
 
+export interface NetworkSite {
+  id: string
+  name: string
+}
+
 export interface NetworkInfo {
   version: string
-  site: string
+  sites: number
   networks: number
   clients: number
   devices: number
@@ -393,6 +398,8 @@ export interface NetworkProviderRequest {
 
 /** A configured network — a VLAN with its subnet and DHCP range. */
 export interface LabNetwork {
+  /** Which controller site this came from. */
+  site: string
   id: string
   name: string
   vlan: number
@@ -406,6 +413,8 @@ export interface LabNetwork {
 }
 
 export interface NetworkClient {
+  /** Which controller site this came from. */
+  site: string
   id: string
   name: string
   hostname: string
@@ -423,6 +432,8 @@ export interface NetworkClient {
 }
 
 export interface NetworkDevice {
+  /** Which controller site this came from. */
+  site: string
   id: string
   name: string
   model: string
@@ -803,9 +814,13 @@ export const api = {
     }),
   deleteNetworkProvider: (id: string) =>
     request<void>(`/network/providers/${id}`, { method: 'DELETE' }),
-  listLabNetworks: () => request<LabNetwork[]>('/network/networks'),
-  listNetworkClients: () => request<NetworkClient[]>('/network/clients'),
-  listNetworkDevices: () => request<NetworkDevice[]>('/network/devices'),
+  listNetworkSites: () => request<NetworkSite[]>('/network/sites'),
+  listLabNetworks: (site?: string) =>
+    request<LabNetwork[]>(`/network/networks${site ? `?site=${encodeURIComponent(site)}` : ''}`),
+  listNetworkClients: (site?: string) =>
+    request<NetworkClient[]>(`/network/clients${site ? `?site=${encodeURIComponent(site)}` : ''}`),
+  listNetworkDevices: (site?: string) =>
+    request<NetworkDevice[]>(`/network/devices${site ? `?site=${encodeURIComponent(site)}` : ''}`),
 
   listIdentityProviderTypes: () =>
     request<IdentityProviderType[]>('/identity/provider-types'),

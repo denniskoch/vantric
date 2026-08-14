@@ -14,7 +14,7 @@ const emptyForm: NetworkProviderRequest = {
   name: '',
   type: 'unifi',
   baseUrl: '',
-  site: 'default',
+  site: '',
   apiKey: '',
   username: '',
   password: '',
@@ -123,12 +123,12 @@ function ControllerForm({ editing }: { editing: NetworkProvider | null }) {
           sx={{ flex: 1 }}
         />
         <TextField
-          label="Site"
+          label="Site (optional)"
           size="small"
           value={form.site}
           onChange={(e) => setForm({ ...form, site: e.target.value })}
-          helperText="'default' unless renamed"
-          sx={{ width: 180 }}
+          helperText="Blank reads every site"
+          sx={{ width: 200 }}
         />
       </Box>
 

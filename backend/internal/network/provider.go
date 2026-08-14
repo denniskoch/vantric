@@ -19,17 +19,29 @@ var ErrNotFound = errors.New("network: not found")
 
 // Info is what the controller reports about itself.
 type Info struct {
-	Version string `json:"version"`
-	// Site is the controller site these readings come from.
-	Site     string `json:"site"`
+	Version  string `json:"version"`
+	Sites    int    `json:"sites"`
 	Networks int    `json:"networks"`
 	Clients  int    `json:"clients"`
 	Devices  int    `json:"devices"`
 }
 
+// Site is one managed site on a controller. A controller commonly
+// holds several — home, a relative's house, a workshop — and they
+// share nothing but the login, so every listing spans them all and
+// stamps each row with the site it came from.
+type Site struct {
+	// ID is what the API calls the site (an opaque short name).
+	ID string `json:"id"`
+	// Name is the human one you set in the controller.
+	Name string `json:"name"`
+}
+
 // Network is a configured network — in UniFi terms a VLAN with its
 // subnet and DHCP range.
 type Network struct {
+	// Site is filled in by the driver, not the caller.
+	Site string `json:"site"`
 	ID   string `json:"id"`
 	Name string `json:"name"`
 	// VLAN is 0 for an untagged/default network.
@@ -48,6 +60,8 @@ type Network struct {
 
 // Client is something holding an address on the network.
 type Client struct {
+	// Site is filled in by the driver, not the caller.
+	Site string `json:"site"`
 	ID   string `json:"id"`
 	Name string `json:"name"`
 	// Hostname is what the device called itself over DHCP.
@@ -71,6 +85,8 @@ type Client struct {
 
 // Device is controller-managed hardware: gateway, switch, access point.
 type Device struct {
+	// Site is filled in by the driver, not the caller.
+	Site    string `json:"site"`
 	ID      string `json:"id"`
 	Name    string `json:"name"`
 	Model   string `json:"model"`
@@ -92,9 +108,12 @@ type Provider interface {
 	// Verify checks the credentials work without changing anything.
 	Verify(ctx context.Context) error
 	Info(ctx context.Context) (*Info, error)
-	Networks(ctx context.Context) ([]Network, error)
-	Clients(ctx context.Context) ([]Client, error)
-	Devices(ctx context.Context) ([]Device, error)
+	Sites(ctx context.Context) ([]Site, error)
+	// The listings span every site unless one is named; each row
+	// carries the site it came from.
+	Networks(ctx context.Context, site string) ([]Network, error)
+	Clients(ctx context.Context, site string) ([]Client, error)
+	Devices(ctx context.Context, site string) ([]Device, error)
 }
 
 // Registry holds one live Provider per configured record.

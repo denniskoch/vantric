@@ -31,6 +31,7 @@ func (s *Server) networkRoutes(r chi.Router) {
 	r.Post("/network/providers", s.createNetworkProvider)
 	r.Put("/network/providers/{id}", s.updateNetworkProvider)
 	r.Delete("/network/providers/{id}", s.deleteNetworkProvider)
+	r.Get("/network/sites", s.listNetworkSites)
 	r.Get("/network/networks", s.listNetworkNetworks)
 	r.Get("/network/clients", s.listNetworkClients)
 	r.Get("/network/devices", s.listNetworkDevices)
@@ -142,9 +143,6 @@ func (s *Server) createNetworkProvider(w http.ResponseWriter, r *http.Request) {
 		Password:    req.Password,
 		InsecureTLS: req.InsecureTLS,
 	}
-	if p.Site == "" {
-		p.Site = "default"
-	}
 	provider, err := networkfactory.Build(p)
 	if err != nil {
 		s.err(w, http.StatusBadRequest, err.Error())
@@ -188,9 +186,7 @@ func (s *Server) updateNetworkProvider(w http.ResponseWriter, r *http.Request) {
 	p.BaseURL = strings.TrimRight(strings.TrimSpace(req.BaseURL), "/")
 	p.Username = strings.TrimSpace(req.Username)
 	p.InsecureTLS = req.InsecureTLS
-	if site := strings.TrimSpace(req.Site); site != "" {
-		p.Site = site
-	}
+	p.Site = strings.TrimSpace(req.Site)
 	if key := strings.TrimSpace(req.APIKey); key != "" { // blank means "keep existing"
 		p.APIKey = key
 	}
@@ -253,17 +249,34 @@ func (s *Server) networkProvider(w http.ResponseWriter, r *http.Request) network
 	return provider
 }
 
+func (s *Server) listNetworkSites(w http.ResponseWriter, r *http.Request) {
+	provider := s.networkProvider(w, r)
+	if provider == nil {
+		return
+	}
+	sites, err := provider.Sites(r.Context())
+	if err != nil {
+		s.fail(w, err, "sites")
+		return
+	}
+	slices.SortFunc(sites, func(a, b network.Site) int { return strings.Compare(a.Name, b.Name) })
+	s.json(w, http.StatusOK, sites)
+}
+
 func (s *Server) listNetworkNetworks(w http.ResponseWriter, r *http.Request) {
 	provider := s.networkProvider(w, r)
 	if provider == nil {
 		return
 	}
-	networks, err := provider.Networks(r.Context())
+	networks, err := provider.Networks(r.Context(), r.URL.Query().Get("site"))
 	if err != nil {
 		s.fail(w, err, "networks")
 		return
 	}
 	slices.SortFunc(networks, func(a, b network.Network) int {
+		if a.Site != b.Site {
+			return strings.Compare(a.Site, b.Site)
+		}
 		if a.VLAN != b.VLAN {
 			return a.VLAN - b.VLAN
 		}
@@ -277,7 +290,7 @@ func (s *Server) listNetworkClients(w http.ResponseWriter, r *http.Request) {
 	if provider == nil {
 		return
 	}
-	clients, err := provider.Clients(r.Context())
+	clients, err := provider.Clients(r.Context(), r.URL.Query().Get("site"))
 	if err != nil {
 		s.fail(w, err, "clients")
 		return
@@ -285,6 +298,9 @@ func (s *Server) listNetworkClients(w http.ResponseWriter, r *http.Request) {
 	// By address, since the question this list answers is usually
 	// "what holds 192.168.80.something".
 	slices.SortFunc(clients, func(a, b network.Client) int {
+		if a.Site != b.Site {
+			return strings.Compare(a.Site, b.Site)
+		}
 		return compareIPs(a.IP, b.IP)
 	})
 	s.json(w, http.StatusOK, clients)
@@ -334,12 +350,15 @@ func (s *Server) listNetworkDevices(w http.ResponseWriter, r *http.Request) {
 	if provider == nil {
 		return
 	}
-	devices, err := provider.Devices(r.Context())
+	devices, err := provider.Devices(r.Context(), r.URL.Query().Get("site"))
 	if err != nil {
 		s.fail(w, err, "devices")
 		return
 	}
 	slices.SortFunc(devices, func(a, b network.Device) int {
+		if a.Site != b.Site {
+			return strings.Compare(a.Site, b.Site)
+		}
 		if a.Kind != b.Kind {
 			return strings.Compare(a.Kind, b.Kind)
 		}

@@ -81,7 +81,7 @@ export default function NetworkControllersPage() {
               <TableCell>Status</TableCell>
               <TableCell>Name</TableCell>
               <TableCell>URL</TableCell>
-              <TableCell>Site</TableCell>
+              <TableCell align="right">Sites</TableCell>
               <TableCell>Version</TableCell>
               <TableCell align="right">Networks</TableCell>
               <TableCell align="right">Clients</TableCell>
@@ -107,7 +107,9 @@ export default function NetworkControllersPage() {
                 </TableCell>
                 <TableCell>{provider.name}</TableCell>
                 <TableCell>{provider.baseUrl}</TableCell>
-                <TableCell>{provider.site}</TableCell>
+                <TableCell align="right">
+                  {provider.site ? `1 of ${provider.info?.sites ?? '?'}` : (provider.info?.sites ?? '—')}
+                </TableCell>
                 <TableCell>{provider.info?.version ?? '—'}</TableCell>
                 <TableCell align="right">{provider.info?.networks ?? '—'}</TableCell>
                 <TableCell align="right">{provider.info?.clients ?? '—'}</TableCell>

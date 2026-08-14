@@ -1,10 +1,13 @@
 import { Link as RouterLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import {
   Alert,
   Box,
   Button,
   Chip,
+  MenuItem,
+  TextField,
   Paper,
   Table,
   TableBody,
@@ -77,15 +80,48 @@ const useConnected = () => {
   return providers.length > 0
 }
 
+/** A controller commonly holds several sites. The filter only earns
+ *  its place when there's more than one, and so does the column. */
+function useSites(enabled: boolean) {
+  const [site, setSite] = useState('')
+  const { data: sites = [] } = useQuery({
+    queryKey: ['networkSites'],
+    queryFn: api.listNetworkSites,
+    enabled,
+    retry: false,
+  })
+  const filter = sites.length > 1 && (
+    <TextField
+      label="Site"
+      size="small"
+      select
+      value={site}
+      onChange={(e) => setSite(e.target.value)}
+      sx={{ width: 260, mb: 2 }}
+    >
+      <MenuItem value="">
+        <em>All sites</em>
+      </MenuItem>
+      {sites.map((s) => (
+        <MenuItem key={s.id} value={s.id}>
+          {s.name}
+        </MenuItem>
+      ))}
+    </TextField>
+  )
+  return { site, filter, showColumn: sites.length > 1 }
+}
+
 export function NetworkNetworksPage() {
   const enabled = useConnected()
+  const { site, filter, showColumn } = useSites(enabled)
   const {
     data: networks = [],
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['labNetworks'],
-    queryFn: api.listLabNetworks,
+    queryKey: ['labNetworks', site],
+    queryFn: () => api.listLabNetworks(site),
     enabled,
     retry: false,
   })
@@ -96,10 +132,12 @@ export function NetworkNetworksPage() {
       description="VLANs as your controller defines them, with the subnet and DHCP range each one serves."
       error={error as Error | null}
     >
+      {filter}
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>
             <TableRow>
+              {showColumn && <TableCell>Site</TableCell>}
               <TableCell>Name</TableCell>
               <TableCell align="right">VLAN</TableCell>
               <TableCell>Subnet</TableCell>
@@ -111,7 +149,8 @@ export function NetworkNetworksPage() {
           </TableHead>
           <TableBody>
             {networks.map((net) => (
-              <TableRow key={net.id} hover>
+              <TableRow key={`${net.site}/${net.id}`} hover>
+                {showColumn && <TableCell>{net.site}</TableCell>}
                 <TableCell>{net.name}</TableCell>
                 <TableCell align="right">{net.vlan || '—'}</TableCell>
                 <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
@@ -131,7 +170,7 @@ export function NetworkNetworksPage() {
             ))}
             {networks.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={showColumn ? 8 : 7} align="center" sx={{ py: 6, color: '#5f6368' }}>
                   {isLoading ? 'Loading…' : 'No networks.'}
                 </TableCell>
               </TableRow>
@@ -145,13 +184,14 @@ export function NetworkNetworksPage() {
 
 export function NetworkClientsPage() {
   const enabled = useConnected()
+  const { site, filter, showColumn } = useSites(enabled)
   const {
     data: clients = [],
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['networkClients'],
-    queryFn: api.listNetworkClients,
+    queryKey: ['networkClients', site],
+    queryFn: () => api.listNetworkClients(site),
     enabled,
     refetchInterval: 30000,
     retry: false,
@@ -165,10 +205,12 @@ export function NetworkClientsPage() {
       description={`Everything holding an address, sorted by address. ${online} of ${clients.length} online.`}
       error={error as Error | null}
     >
+      {filter}
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>
             <TableRow>
+              {showColumn && <TableCell>Site</TableCell>}
               <TableCell>IP</TableCell>
               <TableCell>Name</TableCell>
               <TableCell>MAC</TableCell>
@@ -180,7 +222,8 @@ export function NetworkClientsPage() {
           </TableHead>
           <TableBody>
             {clients.map((client) => (
-              <TableRow key={client.id || client.mac} hover>
+              <TableRow key={`${client.site}/${client.id || client.mac}`} hover>
+                {showColumn && <TableCell>{client.site}</TableCell>}
                 <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
                   {client.ip || '—'}
                   {client.fixedIp && (
@@ -233,7 +276,7 @@ export function NetworkClientsPage() {
             ))}
             {clients.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={showColumn ? 8 : 7} align="center" sx={{ py: 6, color: '#5f6368' }}>
                   {isLoading ? 'Loading…' : 'No clients.'}
                 </TableCell>
               </TableRow>
@@ -247,13 +290,14 @@ export function NetworkClientsPage() {
 
 export function NetworkDevicesPage() {
   const enabled = useConnected()
+  const { site, filter, showColumn } = useSites(enabled)
   const {
     data: devices = [],
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['networkDevices'],
-    queryFn: api.listNetworkDevices,
+    queryKey: ['networkDevices', site],
+    queryFn: () => api.listNetworkDevices(site),
     enabled,
     refetchInterval: 30000,
     retry: false,
@@ -265,11 +309,13 @@ export function NetworkDevicesPage() {
       description="The hardware carrying your network: gateways, switches and access points."
       error={error as Error | null}
     >
+      {filter}
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell>Status</TableCell>
+              {showColumn && <TableCell>Site</TableCell>}
               <TableCell>Name</TableCell>
               <TableCell>Kind</TableCell>
               <TableCell>Model</TableCell>
@@ -293,6 +339,7 @@ export function NetworkDevicesPage() {
                     </span>
                   </Tooltip>
                 </TableCell>
+                {showColumn && <TableCell>{device.site}</TableCell>}
                 <TableCell>{device.name}</TableCell>
                 <TableCell>{device.kind}</TableCell>
                 <TableCell sx={{ color: '#5f6368' }}>{device.model}</TableCell>
@@ -308,7 +355,7 @@ export function NetworkDevicesPage() {
             ))}
             {devices.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={showColumn ? 9 : 8} align="center" sx={{ py: 6, color: '#5f6368' }}>
                   {isLoading ? 'Loading…' : 'No devices.'}
                 </TableCell>
               </TableRow>

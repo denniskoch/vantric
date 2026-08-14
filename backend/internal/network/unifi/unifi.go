@@ -29,7 +29,8 @@ type Config struct {
 	// BaseURL is the controller root, e.g. https://192.168.1.1 or
 	// https://unifi.lan:8443.
 	BaseURL string
-	// Site is the controller site; "default" unless you renamed it.
+	// Site restricts every listing to one site. Blank — the usual
+	// case — spans all of them.
 	Site string
 	// APIKey is a local API key from Control Plane → Integrations on
 	// newer controllers. When set, no login happens at all.
@@ -56,9 +57,6 @@ type Provider struct {
 }
 
 func New(cfg Config) (*Provider, error) {
-	if cfg.Site == "" {
-		cfg.Site = "default"
-	}
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, err
@@ -152,8 +150,13 @@ func snippet(body []byte) string {
 	return text
 }
 
-// get calls a site endpoint, discovering the controller generation on
-// the first call and re-authenticating once if the session lapsed.
+// getSite calls a site-scoped endpoint.
+func (p *Provider) getSite(ctx context.Context, site, endpoint string, out any) error {
+	return p.get(ctx, fmt.Sprintf("/api/s/%s%s", site, endpoint), out)
+}
+
+// get calls any controller path, discovering the controller generation
+// on the first call and re-authenticating once if the session lapsed.
 func (p *Provider) get(ctx context.Context, endpoint string, out any) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -171,7 +174,7 @@ func (p *Provider) get(ctx context.Context, endpoint string, out any) error {
 
 	var lastErr error
 	for _, prefix := range prefixes {
-		path := fmt.Sprintf("%s/api/s/%s%s", prefix, p.cfg.Site, endpoint)
+		path := prefix + endpoint
 		resp, err := p.request(ctx, http.MethodGet, path, nil)
 		if err != nil {
 			return fmt.Errorf("unifi: %w", err)
@@ -222,37 +225,98 @@ func (p *Provider) get(ctx context.Context, endpoint string, out any) error {
 }
 
 func (p *Provider) Verify(ctx context.Context) error {
-	var health []json.RawMessage
-	if err := p.get(ctx, "/stat/health", &health); err != nil {
+	sites, err := p.Sites(ctx)
+	if err != nil {
 		return err
+	}
+	if len(sites) == 0 {
+		return fmt.Errorf("unifi: the account can see no sites")
 	}
 	return nil
 }
 
+// Sites lists what this login can see. A controller with one site
+// answers with one; four sites answer with four, and every listing
+// below spans them.
+func (p *Provider) Sites(ctx context.Context) ([]network.Site, error) {
+	var res []struct {
+		Name string `json:"name"`
+		Desc string `json:"desc"`
+	}
+	if err := p.get(ctx, "/api/self/sites", &res); err != nil {
+		return nil, err
+	}
+	sites := make([]network.Site, 0, len(res))
+	for _, s := range res {
+		sites = append(sites, network.Site{ID: s.Name, Name: firstNonEmpty(s.Desc, s.Name)})
+	}
+	return sites, nil
+}
+
+// siteIDs resolves which sites a listing covers: the one asked for,
+// the one this provider is pinned to, or all of them.
+func (p *Provider) siteIDs(ctx context.Context, site string) ([]network.Site, error) {
+	if site == "" {
+		site = p.cfg.Site
+	}
+	sites, err := p.Sites(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if site == "" {
+		return sites, nil
+	}
+	for _, s := range sites {
+		if s.ID == site || s.Name == site {
+			return []network.Site{s}, nil
+		}
+	}
+	return nil, fmt.Errorf("unifi: no site named %q", site)
+}
+
 func (p *Provider) Info(ctx context.Context) (*network.Info, error) {
+	sites, err := p.siteIDs(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	info := &network.Info{Sites: len(sites)}
 	var sysinfo []struct {
 		Version string `json:"version"`
 	}
-	if err := p.get(ctx, "/stat/sysinfo", &sysinfo); err != nil {
-		return nil, err
+	if len(sites) > 0 {
+		if err := p.getSite(ctx, sites[0].ID, "/stat/sysinfo", &sysinfo); err == nil && len(sysinfo) > 0 {
+			info.Version = sysinfo[0].Version
+		}
 	}
-	info := &network.Info{Site: p.cfg.Site}
-	if len(sysinfo) > 0 {
-		info.Version = sysinfo[0].Version
-	}
-	if networks, err := p.Networks(ctx); err == nil {
+	if networks, err := p.Networks(ctx, ""); err == nil {
 		info.Networks = len(networks)
 	}
-	if clients, err := p.Clients(ctx); err == nil {
+	if clients, err := p.Clients(ctx, ""); err == nil {
 		info.Clients = len(clients)
 	}
-	if devices, err := p.Devices(ctx); err == nil {
+	if devices, err := p.Devices(ctx, ""); err == nil {
 		info.Devices = len(devices)
 	}
 	return info, nil
 }
 
-func (p *Provider) Networks(ctx context.Context) ([]network.Network, error) {
+func (p *Provider) Networks(ctx context.Context, site string) ([]network.Network, error) {
+	sites, err := p.siteIDs(ctx, site)
+	if err != nil {
+		return nil, err
+	}
+	networks := []network.Network{}
+	for _, s := range sites {
+		found, err := p.networksIn(ctx, s)
+		if err != nil {
+			return nil, err
+		}
+		networks = append(networks, found...)
+	}
+	return networks, nil
+}
+
+func (p *Provider) networksIn(ctx context.Context, site network.Site) ([]network.Network, error) {
 	var res []struct {
 		ID          string `json:"_id"`
 		Name        string `json:"name"`
@@ -265,7 +329,7 @@ func (p *Provider) Networks(ctx context.Context) ([]network.Network, error) {
 		DHCPStop    string `json:"dhcpd_stop"`
 		DomainName  string `json:"domain_name"`
 	}
-	if err := p.get(ctx, "/rest/networkconf", &res); err != nil {
+	if err := p.getSite(ctx, site.ID, "/rest/networkconf", &res); err != nil {
 		return nil, err
 	}
 	networks := make([]network.Network, 0, len(res))
@@ -275,6 +339,7 @@ func (p *Provider) Networks(ctx context.Context) ([]network.Network, error) {
 			enabled = *n.Enabled
 		}
 		networks = append(networks, network.Network{
+			Site:        site.Name,
 			ID:          n.ID,
 			Name:        n.Name,
 			VLAN:        toInt(n.VLAN),
@@ -357,43 +422,79 @@ func firstNonEmpty(values ...string) string {
 // Clients merges what's connected now with what the controller
 // remembers. An address that's reserved but powered off still occupies
 // it, so a list of live sessions alone would misreport what's free.
-func (p *Provider) Clients(ctx context.Context) ([]network.Client, error) {
+func (p *Provider) Clients(ctx context.Context, site string) ([]network.Client, error) {
+	sites, err := p.siteIDs(ctx, site)
+	if err != nil {
+		return nil, err
+	}
+	clients := []network.Client{}
+	for _, s := range sites {
+		found, err := p.clientsIn(ctx, s)
+		if err != nil {
+			return nil, err
+		}
+		clients = append(clients, found...)
+	}
+	return clients, nil
+}
+
+func (p *Provider) clientsIn(ctx context.Context, site network.Site) ([]network.Client, error) {
 	deviceNames := map[string]string{}
-	if devices, err := p.Devices(ctx); err == nil {
+	if devices, err := p.devicesIn(ctx, site); err == nil {
 		for _, d := range devices {
 			deviceNames[d.MAC] = d.Name
 		}
 	}
 
 	var active []staClient
-	if err := p.get(ctx, "/stat/sta", &active); err != nil {
+	if err := p.getSite(ctx, site.ID, "/stat/sta", &active); err != nil {
 		return nil, err
 	}
 	clients := make([]network.Client, 0, len(active))
 	seen := map[string]bool{}
 	for _, c := range active {
 		seen[c.MAC] = true
-		clients = append(clients, c.toClient(true, deviceNames))
+		client := c.toClient(true, deviceNames)
+		client.Site = site.Name
+		clients = append(clients, client)
 	}
 
 	// Known-but-offline clients are best effort: the endpoint is large
 	// on a busy network and its absence shouldn't empty the page.
 	var known []staClient
-	if err := p.get(ctx, "/rest/user", &known); err == nil {
+	if err := p.getSite(ctx, site.ID, "/rest/user", &known); err == nil {
 		for _, c := range known {
 			if seen[c.MAC] {
 				continue
 			}
 			// Only ones that hold an address are interesting here.
 			if c.UseFixedIP || c.IP != "" {
-				clients = append(clients, c.toClient(false, deviceNames))
+				client := c.toClient(false, deviceNames)
+				client.Site = site.Name
+				clients = append(clients, client)
 			}
 		}
 	}
 	return clients, nil
 }
 
-func (p *Provider) Devices(ctx context.Context) ([]network.Device, error) {
+func (p *Provider) Devices(ctx context.Context, site string) ([]network.Device, error) {
+	sites, err := p.siteIDs(ctx, site)
+	if err != nil {
+		return nil, err
+	}
+	devices := []network.Device{}
+	for _, s := range sites {
+		found, err := p.devicesIn(ctx, s)
+		if err != nil {
+			return nil, err
+		}
+		devices = append(devices, found...)
+	}
+	return devices, nil
+}
+
+func (p *Provider) devicesIn(ctx context.Context, site network.Site) ([]network.Device, error) {
 	var res []struct {
 		ID      string `json:"_id"`
 		Name    string `json:"name"`
@@ -407,12 +508,13 @@ func (p *Provider) Devices(ctx context.Context) ([]network.Device, error) {
 		Uptime  int64  `json:"uptime"`
 		NumSta  int    `json:"num_sta"`
 	}
-	if err := p.get(ctx, "/stat/device", &res); err != nil {
+	if err := p.getSite(ctx, site.ID, "/stat/device", &res); err != nil {
 		return nil, err
 	}
 	devices := make([]network.Device, 0, len(res))
 	for _, d := range res {
 		devices = append(devices, network.Device{
+			Site:          site.Name,
 			ID:            d.ID,
 			Name:          firstNonEmpty(d.Name, d.Model, d.MAC),
 			Model:         d.Model,
