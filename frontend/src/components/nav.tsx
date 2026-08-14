@@ -28,6 +28,7 @@ import AppsIcon from '@mui/icons-material/Apps'
 import RouterIcon from '@mui/icons-material/Router'
 import DevicesIcon from '@mui/icons-material/Devices'
 import HubIcon from '@mui/icons-material/Hub'
+import PlaceIcon from '@mui/icons-material/Place'
 import WifiIcon from '@mui/icons-material/Wifi'
 import PublicOffIcon from '@mui/icons-material/Public'
 import VpnLockIcon from '@mui/icons-material/VpnLock'
@@ -171,6 +172,12 @@ export const sections: Section[] = [
         // the same way round.
         label: 'UniFi Network',
         items: [
+          {
+            label: 'Sites',
+            icon: PlaceIcon,
+            to: '/network/sites',
+            hint: 'Every site this controller manages, and what is on each',
+          },
           {
             label: 'WiFi',
             icon: WifiIcon,

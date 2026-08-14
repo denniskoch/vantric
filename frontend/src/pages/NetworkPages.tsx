@@ -602,3 +602,120 @@ export function NetworkWiFiPage() {
     </NetworkPage>
   )
 }
+
+
+/** Sites is the section's own index: one row per site with what the
+ *  controller manages there, so four houses read as four rows rather
+ *  than as one long list you have to sort in your head. */
+export function NetworkSitesPage() {
+  const enabled = useConnected()
+  const { data: sites = [], isLoading, error } = useQuery({
+    queryKey: ['networkSites'],
+    queryFn: api.listNetworkSites,
+    enabled,
+    retry: false,
+  })
+  const { data: networks = [] } = useQuery({
+    queryKey: ['labNetworks', 'all'],
+    queryFn: () => api.listLabNetworks(),
+    enabled,
+    retry: false,
+  })
+  const { data: wifi = [] } = useQuery({
+    queryKey: ['networkWiFi'],
+    queryFn: api.listNetworkWiFi,
+    enabled,
+    retry: false,
+  })
+  const { data: devices = [] } = useQuery({
+    queryKey: ['networkDevices'],
+    queryFn: api.listNetworkDevices,
+    enabled,
+    retry: false,
+  })
+  const { data: clients = [] } = useQuery({
+    queryKey: ['networkClients'],
+    queryFn: api.listNetworkClients,
+    enabled,
+    retry: false,
+  })
+
+  const countIn = <T extends { site: string }>(rows: T[], site: string) =>
+    rows.filter((row) => row.site === site).length
+
+  return (
+    <NetworkPage
+      title="Sites"
+      description="Every site this controller manages, and what it runs at each one."
+      error={error as Error | null}
+    >
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Site</TableCell>
+              <TableCell>Internet</TableCell>
+              <TableCell align="right">Networks</TableCell>
+              <TableCell align="right">SSIDs</TableCell>
+              <TableCell align="right">Devices</TableCell>
+              <TableCell align="right">Clients</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {sites.map((site) => {
+              const wans = networks.filter((n) => n.site === site.name && n.category === 'wan')
+              const up = wans.filter((n) => n.up)
+              const offline = devices.filter(
+                (d) => d.site === site.name && d.state !== 'online',
+              ).length
+              return (
+                <TableRow key={site.id} hover>
+                  <TableCell>{site.name}</TableCell>
+                  <TableCell>
+                    {up.length > 0 ? (
+                      <Box component="span" sx={{ color: '#188038' }}>
+                        {up.map((n) => n.isp || n.name).join(', ')}
+                      </Box>
+                    ) : (
+                      <Tooltip
+                        title={
+                          wans.length === 0
+                            ? 'No WAN configured at this site'
+                            : 'No uplink reporting — often means no UniFi gateway here'
+                        }
+                      >
+                        <Box component="span" sx={{ color: '#5f6368' }}>
+                          Not reported
+                        </Box>
+                      </Tooltip>
+                    )}
+                  </TableCell>
+                  <TableCell align="right">
+                    {networks.filter((n) => n.site === site.name && n.category === 'lan').length}
+                  </TableCell>
+                  <TableCell align="right">{countIn(wifi, site.name)}</TableCell>
+                  <TableCell align="right">
+                    {countIn(devices, site.name)}
+                    {offline > 0 && (
+                      <Tooltip title={`${offline} not online`}>
+                        <Box component="span" sx={{ color: '#f29900' }}> · {offline} down</Box>
+                      </Tooltip>
+                    )}
+                  </TableCell>
+                  <TableCell align="right">{countIn(clients, site.name)}</TableCell>
+                </TableRow>
+              )
+            })}
+            {sites.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                  {isLoading ? 'Loading…' : 'No sites.'}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </NetworkPage>
+  )
+}
