@@ -1,8 +1,10 @@
+import { Link as RouterLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   Alert,
   Box,
   Chip,
+  Link,
   Paper,
   Table,
   TableBody,
@@ -59,7 +61,13 @@ export default function IdentityGroupsPage() {
             {groups.map((group) => (
               <TableRow key={group.id} hover>
                 <TableCell>
-                  {group.name}
+                  <Link
+                    component={RouterLink}
+                    to={`/identity/groups/${group.id}`}
+                    underline="hover"
+                  >
+                    {group.name}
+                  </Link>
                   {group.superuser && (
                     <Chip
                       label="superuser"

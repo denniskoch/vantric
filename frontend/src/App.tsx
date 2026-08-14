@@ -18,6 +18,7 @@ import AddDatabaseInstancePage from './pages/AddDatabaseInstancePage'
 import DatabasesPage from './pages/DatabasesPage'
 import IdentityUsersPage from './pages/IdentityUsersPage'
 import IdentityGroupsPage from './pages/IdentityGroupsPage'
+import IdentityGroupDetailPage from './pages/IdentityGroupDetailPage'
 import IdentityApplicationsPage from './pages/IdentityApplicationsPage'
 import IdentityEventsPage from './pages/IdentityEventsPage'
 import IdentityProvidersPage from './pages/IdentityProvidersPage'
@@ -55,6 +56,7 @@ export default function App() {
         <Route path="/identity/overview" element={<SectionLandingPage />} />
         <Route path="/identity/users" element={<IdentityUsersPage />} />
         <Route path="/identity/groups" element={<IdentityGroupsPage />} />
+        <Route path="/identity/groups/:id" element={<IdentityGroupDetailPage />} />
         <Route path="/identity/applications" element={<IdentityApplicationsPage />} />
         <Route path="/identity/events" element={<IdentityEventsPage />} />
         <Route path="/identity/providers" element={<IdentityProvidersPage />} />

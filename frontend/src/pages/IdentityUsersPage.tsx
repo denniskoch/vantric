@@ -5,11 +5,14 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
+  FormGroup,
   IconButton,
   Menu,
   MenuItem,
@@ -26,6 +29,7 @@ import {
 } from '@mui/material'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import KeyIcon from '@mui/icons-material/Key'
+import GroupIcon from '@mui/icons-material/Group'
 import BlockIcon from '@mui/icons-material/Block'
 import CheckIcon from '@mui/icons-material/Check'
 import { api } from '../api/client'
@@ -39,12 +43,18 @@ export default function IdentityUsersPage() {
   const [passwordFor, setPasswordFor] = useState<{ user: IdentityUser; password: string } | null>(
     null,
   )
+  const [groupsFor, setGroupsFor] = useState<{ user: IdentityUser; chosen: string[] } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
   const { data: providers = [] } = useQuery({
     queryKey: ['identityProviders'],
     queryFn: api.listIdentityProviders,
+  })
+  const { data: groups = [] } = useQuery({
+    queryKey: ['identityGroups'],
+    queryFn: api.listIdentityGroups,
+    enabled: providers.length > 0,
   })
   const {
     data: users = [],
@@ -57,12 +67,42 @@ export default function IdentityUsersPage() {
     retry: false,
   })
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['identityUsers'] })
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['identityUsers'] })
+    queryClient.invalidateQueries({ queryKey: ['identityGroups'] })
+  }
 
   const setActive = useMutation({
     mutationFn: (user: IdentityUser) => api.setIdentityUserActive(user.id, !user.active),
     onSuccess: (_, user) => {
       setNotice(`${user.username} is now ${user.active ? 'disabled' : 'active'}`)
+      invalidate()
+    },
+    onError: (e: Error) => setError(e.message),
+  })
+
+  // Membership is saved as a diff: only the boxes you actually changed
+  // turn into calls, so a save with nothing ticked does nothing.
+  const saveGroups = useMutation({
+    mutationFn: async () => {
+      const { user, chosen } = groupsFor!
+      const before = new Set(user.groups ?? [])
+      const after = new Set(chosen)
+      const byName = new Map(groups.map((g) => [g.name, g.id]))
+      for (const name of after) {
+        if (!before.has(name) && byName.has(name)) {
+          await api.addIdentityGroupMember(byName.get(name)!, user.id)
+        }
+      }
+      for (const name of before) {
+        if (!after.has(name) && byName.has(name)) {
+          await api.removeIdentityGroupMember(byName.get(name)!, user.id)
+        }
+      }
+    },
+    onSuccess: () => {
+      setNotice(`Groups updated for ${groupsFor?.user.username}`)
+      setGroupsFor(null)
       invalidate()
     },
     onError: (e: Error) => setError(e.message),
@@ -211,6 +251,14 @@ export default function IdentityUsersPage() {
           )}
         </MenuItem>
         <MenuItem
+          onClick={() => {
+            if (menu) setGroupsFor({ user: menu.user, chosen: menu.user.groups ?? [] })
+            setMenu(null)
+          }}
+        >
+          <GroupIcon fontSize="small" sx={{ mr: 1 }} /> Manage groups
+        </MenuItem>
+        <MenuItem
           disabled={Boolean(menu && isServiceAccount(menu.user.kind))}
           onClick={() => {
             if (menu) setPasswordFor({ user: menu.user, password: '' })
@@ -225,6 +273,58 @@ export default function IdentityUsersPage() {
           </Typography>
         )}
       </Menu>
+
+      <Dialog
+        open={Boolean(groupsFor)}
+        onClose={() => setGroupsFor(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Groups for {groupsFor?.user.username}</DialogTitle>
+        <DialogContent sx={{ pt: '8px !important' }}>
+          <FormGroup>
+            {groups.map((group) => (
+              <FormControlLabel
+                key={group.id}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={groupsFor?.chosen.includes(group.name) ?? false}
+                    onChange={(e) =>
+                      setGroupsFor({
+                        ...groupsFor!,
+                        chosen: e.target.checked
+                          ? [...groupsFor!.chosen, group.name]
+                          : groupsFor!.chosen.filter((name) => name !== group.name),
+                      })
+                    }
+                  />
+                }
+                label={
+                  <Box component="span">
+                    {group.name}
+                    {group.superuser && (
+                      <Box component="span" sx={{ color: '#f29900', ml: 1, fontSize: 12 }}>
+                        grants admin
+                      </Box>
+                    )}
+                  </Box>
+                }
+              />
+            ))}
+          </FormGroup>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setGroupsFor(null)}>Cancel</Button>
+          <Button
+            variant="contained"
+            disabled={saveGroups.isPending}
+            onClick={() => saveGroups.mutate()}
+          >
+            {saveGroups.isPending ? 'Saving…' : 'Save'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog
         open={Boolean(passwordFor)}
