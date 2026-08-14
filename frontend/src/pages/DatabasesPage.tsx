@@ -15,9 +15,18 @@ import {
 } from '@mui/material'
 import { api } from '../api/client'
 import { formatBytes } from '../format'
+import { BrandLabel } from '../components/BrandIcon'
+import { databaseBrand } from '../brands'
 
-/** Every database across every connected instance — the same
- *  spans-all-servers listing the storage pages use. */
+/**
+ * Every database across every connected instance — the same
+ * spans-all-servers listing the storage pages use.
+ *
+ * Deliberately no owner column: ownership is a PostgreSQL idea that
+ * MySQL answers with grants, so in a mixed list it would be dashes
+ * for half the rows. It lives on the instance's own Databases tab,
+ * where the engine is known.
+ */
 export default function DatabasesPage() {
   const { data: servers = [] } = useQuery({
     queryKey: ['databaseServers'],
@@ -29,7 +38,7 @@ export default function DatabasesPage() {
     refetchInterval: 30000,
   })
 
-  const serverName = (id: string) => servers.find((s) => s.id === id)?.name ?? '—'
+  const serverFor = (id: string) => servers.find((s) => s.id === id)
 
   return (
     <Box sx={{ p: 3 }}>
@@ -46,7 +55,6 @@ export default function DatabasesPage() {
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>Instance</TableCell>
-              <TableCell>Owner</TableCell>
               <TableCell align="right">Size</TableCell>
               <TableCell>Encoding</TableCell>
               <TableCell align="right">Connections</TableCell>
@@ -71,11 +79,17 @@ export default function DatabasesPage() {
                     component={RouterLink}
                     to={`/databases/instances/${db.serverId}`}
                     underline="hover"
+                    sx={{ display: 'block' }}
                   >
-                    {serverName(db.serverId)}
+                    <BrandLabel
+                      icon={databaseBrand(
+                        serverFor(db.serverId)?.type ?? '',
+                        serverFor(db.serverId)?.info?.version,
+                      )}
+                      label={serverFor(db.serverId)?.name ?? '—'}
+                    />
                   </Link>
                 </TableCell>
-                <TableCell>{db.owner || '—'}</TableCell>
                 <TableCell align="right">{db.sizeBytes ? formatBytes(db.sizeBytes) : '—'}</TableCell>
                 <TableCell>{db.encoding}</TableCell>
                 <TableCell align="right">{db.connections}</TableCell>
@@ -83,7 +97,7 @@ export default function DatabasesPage() {
             ))}
             {databases.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 6, color: '#5f6368' }}>
                   {isLoading ? 'Loading…' : 'No databases — connect an instance first.'}
                 </TableCell>
               </TableRow>

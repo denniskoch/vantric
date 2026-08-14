@@ -87,6 +87,12 @@ Dockerfile).
   DDL can't take bind parameters, so identifiers are checked against
   `identRe` in the API layer AND quoted by the driver; the engine's own
   databases are flagged `System` and refused for deletion.
+- Engines share ONE nav item and one list, Cloud SQL-style — the
+  engine is a column, not a section. Where engines genuinely differ,
+  the fix is per-view, not per-nav-item: a cross-engine list drops the
+  column that only one engine has (no owner on /databases/databases),
+  and the instance detail branches on `server.type` because there the
+  engine is known.
 - The two engines disagree about identity and ownership, and the
   interface carries both: a MySQL user is name@host (so DropUser and
   SetPassword take a host, ignored by PostgreSQL) while a PostgreSQL

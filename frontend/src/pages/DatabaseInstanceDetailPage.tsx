@@ -317,7 +317,7 @@ export default function DatabaseInstanceDetailPage() {
                 <TableHead>
                   <TableRow>
                     <TableCell>Name</TableCell>
-                    <TableCell>Owner</TableCell>
+                    {hasOwners && <TableCell>Owner</TableCell>}
                     <TableCell align="right">Size</TableCell>
                     <TableCell>Encoding</TableCell>
                     <TableCell>Collation</TableCell>
@@ -339,7 +339,7 @@ export default function DatabaseInstanceDetailPage() {
                           />
                         )}
                       </TableCell>
-                      <TableCell>{db.owner || '—'}</TableCell>
+                      {hasOwners && <TableCell>{db.owner}</TableCell>}
                       <TableCell align="right">
                         {db.sizeBytes ? formatBytes(db.sizeBytes) : '—'}
                       </TableCell>
@@ -367,7 +367,11 @@ export default function DatabaseInstanceDetailPage() {
                   ))}
                   {databases.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                      <TableCell
+                        colSpan={hasOwners ? 7 : 6}
+                        align="center"
+                        sx={{ py: 6, color: '#5f6368' }}
+                      >
                         {databasesLoading ? 'Loading…' : 'No databases.'}
                       </TableCell>
                     </TableRow>
