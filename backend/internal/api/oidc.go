@@ -10,6 +10,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -69,8 +71,8 @@ func discover(ctx context.Context, issuer string) (*oidcDiscovery, error) {
 		return cached, nil
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		issuer+"/.well-known/openid-configuration", nil)
+	url := issuer + "/.well-known/openid-configuration"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -79,12 +81,19 @@ func discover(ctx context.Context, issuer string) (*oidcDiscovery, error) {
 		return nil, fmt.Errorf("reaching %s: %w", issuer, err)
 	}
 	defer res.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%s has no OpenID configuration (%s)", issuer, res.Status)
+		// Say who answered, not just that it wasn't a 200. A 404 here is
+		// usually something other than the identity provider on the end
+		// of that name — split-horizon DNS pointing at a reverse proxy
+		// without the vhost, or an access proxy in front of it — and the
+		// status alone sends you looking in the wrong place.
+		return nil, fmt.Errorf("%s answered %s, not an OpenID configuration%s",
+			url, res.Status, describeResponder(res, body))
 	}
 	var doc oidcDiscovery
-	if err := json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(&doc); err != nil {
-		return nil, fmt.Errorf("reading the OpenID configuration: %w", err)
+	if err := json.Unmarshal(body, &doc); err != nil {
+		return nil, fmt.Errorf("%s didn't return JSON%s", url, describeResponder(res, body))
 	}
 	if doc.AuthzEndpoint == "" || doc.TokenEndpoint == "" || doc.UserInfoURL == "" {
 		return nil, fmt.Errorf("%s is missing an authorization, token or userinfo endpoint", issuer)
@@ -95,6 +104,30 @@ func discover(ctx context.Context, issuer string) (*oidcDiscovery, error) {
 	discoveryMu.Unlock()
 	return &doc, nil
 }
+
+// describeResponder turns "404" into something you can act on: whatever
+// the thing on the other end says about itself.
+func describeResponder(res *http.Response, body []byte) string {
+	var bits []string
+	if server := res.Header.Get("Server"); server != "" {
+		bits = append(bits, "served by "+server)
+	}
+	if ct := res.Header.Get("Content-Type"); ct != "" {
+		bits = append(bits, ct)
+	}
+	// A title is the fastest way to recognise someone else's error page.
+	if m := titleRe.FindSubmatch(body); m != nil {
+		bits = append(bits, strconv.Quote(strings.TrimSpace(string(m[1]))))
+	} else if snippet := strings.TrimSpace(string(body)); snippet != "" && len(snippet) < 200 {
+		bits = append(bits, strconv.Quote(snippet))
+	}
+	if len(bits) == 0 {
+		return ""
+	}
+	return " (" + strings.Join(bits, "; ") + ")"
+}
+
+var titleRe = regexp.MustCompile(`(?is)<title[^>]*>(.{0,120}?)</title>`)
 
 // forgetDiscovery drops the cache when the provider is reconfigured,
 // so pointing at a different issuer takes effect without a restart.
