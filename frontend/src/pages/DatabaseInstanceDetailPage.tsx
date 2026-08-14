@@ -221,7 +221,7 @@ export default function DatabaseInstanceDetailPage() {
             <ErrorIcon sx={{ color: '#d93025', fontSize: 20 }} />
           )}
         </Tooltip>
-        {brand && <BrandIcon icon={brand} size={20} />}
+        {brand && <BrandIcon icon={brand} size={22} />}
         <Typography variant="h5">{server.name}</Typography>
         <Box sx={{ flex: 1 }} />
         <Button size="small" startIcon={<RefreshIcon />} onClick={refresh}>

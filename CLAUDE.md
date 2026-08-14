@@ -102,9 +102,9 @@ Dockerfile).
   rule gates submission, it needs a matching field error.
 - UI style: GCP-inspired via MUI + the custom theme in `src/theme.ts`
   (Google blue #1a73e8, white surfaces, #dadce0 borders, dense tables).
-  NO PILL BORDERS: chips are borderless labels on a #f1f3f4 tint with
-  the standard 4px radius, set once in the theme's MuiChip override —
-  don't reintroduce an outline on a chip.
+  NO PILL BORDERS and no chip backgrounds: a chip is its icon and its
+  words sitting in the row like text, set once in the theme's MuiChip
+  override — don't reintroduce an outline or a tint behind one.
 - Brand marks (engines, hypervisors, DNS providers, guest operating
   systems) come from simple-icons, drawn inline by
   `components/BrandIcon.tsx` and looked up in `src/brands.ts`. Every

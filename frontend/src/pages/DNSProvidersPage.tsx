@@ -173,13 +173,13 @@ export default function DNSProvidersPage() {
                   <Chip
                     icon={
                       dnsBrand(provider.type) ? (
-                        <BrandIcon icon={dnsBrand(provider.type)!} size={12} />
+                        <BrandIcon icon={dnsBrand(provider.type)!} size={16} />
                       ) : undefined
                     }
                     label={typeLabels[provider.type] ?? provider.type}
                     size="small"
                     variant="outlined"
-                    sx={{ fontSize: 11, height: 20, '& .MuiChip-icon': { ml: 0.75, mr: -0.25 } }}
+                    sx={{ fontSize: 12, height: 20, '& .MuiChip-icon': { ml: 0, mr: 0 } }}
                   />
                 </TableCell>
                 <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>

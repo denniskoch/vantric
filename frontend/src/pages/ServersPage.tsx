@@ -177,13 +177,13 @@ export default function ServersPage() {
                   <Chip
                     icon={
                       hypervisorBrand(server.type) ? (
-                        <BrandIcon icon={hypervisorBrand(server.type)!} size={12} />
+                        <BrandIcon icon={hypervisorBrand(server.type)!} size={16} />
                       ) : undefined
                     }
                     label={typeLabels[server.type] ?? server.type}
                     size="small"
                     variant="outlined"
-                    sx={{ fontSize: 11, height: 20, '& .MuiChip-icon': { ml: 0.75, mr: -0.25 } }}
+                    sx={{ fontSize: 12, height: 20, '& .MuiChip-icon': { ml: 0, mr: 0 } }}
                   />
                 </TableCell>
                 <TableCell>{server.baseUrl || '—'}</TableCell>

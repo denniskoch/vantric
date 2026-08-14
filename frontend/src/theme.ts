@@ -54,14 +54,17 @@ export const theme = createTheme({
     },
     MuiChip: {
       styleOverrides: {
-        // No pill borders: labels sit on a tint with the same corner
-        // radius as everything else, rather than in an outlined pill.
+        // No pill borders and no tinted background: a label is just
+        // its icon and its words, sitting in the row like text.
         root: { borderRadius: 4 },
         outlined: {
           border: 'none',
-          backgroundColor: '#f1f3f4',
+          backgroundColor: 'transparent',
           color: '#3c4043',
+          paddingLeft: 0,
+          paddingRight: 0,
         },
+        label: { paddingLeft: 6, paddingRight: 6 },
       },
     },
     MuiListItemButton: {

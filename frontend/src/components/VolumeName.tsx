@@ -13,7 +13,7 @@ export default function VolumeName({ name }: { name: string }) {
   const brand = osBrand(name)
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      {brand ? <BrandIcon icon={brand} size={14} /> : <Box sx={{ width: 14 }} />}
+      {brand ? <BrandIcon icon={brand} size={16} /> : <Box sx={{ width: 16 }} />}
       {name}
     </Box>
   )

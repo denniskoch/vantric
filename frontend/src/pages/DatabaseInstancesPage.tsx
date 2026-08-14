@@ -58,11 +58,11 @@ function EngineChip({ server }: { server: DatabaseServer }) {
   const mariadb = brand?.title === 'MariaDB'
   return (
     <Chip
-      icon={brand ? <BrandIcon icon={brand} size={12} /> : undefined}
+      icon={brand ? <BrandIcon icon={brand} size={16} /> : undefined}
       label={mariadb ? 'MariaDB' : (engineLabels[server.type] ?? server.type)}
       size="small"
       variant="outlined"
-      sx={{ fontSize: 11, height: 20, '& .MuiChip-icon': { ml: 0.75, mr: -0.25 } }}
+      sx={{ fontSize: 12, height: 20, '& .MuiChip-icon': { ml: 0, mr: 0 } }}
     />
   )
 }

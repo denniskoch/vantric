@@ -546,7 +546,7 @@ export default function InstanceDetailPage() {
                       value: (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           {osBrand(osInfo.name) && (
-                            <BrandIcon icon={osBrand(osInfo.name)!} size={16} />
+                            <BrandIcon icon={osBrand(osInfo.name)!} size={18} />
                           )}
                           {osInfo.name || '—'}
                         </Box>
