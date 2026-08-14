@@ -16,7 +16,16 @@ import DatabaseInstancesPage from './pages/DatabaseInstancesPage'
 import DatabaseInstanceDetailPage from './pages/DatabaseInstanceDetailPage'
 import AddDatabaseInstancePage from './pages/AddDatabaseInstancePage'
 import DatabasesPage from './pages/DatabasesPage'
+import {
+  CreateDatabasePage,
+  CreateDatabaseUserPage,
+  DatabaseUserPasswordPage,
+} from './pages/DatabaseFormPages'
+import HypervisorFormPage from './pages/HypervisorFormPage'
+import MachineTypeFormPage from './pages/MachineTypeFormPage'
+import DNSProviderFormPage from './pages/DNSProviderFormPage'
 import IdentityUsersPage from './pages/IdentityUsersPage'
+import IdentityUserEditPage from './pages/IdentityUserEditPage'
 import IdentityGroupsPage from './pages/IdentityGroupsPage'
 import IdentityGroupDetailPage from './pages/IdentityGroupDetailPage'
 import IdentityApplicationsPage from './pages/IdentityApplicationsPage'
@@ -51,10 +60,20 @@ export default function App() {
         <Route path="/databases/instances/:id" element={<DatabaseInstanceDetailPage />} />
         <Route path="/databases/instances/:id/edit" element={<AddDatabaseInstancePage />} />
         <Route path="/databases/databases" element={<DatabasesPage />} />
+        <Route
+          path="/databases/instances/:id/databases/create"
+          element={<CreateDatabasePage />}
+        />
+        <Route path="/databases/instances/:id/users/create" element={<CreateDatabaseUserPage />} />
+        <Route
+          path="/databases/instances/:id/users/:name/password"
+          element={<DatabaseUserPasswordPage />}
+        />
         <Route path="/docker/overview" element={<SectionLandingPage />} />
         <Route path="/iam/overview" element={<SectionLandingPage />} />
         <Route path="/identity/overview" element={<SectionLandingPage />} />
         <Route path="/identity/users" element={<IdentityUsersPage />} />
+        <Route path="/identity/users/:id/edit" element={<IdentityUserEditPage />} />
         <Route path="/identity/groups" element={<IdentityGroupsPage />} />
         <Route path="/identity/groups/:id" element={<IdentityGroupDetailPage />} />
         <Route path="/identity/applications" element={<IdentityApplicationsPage />} />
@@ -69,6 +88,8 @@ export default function App() {
         <Route path="/dns/zones/:providerId/:zoneId/records/new" element={<RecordSetPage />} />
         <Route path="/dns/zones/:providerId/:zoneId/records/edit" element={<RecordSetPage />} />
         <Route path="/dns/providers" element={<DNSProvidersPage />} />
+        <Route path="/dns/providers/add" element={<DNSProviderFormPage />} />
+        <Route path="/dns/providers/:id/edit" element={<DNSProviderFormPage />} />
         <Route path="/storage" element={<Navigate to="/storage/overview" replace />} />
         <Route path="/network" element={<Navigate to="/network/overview" replace />} />
         <Route path="/databases" element={<Navigate to="/databases/overview" replace />} />
@@ -99,7 +120,10 @@ export default function App() {
         <Route path="/compute/datastores" element={<DatastoresPage />} />
         <Route path="/compute/settings/hypervisors" element={<ServersPage />} />
         <Route path="/compute/servers" element={<Navigate to="/compute/settings/hypervisors" replace />} />
+        <Route path="/compute/settings/hypervisors/add" element={<HypervisorFormPage />} />
+        <Route path="/compute/settings/hypervisors/:id/edit" element={<HypervisorFormPage />} />
         <Route path="/compute/settings/machine-types" element={<MachineTypesPage />} />
+        <Route path="/compute/settings/machine-types/create" element={<MachineTypeFormPage />} />
       </Route>
     </Routes>
   )

@@ -1,18 +1,11 @@
 import { useState } from 'react'
-import { Link as RouterLink } from 'react-router-dom'
+import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
   Box,
   Button,
-  Checkbox,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControlLabel,
-  FormGroup,
   IconButton,
   Menu,
   MenuItem,
@@ -23,38 +16,28 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Tooltip,
   Typography,
 } from '@mui/material'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
-import KeyIcon from '@mui/icons-material/Key'
-import GroupIcon from '@mui/icons-material/Group'
+import EditIcon from '@mui/icons-material/Edit'
 import BlockIcon from '@mui/icons-material/Block'
 import CheckIcon from '@mui/icons-material/Check'
 import { api } from '../api/client'
 import type { IdentityUser } from '../api/client'
-import { isServiceAccount, userKind } from '../identity'
+import { userKind } from '../identity'
 import { formatDuration } from '../format'
 
 export default function IdentityUsersPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [menu, setMenu] = useState<{ anchor: HTMLElement; user: IdentityUser } | null>(null)
-  const [passwordFor, setPasswordFor] = useState<{ user: IdentityUser; password: string } | null>(
-    null,
-  )
-  const [groupsFor, setGroupsFor] = useState<{ user: IdentityUser; chosen: string[] } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
   const { data: providers = [] } = useQuery({
     queryKey: ['identityProviders'],
     queryFn: api.listIdentityProviders,
-  })
-  const { data: groups = [] } = useQuery({
-    queryKey: ['identityGroups'],
-    queryFn: api.listIdentityGroups,
-    enabled: providers.length > 0,
   })
   const {
     data: users = [],
@@ -77,42 +60,6 @@ export default function IdentityUsersPage() {
     onSuccess: (_, user) => {
       setNotice(`${user.username} is now ${user.active ? 'disabled' : 'active'}`)
       invalidate()
-    },
-    onError: (e: Error) => setError(e.message),
-  })
-
-  // Membership is saved as a diff: only the boxes you actually changed
-  // turn into calls, so a save with nothing ticked does nothing.
-  const saveGroups = useMutation({
-    mutationFn: async () => {
-      const { user, chosen } = groupsFor!
-      const before = new Set(user.groups ?? [])
-      const after = new Set(chosen)
-      const byName = new Map(groups.map((g) => [g.name, g.id]))
-      for (const name of after) {
-        if (!before.has(name) && byName.has(name)) {
-          await api.addIdentityGroupMember(byName.get(name)!, user.id)
-        }
-      }
-      for (const name of before) {
-        if (!after.has(name) && byName.has(name)) {
-          await api.removeIdentityGroupMember(byName.get(name)!, user.id)
-        }
-      }
-    },
-    onSuccess: () => {
-      setNotice(`Groups updated for ${groupsFor?.user.username}`)
-      setGroupsFor(null)
-      invalidate()
-    },
-    onError: (e: Error) => setError(e.message),
-  })
-
-  const setPassword = useMutation({
-    mutationFn: () => api.setIdentityUserPassword(passwordFor!.user.id, passwordFor!.password),
-    onSuccess: () => {
-      setNotice(`Password changed for ${passwordFor?.user.username}`)
-      setPasswordFor(null)
     },
     onError: (e: Error) => setError(e.message),
   })
@@ -236,6 +183,14 @@ export default function IdentityUsersPage() {
       <Menu anchorEl={menu?.anchor ?? null} open={Boolean(menu)} onClose={() => setMenu(null)}>
         <MenuItem
           onClick={() => {
+            if (menu) navigate(`/identity/users/${menu.user.id}/edit`)
+            setMenu(null)
+          }}
+        >
+          <EditIcon fontSize="small" sx={{ mr: 1 }} /> Edit user
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
             if (menu) setActive.mutate(menu.user)
             setMenu(null)
           }}
@@ -250,111 +205,8 @@ export default function IdentityUsersPage() {
             </>
           )}
         </MenuItem>
-        <MenuItem
-          onClick={() => {
-            if (menu) setGroupsFor({ user: menu.user, chosen: menu.user.groups ?? [] })
-            setMenu(null)
-          }}
-        >
-          <GroupIcon fontSize="small" sx={{ mr: 1 }} /> Manage groups
-        </MenuItem>
-        <MenuItem
-          disabled={Boolean(menu && isServiceAccount(menu.user.kind))}
-          onClick={() => {
-            if (menu) setPasswordFor({ user: menu.user, password: '' })
-            setMenu(null)
-          }}
-        >
-          <KeyIcon fontSize="small" sx={{ mr: 1 }} /> Set password
-        </MenuItem>
-        {menu && isServiceAccount(menu.user.kind) && (
-          <Typography sx={{ fontSize: 12, color: '#5f6368', px: 2, py: 1, maxWidth: 260 }}>
-            Service accounts authenticate with a token, not a password.
-          </Typography>
-        )}
       </Menu>
 
-      <Dialog
-        open={Boolean(groupsFor)}
-        onClose={() => setGroupsFor(null)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>Groups for {groupsFor?.user.username}</DialogTitle>
-        <DialogContent sx={{ pt: '8px !important' }}>
-          <FormGroup>
-            {groups.map((group) => (
-              <FormControlLabel
-                key={group.id}
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={groupsFor?.chosen.includes(group.name) ?? false}
-                    onChange={(e) =>
-                      setGroupsFor({
-                        ...groupsFor!,
-                        chosen: e.target.checked
-                          ? [...groupsFor!.chosen, group.name]
-                          : groupsFor!.chosen.filter((name) => name !== group.name),
-                      })
-                    }
-                  />
-                }
-                label={
-                  <Box component="span">
-                    {group.name}
-                    {group.superuser && (
-                      <Box component="span" sx={{ color: '#f29900', ml: 1, fontSize: 12 }}>
-                        grants admin
-                      </Box>
-                    )}
-                  </Box>
-                }
-              />
-            ))}
-          </FormGroup>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setGroupsFor(null)}>Cancel</Button>
-          <Button
-            variant="contained"
-            disabled={saveGroups.isPending}
-            onClick={() => saveGroups.mutate()}
-          >
-            {saveGroups.isPending ? 'Saving…' : 'Save'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog
-        open={Boolean(passwordFor)}
-        onClose={() => setPasswordFor(null)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>Set password for {passwordFor?.user.username}</DialogTitle>
-        <DialogContent sx={{ pt: '8px !important' }}>
-          <TextField
-            label="New password"
-            size="small"
-            type="password"
-            value={passwordFor?.password ?? ''}
-            onChange={(e) => setPasswordFor({ ...passwordFor!, password: e.target.value })}
-            helperText="Takes effect at the next sign-in; existing sessions continue"
-            fullWidth
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPasswordFor(null)}>Cancel</Button>
-          <Button
-            variant="contained"
-            disabled={!passwordFor?.password || setPassword.isPending}
-            onClick={() => setPassword.mutate()}
-          >
-            Set password
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   )
 }

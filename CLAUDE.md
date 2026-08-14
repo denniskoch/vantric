@@ -157,6 +157,12 @@ Surface the daily 90% here and link out for the rest.
   TEXT timestamps, no engine-specific types. Postgres is planned, not wired.
 - Frontend talks only to `/api/v1` via `src/api/client.ts` (typed client);
   server state lives in TanStack Query (3s polling), not local state.
+- MODALS ARE FOR CONFIRMATION ONLY — a dialog asks "are you sure?" and
+  nothing else. Anything you fill in gets its own page with the
+  standard back link and Create/Save + Cancel bar: creating a resource,
+  editing one, connecting a backend, changing a password. A form in a
+  modal can't be linked to, survive a reload, or grow a second section
+  without becoming a scrolling box.
 - Form validation lives in `src/validation.ts` and must SHOW itself: a
   field turns red with the specific problem as soon as its value is
   invalid. A disabled submit button is never the only signal — if a

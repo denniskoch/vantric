@@ -5,12 +5,6 @@ import {
   Alert,
   Box,
   Button,
-  Checkbox,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControlLabel,
   IconButton,
   Menu,
   MenuItem,
@@ -23,7 +17,6 @@ import {
   TableRow,
   Tab,
   Tabs,
-  TextField,
   Tooltip,
   Typography,
 } from '@mui/material'
@@ -44,7 +37,6 @@ import { engineLabels } from '../databases'
 import BrandIcon from '../components/BrandIcon'
 import { databaseBrand } from '../brands'
 import { formatBytes, formatDuration } from '../format'
-import { identifierError } from '../validation'
 
 type TabID = 'databases' | 'users' | 'connections'
 
@@ -58,19 +50,8 @@ export default function DatabaseInstanceDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [removing, setRemoving] = useState(false)
 
-  const [newDatabase, setNewDatabase] = useState<{ name: string; owner: string } | null>(null)
   const [droppingDatabase, setDroppingDatabase] = useState<Database | null>(null)
-  const [newUser, setNewUser] = useState<{
-    name: string
-    host: string
-    password: string
-    canLogin: boolean
-    createDb: boolean
-  } | null>(null)
   const [droppingUser, setDroppingUser] = useState<DatabaseUser | null>(null)
-  const [passwordFor, setPasswordFor] = useState<{ user: DatabaseUser; password: string } | null>(
-    null,
-  )
   const [userMenu, setUserMenu] = useState<{ anchor: HTMLElement; user: DatabaseUser } | null>(null)
 
   const { data: server, error: serverError } = useQuery({
@@ -104,18 +85,6 @@ export default function DatabaseInstanceDetailPage() {
 
   const onError = (e: Error) => setError(e.message)
 
-  const createDatabase = useMutation({
-    mutationFn: () =>
-      api.createDatabase(id, {
-        name: newDatabase!.name.trim(),
-        owner: newDatabase!.owner || undefined,
-      }),
-    onSuccess: () => {
-      setNewDatabase(null)
-      refresh()
-    },
-    onError,
-  })
   const dropDatabase = useMutation({
     mutationFn: (db: Database) => api.dropDatabase(id, db.name),
     onSuccess: () => {
@@ -127,21 +96,6 @@ export default function DatabaseInstanceDetailPage() {
       setDroppingDatabase(null)
     },
   })
-  const createUser = useMutation({
-    mutationFn: () =>
-      api.createDatabaseUser(id, {
-        name: newUser!.name.trim(),
-        host: hostScoped ? newUser!.host.trim() || '%' : undefined,
-        password: newUser!.password,
-        canLogin: newUser!.canLogin,
-        createDb: newUser!.createDb,
-      }),
-    onSuccess: () => {
-      setNewUser(null)
-      refresh()
-    },
-    onError,
-  })
   const dropUser = useMutation({
     mutationFn: (user: DatabaseUser) => api.dropDatabaseUser(id, user.name, user.host),
     onSuccess: () => {
@@ -152,17 +106,6 @@ export default function DatabaseInstanceDetailPage() {
       onError(e)
       setDroppingUser(null)
     },
-  })
-  const setPassword = useMutation({
-    mutationFn: () =>
-      api.setDatabaseUserPassword(
-        id,
-        passwordFor!.user.name,
-        passwordFor!.password,
-        passwordFor!.user.host,
-      ),
-    onSuccess: () => setPasswordFor(null),
-    onError,
   })
   const removeServer = useMutation({
     mutationFn: () => api.deleteDatabaseServer(id),
@@ -195,13 +138,9 @@ export default function DatabaseInstanceDetailPage() {
   }
 
   const connected = server.status === 'connected'
-  // MySQL identities are user@host and its databases have no owner;
-  // PostgreSQL is the other way round.
-  const hostScoped = server.type === 'mysql'
+  // MySQL databases have no owner; PostgreSQL's do.
   const hasOwners = server.type === 'postgres'
   const brand = databaseBrand(server.type, server.info?.version)
-  const newDatabaseError = newDatabase ? identifierError(newDatabase.name) : null
-  const newUserError = newUser ? identifierError(newUser.name) : null
 
   return (
     <Box sx={{ pb: 4 }}>
@@ -306,7 +245,7 @@ export default function DatabaseInstanceDetailPage() {
                 size="small"
                 startIcon={<AddBoxIcon />}
                 disabled={!connected}
-                onClick={() => setNewDatabase({ name: '', owner: '' })}
+                onClick={() => navigate(`/databases/instances/${id}/databases/create`)}
               >
                 Create database
               </Button>
@@ -381,15 +320,7 @@ export default function DatabaseInstanceDetailPage() {
                 size="small"
                 startIcon={<AddBoxIcon />}
                 disabled={!connected}
-                onClick={() =>
-                  setNewUser({
-                    name: '',
-                    host: '%',
-                    password: '',
-                    canLogin: true,
-                    createDb: false,
-                  })
-                }
+                onClick={() => navigate(`/databases/instances/${id}/users/create`)}
               >
                 Create user
               </Button>
@@ -509,7 +440,10 @@ export default function DatabaseInstanceDetailPage() {
       >
         <MenuItem
           onClick={() => {
-            if (userMenu) setPasswordFor({ user: userMenu.user, password: '' })
+            if (userMenu) {
+              const host = userMenu.user.host ? `?host=${encodeURIComponent(userMenu.user.host)}` : ''
+              navigate(`/databases/instances/${id}/users/${userMenu.user.name}/password${host}`)
+            }
             setUserMenu(null)
           }}
         >
@@ -533,154 +467,8 @@ export default function DatabaseInstanceDetailPage() {
       </Menu>
 
       {/* Create database */}
-      <Dialog open={Boolean(newDatabase)} onClose={() => setNewDatabase(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Create database</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: '8px !important' }}>
-          <TextField
-            label="Name"
-            size="small"
-            value={newDatabase?.name ?? ''}
-            onChange={(e) => setNewDatabase({ ...newDatabase!, name: e.target.value })}
-            error={Boolean(newDatabaseError)}
-            helperText={newDatabaseError ?? 'Letters, digits, underscore or hyphen'}
-            fullWidth
-          />
-          {hasOwners && (
-          <TextField
-            label="Owner"
-            size="small"
-            select
-            value={newDatabase?.owner ?? ''}
-            onChange={(e) => setNewDatabase({ ...newDatabase!, owner: e.target.value })}
-            helperText="Defaults to the role this console connects as"
-            fullWidth
-          >
-            <MenuItem value="">
-              <em>{server.username}</em>
-            </MenuItem>
-            {users.map((user) => (
-              <MenuItem key={user.name} value={user.name}>
-                {user.name}
-              </MenuItem>
-            ))}
-          </TextField>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setNewDatabase(null)}>Cancel</Button>
-          <Button
-            variant="contained"
-            disabled={
-              !newDatabase?.name || Boolean(newDatabaseError) || createDatabase.isPending
-            }
-            onClick={() => createDatabase.mutate()}
-          >
-            Create
-          </Button>
-        </DialogActions>
-      </Dialog>
-
       {/* Create user */}
-      <Dialog open={Boolean(newUser)} onClose={() => setNewUser(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Create user</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '8px !important' }}>
-          <TextField
-            label="Name"
-            size="small"
-            value={newUser?.name ?? ''}
-            onChange={(e) => setNewUser({ ...newUser!, name: e.target.value })}
-            error={Boolean(newUserError)}
-            helperText={newUserError ?? 'Letters, digits, underscore or hyphen'}
-            fullWidth
-          />
-          {hostScoped && (
-            <TextField
-              label="Host"
-              size="small"
-              value={newUser?.host ?? '%'}
-              onChange={(e) => setNewUser({ ...newUser!, host: e.target.value })}
-              helperText="Where this account may connect from. % means anywhere."
-              fullWidth
-            />
-          )}
-          <TextField
-            label="Password"
-            size="small"
-            type="password"
-            value={newUser?.password ?? ''}
-            onChange={(e) => setNewUser({ ...newUser!, password: e.target.value })}
-            error={Boolean(newUser?.canLogin && !newUser.password)}
-            helperText={
-              newUser?.canLogin && !newUser.password
-                ? 'A user that can log in needs a password'
-                : ' '
-            }
-            fullWidth
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                size="small"
-                checked={newUser?.canLogin ?? true}
-                onChange={(e) => setNewUser({ ...newUser!, canLogin: e.target.checked })}
-              />
-            }
-            label="Can log in"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                size="small"
-                checked={newUser?.createDb ?? false}
-                onChange={(e) => setNewUser({ ...newUser!, createDb: e.target.checked })}
-              />
-            }
-            label="May create databases"
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setNewUser(null)}>Cancel</Button>
-          <Button
-            variant="contained"
-            disabled={
-              !newUser?.name ||
-              Boolean(newUserError) ||
-              (newUser.canLogin && !newUser.password) ||
-              createUser.isPending
-            }
-            onClick={() => createUser.mutate()}
-          >
-            Create
-          </Button>
-        </DialogActions>
-      </Dialog>
-
       {/* Set password */}
-      <Dialog open={Boolean(passwordFor)} onClose={() => setPasswordFor(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Set password for {passwordFor?.user.name}</DialogTitle>
-        <DialogContent sx={{ pt: '8px !important' }}>
-          <TextField
-            label="New password"
-            size="small"
-            type="password"
-            value={passwordFor?.password ?? ''}
-            onChange={(e) => setPasswordFor({ ...passwordFor!, password: e.target.value })}
-            helperText="Existing sessions stay connected; the next login uses this"
-            fullWidth
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPasswordFor(null)}>Cancel</Button>
-          <Button
-            variant="contained"
-            disabled={!passwordFor?.password || setPassword.isPending}
-            onClick={() => setPassword.mutate()}
-          >
-            Set password
-          </Button>
-        </DialogActions>
-      </Dialog>
-
       <ConfirmDeleteDialog
         open={Boolean(droppingDatabase)}
         title={`Drop ${droppingDatabase?.name}?`}

@@ -1,17 +1,11 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
   Box,
   Button,
-  Checkbox,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControlLabel,
   IconButton,
-  MenuItem,
   Paper,
   Table,
   TableBody,
@@ -19,7 +13,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Tooltip,
   Typography,
 } from '@mui/material'
@@ -30,23 +23,13 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import HelpIcon from '@mui/icons-material/Help'
 import { api } from '../api/client'
-import type { Server, ServerRequest, ServerType } from '../api/client'
-import { resourceNameError, resourceNameRe, urlError } from '../validation'
+import type { Server, ServerType } from '../api/client'
 import { BrandLabel } from '../components/BrandIcon'
 import { hypervisorBrand } from '../brands'
 
 const typeLabels: Record<ServerType, string> = {
   proxmox: 'Proxmox VE',
   mock: 'Mock (development)',
-}
-
-const emptyForm: ServerRequest = {
-  name: '',
-  type: 'proxmox',
-  baseUrl: '',
-  tokenId: '',
-  secret: '',
-  insecureTls: true,
 }
 
 function StatusGlyph({ server }: { server: Server }) {
@@ -66,10 +49,8 @@ function StatusGlyph({ server }: { server: Server }) {
 }
 
 export default function ServersPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editing, setEditing] = useState<Server | null>(null)
-  const [form, setForm] = useState<ServerRequest>(emptyForm)
   const [error, setError] = useState<string | null>(null)
 
   const { data: servers = [], isLoading } = useQuery({
@@ -82,63 +63,17 @@ export default function ServersPage() {
     queryClient.invalidateQueries({ queryKey: ['servers'] })
   }
 
-  const closeDialog = () => {
-    setDialogOpen(false)
-    setEditing(null)
-    setForm(emptyForm)
-  }
-
-  const save = useMutation({
-    mutationFn: () =>
-      editing ? api.updateServer(editing.id, form) : api.createServer(form),
-    onSuccess: () => {
-      invalidate()
-      closeDialog()
-    },
-    onError: (e: Error) => setError(e.message),
-  })
-
   const remove = useMutation({
     mutationFn: (id: string) => api.deleteServer(id),
     onSuccess: invalidate,
     onError: (e: Error) => setError(e.message),
   })
 
-  const openCreate = () => {
-    setEditing(null)
-    setForm(emptyForm)
-    setDialogOpen(true)
-  }
-
-  const openEdit = (server: Server) => {
-    setEditing(server)
-    setForm({
-      name: server.name,
-      type: server.type,
-      baseUrl: server.baseUrl,
-      tokenId: server.tokenId,
-      secret: '', // blank keeps the stored secret
-      insecureTls: server.insecureTls,
-    })
-    setDialogOpen(true)
-  }
-
-  const isProxmox = form.type === 'proxmox'
-  const nameError = resourceNameError(form.name)
-  const baseUrlError = urlError(form.baseUrl)
-  const validName = resourceNameRe.test(form.name)
-  const valid =
-    validName &&
-    (!isProxmox ||
-      (form.baseUrl !== '' &&
-        form.tokenId !== '' &&
-        (form.secret !== '' || Boolean(editing?.hasSecret))))
-
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 0.5 }}>
         <Typography variant="h5">Hypervisors</Typography>
-        <Button variant="contained" size="small" startIcon={<AddBoxIcon />} onClick={openCreate}>
+        <Button variant="contained" size="small" startIcon={<AddBoxIcon />} onClick={() => navigate('/compute/settings/hypervisors/add')}>
           Add hypervisor
         </Button>
       </Box>
@@ -183,7 +118,7 @@ export default function ServersPage() {
                   {server.status === 'connected' ? server.nodes : '—'}
                 </TableCell>
                 <TableCell align="right">
-                  <IconButton size="small" onClick={() => openEdit(server)}>
+                  <IconButton size="small" onClick={() => navigate(`/compute/settings/hypervisors/${server.id}/edit`)}>
                     <EditIcon fontSize="small" />
                   </IconButton>
                   <IconButton
@@ -209,87 +144,6 @@ export default function ServersPage() {
         </Table>
       </TableContainer>
 
-      <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>{editing ? `Edit ${editing.name}` : 'Add hypervisor'}</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: '8px !important' }}>
-          <TextField
-            label="Name"
-            size="small"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            error={Boolean(nameError)}
-            helperText={nameError ?? 'Lowercase letters, numbers, hyphens. e.g. pve-1'}
-            fullWidth
-          />
-          <TextField
-            label="Hypervisor type"
-            size="small"
-            select
-            value={form.type}
-            onChange={(e) => setForm({ ...form, type: e.target.value as ServerType })}
-            helperText="More hypervisors (ESXi, libvirt, …) planned"
-            fullWidth
-          >
-            <MenuItem value="proxmox">Proxmox VE</MenuItem>
-            <MenuItem value="mock">Mock (development)</MenuItem>
-          </TextField>
-          {isProxmox && (
-            <>
-              <TextField
-                label="API URL"
-                size="small"
-                value={form.baseUrl}
-                onChange={(e) => setForm({ ...form, baseUrl: e.target.value })}
-                placeholder="https://pve.lan:8006"
-                error={Boolean(baseUrlError)}
-                helperText={baseUrlError ?? ' '}
-                fullWidth
-              />
-              <TextField
-                label="API token ID"
-                size="small"
-                value={form.tokenId}
-                onChange={(e) => setForm({ ...form, tokenId: e.target.value })}
-                placeholder="root@pam!labcloud"
-                fullWidth
-              />
-              <TextField
-                label="API token secret"
-                size="small"
-                type="password"
-                value={form.secret}
-                onChange={(e) => setForm({ ...form, secret: e.target.value })}
-                helperText={
-                  editing?.hasSecret
-                    ? 'Leave blank to keep the current secret'
-                    : 'From Datacenter → Permissions → API Tokens'
-                }
-                fullWidth
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={form.insecureTls}
-                    onChange={(e) => setForm({ ...form, insecureTls: e.target.checked })}
-                  />
-                }
-                label="Allow self-signed TLS certificate"
-              />
-            </>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeDialog}>Cancel</Button>
-          <Button
-            variant="contained"
-            disabled={!valid || save.isPending}
-            onClick={() => save.mutate()}
-          >
-            {editing ? 'Save' : 'Add'}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   )
 }

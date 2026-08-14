@@ -803,6 +803,7 @@ export const api = {
   listDatabaseConnections: (serverId: string) =>
     request<DatabaseConnection[]>(`/database/servers/${serverId}/connections`),
 
+  listDNSProviderTypes: () => request<DNSProviderType[]>('/dns/provider-types'),
   listDNSProviders: () => request<DNSProvider[]>('/dns/providers'),
   createDNSProvider: (body: DNSProviderRequest) =>
     request<DNSProvider>('/dns/providers', { method: 'POST', body: JSON.stringify(body) }),

@@ -1,15 +1,11 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
   Box,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   IconButton,
-  MenuItem,
   Paper,
   Table,
   TableBody,
@@ -17,7 +13,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Tooltip,
   Typography,
 } from '@mui/material'
@@ -30,18 +25,10 @@ import HelpIcon from '@mui/icons-material/Help'
 import { api } from '../api/client'
 import { BrandLabel } from '../components/BrandIcon'
 import { dnsBrand } from '../brands'
-import type { DNSProvider, DNSProviderRequest, DNSProviderType } from '../api/client'
+import type { DNSProvider, DNSProviderType } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
-import { resourceNameError, resourceNameRe } from '../validation'
 
 const typeLabels: Record<DNSProviderType, string> = { cloudflare: 'Cloudflare' }
-
-const emptyForm: DNSProviderRequest = {
-  name: '',
-  type: 'cloudflare',
-  token: '',
-  accountId: '',
-}
 
 function StatusGlyph({ provider }: { provider: DNSProvider }) {
   const icon =
@@ -60,10 +47,8 @@ function StatusGlyph({ provider }: { provider: DNSProvider }) {
 }
 
 export default function DNSProvidersPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editing, setEditing] = useState<DNSProvider | null>(null)
-  const [form, setForm] = useState<DNSProviderRequest>(emptyForm)
   const [confirming, setConfirming] = useState<DNSProvider | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -78,22 +63,6 @@ export default function DNSProvidersPage() {
     queryClient.invalidateQueries({ queryKey: ['dnsZones'] })
   }
 
-  const closeDialog = () => {
-    setDialogOpen(false)
-    setEditing(null)
-    setForm(emptyForm)
-  }
-
-  const save = useMutation({
-    mutationFn: () =>
-      editing ? api.updateDNSProvider(editing.id, form) : api.createDNSProvider(form),
-    onSuccess: () => {
-      invalidate()
-      closeDialog()
-    },
-    onError: (e: Error) => setError(e.message),
-  })
-
   const remove = useMutation({
     mutationFn: (provider: DNSProvider) => api.deleteDNSProvider(provider.id),
     onSuccess: () => {
@@ -106,21 +75,6 @@ export default function DNSProvidersPage() {
     },
   })
 
-  const openEdit = (provider: DNSProvider) => {
-    setEditing(provider)
-    setForm({
-      name: provider.name,
-      type: provider.type,
-      token: '', // blank keeps the stored token
-      accountId: provider.accountId,
-    })
-    setDialogOpen(true)
-  }
-
-  const nameError = resourceNameError(form.name)
-  const validName = resourceNameRe.test(form.name)
-  const valid = validName && (form.token !== '' || Boolean(editing?.hasToken))
-
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 0.5 }}>
@@ -129,11 +83,7 @@ export default function DNSProvidersPage() {
           variant="contained"
           size="small"
           startIcon={<AddBoxIcon />}
-          onClick={() => {
-            setEditing(null)
-            setForm(emptyForm)
-            setDialogOpen(true)
-          }}
+          onClick={() => navigate('/dns/providers/add')}
         >
           Add provider
         </Button>
@@ -181,7 +131,7 @@ export default function DNSProvidersPage() {
                   {provider.status === 'connected' ? provider.zones : '—'}
                 </TableCell>
                 <TableCell align="right">
-                  <IconButton size="small" onClick={() => openEdit(provider)}>
+                  <IconButton size="small" onClick={() => navigate(`/dns/providers/${provider.id}/edit`)}>
                     <EditIcon fontSize="small" />
                   </IconButton>
                   <IconButton size="small" onClick={() => setConfirming(provider)}>
@@ -202,63 +152,6 @@ export default function DNSProvidersPage() {
           </TableBody>
         </Table>
       </TableContainer>
-
-      <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>{editing ? `Edit ${editing.name}` : 'Add DNS provider'}</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: '8px !important' }}>
-          <TextField
-            label="Name"
-            size="small"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            error={Boolean(nameError)}
-            helperText={nameError ?? 'Lowercase letters, numbers, hyphens. e.g. cloudflare-main'}
-            fullWidth
-          />
-          <TextField
-            label="Provider"
-            size="small"
-            select
-            value={form.type}
-            onChange={(e) => setForm({ ...form, type: e.target.value as DNSProviderType })}
-            helperText="More providers (Route 53, PowerDNS, …) planned"
-            fullWidth
-          >
-            <MenuItem value="cloudflare">Cloudflare</MenuItem>
-          </TextField>
-          <TextField
-            label="API token"
-            size="small"
-            type="password"
-            value={form.token}
-            onChange={(e) => setForm({ ...form, token: e.target.value })}
-            helperText={
-              editing?.hasToken
-                ? 'Leave blank to keep the current token'
-                : 'A scoped API token with Zone:Read and Zone:Edit — not a global API key'
-            }
-            fullWidth
-          />
-          <TextField
-            label="Account ID (optional)"
-            size="small"
-            value={form.accountId}
-            onChange={(e) => setForm({ ...form, accountId: e.target.value })}
-            helperText="Default account for new zones; can be chosen per zone instead"
-            fullWidth
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeDialog}>Cancel</Button>
-          <Button
-            variant="contained"
-            disabled={!valid || save.isPending}
-            onClick={() => save.mutate()}
-          >
-            {save.isPending ? 'Verifying…' : editing ? 'Save' : 'Add'}
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       <ConfirmDeleteDialog
         open={Boolean(confirming)}

@@ -1,13 +1,10 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
   Box,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   IconButton,
   Paper,
   Table,
@@ -16,21 +13,15 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Typography,
 } from '@mui/material'
 import AddBoxIcon from '@mui/icons-material/AddBox'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { api } from '../api/client'
-import type { MachineType } from '../api/client'
-import { resourceNameError, resourceNameRe } from '../validation'
-
-const emptyForm: MachineType = { name: '', description: '', cpus: 1, memoryMb: 1024 }
 
 export default function MachineTypesPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [form, setForm] = useState<MachineType>(emptyForm)
   const [error, setError] = useState<string | null>(null)
 
   const { data: types = [], isLoading } = useQuery({
@@ -41,24 +32,11 @@ export default function MachineTypesPage() {
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ['machineTypes'] })
 
-  const create = useMutation({
-    mutationFn: () => api.createMachineType(form),
-    onSuccess: () => {
-      invalidate()
-      setDialogOpen(false)
-      setForm(emptyForm)
-    },
-    onError: (e: Error) => setError(e.message),
-  })
-
   const remove = useMutation({
     mutationFn: (name: string) => api.deleteMachineType(name),
     onSuccess: invalidate,
     onError: (e: Error) => setError(e.message),
   })
-
-  const nameError = resourceNameError(form.name)
-  const validName = resourceNameRe.test(form.name)
 
   return (
     <Box sx={{ p: 3 }}>
@@ -68,7 +46,7 @@ export default function MachineTypesPage() {
           variant="contained"
           size="small"
           startIcon={<AddBoxIcon />}
-          onClick={() => setDialogOpen(true)}
+          onClick={() => navigate('/compute/settings/machine-types/create')}
         >
           Create machine type
         </Button>
@@ -124,56 +102,6 @@ export default function MachineTypesPage() {
         </Table>
       </TableContainer>
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Create machine type</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: '8px !important' }}>
-          <TextField
-            label="Name"
-            size="small"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            error={Boolean(nameError)}
-            helperText={nameError ?? 'Lowercase letters, numbers, hyphens. e.g. hl-standard-8'}
-            fullWidth
-          />
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <TextField
-              label="vCPUs"
-              size="small"
-              type="number"
-              value={form.cpus}
-              onChange={(e) => setForm({ ...form, cpus: Number(e.target.value) })}
-              slotProps={{ htmlInput: { min: 1, max: 128 } }}
-            />
-            <TextField
-              label="Memory (MB)"
-              size="small"
-              type="number"
-              value={form.memoryMb}
-              onChange={(e) => setForm({ ...form, memoryMb: Number(e.target.value) })}
-              slotProps={{ htmlInput: { min: 128, step: 128 } }}
-            />
-          </Box>
-          <TextField
-            label="Description (optional)"
-            size="small"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            helperText="Defaults to a summary like '2 vCPU, 2 GB'"
-            fullWidth
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            disabled={!validName || form.cpus < 1 || form.memoryMb < 128 || create.isPending}
-            onClick={() => create.mutate()}
-          >
-            Create
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   )
 }
