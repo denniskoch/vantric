@@ -108,7 +108,8 @@ Dockerfile).
   rule gates submission, it needs a matching field error.
 - UI style: GCP-inspired via MUI + the custom theme in `src/theme.ts`
   (Google blue #1a73e8, white surfaces, #dadce0 borders, dense tables).
-  NO PILL BORDERS and no chip backgrounds (theme MuiChip override).
+  NO PILL BORDERS (theme MuiChip override): a chip is a borderless
+  label on a #f1f3f4 tint at the standard 4px radius.
   Chips are for TAGS AND LABELS only — "RAM", "shared", "system", a
   VM's tags. What a row fundamentally IS (hypervisor type, database
   engine, DNS provider) is primary information: plain cell text at the
