@@ -15,12 +15,12 @@ import {
   TableRow,
   TextField,
   Tooltip,
-  Typography,
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { api } from '../api/client'
 import type { Backup } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
+import PageHeader from '../components/PageHeader'
 import { formatBytes } from '../format'
 
 const guestLabels: Record<string, string> = { qemu: 'VM', lxc: 'CT' }
@@ -62,14 +62,16 @@ export default function BackupsPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 0.5 }}>
-        Backups
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Guest backup archives on your datastores, newest first. Taken by the
-        hypervisor's own backup jobs — this console lists them, and deletes
-        the ones you no longer want.
-      </Typography>
+      <PageHeader
+        title="Backups"
+        description={
+          <>
+                Guest backup archives on your datastores, newest first. Taken by the
+            hypervisor's own backup jobs — this console lists them, and deletes
+            the ones you no longer want.
+          </>
+        }
+      />
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>

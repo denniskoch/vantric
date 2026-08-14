@@ -11,9 +11,9 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Typography,
 } from '@mui/material'
 import { api } from '../api/client'
+import PageHeader from '../components/PageHeader'
 import { useServerNames } from '../useServerNames'
 
 export default function SnapshotsPage() {
@@ -26,9 +26,7 @@ export default function SnapshotsPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>
-        Snapshots
-      </Typography>
+      <PageHeader title="Snapshots" />
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>

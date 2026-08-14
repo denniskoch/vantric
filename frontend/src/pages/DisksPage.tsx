@@ -10,9 +10,9 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Typography,
 } from '@mui/material'
 import { api } from '../api/client'
+import PageHeader from '../components/PageHeader'
 import { useServerNames } from '../useServerNames'
 
 export default function DisksPage() {
@@ -25,9 +25,7 @@ export default function DisksPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>
-        Disks
-      </Typography>
+      <PageHeader title="Disks" />
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>

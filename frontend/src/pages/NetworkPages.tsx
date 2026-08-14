@@ -13,11 +13,11 @@ import {
   TableHead,
   TableRow,
   Tooltip,
-  Typography,
 } from '@mui/material'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import { api } from '../api/client'
+import PageHeader from '../components/PageHeader'
 import { formatDuration } from '../format'
 
 /** The three read-only views over the network controller. They share a
@@ -40,12 +40,10 @@ function NetworkPage({
   })
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 0.5 }}>
-        {title}
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        {description}
-      </Typography>
+      <PageHeader
+        title={title}
+        description={description}
+      />
       {providers.length === 0 && !isLoading && (
         <Alert
           severity="info"

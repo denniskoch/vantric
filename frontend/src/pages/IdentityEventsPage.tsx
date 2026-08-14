@@ -13,9 +13,9 @@ import {
   TableRow,
   TextField,
   Tooltip,
-  Typography,
 } from '@mui/material'
 import { api } from '../api/client'
+import PageHeader from '../components/PageHeader'
 
 /** authentik's action names are snake_case; these read better and the
  *  rest fall through unchanged. */
@@ -54,13 +54,15 @@ export default function IdentityEventsPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 0.5 }}>
-        Events
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        The provider's audit log, newest first — who signed in, what failed, and
-        what changed.
-      </Typography>
+      <PageHeader
+        title="Events"
+        description={
+          <>
+                The provider's audit log, newest first — who signed in, what failed, and
+            what changed.
+          </>
+        }
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>

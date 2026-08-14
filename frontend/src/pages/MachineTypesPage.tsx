@@ -13,11 +13,11 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Typography,
 } from '@mui/material'
 import AddBoxIcon from '@mui/icons-material/AddBox'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { api } from '../api/client'
+import PageHeader from '../components/PageHeader'
 
 export default function MachineTypesPage() {
   const navigate = useNavigate()
@@ -40,21 +40,27 @@ export default function MachineTypesPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 0.5 }}>
-        <Typography variant="h5">Machine types</Typography>
-        <Button
-          variant="contained"
-          size="small"
-          startIcon={<AddBoxIcon />}
-          onClick={() => navigate('/compute/settings/machine-types/create')}
-        >
-          Create machine type
-        </Button>
-      </Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Sizing presets offered when creating an instance. Deleting a type
-        doesn't affect existing instances.
-      </Typography>
+      <PageHeader
+        title="Machine types"
+        actions={
+          <>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddBoxIcon />}
+              onClick={() => navigate('/compute/settings/machine-types/create')}
+            >
+              Create machine type
+            </Button>
+          </>
+        }
+        description={
+          <>
+                Sizing presets offered when creating an instance. Deleting a type
+            doesn't affect existing instances.
+          </>
+        }
+      />
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>

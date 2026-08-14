@@ -12,9 +12,9 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Typography,
 } from '@mui/material'
 import { api } from '../api/client'
+import PageHeader from '../components/PageHeader'
 
 export default function IdentityGroupsPage() {
   const { data: providers = [] } = useQuery({
@@ -34,13 +34,15 @@ export default function IdentityGroupsPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 0.5 }}>
-        Groups
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Membership is usually what grants access to an application, and a
-        superuser group is what makes someone an administrator.
-      </Typography>
+      <PageHeader
+        title="Groups"
+        description={
+          <>
+                Membership is usually what grants access to an application, and a
+            superuser group is what makes someone an administrator.
+          </>
+        }
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>

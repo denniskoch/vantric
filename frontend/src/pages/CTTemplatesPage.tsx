@@ -13,12 +13,12 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Typography,
 } from '@mui/material'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { api } from '../api/client'
 import VolumeName from '../components/VolumeName'
+import PageHeader from '../components/PageHeader'
 import type { CTTemplate } from '../api/client'
 import { formatBytes } from '../format'
 import { useServerNames } from '../useServerNames'
@@ -53,9 +53,7 @@ export default function CTTemplatesPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>
-        CT templates
-      </Typography>
+      <PageHeader title="CT templates" />
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>

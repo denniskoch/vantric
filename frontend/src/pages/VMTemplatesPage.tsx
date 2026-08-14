@@ -15,7 +15,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Typography,
 } from '@mui/material'
 import AddBoxIcon from '@mui/icons-material/AddBox'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
@@ -24,6 +23,7 @@ import { api } from '../api/client'
 import type { Image } from '../api/client'
 import { useServerNames } from '../useServerNames'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
+import PageHeader from '../components/PageHeader'
 
 // VM templates (Proxmox template VMs) — the sources "create instance"
 // clones from. Deleting one destroys a VM and its disks, unlike the
@@ -64,18 +64,22 @@ export default function VMTemplatesPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-        <Typography variant="h5">VM templates</Typography>
-        <Button
-          component={RouterLink}
-          to="/compute/vm-templates/build"
-          variant="contained"
-          size="small"
-          startIcon={<AddBoxIcon />}
-        >
-          Build template
-        </Button>
-      </Box>
+      <PageHeader
+        title="VM templates"
+        actions={
+          <>
+            <Button
+              component={RouterLink}
+              to="/compute/vm-templates/build"
+              variant="contained"
+              size="small"
+              startIcon={<AddBoxIcon />}
+            >
+              Build template
+            </Button>
+          </>
+        }
+      />
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>

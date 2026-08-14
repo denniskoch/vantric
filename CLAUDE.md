@@ -281,6 +281,20 @@ Surface the daily 90% here and link out for the rest.
   VM's tags. What a row fundamentally IS (hypervisor type, database
   engine, DNS provider) is primary information: plain cell text at the
   table's own size, via `BrandLabel`, never shrunk into a badge.
+- ROWS ARE ~26-28px AND THAT IS THE HOUSE STYLE. A row is as tall as
+  the tallest thing in it, so the theme tightens every control that
+  lives in a cell — icon buttons, checkboxes, small buttons, inline
+  SVGs (which drag baseline descender space in unless made `display:
+  block`). The overrides are scoped to `MuiTableCell`, so the same
+  small button in a page header stays comfortable to hit. Don't fix
+  density per page: a table with a checkbox column standing taller
+  than one without is exactly what this prevents.
+- Every list page opens with `components/PageHeader` — title, its
+  actions, an optional description — so the title lands in the same
+  place in every section. Written by hand the spacing drifts: buttons
+  are taller than the text beside them, so a page with actions sits a
+  few pixels lower than one without. The title row has a fixed
+  min-height for that reason.
 - Brand marks (engines, hypervisors, DNS providers, guest operating
   systems) come from simple-icons, drawn inline by
   `components/BrandIcon.tsx` and looked up in `src/brands.ts`. Every

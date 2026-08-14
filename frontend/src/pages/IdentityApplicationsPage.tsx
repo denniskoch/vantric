@@ -10,11 +10,11 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Typography,
 } from '@mui/material'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { api } from '../api/client'
 import { BrandLabel } from '../components/BrandIcon'
+import PageHeader from '../components/PageHeader'
 import { appBrand } from '../brands'
 
 export default function IdentityApplicationsPage() {
@@ -35,13 +35,15 @@ export default function IdentityApplicationsPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 0.5 }}>
-        Applications
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Services your users sign in to through this provider, and the mechanism
-        behind each one.
-      </Typography>
+      <PageHeader
+        title="Applications"
+        description={
+          <>
+                Services your users sign in to through this provider, and the mechanism
+            behind each one.
+          </>
+        }
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>

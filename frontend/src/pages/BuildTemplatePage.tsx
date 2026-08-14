@@ -26,6 +26,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import { api, emptyCloudInit } from '../api/client'
 import type { CloudInitConfig } from '../api/client'
 import CloudInitFields from '../components/CloudInitFields'
+import PageHeader from '../components/PageHeader'
 import { formatBytes } from '../format'
 import { resourceNameError } from '../validation'
 
@@ -152,9 +153,7 @@ export default function BuildTemplatePage() {
     const failed = done && Boolean(build?.error)
     return (
       <Box sx={{ p: 3, maxWidth: 720 }}>
-        <Typography variant="h5" sx={{ mb: 2 }}>
-          Building template {name}
-        </Typography>
+      <PageHeader title="Building template {name}" />
         <Paper variant="outlined" sx={{ p: 3 }}>
           {!done && (
             <>

@@ -28,6 +28,7 @@ import { Button } from '@mui/material'
 import { api } from '../api/client'
 import type { Container } from '../api/client'
 import StatusIcon from '../components/StatusIcon'
+import PageHeader from '../components/PageHeader'
 
 // CT (LXC) instances. Separate from VM instances by design — they
 // list and provision differently.
@@ -74,12 +75,16 @@ export default function ContainersPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-        <Typography variant="h5">CT instances</Typography>
-        <Button size="small" startIcon={<RefreshIcon />} onClick={() => refetch()}>
-          Refresh
-        </Button>
-      </Box>
+      <PageHeader
+        title="CT instances"
+        actions={
+          <>
+            <Button size="small" startIcon={<RefreshIcon />} onClick={() => refetch()}>
+              Refresh
+            </Button>
+          </>
+        }
+      />
       <Typography variant="body2" color="text.secondary" sx={{ mt: -1.5, mb: 2 }}>
         System containers (LXC) discovered on your servers. Container
         provisioning from this console is coming soon.

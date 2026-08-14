@@ -24,6 +24,7 @@ import ErrorIcon from '@mui/icons-material/Error'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import { api } from '../api/client'
+import PageHeader from '../components/PageHeader'
 import { formatBytes } from '../format'
 import { filenameError, urlError } from '../validation'
 
@@ -191,9 +192,9 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
     const failed = done && !task.succeeded
     return (
       <Box sx={{ p: 3, maxWidth: 720 }}>
-        <Typography variant="h5" sx={{ mb: 2 }}>
-          {method === 'upload' ? 'Uploading' : 'Downloading'} {filename}
-        </Typography>
+      <PageHeader
+        title={`${method === 'upload' ? 'Uploading' : 'Downloading'} ${filename}`}
+      />
         <Paper variant="outlined" sx={{ p: 3 }}>
           {!done && (
             <>

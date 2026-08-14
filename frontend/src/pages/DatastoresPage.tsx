@@ -11,11 +11,11 @@ import {
   TableHead,
   TableRow,
   Tooltip,
-  Typography,
 } from '@mui/material'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import { api } from '../api/client'
+import PageHeader from '../components/PageHeader'
 import { formatBytes } from '../format'
 import { useServerNames } from '../useServerNames'
 
@@ -56,9 +56,7 @@ export default function DatastoresPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>
-        Datastores
-      </Typography>
+      <PageHeader title="Datastores" />
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>

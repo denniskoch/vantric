@@ -15,13 +15,13 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Typography,
 } from '@mui/material'
 import AddBoxIcon from '@mui/icons-material/AddBox'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { api } from '../api/client'
 import VolumeName from '../components/VolumeName'
+import PageHeader from '../components/PageHeader'
 import type { ISO } from '../api/client'
 import { formatBytes } from '../format'
 import { useServerNames } from '../useServerNames'
@@ -54,18 +54,22 @@ export default function ISOsPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-        <Typography variant="h5">ISOs</Typography>
-        <Button
-          component={RouterLink}
-          to="/compute/isos/add"
-          variant="contained"
-          size="small"
-          startIcon={<AddBoxIcon />}
-        >
-          Add ISO
-        </Button>
-      </Box>
+      <PageHeader
+        title="ISOs"
+        actions={
+          <>
+            <Button
+              component={RouterLink}
+              to="/compute/isos/add"
+              variant="contained"
+              size="small"
+              startIcon={<AddBoxIcon />}
+            >
+              Add ISO
+            </Button>
+          </>
+        }
+      />
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>

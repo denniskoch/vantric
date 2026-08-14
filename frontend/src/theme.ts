@@ -42,11 +42,28 @@ export const theme = createTheme({
         root: {
           fontSize: 13,
           borderBottomColor: '#e8eaed',
-          // Row height is set by whatever is tallest in the cell, so
-          // the controls that live in tables are tightened with it —
-          // otherwise padded icon buttons undo the denser rows.
-          '& .MuiIconButton-sizeSmall': { padding: 4 },
-          '& .MuiCheckbox-root': { padding: 4 },
+          // A row is as tall as the tallest thing in it, so every
+          // control that lives in a cell is tightened to fit the text
+          // line rather than setting its own height. Without this a
+          // table with a checkbox column stands ten pixels taller than
+          // one without, and the section stops looking like itself.
+          //
+          // Scoped to cells on purpose: the same small button in a page
+          // header stays comfortable to hit.
+          '& .MuiIconButton-root': { padding: 1 },
+          '& .MuiCheckbox-root': { padding: 1 },
+          '& .MuiIconButton-root .MuiSvgIcon-root': { fontSize: 18 },
+          '& .MuiCheckbox-root .MuiSvgIcon-root': { fontSize: 18 },
+          // An inline <svg> sits on the text baseline and drags a few
+          // pixels of descender space into the row with it, which is why
+          // a table with a status icon stood taller than one without.
+          '& > .MuiSvgIcon-root': { display: 'block' },
+          '& .MuiButton-sizeSmall': {
+            paddingTop: 0,
+            paddingBottom: 0,
+            minHeight: 20,
+            lineHeight: 1.5,
+          },
         },
         sizeSmall: { padding: '3px 12px' },
         head: { color: '#5f6368', fontWeight: 500, whiteSpace: 'nowrap' },

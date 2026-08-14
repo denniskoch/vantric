@@ -22,13 +22,13 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Typography,
 } from '@mui/material'
 import AddBoxIcon from '@mui/icons-material/AddBox'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import BlockIcon from '@mui/icons-material/Block'
 import { api } from '../api/client'
+import PageHeader from '../components/PageHeader'
 import type { IAMUser } from '../api/client'
 import { useSession } from '../user'
 
@@ -89,21 +89,27 @@ export default function IAMUsersPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 0.5 }}>
-        <Typography variant="h5">Users</Typography>
-        <Button
-          variant="contained"
-          size="small"
-          startIcon={<AddBoxIcon />}
-          onClick={() => navigate('/iam/users/create')}
-        >
-          Add user
-        </Button>
-      </Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Accounts that can sign in to this console. Roles are recorded and
-        shown here; enforcing what each one may do is still to come.
-      </Typography>
+      <PageHeader
+        title="Users"
+        actions={
+          <>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddBoxIcon />}
+              onClick={() => navigate('/iam/users/create')}
+            >
+              Add user
+            </Button>
+          </>
+        }
+        description={
+          <>
+                Accounts that can sign in to this console. Roles are recorded and
+            shown here; enforcing what each one may do is still to come.
+          </>
+        }
+      />
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>

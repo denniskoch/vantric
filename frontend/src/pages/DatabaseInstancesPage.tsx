@@ -17,7 +17,6 @@ import {
   TableHead,
   TableRow,
   Tooltip,
-  Typography,
 } from '@mui/material'
 import AddBoxIcon from '@mui/icons-material/AddBox'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
@@ -29,6 +28,7 @@ import HelpIcon from '@mui/icons-material/Help'
 import { api } from '../api/client'
 import type { DatabaseServer } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
+import PageHeader from '../components/PageHeader'
 import { engineLabels } from '../databases'
 import { BrandLabel } from '../components/BrandIcon'
 import { databaseBrand } from '../brands'
@@ -90,21 +90,27 @@ export default function DatabaseInstancesPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 0.5 }}>
-        <Typography variant="h5">Instances</Typography>
-        <Button
-          variant="contained"
-          size="small"
-          startIcon={<AddBoxIcon />}
-          onClick={() => navigate('/databases/instances/add')}
-        >
-          Add instance
-        </Button>
-      </Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Database servers already running in your lab. This console connects to
-        them — it doesn't provision the servers themselves.
-      </Typography>
+      <PageHeader
+        title="Instances"
+        actions={
+          <>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddBoxIcon />}
+              onClick={() => navigate('/databases/instances/add')}
+            >
+              Add instance
+            </Button>
+          </>
+        }
+        description={
+          <>
+                Database servers already running in your lab. This console connects to
+            them — it doesn't provision the servers themselves.
+          </>
+        }
+      />
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>

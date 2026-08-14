@@ -17,7 +17,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Typography,
 } from '@mui/material'
 import AddBoxIcon from '@mui/icons-material/AddBox'
 import RefreshIcon from '@mui/icons-material/Refresh'
@@ -29,6 +28,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import { api } from '../api/client'
 import type { Instance } from '../api/client'
 import ConnectButton from '../components/ConnectButton'
+import PageHeader from '../components/PageHeader'
 import StatusIcon from '../components/StatusIcon'
 
 
@@ -76,20 +76,24 @@ export default function InstancesPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-        <Typography variant="h5">VM instances</Typography>
-        <Button
-          variant="contained"
-          size="small"
-          startIcon={<AddBoxIcon />}
-          onClick={() => navigate('/compute/instances/create')}
-        >
-          Create instance
-        </Button>
-        <Button size="small" startIcon={<RefreshIcon />} onClick={() => refetch()}>
-          Refresh
-        </Button>
-      </Box>
+      <PageHeader
+        title="VM instances"
+        actions={
+          <>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddBoxIcon />}
+              onClick={() => navigate('/compute/instances/create')}
+            >
+              Create instance
+            </Button>
+            <Button size="small" startIcon={<RefreshIcon />} onClick={() => refetch()}>
+              Refresh
+            </Button>
+          </>
+        }
+      />
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>

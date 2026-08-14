@@ -17,7 +17,6 @@ import {
   TableHead,
   TableRow,
   Tooltip,
-  Typography,
 } from '@mui/material'
 import AddBoxIcon from '@mui/icons-material/AddBox'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
@@ -27,6 +26,7 @@ import PendingIcon from '@mui/icons-material/Pending'
 import { api } from '../api/client'
 import type { DNSZone } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
+import PageHeader from '../components/PageHeader'
 
 export default function DNSZonesPage() {
   const navigate = useNavigate()
@@ -64,21 +64,27 @@ export default function DNSZonesPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 0.5 }}>
-        <Typography variant="h5">Zones</Typography>
-        <Button
-          variant="contained"
-          size="small"
-          startIcon={<AddBoxIcon />}
-          disabled={connected.length === 0}
-          onClick={() => navigate('/dns/zones/create')}
-        >
-          Create zone
-        </Button>
-      </Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Domains managed through your DNS providers.
-      </Typography>
+      <PageHeader
+        title="Zones"
+        actions={
+          <>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddBoxIcon />}
+              disabled={connected.length === 0}
+              onClick={() => navigate('/dns/zones/create')}
+            >
+              Create zone
+            </Button>
+          </>
+        }
+        description={
+          <>
+            Domains managed through your DNS providers.
+          </>
+        }
+      />
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>

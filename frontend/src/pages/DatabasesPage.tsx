@@ -10,11 +10,11 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Typography,
 } from '@mui/material'
 import { api } from '../api/client'
 import { formatBytes } from '../format'
 import { BrandLabel } from '../components/BrandIcon'
+import PageHeader from '../components/PageHeader'
 import { databaseBrand } from '../brands'
 
 /**
@@ -41,12 +41,14 @@ export default function DatabasesPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 0.5 }}>
-        Databases
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Every database across your connected instances.
-      </Typography>
+      <PageHeader
+        title="Databases"
+        description={
+          <>
+            Every database across your connected instances.
+          </>
+        }
+      />
 
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">

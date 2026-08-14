@@ -14,6 +14,7 @@ import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import FormPage from '../components/FormPage'
+import PageHeader from '../components/PageHeader'
 import { api } from '../api/client'
 
 const backTo = '/identity/users'
@@ -77,9 +78,7 @@ export default function IdentityUserCreatePage() {
   if (created) {
     return (
       <Box sx={{ p: 3, maxWidth: 680 }}>
-        <Typography variant="h5" sx={{ mb: 2 }}>
-          {created.username} created
-        </Typography>
+      <PageHeader title={`${created.username} created`} />
         {created.link ? (
           <>
             <Alert severity="success" sx={{ mb: 2 }}>
