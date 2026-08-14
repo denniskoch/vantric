@@ -412,6 +412,14 @@ export interface LabNetwork {
   dhcpStart: string
   dhcpStop: string
   domainName: string
+  /** Live uplink state — WAN networks only; zero elsewhere. */
+  ip: string
+  isp: string
+  latencyMs: number
+  up: boolean
+  downMbps: number
+  upMbps: number
+  speedtestAt: number
 }
 
 export interface NetworkWiFi {

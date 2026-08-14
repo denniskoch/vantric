@@ -59,6 +59,21 @@ type Network struct {
 	DHCPStart   string `json:"dhcpStart"`
 	DHCPStop    string `json:"dhcpStop"`
 	DomainName  string `json:"domainName"`
+
+	// The rest is live state, and only WAN networks carry it: a LAN
+	// has no latency to report and no address of its own.
+	// IP is the public address the ISP handed this uplink.
+	IP  string `json:"ip"`
+	ISP string `json:"isp"`
+	// LatencyMs is the gateway's own measurement, 0 when it hasn't one.
+	LatencyMs int `json:"latencyMs"`
+	// Up is whether the uplink is currently carrying traffic.
+	Up bool `json:"up"`
+	// DownMbps/UpMbps come from the last speed test the gateway ran.
+	DownMbps float64 `json:"downMbps"`
+	UpMbps   float64 `json:"upMbps"`
+	// SpeedtestAt is unix seconds of that test; 0 when never run.
+	SpeedtestAt int64 `json:"speedtestAt"`
 }
 
 // WiFi is a wireless network (SSID) the controller broadcasts.

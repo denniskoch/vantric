@@ -319,6 +319,120 @@ func (p *Provider) Networks(ctx context.Context, site string) ([]network.Network
 	return networks, nil
 }
 
+// wanStatus is live uplink state, keyed by the WAN group a network
+// config names (WAN, WAN2, …). It comes from two places because
+// neither has all of it: /stat/health knows the ISP and the current
+// latency, the gateway device knows each port's address.
+type wanStatus struct {
+	IP          string
+	ISP         string
+	LatencyMs   int
+	Up          bool
+	DownMbps    float64
+	UpMbps      float64
+	SpeedtestAt int64
+}
+
+func (p *Provider) wanStatuses(ctx context.Context, site network.Site) map[string]wanStatus {
+	statuses := map[string]wanStatus{}
+
+	var health []struct {
+		Subsystem     string  `json:"subsystem"`
+		Status        string  `json:"status"`
+		WANIP         string  `json:"wan_ip"`
+		ISPName       string  `json:"isp_name"`
+		ISPOrg        string  `json:"isp_organization"`
+		Latency       int     `json:"latency"`
+		SpeedtestPing float64 `json:"speedtest_ping"`
+		SpeedtestAt   int64   `json:"speedtest_lastrun"`
+		XputDown      float64 `json:"xput_down"`
+		XputUp        float64 `json:"xput_up"`
+	}
+	if err := p.getSite(ctx, site.ID, "/stat/health", &health); err == nil {
+		for _, h := range health {
+			if h.Subsystem != "wan" {
+				continue
+			}
+			statuses["WAN"] = wanStatus{
+				IP:          h.WANIP,
+				ISP:         firstNonEmpty(h.ISPName, h.ISPOrg),
+				LatencyMs:   h.Latency,
+				Up:          h.Status == "ok",
+				DownMbps:    h.XputDown,
+				UpMbps:      h.XputUp,
+				SpeedtestAt: h.SpeedtestAt,
+			}
+		}
+	}
+
+	// A multi-WAN gateway reports each port separately; health only
+	// ever describes the primary.
+	var devices []struct {
+		Type        string   `json:"type"`
+		WAN1        *wanPort `json:"wan1"`
+		WAN2        *wanPort `json:"wan2"`
+		UptimeStats *struct {
+			WAN  *uptimeStat `json:"WAN"`
+			WAN2 *uptimeStat `json:"WAN2"`
+		} `json:"uptime_stats"`
+	}
+	if err := p.getSite(ctx, site.ID, "/stat/device", &devices); err == nil {
+		for _, d := range devices {
+			if deviceKind(d.Type) != "gateway" {
+				continue
+			}
+			for group, port := range map[string]*wanPort{"WAN": d.WAN1, "WAN2": d.WAN2} {
+				if port == nil {
+					continue
+				}
+				status := statuses[group]
+				if port.IP != "" {
+					status.IP = port.IP
+				}
+				status.Up = status.Up || port.Up
+				if port.SpeedtestPing > 0 && status.LatencyMs == 0 {
+					status.LatencyMs = int(port.SpeedtestPing)
+				}
+				if port.XputDown > 0 {
+					status.DownMbps = port.XputDown
+					status.UpMbps = port.XputUp
+				}
+				if port.SpeedtestAt > 0 {
+					status.SpeedtestAt = port.SpeedtestAt
+				}
+				statuses[group] = status
+			}
+			if d.UptimeStats != nil {
+				for group, stat := range map[string]*uptimeStat{"WAN": d.UptimeStats.WAN, "WAN2": d.UptimeStats.WAN2} {
+					if stat == nil || stat.LatencyAverage == 0 {
+						continue
+					}
+					status := statuses[group]
+					// The rolling average beats a single sample, which
+					// is noisy enough to look broken.
+					status.LatencyMs = stat.LatencyAverage
+					statuses[group] = status
+				}
+			}
+		}
+	}
+	return statuses
+}
+
+type wanPort struct {
+	IP            string  `json:"ip"`
+	Up            bool    `json:"up"`
+	SpeedtestPing float64 `json:"speedtest_ping"`
+	XputDown      float64 `json:"xput_download"`
+	XputUp        float64 `json:"xput_upload"`
+	SpeedtestAt   int64   `json:"speedtest_lastrun"`
+}
+
+type uptimeStat struct {
+	LatencyAverage int     `json:"latency_average"`
+	Availability   float64 `json:"availability"`
+}
+
 func (p *Provider) networksIn(ctx context.Context, site network.Site) ([]network.Network, error) {
 	var res []struct {
 		ID          string `json:"_id"`
@@ -327,6 +441,7 @@ func (p *Provider) networksIn(ctx context.Context, site network.Site) ([]network
 		Subnet      string `json:"ip_subnet"`
 		Purpose     string `json:"purpose"`
 		Enabled     *bool  `json:"enabled"`
+		WANGroup    string `json:"wan_networkgroup"`
 		DHCPEnabled bool   `json:"dhcpd_enabled"`
 		DHCPStart   string `json:"dhcpd_start"`
 		DHCPStop    string `json:"dhcpd_stop"`
@@ -335,6 +450,15 @@ func (p *Provider) networksIn(ctx context.Context, site network.Site) ([]network
 	if err := p.getSite(ctx, site.ID, "/rest/networkconf", &res); err != nil {
 		return nil, err
 	}
+	// Only fetched when the site actually has an uplink to describe.
+	var wan map[string]wanStatus
+	for _, n := range res {
+		if n.Purpose == "wan" {
+			wan = p.wanStatuses(ctx, site)
+			break
+		}
+	}
+
 	networks := make([]network.Network, 0, len(res))
 	for _, n := range res {
 		enabled := true
@@ -355,6 +479,14 @@ func (p *Provider) networksIn(ctx context.Context, site network.Site) ([]network
 			DHCPStop:    n.DHCPStop,
 			DomainName:  n.DomainName,
 		})
+		if n.Purpose == "wan" {
+			status := wan[firstNonEmpty(n.WANGroup, "WAN")]
+			last := &networks[len(networks)-1]
+			last.IP, last.ISP = status.IP, status.ISP
+			last.LatencyMs, last.Up = status.LatencyMs, status.Up
+			last.DownMbps, last.UpMbps = status.DownMbps, status.UpMbps
+			last.SpeedtestAt = status.SpeedtestAt
+		}
 	}
 	return networks, nil
 }

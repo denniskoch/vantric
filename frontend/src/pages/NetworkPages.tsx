@@ -392,12 +392,100 @@ function CategoryPage({
 }
 
 export function NetworkInternetPage() {
+  const enabled = useConnected()
+  const {
+    data: wans = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ['labNetworks', 'wan'],
+    queryFn: () => api.listLabNetworks('wan'),
+    enabled,
+    refetchInterval: 60000,
+    retry: false,
+  })
+  // Live status comes from a gateway. A site with only switches and
+  // access points has an uplink the controller can't see, and blank
+  // cells should say so rather than look broken.
+  const { data: devices = [] } = useQuery({
+    queryKey: ['networkDevices'],
+    queryFn: api.listNetworkDevices,
+    enabled,
+    retry: false,
+  })
+  const sitesWithGateway = new Set(
+    devices.filter((d) => d.kind === 'gateway').map((d) => d.site),
+  )
+
   return (
-    <CategoryPage
+    <NetworkPage
       title="Internet"
-      description="The WAN connections feeding each site, as the controller sees them."
-      category="wan"
-    />
+      description="The WAN connections feeding each site, with the address and latency the gateway reports."
+      error={error as Error | null}
+    >
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Site</TableCell>
+              <TableCell>Name</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>IP</TableCell>
+              <TableCell>ISP</TableCell>
+              <TableCell align="right">Latency</TableCell>
+              <TableCell align="right">Speed test</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {wans.map((wan) => {
+              const blind = !sitesWithGateway.has(wan.site)
+              return (
+                <TableRow key={`${wan.site}/${wan.id}`} hover>
+                  <TableCell>{wan.site}</TableCell>
+                  <TableCell>{wan.name}</TableCell>
+                  <TableCell sx={{ color: wan.up ? '#188038' : '#5f6368' }}>
+                    {wan.up ? 'Up' : blind ? '—' : 'Not connected'}
+                  </TableCell>
+                  <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
+                    {wan.ip || (blind ? '—' : '—')}
+                  </TableCell>
+                  <TableCell>
+                    {wan.isp || (
+                      <Tooltip
+                        title={
+                          blind
+                            ? 'No UniFi gateway at this site, so the controller has nothing to report'
+                            : 'The gateway has no reading for this uplink'
+                        }
+                      >
+                        <Box component="span" sx={{ color: '#5f6368' }}>
+                          {blind ? 'No gateway here' : '—'}
+                        </Box>
+                      </Tooltip>
+                    )}
+                  </TableCell>
+                  <TableCell align="right" sx={{ color: wan.latencyMs > 100 ? '#f29900' : undefined }}>
+                    {wan.latencyMs ? `${wan.latencyMs} ms` : '—'}
+                  </TableCell>
+                  <TableCell align="right" sx={{ color: '#5f6368' }}>
+                    {wan.downMbps
+                      ? `${Math.round(wan.downMbps)} ↓ / ${Math.round(wan.upMbps)} ↑ Mbps`
+                      : '—'}
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+            {wans.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                  {isLoading ? 'Loading…' : 'No internet connections.'}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </NetworkPage>
   )
 }
 
