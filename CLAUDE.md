@@ -137,6 +137,22 @@ Surface the daily 90% here and link out for the rest.
   SetPassword take a host, ignored by PostgreSQL) while a PostgreSQL
   database has an owner (ignored by MySQL, which uses grants). The UI
   branches on `server.type` for these two fields only.
+- Identity is the same split once more: `internal/identity.Provider`
+  is the boundary (authentik first), providers are DB records with a
+  write-only token, one live provider per record in
+  `identity.Registry`, and a factory maps type → implementation.
+  Credentials are verified against `/admin/version/` before storing,
+  which also proves the token is an admin one rather than
+  self-scoped. The directory belongs to the provider: this reads it
+  and does the everyday actions (disable, set password, group
+  membership). Creating accounts and editing flows/stages/policies
+  stays in authentik. Endpoints default to the single configured
+  provider when `?provider=` is absent — a lab has one identity
+  service, and making every page pass an id it can't get wrong is
+  noise.
+- IAM & Admin (this console's own RBAC) and Identity Platform (the
+  lab's identity service) are deliberately separate sections: one
+  governs access to this app, the other manages a service in the lab.
 - Keep store SQL portable between SQLite and Postgres: TEXT ids, RFC3339
   TEXT timestamps, no engine-specific types. Postgres is planned, not wired.
 - Frontend talks only to `/api/v1` via `src/api/client.ts` (typed client);

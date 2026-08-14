@@ -20,6 +20,8 @@ import (
 	dnsfactory "lab-cloud-manager/internal/dns/factory"
 	"lab-cloud-manager/internal/hypervisor"
 	"lab-cloud-manager/internal/hypervisor/factory"
+	"lab-cloud-manager/internal/identity"
+	identityfactory "lab-cloud-manager/internal/identity/factory"
 	"lab-cloud-manager/internal/store"
 )
 
@@ -56,7 +58,10 @@ func main() {
 	dbRegistry := database.NewRegistry()
 	loadDatabaseRegistry(ctx, st, dbRegistry, log)
 
-	server := api.New(st, registry, dnsRegistry, dbRegistry, log, cfg.StaticDir)
+	identityRegistry := identity.NewRegistry()
+	loadIdentityRegistry(ctx, st, identityRegistry, log)
+
+	server := api.New(st, registry, dnsRegistry, dbRegistry, identityRegistry, log, cfg.StaticDir)
 	reconciler := api.NewReconciler(st, registry, log, 2*time.Second)
 	go reconciler.Run(ctx)
 
@@ -130,6 +135,25 @@ func loadDatabaseRegistry(ctx context.Context, st *store.Store, registry *databa
 		registry.Set(servers[i].ID, driver)
 	}
 	log.Info("database registry loaded", "servers", len(servers))
+}
+
+// loadIdentityRegistry builds a live provider for every configured
+// identity backend.
+func loadIdentityRegistry(ctx context.Context, st *store.Store, registry *identity.Registry, log *slog.Logger) {
+	providers, err := st.ListIdentityProviders(ctx)
+	if err != nil {
+		log.Error("listing identity providers", "error", err)
+		return
+	}
+	for i := range providers {
+		provider, err := identityfactory.Build(&providers[i])
+		if err != nil {
+			log.Error("building identity provider", "provider", providers[i].Name, "error", err)
+			continue
+		}
+		registry.Set(providers[i].ID, provider)
+	}
+	log.Info("identity registry loaded", "providers", len(providers))
 }
 
 // seedServerFromConfig registers an initial server on first run, driven

@@ -104,6 +104,15 @@ var migrations = []string{
 		ssl_mode TEXT NOT NULL DEFAULT '',
 		created_at TEXT NOT NULL
 	)`,
+	`CREATE TABLE IF NOT EXISTS identity_providers (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL UNIQUE,
+		type TEXT NOT NULL,
+		base_url TEXT NOT NULL DEFAULT '',
+		token TEXT NOT NULL DEFAULT '',
+		insecure_tls INTEGER NOT NULL DEFAULT 0,
+		created_at TEXT NOT NULL
+	)`,
 	`CREATE TABLE IF NOT EXISTS machine_types (
 		name TEXT PRIMARY KEY,
 		description TEXT NOT NULL DEFAULT '',

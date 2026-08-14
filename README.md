@@ -130,6 +130,12 @@ Base path `/api/v1`:
   `PUT /database/servers/{id}/users/{name}/password`,
   `DELETE /database/servers/{id}/users/{name}`
 - `GET /database/servers/{id}/connections`
+- `GET /identity/provider-types`, `GET /identity/providers`,
+  `POST /identity/providers`, `PUT/DELETE /identity/providers/{id}`
+- `GET /identity/users`, `POST /identity/users/{id}/{active,password}`
+- `GET /identity/groups`, `POST /identity/groups/{id}/members`,
+  `DELETE /identity/groups/{id}/members/{userId}`
+- `GET /identity/applications`, `GET /identity/events?limit=`
 - `GET /dns/providers`, `POST /dns/providers`,
   `PUT/DELETE /dns/providers/{id}`, `GET /dns/provider-types`,
   `GET /dns/accounts?provider=`

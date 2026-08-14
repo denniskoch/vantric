@@ -355,6 +355,80 @@ export interface DNSRecord {
   comment?: string
 }
 
+export type IdentityProviderType = 'authentik'
+
+export interface IdentityInfo {
+  version: string
+  latestVersion: string
+  outdated: boolean
+  users: number
+  groups: number
+  applications: number
+}
+
+export interface IdentityProvider {
+  id: string
+  name: string
+  type: IdentityProviderType
+  baseUrl: string
+  insecureTls: boolean
+  hasToken: boolean
+  status: 'connected' | 'unreachable' | 'unknown'
+  info?: IdentityInfo
+  error?: string
+  createdAt: string
+}
+
+export interface IdentityProviderRequest {
+  name: string
+  type: IdentityProviderType
+  baseUrl: string
+  token: string
+  insecureTls: boolean
+}
+
+export interface IdentityUser {
+  id: string
+  username: string
+  name: string
+  email: string
+  active: boolean
+  superuser: boolean
+  /** internal | service_account | internal_service_account */
+  kind: string
+  /** Unix seconds; 0 when the account has never signed in. */
+  lastLogin: number
+  groups: string[] | null
+}
+
+export interface IdentityGroup {
+  id: string
+  name: string
+  superuser: boolean
+  members: number
+  parent: string
+}
+
+export interface IdentityApplication {
+  id: string
+  name: string
+  slug: string
+  launchUrl: string
+  provider: string
+  providerType: string
+  description: string
+}
+
+export interface IdentityEvent {
+  id: string
+  action: string
+  user: string
+  app: string
+  clientIp: string
+  created: number
+  detail: string
+}
+
 export type DatabaseEngine = 'postgres' | 'mysql'
 
 export interface DatabaseServerInfo {
@@ -631,6 +705,44 @@ export const api = {
     }),
   deleteMachineType: (name: string) =>
     request<void>(`/machine-types/${name}`, { method: 'DELETE' }),
+
+  listIdentityProviderTypes: () =>
+    request<IdentityProviderType[]>('/identity/provider-types'),
+  listIdentityProviders: () => request<IdentityProvider[]>('/identity/providers'),
+  createIdentityProvider: (body: IdentityProviderRequest) =>
+    request<IdentityProvider>('/identity/providers', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateIdentityProvider: (id: string, body: IdentityProviderRequest) =>
+    request<IdentityProvider>(`/identity/providers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  deleteIdentityProvider: (id: string) =>
+    request<void>(`/identity/providers/${id}`, { method: 'DELETE' }),
+  listIdentityUsers: () => request<IdentityUser[]>('/identity/users'),
+  setIdentityUserActive: (userId: string, active: boolean) =>
+    request<void>(`/identity/users/${userId}/active`, {
+      method: 'POST',
+      body: JSON.stringify({ active }),
+    }),
+  setIdentityUserPassword: (userId: string, password: string) =>
+    request<void>(`/identity/users/${userId}/password`, {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    }),
+  listIdentityGroups: () => request<IdentityGroup[]>('/identity/groups'),
+  addIdentityGroupMember: (groupId: string, userId: string) =>
+    request<void>(`/identity/groups/${groupId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    }),
+  removeIdentityGroupMember: (groupId: string, userId: string) =>
+    request<void>(`/identity/groups/${groupId}/members/${userId}`, { method: 'DELETE' }),
+  listIdentityApplications: () => request<IdentityApplication[]>('/identity/applications'),
+  listIdentityEvents: (limit = 100) =>
+    request<IdentityEvent[]>(`/identity/events?limit=${limit}`),
 
   listDatabaseEngines: () => request<DatabaseEngine[]>('/database/engines'),
   listDatabaseServers: () => request<DatabaseServer[]>('/database/servers'),

@@ -16,6 +16,12 @@ import DatabaseInstancesPage from './pages/DatabaseInstancesPage'
 import DatabaseInstanceDetailPage from './pages/DatabaseInstanceDetailPage'
 import AddDatabaseInstancePage from './pages/AddDatabaseInstancePage'
 import DatabasesPage from './pages/DatabasesPage'
+import IdentityUsersPage from './pages/IdentityUsersPage'
+import IdentityGroupsPage from './pages/IdentityGroupsPage'
+import IdentityApplicationsPage from './pages/IdentityApplicationsPage'
+import IdentityEventsPage from './pages/IdentityEventsPage'
+import IdentityProvidersPage from './pages/IdentityProvidersPage'
+import AddIdentityProviderPage from './pages/AddIdentityProviderPage'
 import DNSProvidersPage from './pages/DNSProvidersPage'
 import ServersPage from './pages/ServersPage'
 import MachineTypesPage from './pages/MachineTypesPage'
@@ -47,6 +53,13 @@ export default function App() {
         <Route path="/docker/overview" element={<SectionLandingPage />} />
         <Route path="/iam/overview" element={<SectionLandingPage />} />
         <Route path="/identity/overview" element={<SectionLandingPage />} />
+        <Route path="/identity/users" element={<IdentityUsersPage />} />
+        <Route path="/identity/groups" element={<IdentityGroupsPage />} />
+        <Route path="/identity/applications" element={<IdentityApplicationsPage />} />
+        <Route path="/identity/events" element={<IdentityEventsPage />} />
+        <Route path="/identity/providers" element={<IdentityProvidersPage />} />
+        <Route path="/identity/providers/add" element={<AddIdentityProviderPage />} />
+        <Route path="/identity/providers/:id/edit" element={<AddIdentityProviderPage />} />
         <Route path="/dns/overview" element={<SectionLandingPage />} />
         <Route path="/dns/zones" element={<DNSZonesPage />} />
         <Route path="/dns/zones/create" element={<CreateZonePage />} />

@@ -1,0 +1,88 @@
+import { useQuery } from '@tanstack/react-query'
+import {
+  Alert,
+  Box,
+  Chip,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+} from '@mui/material'
+import { api } from '../api/client'
+
+export default function IdentityGroupsPage() {
+  const { data: providers = [] } = useQuery({
+    queryKey: ['identityProviders'],
+    queryFn: api.listIdentityProviders,
+  })
+  const {
+    data: groups = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ['identityGroups'],
+    queryFn: api.listIdentityGroups,
+    enabled: providers.length > 0,
+    retry: false,
+  })
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h5" sx={{ mb: 0.5 }}>
+        Groups
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Membership is usually what grants access to an application, and a
+        superuser group is what makes someone an administrator.
+      </Typography>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {(error as Error).message}
+        </Alert>
+      )}
+
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Parent</TableCell>
+              <TableCell align="right">Members</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {groups.map((group) => (
+              <TableRow key={group.id} hover>
+                <TableCell>
+                  {group.name}
+                  {group.superuser && (
+                    <Chip
+                      label="superuser"
+                      size="small"
+                      variant="outlined"
+                      sx={{ fontSize: 10, height: 18, ml: 1 }}
+                    />
+                  )}
+                </TableCell>
+                <TableCell>{group.parent || '—'}</TableCell>
+                <TableCell align="right">{group.members}</TableCell>
+              </TableRow>
+            ))}
+            {groups.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={3} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                  {isLoading ? 'Loading…' : 'No groups.'}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
+  )
+}

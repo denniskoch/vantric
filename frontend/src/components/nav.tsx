@@ -22,6 +22,10 @@ import VpnKeyIcon from '@mui/icons-material/VpnKey'
 import TableChartIcon from '@mui/icons-material/TableChart'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import FingerprintIcon from '@mui/icons-material/Fingerprint'
+import PersonIcon from '@mui/icons-material/Person'
+import GroupIcon from '@mui/icons-material/Group'
+import AppsIcon from '@mui/icons-material/Apps'
+import HistoryIcon from '@mui/icons-material/History'
 import { createSvgIcon } from '@mui/material/utils'
 import { siDocker } from 'simple-icons'
 
@@ -218,7 +222,53 @@ export const sections: Section[] = [
     prefix: '/identity',
     home: '/identity/overview',
     items: [{ label: 'Overview', icon: DashboardIcon, to: '/identity/overview' }],
-    groups: [],
+    groups: [
+      {
+        label: 'Directory',
+        items: [
+          {
+            label: 'Users',
+            icon: PersonIcon,
+            to: '/identity/users',
+            hint: 'Accounts that can sign in to your services',
+          },
+          {
+            label: 'Groups',
+            icon: GroupIcon,
+            to: '/identity/groups',
+            hint: 'What membership grants, and who has it',
+          },
+        ],
+      },
+      {
+        label: 'Access',
+        items: [
+          {
+            label: 'Applications',
+            icon: AppsIcon,
+            to: '/identity/applications',
+            hint: 'Services users sign in to through this provider',
+          },
+          {
+            label: 'Events',
+            icon: HistoryIcon,
+            to: '/identity/events',
+            hint: 'Logins, failures and changes, newest first',
+          },
+        ],
+      },
+      {
+        label: 'Settings',
+        items: [
+          {
+            label: 'Providers',
+            icon: VpnKeyIcon,
+            to: '/identity/providers',
+            hint: 'The identity service this console reads',
+          },
+        ],
+      },
+    ],
     description:
       'The identity provider your lab services sign in through — users, groups, applications and login events, read from its own API.',
   },

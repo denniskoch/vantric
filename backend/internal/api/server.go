@@ -16,6 +16,7 @@ import (
 	"lab-cloud-manager/internal/database"
 	"lab-cloud-manager/internal/dns"
 	"lab-cloud-manager/internal/hypervisor"
+	"lab-cloud-manager/internal/identity"
 	"lab-cloud-manager/internal/store"
 )
 
@@ -26,9 +27,11 @@ type Server struct {
 	registry    *hypervisor.Registry
 	dnsRegistry *dns.Registry
 	dbRegistry  *database.Registry
-	log         *slog.Logger
-	staticDir   string
-	builds      *buildRegistry
+	// identityRegistry holds the live identity providers (authentik).
+	identityRegistry *identity.Registry
+	log              *slog.Logger
+	staticDir        string
+	builds           *buildRegistry
 }
 
 func New(
@@ -36,12 +39,14 @@ func New(
 	registry *hypervisor.Registry,
 	dnsRegistry *dns.Registry,
 	dbRegistry *database.Registry,
+	identityRegistry *identity.Registry,
 	log *slog.Logger,
 	staticDir string,
 ) *Server {
 	return &Server{
 		store: st, registry: registry, dnsRegistry: dnsRegistry, dbRegistry: dbRegistry,
-		log: log, staticDir: staticDir,
+		identityRegistry: identityRegistry,
+		log:              log, staticDir: staticDir,
 		builds: newBuildRegistry(),
 	}
 }
@@ -86,6 +91,7 @@ func (s *Server) Router() http.Handler {
 		s.containerRoutes(r)
 		s.dnsRoutes(r)
 		s.databaseRoutes(r)
+		s.identityRoutes(r)
 
 		r.Get("/instances", s.listInstances)
 		r.Post("/instances", s.createInstance)
