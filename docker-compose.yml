@@ -1,7 +1,6 @@
 # The app: one image holding the API and the built UI, on :8080.
 #
-#   make up       app only
-#   make tunnel   app + cloudflared, published through Cloudflare
+#   make up   build and run it
 #
 # Settings come from .env — see .env.example. Docker builds and runs the
 # app; to work on the code, use `make dev`, which runs both halves on
@@ -26,19 +25,19 @@ services:
     restart: unless-stopped
 
   # Reaching the console from outside the lab, without opening a port.
+  # The tunnel is created in Cloudflare Zero Trust and points at
+  # http://app:8080 over this network; the app's published port stays
+  # for reaching it on the LAN.
   #
-  # Opt-in: it only starts via `make tunnel`, because a blank token
-  # would otherwise leave a container restarting forever for everyone
-  # who doesn't use one. The tunnel is created in Cloudflare Zero Trust
-  # and points at http://app:8080 over this network — the app's own
-  # published port stays for reaching it on the LAN.
+  # Needs TUNNEL_TOKEN in .env. Without one this container restarts in a
+  # loop and the app carries on regardless — noisy, but visible, which
+  # beats a service that quietly isn't there.
   #
   # PUT ACCESS IN FRONT OF IT. This console holds credentials for every
   # backend in your lab and can open a root-capable shell on your
   # guests; a Zero Trust policy is what stands between that and the
   # public internet.
   cloudflared:
-    profiles: [tunnel]
     image: cloudflare/cloudflared:latest
     command: tunnel --no-autoupdate run
     environment:

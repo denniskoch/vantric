@@ -108,8 +108,7 @@ docker compose up -d --build   # everything on :8080
 ```
 
 Settings are environment variables — there's no config file. Copy the
-sample and edit it; compose reads `.env` automatically for both
-profiles:
+sample and edit it; compose reads `.env` automatically:
 
 ```bash
 cp .env.example .env
@@ -154,16 +153,12 @@ data` once.
 
 ### Reaching it from outside the lab
 
-```bash
-make tunnel
-```
-
-Runs the app plus `cloudflared`, so the console is published through a
-Cloudflare Tunnel without opening a port or holding a certificate.
-Create the tunnel in Zero Trust → Networks → Tunnels, point its public
-hostname at `http://app:8080`, and put the token in `.env` as
-`TUNNEL_TOKEN`. Without a token nothing changes — cloudflared only
-starts for this target.
+`cloudflared` runs alongside the app, so the console is published
+through a Cloudflare Tunnel without opening a port or holding a
+certificate. Create the tunnel in Zero Trust → Networks → Tunnels, point
+its public hostname at `http://app:8080`, and put the token in `.env` as
+`TUNNEL_TOKEN`. Without a token that container restarts until you set
+one; the app itself doesn't care.
 
 **Put an Access policy in front of it.** This console holds credentials
 for every backend in your lab and can open a root-capable shell on your

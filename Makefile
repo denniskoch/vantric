@@ -4,7 +4,7 @@
 # Docker is for running the app, not for building it.
 
 .DEFAULT_GOAL := help
-.PHONY: help dev api ui check build up tunnel rebuild down logs clean
+.PHONY: help dev api ui check build up rebuild down logs clean
 
 help: ## Show this help
 	@echo "lab-cloud-manager"
@@ -36,28 +36,23 @@ check: frontend/node_modules ## Build, vet and type-check — what has to pass b
 build: check ## Alias for check; there is no separate build step
 	@:
 
-up: ## Build and run the app in Docker (:8080)
+up: ## Build and run it in Docker (:8080, plus the tunnel)
+	@[ -n "$$TUNNEL_TOKEN" ] || grep -qs '^TUNNEL_TOKEN=.' .env || { \
+		echo "note: TUNNEL_TOKEN isn't set in .env, so cloudflared will"; \
+		echo "      restart until it is. The app itself is unaffected."; }
 	docker compose up -d --build
 	@echo "→ http://localhost:8080"
-
-tunnel: ## Run the app plus cloudflared, published through Cloudflare
-	@[ -n "$$TUNNEL_TOKEN" ] || grep -qs '^TUNNEL_TOKEN=.' .env || { \
-		echo "TUNNEL_TOKEN isn't set. Cloudflare Zero Trust → Networks →"; \
-		echo "Tunnels → create one, then put its token in .env."; \
-		echo "See .env.example."; exit 1; }
-	docker compose --profile tunnel up -d --build
-	@echo "→ http://localhost:8080, and your tunnel hostname"
 
 rebuild: ## Rebuild the image from scratch, ignoring the cache
 	docker compose build --no-cache
 	docker compose up -d
 	@echo "→ http://localhost:8080"
 
-down: ## Stop it, tunnel included
-	docker compose --profile tunnel down
+down: ## Stop it
+	docker compose down
 
 logs: ## Follow the logs
-	docker compose --profile tunnel logs -f
+	docker compose logs -f
 
 clean: ## Remove build output and installed packages
 	rm -rf frontend/dist frontend/node_modules backend/server

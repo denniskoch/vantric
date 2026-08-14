@@ -390,14 +390,12 @@ Surface the daily 90% here and link out for the rest.
   render their `planned` list instead. Landing copy (`description`,
   `planned`, per-item `hint`) lives in nav.tsx with everything else, so
   a new section needs no new page component.
-- PUBLISHING IS A CLOUDFLARE TUNNEL, opt-in. `cloudflared` sits in the
-  one compose file behind `profiles: [tunnel]` and only starts via
-  `make tunnel`, which refuses without a `TUNNEL_TOKEN` — the guard is
-  in the Makefile, not the compose file, because compose interpolates
-  every service whatever the profile and a required-variable there
-  breaks plain `make up` for anyone without a tunnel. The tunnel
-  reaches `http://app:8080` over the compose network; the published
-  port stays for the LAN. `isTLS` already honours `X-Forwarded-Proto`,
+- PUBLISHING IS A CLOUDFLARE TUNNEL. `cloudflared` is an ordinary
+  service in the one compose file — NO PROFILES, here or anywhere: a
+  service you have to remember a flag to start is a service you'll
+  think is missing. It needs `TUNNEL_TOKEN` in .env and restarts
+  without one, which is noisy but visible. It reaches `http://app:8080`
+  over the compose network; the published port stays for the LAN. `isTLS` already honours `X-Forwarded-Proto`,
   so the session cookie becomes Secure through the tunnel and stays
   usable over plain http on the LAN.
 - THE DATABASE IS A FILE IN A DIRECTORY, not a named volume:
