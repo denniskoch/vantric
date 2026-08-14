@@ -166,7 +166,13 @@ Surface the daily 90% here and link out for the rest.
   an API key where the controller offers one and a local account where
   it doesn't, and clients merge live sessions with known-but-offline
   records, because a reserved address that's powered off still
-  occupies it.
+  occupies it. A controller holds several SITES and they share nothing
+  but the login: every listing spans them all and stamps each row with
+  its site, the way catalog listings span hypervisors. The section's
+  nav follows the controller's own vocabulary — WiFi, Networks,
+  Internet, VPN, Devices, Clients — with networks split by the
+  `category` the driver derives from UniFi's purpose field. WiFi
+  passphrases are never read.
 - IAM & Admin (this console's own RBAC) and Identity Platform (the
   lab's identity service) are deliberately separate sections: one
   governs access to this app, the other manages a service in the lab.

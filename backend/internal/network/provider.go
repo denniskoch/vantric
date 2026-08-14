@@ -49,6 +49,9 @@ type Network struct {
 	// Subnet is CIDR as the controller states it.
 	Subnet  string `json:"subnet"`
 	Purpose string `json:"purpose"`
+	// Category groups the controller's purposes the way its own UI
+	// does: lan, wan, vpn or other.
+	Category string `json:"category"`
 	Enabled bool   `json:"enabled"`
 	// DHCP range; empty when the controller doesn't serve DHCP here,
 	// which is itself worth showing.
@@ -56,6 +59,24 @@ type Network struct {
 	DHCPStart   string `json:"dhcpStart"`
 	DHCPStop    string `json:"dhcpStop"`
 	DomainName  string `json:"domainName"`
+}
+
+// WiFi is a wireless network (SSID) the controller broadcasts.
+type WiFi struct {
+	// Site is filled in by the driver, not the caller.
+	Site    string `json:"site"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Enabled bool   `json:"enabled"`
+	// Security is the human form: WPA2, WPA3, Open, Enterprise.
+	Security string `json:"security"`
+	Guest    bool   `json:"guest"`
+	Hidden   bool   `json:"hidden"`
+	// Network is the wired network this SSID puts clients on.
+	Network string `json:"network"`
+	// Bands are the radios carrying it: 2.4 GHz, 5 GHz, 6 GHz.
+	Bands   []string `json:"bands"`
+	Clients int      `json:"clients"`
 }
 
 // Client is something holding an address on the network.
@@ -112,6 +133,7 @@ type Provider interface {
 	// The listings span every site unless one is named; each row
 	// carries the site it came from.
 	Networks(ctx context.Context, site string) ([]Network, error)
+	WiFi(ctx context.Context, site string) ([]WiFi, error)
 	Clients(ctx context.Context, site string) ([]Client, error)
 	Devices(ctx context.Context, site string) ([]Device, error)
 }

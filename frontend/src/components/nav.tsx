@@ -28,6 +28,9 @@ import AppsIcon from '@mui/icons-material/Apps'
 import RouterIcon from '@mui/icons-material/Router'
 import DevicesIcon from '@mui/icons-material/Devices'
 import HubIcon from '@mui/icons-material/Hub'
+import WifiIcon from '@mui/icons-material/Wifi'
+import PublicOffIcon from '@mui/icons-material/Public'
+import VpnLockIcon from '@mui/icons-material/VpnLock'
 import HistoryIcon from '@mui/icons-material/History'
 import { createSvgIcon } from '@mui/material/utils'
 import { siDocker } from 'simple-icons'
@@ -164,19 +167,33 @@ export const sections: Section[] = [
     items: [{ label: 'Overview', icon: DashboardIcon, to: '/network/overview' }],
     groups: [
       {
-        label: 'Networks',
+        // The controller's own vocabulary, so the two consoles read
+        // the same way round.
+        label: 'UniFi Network',
         items: [
+          {
+            label: 'WiFi',
+            icon: WifiIcon,
+            to: '/network/wifi',
+            hint: 'SSIDs, what secures them and who is on them',
+          },
           {
             label: 'Networks',
             icon: HubIcon,
             to: '/network/networks',
-            hint: 'VLANs, their subnets and DHCP ranges',
+            hint: 'LANs and VLANs, their subnets and DHCP ranges',
           },
           {
-            label: 'Clients',
-            icon: DevicesIcon,
-            to: '/network/clients',
-            hint: 'What holds an address, leased or reserved',
+            label: 'Internet',
+            icon: PublicOffIcon,
+            to: '/network/internet',
+            hint: 'WAN connections feeding each site',
+          },
+          {
+            label: 'VPN',
+            icon: VpnLockIcon,
+            to: '/network/vpn',
+            hint: 'Tunnels the controller terminates',
           },
           {
             label: 'Devices',
@@ -184,13 +201,19 @@ export const sections: Section[] = [
             to: '/network/devices',
             hint: 'Gateways, switches and access points',
           },
+          {
+            label: 'Clients',
+            icon: DevicesIcon,
+            to: '/network/clients',
+            hint: 'What holds an address, leased or reserved',
+          },
         ],
       },
       {
         label: 'Settings',
         items: [
           {
-            label: 'Controllers',
+            label: 'Controller',
             icon: VpnKeyIcon,
             to: '/network/controllers',
             hint: 'The network controller this console reads',

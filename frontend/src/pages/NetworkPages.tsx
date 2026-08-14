@@ -1,13 +1,10 @@
 import { Link as RouterLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
 import {
   Alert,
   Box,
   Button,
   Chip,
-  MenuItem,
-  TextField,
   Paper,
   Table,
   TableBody,
@@ -80,48 +77,15 @@ const useConnected = () => {
   return providers.length > 0
 }
 
-/** A controller commonly holds several sites. The filter only earns
- *  its place when there's more than one, and so does the column. */
-function useSites(enabled: boolean) {
-  const [site, setSite] = useState('')
-  const { data: sites = [] } = useQuery({
-    queryKey: ['networkSites'],
-    queryFn: api.listNetworkSites,
-    enabled,
-    retry: false,
-  })
-  const filter = sites.length > 1 && (
-    <TextField
-      label="Site"
-      size="small"
-      select
-      value={site}
-      onChange={(e) => setSite(e.target.value)}
-      sx={{ width: 260, mb: 2 }}
-    >
-      <MenuItem value="">
-        <em>All sites</em>
-      </MenuItem>
-      {sites.map((s) => (
-        <MenuItem key={s.id} value={s.id}>
-          {s.name}
-        </MenuItem>
-      ))}
-    </TextField>
-  )
-  return { site, filter, showColumn: sites.length > 1 }
-}
-
 export function NetworkNetworksPage() {
   const enabled = useConnected()
-  const { site, filter, showColumn } = useSites(enabled)
   const {
     data: networks = [],
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['labNetworks', site],
-    queryFn: () => api.listLabNetworks(site),
+    queryKey: ['labNetworks', 'lan'],
+    queryFn: () => api.listLabNetworks('lan'),
     enabled,
     retry: false,
   })
@@ -129,15 +93,14 @@ export function NetworkNetworksPage() {
   return (
     <NetworkPage
       title="Networks"
-      description="VLANs as your controller defines them, with the subnet and DHCP range each one serves."
+      description="The LANs and VLANs your controller defines, with the subnet and DHCP range each one serves."
       error={error as Error | null}
     >
-      {filter}
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>
             <TableRow>
-              {showColumn && <TableCell>Site</TableCell>}
+              <TableCell>Site</TableCell>
               <TableCell>Name</TableCell>
               <TableCell align="right">VLAN</TableCell>
               <TableCell>Subnet</TableCell>
@@ -150,7 +113,7 @@ export function NetworkNetworksPage() {
           <TableBody>
             {networks.map((net) => (
               <TableRow key={`${net.site}/${net.id}`} hover>
-                {showColumn && <TableCell>{net.site}</TableCell>}
+                <TableCell>{net.site}</TableCell>
                 <TableCell>{net.name}</TableCell>
                 <TableCell align="right">{net.vlan || '—'}</TableCell>
                 <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
@@ -170,7 +133,7 @@ export function NetworkNetworksPage() {
             ))}
             {networks.length === 0 && (
               <TableRow>
-                <TableCell colSpan={showColumn ? 8 : 7} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#5f6368' }}>
                   {isLoading ? 'Loading…' : 'No networks.'}
                 </TableCell>
               </TableRow>
@@ -184,14 +147,13 @@ export function NetworkNetworksPage() {
 
 export function NetworkClientsPage() {
   const enabled = useConnected()
-  const { site, filter, showColumn } = useSites(enabled)
   const {
     data: clients = [],
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['networkClients', site],
-    queryFn: () => api.listNetworkClients(site),
+    queryKey: ['networkClients'],
+    queryFn: api.listNetworkClients,
     enabled,
     refetchInterval: 30000,
     retry: false,
@@ -205,12 +167,11 @@ export function NetworkClientsPage() {
       description={`Everything holding an address, sorted by address. ${online} of ${clients.length} online.`}
       error={error as Error | null}
     >
-      {filter}
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>
             <TableRow>
-              {showColumn && <TableCell>Site</TableCell>}
+              <TableCell>Site</TableCell>
               <TableCell>IP</TableCell>
               <TableCell>Name</TableCell>
               <TableCell>MAC</TableCell>
@@ -223,7 +184,7 @@ export function NetworkClientsPage() {
           <TableBody>
             {clients.map((client) => (
               <TableRow key={`${client.site}/${client.id || client.mac}`} hover>
-                {showColumn && <TableCell>{client.site}</TableCell>}
+                <TableCell>{client.site}</TableCell>
                 <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
                   {client.ip || '—'}
                   {client.fixedIp && (
@@ -276,7 +237,7 @@ export function NetworkClientsPage() {
             ))}
             {clients.length === 0 && (
               <TableRow>
-                <TableCell colSpan={showColumn ? 8 : 7} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#5f6368' }}>
                   {isLoading ? 'Loading…' : 'No clients.'}
                 </TableCell>
               </TableRow>
@@ -290,14 +251,13 @@ export function NetworkClientsPage() {
 
 export function NetworkDevicesPage() {
   const enabled = useConnected()
-  const { site, filter, showColumn } = useSites(enabled)
   const {
     data: devices = [],
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['networkDevices', site],
-    queryFn: () => api.listNetworkDevices(site),
+    queryKey: ['networkDevices'],
+    queryFn: api.listNetworkDevices,
     enabled,
     refetchInterval: 30000,
     retry: false,
@@ -309,13 +269,12 @@ export function NetworkDevicesPage() {
       description="The hardware carrying your network: gateways, switches and access points."
       error={error as Error | null}
     >
-      {filter}
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell>Status</TableCell>
-              {showColumn && <TableCell>Site</TableCell>}
+              <TableCell>Site</TableCell>
               <TableCell>Name</TableCell>
               <TableCell>Kind</TableCell>
               <TableCell>Model</TableCell>
@@ -339,7 +298,7 @@ export function NetworkDevicesPage() {
                     </span>
                   </Tooltip>
                 </TableCell>
-                {showColumn && <TableCell>{device.site}</TableCell>}
+                <TableCell>{device.site}</TableCell>
                 <TableCell>{device.name}</TableCell>
                 <TableCell>{device.kind}</TableCell>
                 <TableCell sx={{ color: '#5f6368' }}>{device.model}</TableCell>
@@ -355,8 +314,174 @@ export function NetworkDevicesPage() {
             ))}
             {devices.length === 0 && (
               <TableRow>
-                <TableCell colSpan={showColumn ? 9 : 8} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={9} align="center" sx={{ py: 6, color: '#5f6368' }}>
                   {isLoading ? 'Loading…' : 'No devices.'}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </NetworkPage>
+  )
+}
+
+
+/** Internet and VPN are the same table over a different slice of the
+ *  controller's networks, so they share one component. */
+function CategoryPage({
+  title,
+  description,
+  category,
+}: {
+  title: string
+  description: string
+  category: string
+}) {
+  const enabled = useConnected()
+  const {
+    data: networks = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ['labNetworks', category],
+    queryFn: () => api.listLabNetworks(category),
+    enabled,
+    retry: false,
+  })
+
+  return (
+    <NetworkPage title={title} description={description} error={error as Error | null}>
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Site</TableCell>
+              <TableCell>Name</TableCell>
+              <TableCell>Subnet</TableCell>
+              <TableCell>Purpose</TableCell>
+              <TableCell>Status</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {networks.map((net) => (
+              <TableRow key={`${net.site}/${net.id}`} hover>
+                <TableCell>{net.site}</TableCell>
+                <TableCell>{net.name}</TableCell>
+                <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
+                  {net.subnet || '—'}
+                </TableCell>
+                <TableCell>{net.purpose || '—'}</TableCell>
+                <TableCell sx={{ color: net.enabled ? undefined : '#d93025' }}>
+                  {net.enabled ? 'Enabled' : 'Disabled'}
+                </TableCell>
+              </TableRow>
+            ))}
+            {networks.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                  {isLoading ? 'Loading…' : 'Nothing here.'}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </NetworkPage>
+  )
+}
+
+export function NetworkInternetPage() {
+  return (
+    <CategoryPage
+      title="Internet"
+      description="The WAN connections feeding each site, as the controller sees them."
+      category="wan"
+    />
+  )
+}
+
+export function NetworkVPNPage() {
+  return (
+    <CategoryPage
+      title="VPN"
+      description="Tunnels the controller terminates, client and site-to-site alike."
+      category="vpn"
+    />
+  )
+}
+
+export function NetworkWiFiPage() {
+  const enabled = useConnected()
+  const {
+    data: wifi = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ['networkWiFi'],
+    queryFn: api.listNetworkWiFi,
+    enabled,
+    refetchInterval: 60000,
+    retry: false,
+  })
+
+  return (
+    <NetworkPage
+      title="WiFi"
+      description="The SSIDs your access points broadcast. Passphrases are deliberately not read — this console has no business holding them."
+      error={error as Error | null}
+    >
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Site</TableCell>
+              <TableCell>SSID</TableCell>
+              <TableCell>Security</TableCell>
+              <TableCell>Bands</TableCell>
+              <TableCell>Network</TableCell>
+              <TableCell align="right">Clients</TableCell>
+              <TableCell>Status</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {wifi.map((net) => (
+              <TableRow key={`${net.site}/${net.id}`} hover>
+                <TableCell>{net.site}</TableCell>
+                <TableCell>
+                  {net.name}
+                  {net.guest && (
+                    <Chip
+                      label="guest"
+                      size="small"
+                      variant="outlined"
+                      sx={{ fontSize: 10, height: 18, ml: 1 }}
+                    />
+                  )}
+                  {net.hidden && (
+                    <Chip
+                      label="hidden"
+                      size="small"
+                      variant="outlined"
+                      sx={{ fontSize: 10, height: 18, ml: 1 }}
+                    />
+                  )}
+                </TableCell>
+                <TableCell>{net.security}</TableCell>
+                <TableCell sx={{ color: '#5f6368' }}>
+                  {net.bands?.join(', ') || '—'}
+                </TableCell>
+                <TableCell>{net.network || '—'}</TableCell>
+                <TableCell align="right">{net.clients}</TableCell>
+                <TableCell sx={{ color: net.enabled ? undefined : '#d93025' }}>
+                  {net.enabled ? 'Broadcasting' : 'Disabled'}
+                </TableCell>
+              </TableRow>
+            ))}
+            {wifi.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                  {isLoading ? 'Loading…' : 'No wireless networks.'}
                 </TableCell>
               </TableRow>
             )}

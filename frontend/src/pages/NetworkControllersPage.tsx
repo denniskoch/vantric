@@ -107,9 +107,7 @@ export default function NetworkControllersPage() {
                 </TableCell>
                 <TableCell>{provider.name}</TableCell>
                 <TableCell>{provider.baseUrl}</TableCell>
-                <TableCell align="right">
-                  {provider.site ? `1 of ${provider.info?.sites ?? '?'}` : (provider.info?.sites ?? '—')}
-                </TableCell>
+                <TableCell align="right">{provider.info?.sites ?? '—'}</TableCell>
                 <TableCell>{provider.info?.version ?? '—'}</TableCell>
                 <TableCell align="right">{provider.info?.networks ?? '—'}</TableCell>
                 <TableCell align="right">{provider.info?.clients ?? '—'}</TableCell>

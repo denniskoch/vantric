@@ -111,26 +111,18 @@ function ControllerForm({ editing }: { editing: NetworkProvider | null }) {
           </MenuItem>
         ))}
       </TextField>
-      <Box sx={{ display: 'flex', gap: 2 }}>
-        <TextField
-          label="Controller URL"
-          size="small"
-          value={form.baseUrl}
-          onChange={(e) => setForm({ ...form, baseUrl: e.target.value })}
-          placeholder="https://192.168.1.1"
-          error={Boolean(baseUrlError)}
-          helperText={baseUrlError ?? 'Self-hosted is usually https://host:8443'}
-          sx={{ flex: 1 }}
-        />
-        <TextField
-          label="Site (optional)"
-          size="small"
-          value={form.site}
-          onChange={(e) => setForm({ ...form, site: e.target.value })}
-          helperText="Blank reads every site"
-          sx={{ width: 200 }}
-        />
-      </Box>
+      <TextField
+        label="Controller URL"
+        size="small"
+        value={form.baseUrl}
+        onChange={(e) => setForm({ ...form, baseUrl: e.target.value })}
+        placeholder="https://192.168.1.1"
+        error={Boolean(baseUrlError)}
+        helperText={
+          baseUrlError ?? 'Self-hosted is usually https://host:8443. Every site on it is read.'
+        }
+        fullWidth
+      />
 
       <TextField
         label="API key"

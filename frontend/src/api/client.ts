@@ -405,11 +405,26 @@ export interface LabNetwork {
   vlan: number
   subnet: string
   purpose: string
+  /** lan | wan | vpn | other — the controller's own grouping. */
+  category: string
   enabled: boolean
   dhcpEnabled: boolean
   dhcpStart: string
   dhcpStop: string
   domainName: string
+}
+
+export interface NetworkWiFi {
+  site: string
+  id: string
+  name: string
+  enabled: boolean
+  security: string
+  guest: boolean
+  hidden: boolean
+  network: string
+  bands: string[] | null
+  clients: number
 }
 
 export interface NetworkClient {
@@ -815,12 +830,13 @@ export const api = {
   deleteNetworkProvider: (id: string) =>
     request<void>(`/network/providers/${id}`, { method: 'DELETE' }),
   listNetworkSites: () => request<NetworkSite[]>('/network/sites'),
-  listLabNetworks: (site?: string) =>
-    request<LabNetwork[]>(`/network/networks${site ? `?site=${encodeURIComponent(site)}` : ''}`),
-  listNetworkClients: (site?: string) =>
-    request<NetworkClient[]>(`/network/clients${site ? `?site=${encodeURIComponent(site)}` : ''}`),
-  listNetworkDevices: (site?: string) =>
-    request<NetworkDevice[]>(`/network/devices${site ? `?site=${encodeURIComponent(site)}` : ''}`),
+  listLabNetworks: (category?: string) =>
+    request<LabNetwork[]>(
+      `/network/networks${category ? `?category=${encodeURIComponent(category)}` : ''}`,
+    ),
+  listNetworkWiFi: () => request<NetworkWiFi[]>('/network/wifi'),
+  listNetworkClients: () => request<NetworkClient[]>('/network/clients'),
+  listNetworkDevices: () => request<NetworkDevice[]>('/network/devices'),
 
   listIdentityProviderTypes: () =>
     request<IdentityProviderType[]>('/identity/provider-types'),

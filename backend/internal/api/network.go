@@ -33,6 +33,7 @@ func (s *Server) networkRoutes(r chi.Router) {
 	r.Delete("/network/providers/{id}", s.deleteNetworkProvider)
 	r.Get("/network/sites", s.listNetworkSites)
 	r.Get("/network/networks", s.listNetworkNetworks)
+	r.Get("/network/wifi", s.listNetworkWiFi)
 	r.Get("/network/clients", s.listNetworkClients)
 	r.Get("/network/devices", s.listNetworkDevices)
 }
@@ -273,6 +274,11 @@ func (s *Server) listNetworkNetworks(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err, "networks")
 		return
 	}
+	if category := r.URL.Query().Get("category"); category != "" {
+		networks = slices.DeleteFunc(networks, func(n network.Network) bool {
+			return n.Category != category
+		})
+	}
 	slices.SortFunc(networks, func(a, b network.Network) int {
 		if a.Site != b.Site {
 			return strings.Compare(a.Site, b.Site)
@@ -283,6 +289,26 @@ func (s *Server) listNetworkNetworks(w http.ResponseWriter, r *http.Request) {
 		return strings.Compare(a.Name, b.Name)
 	})
 	s.json(w, http.StatusOK, networks)
+}
+
+// listNetworkWiFi lists SSIDs across every site.
+func (s *Server) listNetworkWiFi(w http.ResponseWriter, r *http.Request) {
+	provider := s.networkProvider(w, r)
+	if provider == nil {
+		return
+	}
+	wifi, err := provider.WiFi(r.Context(), r.URL.Query().Get("site"))
+	if err != nil {
+		s.fail(w, err, "wifi")
+		return
+	}
+	slices.SortFunc(wifi, func(a, b network.WiFi) int {
+		if a.Site != b.Site {
+			return strings.Compare(a.Site, b.Site)
+		}
+		return strings.Compare(a.Name, b.Name)
+	})
+	s.json(w, http.StatusOK, wifi)
 }
 
 func (s *Server) listNetworkClients(w http.ResponseWriter, r *http.Request) {

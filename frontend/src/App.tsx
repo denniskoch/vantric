@@ -20,6 +20,9 @@ import {
   NetworkNetworksPage,
   NetworkClientsPage,
   NetworkDevicesPage,
+  NetworkInternetPage,
+  NetworkVPNPage,
+  NetworkWiFiPage,
 } from './pages/NetworkPages'
 import NetworkControllersPage from './pages/NetworkControllersPage'
 import NetworkControllerFormPage from './pages/NetworkControllerFormPage'
@@ -62,7 +65,10 @@ export default function App() {
         {/* Every section has an overview, on the shared landing template. */}
         <Route path="/storage/overview" element={<SectionLandingPage />} />
         <Route path="/network/overview" element={<SectionLandingPage />} />
+        <Route path="/network/wifi" element={<NetworkWiFiPage />} />
         <Route path="/network/networks" element={<NetworkNetworksPage />} />
+        <Route path="/network/internet" element={<NetworkInternetPage />} />
+        <Route path="/network/vpn" element={<NetworkVPNPage />} />
         <Route path="/network/clients" element={<NetworkClientsPage />} />
         <Route path="/network/devices" element={<NetworkDevicesPage />} />
         <Route path="/network/controllers" element={<NetworkControllersPage />} />

@@ -29,8 +29,8 @@ type Config struct {
 	// BaseURL is the controller root, e.g. https://192.168.1.1 or
 	// https://unifi.lan:8443.
 	BaseURL string
-	// Site restricts every listing to one site. Blank — the usual
-	// case — spans all of them.
+	// Site narrows listings to one site when a caller asks for it.
+	// Nothing pins a connection any more: the console reads them all.
 	Site string
 	// APIKey is a local API key from Control Plane → Integrations on
 	// newer controllers. When set, no login happens at all.
@@ -256,9 +256,6 @@ func (p *Provider) Sites(ctx context.Context) ([]network.Site, error) {
 // siteIDs resolves which sites a listing covers: the one asked for,
 // the one this provider is pinned to, or all of them.
 func (p *Provider) siteIDs(ctx context.Context, site string) ([]network.Site, error) {
-	if site == "" {
-		site = p.cfg.Site
-	}
 	sites, err := p.Sites(ctx)
 	if err != nil {
 		return nil, err
@@ -346,6 +343,7 @@ func (p *Provider) networksIn(ctx context.Context, site network.Site) ([]network
 		}
 		networks = append(networks, network.Network{
 			Site:        site.Name,
+			Category:    category(n.Purpose),
 			ID:          n.ID,
 			Name:        n.Name,
 			VLAN:        toInt(n.VLAN),
@@ -361,6 +359,23 @@ func (p *Provider) networksIn(ctx context.Context, site network.Site) ([]network
 	return networks, nil
 }
 
+// category groups UniFi's purposes the way its own navigation does:
+// the LANs you build, the internet connections feeding them, and the
+// VPNs riding on top.
+func category(purpose string) string {
+	switch purpose {
+	case "wan":
+		return "wan"
+	case "corporate", "guest", "vlan-only":
+		return "lan"
+	default:
+		if strings.Contains(purpose, "vpn") {
+			return "vpn"
+		}
+		return "other"
+	}
+}
+
 // toInt reads a field the controller has typed both ways over the
 // years.
 func toInt(value any) int {
@@ -373,6 +388,111 @@ func toInt(value any) int {
 		return n
 	}
 	return 0
+}
+
+func (p *Provider) WiFi(ctx context.Context, site string) ([]network.WiFi, error) {
+	sites, err := p.siteIDs(ctx, site)
+	if err != nil {
+		return nil, err
+	}
+	wifi := []network.WiFi{}
+	for _, s := range sites {
+		found, err := p.wifiIn(ctx, s)
+		if err != nil {
+			return nil, err
+		}
+		wifi = append(wifi, found...)
+	}
+	return wifi, nil
+}
+
+func (p *Provider) wifiIn(ctx context.Context, site network.Site) ([]network.WiFi, error) {
+	var res []struct {
+		ID        string   `json:"_id"`
+		Name      string   `json:"name"`
+		Enabled   bool     `json:"enabled"`
+		Security  string   `json:"security"`
+		WPAMode   string   `json:"wpa_mode"`
+		IsGuest   bool     `json:"is_guest"`
+		HideSSID  bool     `json:"hide_ssid"`
+		NetworkID string   `json:"networkconf_id"`
+		Bands     []string `json:"wlan_bands"`
+	}
+	if err := p.getSite(ctx, site.ID, "/rest/wlanconf", &res); err != nil {
+		return nil, err
+	}
+
+	// The SSID stores a network id; the name lives on the network.
+	networkNames := map[string]string{}
+	if networks, err := p.networksIn(ctx, site); err == nil {
+		for _, n := range networks {
+			networkNames[n.ID] = n.Name
+		}
+	}
+	// Wireless clients report the SSID they're on, which is the only
+	// place a per-SSID count comes from.
+	counts := map[string]int{}
+	var active []staClient
+	if err := p.getSite(ctx, site.ID, "/stat/sta", &active); err == nil {
+		for _, c := range active {
+			if c.Essid != "" {
+				counts[c.Essid]++
+			}
+		}
+	}
+
+	wifi := make([]network.WiFi, 0, len(res))
+	for _, w := range res {
+		wifi = append(wifi, network.WiFi{
+			Site:     site.Name,
+			ID:       w.ID,
+			Name:     w.Name,
+			Enabled:  w.Enabled,
+			Security: security(w.Security, w.WPAMode),
+			Guest:    w.IsGuest,
+			Hidden:   w.HideSSID,
+			Network:  networkNames[w.NetworkID],
+			Bands:    bands(w.Bands),
+			Clients:  counts[w.Name],
+		})
+	}
+	return wifi, nil
+}
+
+// security reads as it does on a phone rather than in a config file.
+// The passphrase is deliberately never read: this console has no
+// business holding your WiFi password.
+func security(mode, wpa string) string {
+	switch mode {
+	case "open":
+		return "Open"
+	case "wpaeap":
+		return "Enterprise"
+	case "wpapsk":
+		switch wpa {
+		case "wpa3":
+			return "WPA3"
+		case "wpa2":
+			return "WPA2"
+		default:
+			return "WPA2/WPA3"
+		}
+	default:
+		return mode
+	}
+}
+
+func bands(raw []string) []string {
+	labels := map[string]string{"2g": "2.4 GHz", "5g": "5 GHz", "6g": "6 GHz"}
+	out := make([]string, 0, len(raw))
+	for _, band := range raw {
+		if label, ok := labels[band]; ok {
+			out = append(out, label)
+			continue
+		}
+		out = append(out, band)
+	}
+	return out
 }
 
 type staClient struct {
@@ -392,6 +512,7 @@ type staClient struct {
 	UplinkMAC   string `json:"sw_mac"`
 	APMAC       string `json:"ap_mac"`
 	DisplayName string `json:"display_name"`
+	Essid       string `json:"essid"`
 }
 
 func (c staClient) toClient(online bool, deviceNames map[string]string) network.Client {
