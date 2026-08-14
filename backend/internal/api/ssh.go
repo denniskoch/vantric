@@ -11,10 +11,7 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -56,76 +53,62 @@ var sshUpgrader = websocket.Upgrader{
 	},
 }
 
-// The console signs in with a key of its own, generated once and kept
-// beside the database. Deploy the public half to your guests — the
-// cloud-init fields in the create flow take it — and every instance
-// becomes reachable from the browser without anyone typing a password
-// into this app.
-var (
-	sshKeyOnce sync.Once
-	sshKeyPair *sshKey
-	sshKeyErr  error
-)
+// Every account signs in to guests with a key of ITS OWN, generated on
+// first use. One console-wide key would put the same line in every
+// authorized_keys and make a guest's auth log say only "the console"
+// — this way it says who. Deploy the public half from My account, or
+// let the guest agent do it (see provision.go).
+//
+// The private half never leaves the backend and is never rendered.
 
-type sshKey struct {
-	signer ssh.Signer
-	// Public is the authorized_keys line to deploy.
-	Public string
-}
+// keyComment tags the line this console puts in authorized_keys, so a
+// rotated key replaces the old one instead of piling up beside it.
+const keyPrefix = "lab-cloud-manager"
 
-// consoleKey loads the console's key, creating it on first use.
-func consoleKey(dir string) (*sshKey, error) {
-	sshKeyOnce.Do(func() {
-		path := filepath.Join(dir, "console_ed25519")
-		pem, err := os.ReadFile(path)
+func keyComment(email string) string { return keyPrefix + ":" + email }
+
+// userSigner returns the account's SSH identity, minting one the first
+// time it's needed — including for accounts that predate per-user keys.
+func (s *Server) userSigner(ctx context.Context, user *store.User) (ssh.Signer, string, error) {
+	if user.SSHPrivateKey == "" {
+		priv, pub, err := generateUserKey(user.Email)
 		if err != nil {
-			pub, priv, genErr := ed25519.GenerateKey(rand.Reader)
-			if genErr != nil {
-				sshKeyErr = genErr
-				return
-			}
-			block, marshalErr := ssh.MarshalPrivateKey(priv, "lab-cloud-manager")
-			if marshalErr != nil {
-				sshKeyErr = marshalErr
-				return
-			}
-			pem = encodePEM(block)
-			if err := os.MkdirAll(dir, 0o700); err != nil {
-				sshKeyErr = err
-				return
-			}
-			// 0600: it is a credential, and the directory already holds
-			// the database next to it.
-			if err := os.WriteFile(path, pem, 0o600); err != nil {
-				sshKeyErr = err
-				return
-			}
-			sshPub, _ := ssh.NewPublicKey(pub)
-			_ = os.WriteFile(path+".pub", ssh.MarshalAuthorizedKey(sshPub), 0o644)
+			return nil, "", err
 		}
-		signer, err := ssh.ParsePrivateKey(pem)
-		if err != nil {
-			sshKeyErr = err
-			return
+		if err := s.store.SetUserSSHKey(ctx, user.ID, priv, pub, false); err != nil {
+			return nil, "", err
 		}
-		sshKeyPair = &sshKey{
-			signer: signer,
-			Public: strings.TrimSpace(string(ssh.MarshalAuthorizedKey(signer.PublicKey()))) +
-				" lab-cloud-manager",
-		}
-	})
-	return sshKeyPair, sshKeyErr
-}
-
-// sshKeyHandler exposes the public half so the UI can show what to
-// deploy. The private half never leaves the server.
-func (s *Server) sshKey(w http.ResponseWriter, r *http.Request) {
-	key, err := consoleKey(s.dataDir)
-	if err != nil {
-		s.fail(w, err, "console ssh key")
-		return
+		user.SSHPrivateKey, user.SSHPublicKey = priv, pub
 	}
-	s.json(w, http.StatusOK, map[string]string{"publicKey": key.Public})
+	signer, err := ssh.ParsePrivateKey([]byte(user.SSHPrivateKey))
+	if err != nil {
+		return nil, "", fmt.Errorf("your SSH key could not be read: %v", err)
+	}
+	return signer, user.SSHPublicKey, nil
+}
+
+// generateUserKey mints an ed25519 pair and returns (private PEM,
+// authorized_keys line).
+func generateUserKey(email string) (private, public string, err error) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return "", "", err
+	}
+	block, err := ssh.MarshalPrivateKey(priv, keyComment(email))
+	if err != nil {
+		return "", "", err
+	}
+	sshPub, err := ssh.NewPublicKey(pub)
+	if err != nil {
+		return "", "", err
+	}
+	return string(pem.EncodeToMemory(block)), authorizedKey(sshPub, email), nil
+}
+
+// authorizedKey renders the deployable line, tagged with the account so
+// a person can tell their key from a colleague's.
+func authorizedKey(pub ssh.PublicKey, email string) string {
+	return strings.TrimSpace(string(ssh.MarshalAuthorizedKey(pub))) + " " + keyComment(email)
 }
 
 // sshAuth is the first frame the client sends.
@@ -183,12 +166,17 @@ func (s *Server) instanceSSH(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key, keyErr := consoleKey(s.dataDir)
-	if keyErr != nil {
-		fail("The console has no usable SSH key: %v", keyErr)
+	me := userFrom(r.Context())
+	if me == nil {
+		fail("Sign in and try again.")
 		return
 	}
-	client, err := dialSSH(inst.InternalIP, auth, key)
+	signer, publicKey, keyErr := s.userSigner(r.Context(), me)
+	if keyErr != nil {
+		fail("%v", keyErr)
+		return
+	}
+	client, err := dialSSH(inst.InternalIP, auth, signer)
 	if err != nil {
 		// Almost always this guest has simply never seen the console's
 		// key. If the hypervisor can reach inside it, put the account
@@ -197,19 +185,19 @@ func (s *Server) instanceSSH(w http.ResponseWriter, r *http.Request) {
 			_ = conn.WriteMessage(websocket.TextMessage,
 				[]byte("\r\n\x1b[90m"+fmt.Sprintf(format, args...)+"\x1b[0m\r\n"))
 		}
-		if provErr := s.provisionConsoleUser(r.Context(), inst, auth.Username, key, note); provErr != nil {
+		if provErr := s.provisionConsoleUser(r.Context(), inst, auth.Username, publicKey, note); provErr != nil {
 			fail("%v", err)
 			if provErr != errNoProvisioner {
 				fail("%v", provErr)
 			}
-			fail("Add the console's key to %s@%s and try again:", auth.Username, inst.InternalIP)
-			_ = conn.WriteMessage(websocket.TextMessage, []byte("\r\n"+key.Public+"\r\n"))
+			fail("Add your key to %s@%s and try again:", auth.Username, inst.InternalIP)
+			_ = conn.WriteMessage(websocket.TextMessage, []byte("\r\n"+publicKey+"\r\n"))
 			return
 		}
 		// One retry, never a loop: if the account we just created still
 		// can't log in, something else is wrong and repeating won't
 		// find it.
-		client, err = dialSSH(inst.InternalIP, auth, key)
+		client, err = dialSSH(inst.InternalIP, auth, signer)
 		if err != nil {
 			fail("%v", err)
 			fail("The %s account was provisioned but still can't sign in — check sshd on this guest.",
@@ -324,7 +312,7 @@ func (s *Server) provisionConsoleUser(
 	ctx context.Context,
 	inst *store.Instance,
 	username string,
-	key *sshKey,
+	publicKey string,
 	note func(string, ...any),
 ) error {
 	if !s.ssh.Provision {
@@ -349,7 +337,7 @@ func (s *Server) provisionConsoleUser(
 	defer cancel()
 	err := provisioner.EnsureConsoleUser(ctx, inst.DriverID, hypervisor.ConsoleUser{
 		Username:  username,
-		PublicKey: key.Public,
+		PublicKey: publicKey,
 		Sudo:      s.ssh.Sudo,
 	})
 	if err != nil {
@@ -368,14 +356,14 @@ func (s *Server) provisionConsoleUser(
 // regularly, and pinning a key store the user never sees would produce
 // failures they can't act on. The trade is stated in the UI rather
 // than hidden here.
-func dialSSH(host string, auth sshAuth, key *sshKey) (*ssh.Client, error) {
+func dialSSH(host string, auth sshAuth, signer ssh.Signer) (*ssh.Client, error) {
 	config := &ssh.ClientConfig{
 		User:            auth.Username,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		Timeout:         sshDialTimeout,
 		// The console's own key first; a password only if one was
 		// supplied, which the UI no longer asks for.
-		Auth: []ssh.AuthMethod{ssh.PublicKeys(key.signer)},
+		Auth: []ssh.AuthMethod{ssh.PublicKeys(signer)},
 	}
 	switch {
 	case auth.PrivateKey != "":

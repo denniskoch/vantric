@@ -23,6 +23,7 @@ import TableChartIcon from '@mui/icons-material/TableChart'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import FingerprintIcon from '@mui/icons-material/Fingerprint'
 import PersonIcon from '@mui/icons-material/Person'
+import AccountCircleIcon from '@mui/icons-material/AccountCircle'
 import GroupIcon from '@mui/icons-material/Group'
 import AppsIcon from '@mui/icons-material/Apps'
 import RouterIcon from '@mui/icons-material/Router'
@@ -279,6 +280,12 @@ export const sections: Section[] = [
       {
         label: 'Access',
         items: [
+          {
+            label: 'My account',
+            icon: AccountCircleIcon,
+            to: '/iam/account',
+            hint: 'Your profile, password and SSH key',
+          },
           {
             label: 'Users',
             icon: PersonIcon,

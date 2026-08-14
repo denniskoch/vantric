@@ -125,7 +125,10 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		r.Post("/machine-types", s.createMachineType)
 		r.Delete("/machine-types/{name}", s.deleteMachineType)
 
-		r.Get("/ssh-key", s.sshKey)
+		// Your SSH identity, not the console's — see ssh.go.
+		r.Get("/ssh-key", s.mySSHKey)
+		r.Post("/ssh-key/rotate", s.rotateMySSHKey)
+		r.Put("/ssh-key", s.importMySSHKey)
 		r.Get("/server-types", s.listServerTypes)
 		r.Get("/servers", s.listServers)
 		r.Post("/servers", s.createServer)

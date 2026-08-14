@@ -8,6 +8,9 @@ import SignInPage from './pages/SignInPage'
 import IAMUsersPage from './pages/IAMUsersPage'
 import IAMUserFormPage from './pages/IAMUserFormPage'
 import IAMPasswordPage from './pages/IAMPasswordPage'
+import MyAccountPage from './pages/MyAccountPage'
+import MyPasswordPage from './pages/MyPasswordPage'
+import MySSHKeyPage from './pages/MySSHKeyPage'
 import VMTemplatesPage from './pages/VMTemplatesPage'
 import BuildTemplatePage from './pages/BuildTemplatePage'
 import CTTemplatesPage from './pages/CTTemplatesPage'
@@ -102,6 +105,9 @@ export default function App() {
         />
         <Route path="/docker/overview" element={<SectionLandingPage />} />
         <Route path="/iam/overview" element={<SectionLandingPage />} />
+        <Route path="/iam/account" element={<MyAccountPage />} />
+        <Route path="/iam/account/password" element={<MyPasswordPage />} />
+        <Route path="/iam/account/ssh-key" element={<MySSHKeyPage />} />
         <Route path="/iam/users" element={<IAMUsersPage />} />
         <Route path="/iam/users/create" element={<IAMUserFormPage />} />
         <Route path="/iam/users/:id/edit" element={<IAMUserFormPage />} />

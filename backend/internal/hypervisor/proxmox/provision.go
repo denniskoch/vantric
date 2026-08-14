@@ -139,7 +139,9 @@ mkdir -p "$home/.ssh"
 # Replace any key this console left before rather than appending a new
 # one each time it rotates, and leave the user's own keys alone.
 touch "$home/.ssh/authorized_keys"
-grep -v ' lab-cloud-manager$' "$home/.ssh/authorized_keys" > "$home/.ssh/authorized_keys.lcm" 2>/dev/null || true
+# Any line this console left before, whatever account tagged it: the
+# guest account is per-person, so this can't evict a colleague's key.
+grep -v ' lab-cloud-manager' "$home/.ssh/authorized_keys" > "$home/.ssh/authorized_keys.lcm" 2>/dev/null || true
 printf '%s\n' "$key" >> "$home/.ssh/authorized_keys.lcm"
 mv "$home/.ssh/authorized_keys.lcm" "$home/.ssh/authorized_keys"
 

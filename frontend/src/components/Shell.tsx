@@ -159,6 +159,15 @@ export default function Shell() {
               sx={{ fontSize: 13 }}
               onClick={() => {
                 setAccountMenu(null)
+                navigate('/iam/account')
+              }}
+            >
+              My account
+            </MenuItem>
+            <MenuItem
+              sx={{ fontSize: 13 }}
+              onClick={() => {
+                setAccountMenu(null)
                 navigate('/iam/users')
               }}
             >

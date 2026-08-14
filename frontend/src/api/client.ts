@@ -24,6 +24,14 @@ export interface IAMUser {
   updatedAt: string
 }
 
+/** Your SSH identity. The private half is never returned. */
+export interface SSHKey {
+  publicKey: string
+  /** True when you supplied the key rather than the console making it. */
+  imported: boolean
+  fingerprint: string
+}
+
 export interface IAMUserRequest {
   email: string
   name: string
@@ -806,6 +814,13 @@ export const api = {
     request<void>('/auth/password', {
       method: 'POST',
       body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+  mySSHKey: () => request<SSHKey>('/ssh-key'),
+  rotateMySSHKey: () => request<SSHKey>('/ssh-key/rotate', { method: 'POST' }),
+  importMySSHKey: (privateKey: string, passphrase: string) =>
+    request<SSHKey>('/ssh-key', {
+      method: 'PUT',
+      body: JSON.stringify({ privateKey, passphrase }),
     }),
   listRoles: () => request<Role[]>('/iam/roles'),
   listIAMUsers: () => request<IAMUser[]>('/iam/users'),

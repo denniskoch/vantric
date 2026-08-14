@@ -87,13 +87,23 @@ Surface the daily 90% here and link out for the rest.
   `/instances/{name}/ssh` carries an xterm.js terminal, so a guest need
   only be reachable from the server. Credentials arrive as the socket's
   first frame — never as query parameters, which land in proxy logs.
-  There is no credential prompt: the console generates its own ed25519
-  key beside the database on first use and signs in as the local part
-  of `currentUser.email` (src/user.ts, the sign-in stub) — never root.
-  Host keys are not verified and the UI says so. RDP has no proxy, so
-  Windows guests still get an `rdp://` URI for the desktop's own
-  client. The Vite dev proxy needs `ws: true` or the upgrade never
+  There is no credential prompt: the console signs in with the SIGNED-IN
+  ACCOUNT'S OWN ed25519 key, as the local part of their email — never
+  root. Host keys are not verified and the UI says so. RDP has no
+  proxy, so Windows guests still get an `rdp://` URI for the desktop's
+  own client. The Vite dev proxy needs `ws: true` or the upgrade never
   reaches the backend.
+- SSH keys are PER ACCOUNT, not per console (`iam_users.ssh_*`,
+  minted on first use). One shared key would put the same line in every
+  authorized_keys and make a guest's auth log say only "the console";
+  this way it says who, and removing someone's account removes their
+  way in. The private half is write-only in every direction — the API
+  will take one (`PUT /ssh-key`, stored decrypted because the console
+  must use it unattended, which the form says out loud) and will make
+  one (`POST /ssh-key/rotate`), but never returns one. The
+  authorized_keys line is tagged `lab-cloud-manager:<email>`, and the
+  provisioner strips any line containing `lab-cloud-manager` before
+  adding the current one, so rotation replaces rather than piles up.
 - The console's account is PROVISIONED JUST IN TIME, the way a cloud
   console does it: a guest this app adopted has never seen the key, so
   the first Connect can only fail — and on that failure the console

@@ -38,25 +38,33 @@ type User struct {
 	Role  string `json:"role"`
 	// PasswordHash never leaves the backend. An empty hash means this
 	// account has no local password and can't sign in locally.
-	PasswordHash string    `json:"-"`
-	HasPassword  bool      `json:"hasPassword"`
-	Active       bool      `json:"active"`
-	LastLoginAt  string    `json:"lastLoginAt"`
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
+	PasswordHash string `json:"-"`
+	HasPassword  bool   `json:"hasPassword"`
+	Active       bool   `json:"active"`
+	// SSHPrivateKey never leaves the backend. SSHPublicKey is what you
+	// deploy to a guest; SSHKeyImported records that the user brought
+	// their own rather than letting the console generate one.
+	SSHPrivateKey  string    `json:"-"`
+	SSHPublicKey   string    `json:"sshPublicKey"`
+	SSHKeyImported bool      `json:"sshKeyImported"`
+	LastLoginAt    string    `json:"lastLoginAt"`
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
 }
 
-const userColumns = `id, email, name, role, password_hash, active, last_login_at, created_at, updated_at`
+const userColumns = `id, email, name, role, password_hash, active, last_login_at, created_at, updated_at, ssh_private_key, ssh_public_key, ssh_key_imported`
 
 func scanUser(row interface{ Scan(...any) error }) (*User, error) {
 	var u User
-	var active int
+	var active, imported int
 	var created, updated string
 	if err := row.Scan(&u.ID, &u.Email, &u.Name, &u.Role, &u.PasswordHash,
-		&active, &u.LastLoginAt, &created, &updated); err != nil {
+		&active, &u.LastLoginAt, &created, &updated,
+		&u.SSHPrivateKey, &u.SSHPublicKey, &imported); err != nil {
 		return nil, err
 	}
 	u.Active = active == 1
+	u.SSHKeyImported = imported == 1
 	u.HasPassword = u.PasswordHash != ""
 	u.CreatedAt, _ = time.Parse(time.RFC3339, created)
 	u.UpdatedAt, _ = time.Parse(time.RFC3339, updated)
@@ -107,8 +115,8 @@ func (s *Store) CreateUser(ctx context.Context, u *User) error {
 		active = 1
 	}
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO iam_users (`+userColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		u.ID, u.Email, u.Name, u.Role, u.PasswordHash, active, "", now, now)
+		`INSERT INTO iam_users (`+userColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		u.ID, u.Email, u.Name, u.Role, u.PasswordHash, active, "", now, now, "", "", 0)
 	return err
 }
 
@@ -225,5 +233,20 @@ func (s *Store) DeleteSession(ctx context.Context, token string) error {
 // it, or changing its password, has to mean.
 func (s *Store) DeleteUserSessions(ctx context.Context, userID string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM iam_sessions WHERE user_id = ?`, userID)
+	return err
+}
+
+// SetUserSSHKey stores an account's key pair. imported marks a key the
+// user supplied themselves, which the UI says out loud — replacing it
+// is not something to discover later.
+func (s *Store) SetUserSSHKey(ctx context.Context, id, private, public string, imported bool) error {
+	flag := 0
+	if imported {
+		flag = 1
+	}
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE iam_users SET ssh_private_key = ?, ssh_public_key = ?, ssh_key_imported = ?,
+		 updated_at = ? WHERE id = ?`,
+		private, public, flag, time.Now().UTC().Format(time.RFC3339), id)
 	return err
 }

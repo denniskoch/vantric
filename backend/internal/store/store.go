@@ -177,4 +177,10 @@ func (s *Store) migrate() error {
 
 var columnMigrations = []string{
 	`ALTER TABLE instances ADD COLUMN os_type TEXT NOT NULL DEFAULT ''`,
+	// Each account signs in to guests with its own key, so a guest's
+	// auth log names a person. Generated on first use; the public half
+	// is stored beside it rather than derived on every read.
+	`ALTER TABLE iam_users ADD COLUMN ssh_private_key TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE iam_users ADD COLUMN ssh_public_key TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE iam_users ADD COLUMN ssh_key_imported INTEGER NOT NULL DEFAULT 0`,
 }

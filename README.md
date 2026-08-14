@@ -130,10 +130,13 @@ and `/auth/me` needs a session cookie:
 - `GET /instances/{name}/ssh` — websocket carrying a terminal; the
   first frame is `{username, cols, rows}`, later frames are
   `{type: data|resize}`
-- `GET /ssh-key` — the console's public key. Guests normally get it on
-  their own: when authentication fails, the console creates its account
-  through the hypervisor's guest agent and retries once (`ssh.provision`,
-  on by default; needs `VM.Monitor` on the Proxmox token)
+- `GET /ssh-key` — YOUR public key (each account has its own, minted on
+  first use), `POST /ssh-key/rotate` to replace it with a fresh pair,
+  `PUT /ssh-key` to import one you already have. Guests normally get the
+  key on their own: when authentication fails, the console creates your
+  account there through the hypervisor's guest agent and retries once
+  (`ssh.provision`, on by default; needs `VM.Monitor` on the Proxmox
+  token)
 - `GET /instances/{name}/{describe|metrics|os-info}` — live hypervisor
   reads for the detail view (`metrics` takes `?timeframe=hour|day|week|month`)
 - `GET /database/engines`, `GET /database/servers`,
