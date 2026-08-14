@@ -188,10 +188,16 @@ credential than the scoped API token this app uses.
   database, tlsentinel-dev, is already on rowlf-pg.)
 - **Object storage**: the `s3` container and the Synology are invisible
   here except as a name in a Proxmox datastore list, while every
-  backup lands on the latter. MinIO speaks the S3 API for buckets;
-  DSM's API reports volume health and capacity but needs a session
-  login with a dedicated read-only account, since it has no token
-  auth.
+  backup lands on the latter. Build against the S3 API itself rather
+  than any one server — ListBuckets, sizes and object counts are
+  standard, and only MinIO's admin API for users and policies isn't,
+  so a section that stays on plain S3 works against whatever is
+  running. Garage is the intended backend (AGPL, Rust, built for
+  self-hosting); versitygw is the alternative if the point is to put
+  an S3 face on storage that already exists rather than a second data
+  silo. DSM's API reports volume health and capacity but needs a
+  session login with a dedicated read-only account, since it has no
+  token auth.
 - **PowerDNS as an internal provider**: `dns.Provider` already has room
   for it, but three things need doing first. A provider record has no
   endpoint — Cloudflare's is a constant — so self-hosted providers need
