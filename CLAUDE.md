@@ -390,6 +390,13 @@ Surface the daily 90% here and link out for the rest.
   render their `planned` list instead. Landing copy (`description`,
   `planned`, per-item `hint`) lives in nav.tsx with everything else, so
   a new section needs no new page component.
+- THE DATABASE IS A FILE IN A DIRECTORY, not a named volume:
+  `./data/labcloud.db` under Docker, `backend/labcloud.db` under `make
+  dev`. One SQLite file holds everything — accounts, every backend
+  credential, every account's SSH private key — so backup is `cp` and
+  inspection is `sqlite3`, neither of which should need a throwaway
+  container. The image runs as uid 1000; a host whose operator isn't
+  uid 1000 needs one `chown` on the directory.
 - DEVELOPMENT IS NATIVE, Docker only ships. `make dev` runs `go run`
   and `vite` on the host; there is ONE compose file and it builds the
   app image. The dev containers are gone: they existed to run the same

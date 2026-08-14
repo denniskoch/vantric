@@ -139,9 +139,18 @@ docker compose up -d --build
 
 Backends aren't set here — sign in and add them in the UI.
 
-SQLite data persists in the `app-data` volume (`/data/labcloud.db`).
+State lives in `./data/labcloud.db`, a bind-mounted directory rather
+than a named volume — the whole app is one SQLite file, and a file you
+can see is a file you can copy:
+
+```bash
+docker compose stop && cp -a data data-backup-$(date +%F) && docker compose start
+```
+
 That file holds your accounts, every backend credential and every
-account's SSH private key — back it up, and treat it as a secret.
+account's SSH private key, so treat it as a secret. The image runs as
+uid 1000; on a host where you aren't that user, `chown -R 1000:1000
+data` once.
 
 Put it behind TLS if it leaves your LAN: the session cookie is marked
 `Secure` only when the request arrives over HTTPS (directly or via

@@ -2,9 +2,9 @@
 #
 #   docker compose up -d --build
 #
-# Settings come from .env — see .env.example. To work on the code
-# instead, run the other file (docker-compose.dev.yml) rather than
-# switching anything in here.
+# Settings come from .env — see .env.example. Docker builds and runs the
+# app; to work on the code, use `make dev`, which runs both halves on
+# your machine.
 services:
   app:
     build: .
@@ -14,12 +14,12 @@ services:
       - path: .env
         required: false
     volumes:
-      - app-data:/data
+      # A directory rather than a named volume: the whole state of this
+      # app is one SQLite file, and a file you can see is a file you can
+      # copy. Back up ./data — it holds your accounts, every backend
+      # credential and each account's SSH private key, so treat it as a
+      # secret.
+      - ./data:/data
     ports:
       - "8080:8080"
     restart: unless-stopped
-
-volumes:
-  # Accounts, every backend credential, and each account's SSH private
-  # key. Back it up, and treat it as a secret.
-  app-data:
