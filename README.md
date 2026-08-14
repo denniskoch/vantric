@@ -24,7 +24,7 @@ Nothing but Docker required. There's a mock hypervisor you can add from
 the UI, so you can see the app work without a Proxmox cluster.
 
 ```bash
-docker compose --profile dev up
+docker compose -f docker-compose.dev.yml up
 ```
 
 **Then find your sign-in password.** On first run the app creates one
@@ -40,9 +40,14 @@ password yourself instead, put `LCM_AUTH_BOOTSTRAP_PASSWORD` in `.env`
 **before** the first start — after that the account exists and the
 setting is ignored.
 
-The dev stack hot-reloads: Go changes rebuild via air, the frontend has
-Vite HMR. Both watchers poll, because file-change events don't cross the
-macOS→VM bind mount — don't remove that.
+Go changes rebuild via air, the frontend has Vite HMR. Both watchers
+poll, because file-change events don't cross the macOS→VM bind mount —
+don't remove that.
+
+There are two compose files and no switches between them:
+`docker-compose.yml` is the app, one built image on :8080;
+`docker-compose.dev.yml` is the source bind-mounted with both halves
+reloading. Run one at a time — they both want :8080.
 
 Native alternative (no Docker), two terminals. The backend runs on
 :8080 and Vite proxies `/api` to it:
@@ -101,11 +106,11 @@ Concept mapping:
 
 ## Deploying
 
-The production image bundles the API and the built UI into one image;
-the Go server serves the SPA with client-route fallback:
+`docker-compose.yml` builds one image with the API and the built UI; the
+Go server serves the SPA with client-route fallback:
 
 ```bash
-docker compose --profile prod up --build -d   # everything on :8080
+docker compose up -d --build   # everything on :8080
 ```
 
 Settings are environment variables — there's no config file. Copy the
@@ -135,7 +140,7 @@ Or set them inline:
 ```bash
 LCM_AUTH_BOOTSTRAP_EMAIL=you@example.com \
 LCM_AUTH_BOOTSTRAP_PASSWORD='something long' \
-docker compose --profile prod up --build -d
+docker compose up -d --build
 ```
 
 Backends aren't set here — sign in and add them in the UI.

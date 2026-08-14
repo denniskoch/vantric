@@ -1,0 +1,59 @@
+# Working on the code: the source bind-mounted, both halves reloading.
+#
+#   docker compose -f docker-compose.dev.yml up
+#
+# Backend on :8080 rebuilt by air, frontend on :5173 with Vite HMR —
+# open http://localhost:5173. Nothing is built into an image, so a
+# change is live in seconds instead of a full rebuild. That is the only
+# reason this file exists; docker-compose.yml is the app itself.
+#
+# Same project name as docker-compose.yml, so the volumes below are the
+# ones you already have. Run one file at a time — both want :8080.
+services:
+  backend:
+    image: golang:1.26-alpine
+    working_dir: /src/backend
+    command: go run github.com/air-verse/air@v1.63.0 -c .air.toml
+    # Your settings, whole — no per-variable list to keep in step.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # These two win over .env because they describe the container
+      # rather than a preference: the default listen address is
+      # 127.0.0.1, which nothing outside could reach, and the default
+      # DSN is relative — it would put the database in the bind mount.
+      LCM_LISTEN: 0.0.0.0:8080
+      LCM_DB_DSN: /data/labcloud.db
+    volumes:
+      - .:/src
+      - go-mod:/go/pkg/mod
+      - go-build:/root/.cache/go-build
+      - dev-data:/data
+    ports:
+      - "8080:8080"
+
+  frontend:
+    image: node:22-alpine
+    working_dir: /src/frontend
+    command: sh -c "npm install && npm run dev -- --host"
+    environment:
+      # Read by vite.config.ts; without it the proxy points at
+      # 127.0.0.1, which in this container is the frontend itself.
+      LCM_API_TARGET: http://backend:8080
+    volumes:
+      - .:/src
+      # Container node_modules kept apart from the host's — different OS.
+      - node-modules:/src/frontend/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  go-mod:
+  go-build:
+  node-modules:
+  # The development database. Separate from the app's app-data volume,
+  # so experimenting here can't touch a real install.
+  dev-data:
