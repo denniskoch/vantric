@@ -34,7 +34,10 @@ type Server struct {
 	networkRegistry *network.Registry
 	log             *slog.Logger
 	staticDir       string
-	builds          *buildRegistry
+	// dataDir is where the store lives; the console's SSH key sits
+	// beside it.
+	dataDir string
+	builds  *buildRegistry
 }
 
 func New(
@@ -46,11 +49,12 @@ func New(
 	networkRegistry *network.Registry,
 	log *slog.Logger,
 	staticDir string,
+	dataDir string,
 ) *Server {
 	return &Server{
 		store: st, registry: registry, dnsRegistry: dnsRegistry, dbRegistry: dbRegistry,
 		identityRegistry: identityRegistry, networkRegistry: networkRegistry,
-		log: log, staticDir: staticDir,
+		log: log, staticDir: staticDir, dataDir: dataDir,
 		builds: newBuildRegistry(),
 	}
 }
@@ -86,6 +90,7 @@ func (s *Server) Router() http.Handler {
 		r.Post("/machine-types", s.createMachineType)
 		r.Delete("/machine-types/{name}", s.deleteMachineType)
 
+		r.Get("/ssh-key", s.sshKey)
 		r.Get("/server-types", s.listServerTypes)
 		r.Get("/servers", s.listServers)
 		r.Post("/servers", s.createServer)

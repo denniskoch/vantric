@@ -80,9 +80,13 @@ Surface the daily 90% here and link out for the rest.
   (internal/api/ssh.go): a websocket at
   `/instances/{name}/ssh` carries an xterm.js terminal, so a guest need
   only be reachable from the server. Credentials arrive as the socket's
-  first frame — never as query parameters, which land in proxy logs —
-  authenticate one session and are never stored. Host keys are not
-  verified and the UI says so. RDP has no proxy, so Windows guests
+  first frame — never as query parameters, which land in proxy logs.
+  There is no credential prompt: the console generates its own ed25519
+  key beside the database on first use and signs in as the local part
+  of `currentUser.email` (src/user.ts, the sign-in stub). Deploy the
+  public half — `GET /ssh-key`, or the line the terminal prints when
+  auth fails — to your guests. Host keys are not verified and the UI
+  says so. RDP has no proxy, so Windows guests
   still get an `rdp://` URI for the desktop's own client. The Vite dev
   proxy needs `ws: true` or the upgrade never reaches the backend.
 - Instances carry an `osType` (Proxmox's l26, win11, …), filled once

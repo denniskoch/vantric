@@ -2,12 +2,18 @@ package api
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -41,6 +47,78 @@ var sshUpgrader = websocket.Upgrader{
 		}
 		return strings.HasSuffix(origin, r.Host) || strings.Contains(origin, "localhost")
 	},
+}
+
+// The console signs in with a key of its own, generated once and kept
+// beside the database. Deploy the public half to your guests — the
+// cloud-init fields in the create flow take it — and every instance
+// becomes reachable from the browser without anyone typing a password
+// into this app.
+var (
+	sshKeyOnce sync.Once
+	sshKeyPair *sshKey
+	sshKeyErr  error
+)
+
+type sshKey struct {
+	signer ssh.Signer
+	// Public is the authorized_keys line to deploy.
+	Public string
+}
+
+// consoleKey loads the console's key, creating it on first use.
+func consoleKey(dir string) (*sshKey, error) {
+	sshKeyOnce.Do(func() {
+		path := filepath.Join(dir, "console_ed25519")
+		pem, err := os.ReadFile(path)
+		if err != nil {
+			pub, priv, genErr := ed25519.GenerateKey(rand.Reader)
+			if genErr != nil {
+				sshKeyErr = genErr
+				return
+			}
+			block, marshalErr := ssh.MarshalPrivateKey(priv, "lab-cloud-manager")
+			if marshalErr != nil {
+				sshKeyErr = marshalErr
+				return
+			}
+			pem = encodePEM(block)
+			if err := os.MkdirAll(dir, 0o700); err != nil {
+				sshKeyErr = err
+				return
+			}
+			// 0600: it is a credential, and the directory already holds
+			// the database next to it.
+			if err := os.WriteFile(path, pem, 0o600); err != nil {
+				sshKeyErr = err
+				return
+			}
+			sshPub, _ := ssh.NewPublicKey(pub)
+			_ = os.WriteFile(path+".pub", ssh.MarshalAuthorizedKey(sshPub), 0o644)
+		}
+		signer, err := ssh.ParsePrivateKey(pem)
+		if err != nil {
+			sshKeyErr = err
+			return
+		}
+		sshKeyPair = &sshKey{
+			signer: signer,
+			Public: strings.TrimSpace(string(ssh.MarshalAuthorizedKey(signer.PublicKey()))) +
+				" lab-cloud-manager",
+		}
+	})
+	return sshKeyPair, sshKeyErr
+}
+
+// sshKeyHandler exposes the public half so the UI can show what to
+// deploy. The private half never leaves the server.
+func (s *Server) sshKey(w http.ResponseWriter, r *http.Request) {
+	key, err := consoleKey(s.dataDir)
+	if err != nil {
+		s.fail(w, err, "console ssh key")
+		return
+	}
+	s.json(w, http.StatusOK, map[string]string{"publicKey": key.Public})
 }
 
 // sshAuth is the first frame the client sends.
@@ -98,9 +176,18 @@ func (s *Server) instanceSSH(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := dialSSH(inst.InternalIP, auth)
+	key, keyErr := consoleKey(s.dataDir)
+	if keyErr != nil {
+		fail("The console has no usable SSH key: %v", keyErr)
+		return
+	}
+	client, err := dialSSH(inst.InternalIP, auth, key)
 	if err != nil {
 		fail("%v", err)
+		// The overwhelmingly likely cause is that this guest has never
+		// seen the console's key, so say what to do about it.
+		fail("Add the console's key to %s@%s and try again:", auth.Username, inst.InternalIP)
+		_ = conn.WriteMessage(websocket.TextMessage, []byte("\r\n"+key.Public+"\r\n"))
 		return
 	}
 	defer client.Close()
@@ -200,11 +287,14 @@ func (s *Server) instanceSSH(w http.ResponseWriter, r *http.Request) {
 // regularly, and pinning a key store the user never sees would produce
 // failures they can't act on. The trade is stated in the UI rather
 // than hidden here.
-func dialSSH(host string, auth sshAuth) (*ssh.Client, error) {
+func dialSSH(host string, auth sshAuth, key *sshKey) (*ssh.Client, error) {
 	config := &ssh.ClientConfig{
 		User:            auth.Username,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		Timeout:         sshDialTimeout,
+		// The console's own key first; a password only if one was
+		// supplied, which the UI no longer asks for.
+		Auth: []ssh.AuthMethod{ssh.PublicKeys(key.signer)},
 	}
 	switch {
 	case auth.PrivateKey != "":
@@ -219,9 +309,9 @@ func dialSSH(host string, auth sshAuth) (*ssh.Client, error) {
 		if err != nil {
 			return nil, fmt.Errorf("that key could not be read: %v", err)
 		}
-		config.Auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
+		config.Auth = append(config.Auth, ssh.PublicKeys(signer))
 	case auth.Password != "":
-		config.Auth = []ssh.AuthMethod{
+		config.Auth = append(config.Auth,
 			ssh.Password(auth.Password),
 			// Most servers answer password prompts as keyboard-
 			// interactive rather than plain password auth.
@@ -232,9 +322,7 @@ func dialSSH(host string, auth sshAuth) (*ssh.Client, error) {
 				}
 				return answers, nil
 			}),
-		}
-	default:
-		return nil, fmt.Errorf("a password or private key is required")
+		)
 	}
 
 	client, err := ssh.Dial("tcp", net.JoinHostPort(host, "22"), config)
@@ -242,6 +330,12 @@ func dialSSH(host string, auth sshAuth) (*ssh.Client, error) {
 		return nil, fmt.Errorf("could not connect to %s: %v", host, err)
 	}
 	return client, nil
+}
+
+// encodePEM renders a PEM block without pulling in the whole
+// encoding/pem surface at the call site.
+func encodePEM(block *pem.Block) []byte {
+	return pem.EncodeToMemory(block)
 }
 
 type writerFunc func(p []byte) (int, error)

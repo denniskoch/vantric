@@ -25,17 +25,13 @@ import logoLight from '../assets/brand/kochlabs-logo-light.svg'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { sections, sectionFor } from './nav'
+import { currentUser } from '../user'
 import type { SectionItem } from './nav'
 
 /**
  * Stand-in for the signed-in user. There is no authentication yet;
  * when there is, this is what should come from it.
  */
-const currentUser = {
-  name: 'Lab administrator',
-  email: 'local access — no sign-in yet',
-  initial: 'L',
-}
 
 /** Account menu entries, inert until authentication exists. */
 const accountActions = ['Manage your account', 'Switch account', 'Sign out']

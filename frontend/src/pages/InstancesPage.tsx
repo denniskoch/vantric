@@ -27,17 +27,20 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
 import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import DeleteIcon from '@mui/icons-material/Delete'
-import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown'
 import { api } from '../api/client'
 import { connectionFor } from '../connect'
 import type { Instance } from '../api/client'
 import StatusIcon from '../components/StatusIcon'
 
-/** SSH or RDP, whichever the guest speaks. The console has no console
- *  proxy of its own, so this hands the desktop a URI its own client
- *  can open and offers the command for when it can't. */
+/**
+ * SSH or RDP, whichever the guest speaks. The split button opens the
+ * browser terminal; the arrow offers the alternative — your own client
+ * over ssh://, for when you want scp, port forwards or a real tmux.
+ */
 function ConnectCell({ instance }: { instance: Instance }) {
-  const [copied, setCopied] = useState(false)
+  const [menu, setMenu] = useState<null | HTMLElement>(null)
+  const navigate = useNavigate()
   const connection = connectionFor(instance.osType, instance.internalIp, instance.name)
   const running = instance.status === 'RUNNING'
 
@@ -50,42 +53,56 @@ function ConnectCell({ instance }: { instance: Instance }) {
       </Tooltip>
     )
   }
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-      <Tooltip
-        title={
-          !running
-            ? 'Instance is not running'
-            : connection.internal
-              ? 'Open a terminal in the browser'
-              : connection.command
-        }
-      >
+  // RDP has no proxy here, so it stays a single button handing the URI
+  // to whatever client the desktop registered.
+  if (connection.kind === 'RDP') {
+    return (
+      <Tooltip title={running ? connection.command : 'Instance is not running'}>
         <span>
-          <Button
-            size="small"
-            disabled={!running}
-            {...(connection.internal
-              ? { component: RouterLink, to: connection.href }
-              : { href: connection.href })}
-            sx={{ minWidth: 0, px: 1 }}
-          >
-            {connection.kind}
+          <Button size="small" href={connection.href} disabled={!running} sx={{ minWidth: 0, px: 1 }}>
+            RDP
           </Button>
         </span>
       </Tooltip>
-      <Tooltip title={copied ? 'Copied' : `Copy "${connection.command}"`}>
-        <IconButton
-          size="small"
+    )
+  }
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+      <Button
+        size="small"
+        disabled={!running}
+        component={RouterLink}
+        to={connection.href}
+        sx={{ minWidth: 0, px: 1 }}
+      >
+        SSH
+      </Button>
+      <IconButton
+        size="small"
+        disabled={!running}
+        onClick={(e) => setMenu(e.currentTarget)}
+        aria-label="Other ways to connect"
+      >
+        <ArrowDropDownIcon fontSize="small" />
+      </IconButton>
+      <Menu anchorEl={menu} open={Boolean(menu)} onClose={() => setMenu(null)}>
+        <MenuItem
           onClick={() => {
-            navigator.clipboard?.writeText(connection.command)
-            setCopied(true)
-            window.setTimeout(() => setCopied(false), 1500)
+            setMenu(null)
+            navigate(connection.href)
           }}
         >
-          <ContentCopyIcon sx={{ fontSize: 14 }} />
-        </IconButton>
-      </Tooltip>
+          Open in browser window
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setMenu(null)
+            window.location.href = `ssh://${instance.internalIp}`
+          }}
+        >
+          Use another SSH client
+        </MenuItem>
+      </Menu>
     </Box>
   )
 }
