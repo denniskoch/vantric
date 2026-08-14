@@ -722,6 +722,18 @@ export const api = {
   deleteIdentityProvider: (id: string) =>
     request<void>(`/identity/providers/${id}`, { method: 'DELETE' }),
   listIdentityUsers: () => request<IdentityUser[]>('/identity/users'),
+  createIdentityUser: (body: {
+    username: string
+    name: string
+    email: string
+    groups: string[]
+  }) =>
+    request<IdentityUser & { recoveryLink?: string; recoveryError?: string }>(
+      '/identity/users',
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  identityUserRecoveryLink: (userId: string) =>
+    request<{ link: string }>(`/identity/users/${userId}/recovery`, { method: 'POST' }),
   setIdentityUserActive: (userId: string, active: boolean) =>
     request<void>(`/identity/users/${userId}/active`, {
       method: 'POST',

@@ -21,6 +21,7 @@ import {
 } from '@mui/material'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import EditIcon from '@mui/icons-material/Edit'
+import AddBoxIcon from '@mui/icons-material/AddBox'
 import BlockIcon from '@mui/icons-material/Block'
 import CheckIcon from '@mui/icons-material/Check'
 import { api } from '../api/client'
@@ -71,12 +72,21 @@ export default function IdentityUsersPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 0.5 }}>
-        Users
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 0.5 }}>
+        <Typography variant="h5">Users</Typography>
+        <Button
+          variant="contained"
+          size="small"
+          startIcon={<AddBoxIcon />}
+          disabled={providers.length === 0}
+          onClick={() => navigate('/identity/users/create')}
+        >
+          Create user
+        </Button>
+      </Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Accounts in your identity provider's directory. Creating accounts and
-        editing their details stays in the provider — this is for the changes
+        Accounts in your identity provider's directory. Names and details are
+        edited in the provider; this is for creating an account and the changes
         you make in a hurry.
       </Typography>
 

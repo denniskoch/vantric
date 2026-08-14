@@ -193,8 +193,8 @@ type akUser struct {
 	Type      string `json:"type"`
 	LastLogin string `json:"last_login"`
 	GroupsObj []struct {
-		Name      string `json:"name"`
-		IsSuper   bool   `json:"is_superuser"`
+		Name    string `json:"name"`
+		IsSuper bool   `json:"is_superuser"`
 	} `json:"groups_obj"`
 }
 
@@ -356,6 +356,51 @@ func eventDetail(context map[string]any) string {
 		}
 	}
 	return ""
+}
+
+func (p *Provider) CreateUser(ctx context.Context, spec identity.UserSpec) (*identity.User, error) {
+	body := map[string]any{
+		"username":  spec.Username,
+		"name":      spec.Name,
+		"email":     spec.Email,
+		"is_active": true,
+		"type":      "internal",
+		"path":      "users",
+	}
+	if len(spec.Groups) > 0 {
+		body["groups"] = spec.Groups
+	}
+	var created akUser
+	if err := p.do(ctx, http.MethodPost, "/core/users/", body, &created); err != nil {
+		return nil, err
+	}
+	user := identity.User{
+		ID:       strconv.Itoa(created.PK),
+		Username: created.Username,
+		Name:     created.Name,
+		Email:    created.Email,
+		Active:   created.IsActive,
+		Kind:     created.Type,
+		Groups:   []string{},
+	}
+	return &user, nil
+}
+
+// RecoveryLink asks authentik for a one-time recovery URL. It needs a
+// recovery flow to exist — authentik ships one, but an instance whose
+// flows were rebuilt may not have it, and the error says so plainly
+// enough to act on.
+func (p *Provider) RecoveryLink(ctx context.Context, userID string) (string, error) {
+	var res struct {
+		Link string `json:"link"`
+	}
+	if err := p.do(ctx, http.MethodPost, "/core/users/"+userID+"/recovery/", nil, &res); err != nil {
+		return "", err
+	}
+	if res.Link == "" {
+		return "", fmt.Errorf("authentik: no recovery link returned; is a recovery flow configured?")
+	}
+	return res.Link, nil
 }
 
 func (p *Provider) SetUserActive(ctx context.Context, userID string, active bool) error {

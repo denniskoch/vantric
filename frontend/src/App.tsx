@@ -26,6 +26,7 @@ import MachineTypeFormPage from './pages/MachineTypeFormPage'
 import DNSProviderFormPage from './pages/DNSProviderFormPage'
 import IdentityUsersPage from './pages/IdentityUsersPage'
 import IdentityUserEditPage from './pages/IdentityUserEditPage'
+import IdentityUserCreatePage from './pages/IdentityUserCreatePage'
 import IdentityGroupsPage from './pages/IdentityGroupsPage'
 import IdentityGroupDetailPage from './pages/IdentityGroupDetailPage'
 import IdentityApplicationsPage from './pages/IdentityApplicationsPage'
@@ -73,6 +74,7 @@ export default function App() {
         <Route path="/iam/overview" element={<SectionLandingPage />} />
         <Route path="/identity/overview" element={<SectionLandingPage />} />
         <Route path="/identity/users" element={<IdentityUsersPage />} />
+        <Route path="/identity/users/create" element={<IdentityUserCreatePage />} />
         <Route path="/identity/users/:id/edit" element={<IdentityUserEditPage />} />
         <Route path="/identity/groups" element={<IdentityGroupsPage />} />
         <Route path="/identity/groups/:id" element={<IdentityGroupDetailPage />} />

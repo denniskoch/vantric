@@ -84,6 +84,17 @@ type Event struct {
 	Detail string `json:"detail"`
 }
 
+// UserSpec describes an account to create. A new account has no
+// password: the provider issues a recovery link instead, so the person
+// sets their own and passes through enrollment and MFA on the way.
+type UserSpec struct {
+	Username string
+	Name     string
+	Email    string
+	// Groups are group IDs the account joins on creation.
+	Groups []string
+}
+
 // Provider is the contract every identity backend implements.
 // Implementations must be safe for concurrent use.
 type Provider interface {
@@ -96,6 +107,11 @@ type Provider interface {
 	Applications(ctx context.Context) ([]Application, error)
 	// Events returns the most recent audit entries, newest first.
 	Events(ctx context.Context, limit int) ([]Event, error)
+	CreateUser(ctx context.Context, spec UserSpec) (*User, error)
+	// RecoveryLink returns a one-time URL the new account holder uses to
+	// set their own password. Providers that can't issue one return an
+	// error rather than a blank string.
+	RecoveryLink(ctx context.Context, userID string) (string, error)
 	SetUserActive(ctx context.Context, userID string, active bool) error
 	SetUserPassword(ctx context.Context, userID, password string) error
 	AddUserToGroup(ctx context.Context, groupID, userID string) error

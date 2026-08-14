@@ -145,8 +145,11 @@ Surface the daily 90% here and link out for the rest.
   which also proves the token is an admin one rather than
   self-scoped. The directory belongs to the provider: this reads it
   and does the everyday actions (disable, set password, group
-  membership). Creating accounts and editing flows/stages/policies
-  stays in authentik. Endpoints default to the single configured
+  membership) plus creating an account — which is two calls, since a
+  new authentik user has no password: create, then issue a one-time
+  recovery link to hand over, so the person sets their own and passes
+  through enrollment and MFA rather than around them. Editing
+  flows/stages/policies stays in authentik. Endpoints default to the single configured
   provider when `?provider=` is absent — a lab has one identity
   service, and making every page pass an id it can't get wrong is
   noise.

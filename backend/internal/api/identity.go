@@ -32,6 +32,8 @@ func (s *Server) identityRoutes(r chi.Router) {
 	r.Put("/identity/providers/{id}", s.updateIdentityProvider)
 	r.Delete("/identity/providers/{id}", s.deleteIdentityProvider)
 	r.Get("/identity/users", s.listIdentityUsers)
+	r.Post("/identity/users", s.createIdentityUser)
+	r.Post("/identity/users/{userId}/recovery", s.identityUserRecoveryLink)
 	r.Post("/identity/users/{userId}/active", s.setIdentityUserActive)
 	r.Post("/identity/users/{userId}/password", s.setIdentityUserPassword)
 	r.Get("/identity/groups", s.listIdentityGroups)
@@ -257,6 +259,70 @@ func (s *Server) listIdentityUsers(w http.ResponseWriter, r *http.Request) {
 		return strings.Compare(strings.ToLower(a.Username), strings.ToLower(b.Username))
 	})
 	s.json(w, http.StatusOK, users)
+}
+
+// createIdentityUser makes the account, then asks for a recovery link
+// so the person sets their own password through the provider's own
+// enrollment. The account is reported even when the link fails: it
+// exists by then, and saying otherwise would send you looking for a
+// user that's already there.
+func (s *Server) createIdentityUser(w http.ResponseWriter, r *http.Request) {
+	provider := s.identityProvider(w, r)
+	if provider == nil {
+		return
+	}
+	var req struct {
+		Username string   `json:"username"`
+		Name     string   `json:"name"`
+		Email    string   `json:"email"`
+		Groups   []string `json:"groups"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	req.Username = strings.TrimSpace(req.Username)
+	if req.Username == "" {
+		s.err(w, http.StatusBadRequest, "a username is required")
+		return
+	}
+	if strings.ContainsAny(req.Username, " \t/\\") {
+		s.err(w, http.StatusBadRequest, "usernames can't contain spaces or slashes")
+		return
+	}
+	user, err := provider.CreateUser(r.Context(), identity.UserSpec{
+		Username: req.Username,
+		Name:     strings.TrimSpace(req.Name),
+		Email:    strings.TrimSpace(req.Email),
+		Groups:   req.Groups,
+	})
+	if err != nil {
+		s.fail(w, err, "creating user")
+		return
+	}
+	link, linkErr := provider.RecoveryLink(r.Context(), user.ID)
+	response := struct {
+		identity.User
+		RecoveryLink  string `json:"recoveryLink,omitempty"`
+		RecoveryError string `json:"recoveryError,omitempty"`
+	}{User: *user, RecoveryLink: link}
+	if linkErr != nil {
+		response.RecoveryError = linkErr.Error()
+	}
+	s.json(w, http.StatusCreated, response)
+}
+
+func (s *Server) identityUserRecoveryLink(w http.ResponseWriter, r *http.Request) {
+	provider := s.identityProvider(w, r)
+	if provider == nil {
+		return
+	}
+	link, err := provider.RecoveryLink(r.Context(), chi.URLParam(r, "userId"))
+	if err != nil {
+		s.fail(w, err, "recovery link")
+		return
+	}
+	s.json(w, http.StatusOK, map[string]string{"link": link})
 }
 
 func (s *Server) setIdentityUserActive(w http.ResponseWriter, r *http.Request) {
