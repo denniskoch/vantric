@@ -354,6 +354,13 @@ Surface the daily 90% here and link out for the rest.
   (and no JWT library) is needed — OIDC Core 3.1.3.7 says as much. One
   provider, one row in `auth_oidc`, configured in IAM & Admin → Single
   sign-on and verified against discovery before it's stored.
+- `email_verified: false` BLOCKS CREATION, NOT SIGN-IN. An account that
+  already exists here was put there by an owner, and self-hosted
+  providers routinely report false because they have no
+  address-verification flow — refusing that is a locked door for no
+  gain, so it's a logged warning. Creating an account is the step where
+  an unverified address would turn "the provider says this is their
+  email" into access, and that still refuses.
 - BEING IN THE DIRECTORY IS NOT A WAY IN. OIDC matches a person to an
   existing account by EMAIL, which is already this app's login name and
   SSH username. `autoCreate` (default OFF) is what turns a successful

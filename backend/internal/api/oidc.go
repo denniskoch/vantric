@@ -389,9 +389,7 @@ func (s *Server) exchangeAndIdentify(
 func (s *Server) linkOIDCUser(
 	ctx context.Context, p *store.OIDCProvider, claims *oidcClaims,
 ) (*store.User, error) {
-	if claims.Verified != nil && !*claims.Verified {
-		return nil, fmt.Errorf("%s isn't a verified address at the provider", claims.Email)
-	}
+	unverified := claims.Verified != nil && !*claims.Verified
 
 	user, err := s.store.GetUserByEmail(ctx, claims.Email)
 	switch {
@@ -399,9 +397,28 @@ func (s *Server) linkOIDCUser(
 		if !user.Active {
 			return nil, fmt.Errorf("the account for %s is disabled here", claims.Email)
 		}
+		// email_verified being false is NOT a refusal for an account that
+		// already exists: an owner put that address here deliberately, and
+		// plenty of self-hosted providers report false simply because they
+		// have no address-verification flow to run. Worth a line in the
+		// log, not a locked door.
+		if unverified {
+			s.log.Warn("oidc sign-in with an address the provider hasn't verified",
+				"email", claims.Email)
+		}
 		return user, nil
 	case err != store.ErrNotFound:
 		return nil, err
+	}
+
+	// Creating an account is where an unverified address does matter:
+	// it's the step that turns "the provider says this is their email"
+	// into access, and a directory that lets people set their own
+	// unverified address could mint an account for anyone.
+	if unverified {
+		return nil, fmt.Errorf(
+			"%s has no account here, and the provider reports the address as unverified — "+
+				"add the account first, or have the provider verify it", claims.Email)
 	}
 
 	if !p.AutoCreate {
