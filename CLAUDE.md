@@ -74,10 +74,8 @@ Surface the daily 90% here and link out for the rest.
   There is NO config path for adding one: hypervisors, like every other
   backend, are added in the UI once the app is up — two ways in, one of
   which silently applies only to an empty database, is a thing to
-  explain rather than a feature. config.yaml covers the app itself:
-  listen address, database, the first account, ssh options. Server
-  secrets never leave the backend (`json:"-"`; API exposes
-  `hasSecret`).
+  explain rather than a feature. Server secrets never leave the backend
+  (`json:"-"`; API exposes `hasSecret`).
 - SIZING IS TYPED IN, not chosen from a catalog. Machine types were a
   GCP analogue (`hl-standard-2` and friends) that didn't earn its keep:
   a lab has one of everything, so "4 vCPU, 8 GB" is the answer rather
@@ -411,5 +409,13 @@ Surface the daily 90% here and link out for the rest.
 
 ## Config
 
-`config.example.yaml` documents all settings; `config.yaml` is gitignored
-(holds the Proxmox token). Env overrides use the `LCM_` prefix.
+ENVIRONMENT ONLY — there is no config file. `internal/config` reads
+eight `LCM_*` variables (listen, db driver/dsn, static dir, two ssh
+toggles, two bootstrap-account settings) and every one has a working
+default, so running with nothing set is supported. `.env.example`
+documents them; `.env` is gitignored and compose reads it through
+`env_file`, passed whole so a new setting can't be silently dropped by
+forgetting to list it. Container-specific values (`LCM_LISTEN`,
+`LCM_DB_DSN` in the dev service) stay in `environment:`, which wins.
+Everything about the LAB rather than the app — hypervisors, DNS,
+databases, identity, network, SSO — is a DB record added in the UI.

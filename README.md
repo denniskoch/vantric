@@ -36,9 +36,9 @@ msg="created the first owner account — sign in and change this password" email
 
 Open http://localhost:5173, sign in with `lab@localhost` and that
 password, and change it under IAM & Admin → My account. To choose the
-password yourself instead, set `auth.bootstrapPassword` in config.yaml
-(or `LCM_AUTH_BOOTSTRAP_PASSWORD`) **before** the first start — after
-that the account exists and the setting is ignored.
+password yourself instead, put `LCM_AUTH_BOOTSTRAP_PASSWORD` in `.env`
+**before** the first start — after that the account exists and the
+setting is ignored.
 
 The dev stack hot-reloads: Go changes rebuild via air, the frontend has
 Vite HMR. Both watchers poll, because file-change events don't cross the
@@ -55,10 +55,10 @@ cd backend && go run ./cmd/server
 cd frontend && npm install && npm run dev
 ```
 
-`go run ./cmd/server` with no arguments uses the built-in defaults, which
-is all you need: SQLite in the working directory. `-config ../config.yaml`
-(`cp config.example.yaml config.yaml`) is only for changing the listen
-address, the database path, the first account or the ssh options.
+`go run ./cmd/server` takes no arguments and needs no setup: the
+defaults put SQLite in the working directory and serve on
+127.0.0.1:8080. Export any `LCM_*` variable from the table below to
+change that.
 
 ## Connecting your lab
 
@@ -108,10 +108,29 @@ the Go server serves the SPA with client-route fallback:
 docker compose --profile prod up --build -d   # everything on :8080
 ```
 
-Configuration is `config.yaml` (see `config.example.yaml`, which
-documents every setting) or `LCM_*` environment variables, which win.
-Compose forwards only the variables listed in its `environment:` block,
-so a new setting needs adding there as well as to the config struct:
+Settings are environment variables — there's no config file. Copy the
+sample and edit it; compose reads `.env` automatically for both
+profiles:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Default | What it does |
+|---|---|---|
+| `LCM_AUTH_BOOTSTRAP_EMAIL` | `lab@localhost` | The first account. First run only |
+| `LCM_AUTH_BOOTSTRAP_PASSWORD` | *generated* | Left empty, one is generated and logged once |
+| `LCM_SSH_PROVISION` | `true` | Create the console's login on a guest through the guest agent |
+| `LCM_SSH_PROVISION_SUDO` | `false` | Give that login passwordless sudo |
+| `LCM_LISTEN` | `0.0.0.0:8080` | Set by the image |
+| `LCM_DB_DRIVER` / `LCM_DB_DSN` | `sqlite`, `/data/labcloud.db` | Set by the image |
+| `LCM_STATIC_DIR` | `/app/static` | Set by the image |
+
+That's the whole list. Everything else — hypervisors, DNS providers,
+database servers, authentik, UniFi, single sign-on — is added in the UI,
+not configured here.
+
+Or set them inline:
 
 ```bash
 LCM_AUTH_BOOTSTRAP_EMAIL=you@example.com \
@@ -119,7 +138,7 @@ LCM_AUTH_BOOTSTRAP_PASSWORD='something long' \
 docker compose --profile prod up --build -d
 ```
 
-Backends aren't configured here — sign in and add them in the UI.
+Backends aren't set here — sign in and add them in the UI.
 
 SQLite data persists in the `app-data` volume (`/data/labcloud.db`).
 That file holds your accounts, every backend credential and every

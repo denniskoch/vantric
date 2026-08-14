@@ -1,5 +1,5 @@
-# Secrets — config.yaml holds the Proxmox API token
-config.yaml
+# Settings, and possibly the first account's password
+.env
 
 # Local databases
 *.db

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"log/slog"
 	"net/http"
 	"os"
@@ -27,16 +26,8 @@ import (
 )
 
 func main() {
-	configPath := flag.String("config", "", "path to config.yaml (optional)")
-	flag.Parse()
-
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
-
-	cfg, err := config.Load(*configPath)
-	if err != nil {
-		log.Error("loading config", "error", err)
-		os.Exit(1)
-	}
+	cfg := config.Load()
 
 	st, err := store.Open(cfg.Database.Driver, cfg.Database.DSN)
 	if err != nil {

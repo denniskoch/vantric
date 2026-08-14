@@ -8,10 +8,15 @@ services:
     image: golang:1.26-alpine
     working_dir: /src/backend
     command: go run github.com/air-verse/air@v1.63.0 -c .air.toml
+    # Your settings, whole — no per-variable list to keep in step.
+    env_file:
+      - path: .env
+        required: false
     environment:
-      # Both load-bearing: the default listen address is 127.0.0.1, which
-      # nothing outside the container could reach, and the default DSN is
-      # relative — it would put the database in the bind-mounted repo.
+      # These two win over .env, because they describe the container
+      # rather than a preference: the default listen address is
+      # 127.0.0.1, which nothing outside could reach, and the default DSN
+      # is relative — it would put the database in the bind-mounted repo.
       LCM_LISTEN: 0.0.0.0:8080
       LCM_DB_DSN: /data/labcloud.db
     volumes:
@@ -43,17 +48,12 @@ services:
   app:
     profiles: [prod]
     build: .
-    environment:
-      # Anything the container should see has to be listed here — compose
-      # doesn't forward the shell's environment by prefix.
-      #
-      # The first account. This is the one that matters on a first run:
-      # leave the password unset and one is generated and logged once.
-      LCM_AUTH_BOOTSTRAP_EMAIL: ${LCM_AUTH_BOOTSTRAP_EMAIL:-}
-      LCM_AUTH_BOOTSTRAP_PASSWORD: ${LCM_AUTH_BOOTSTRAP_PASSWORD:-}
-      # The browser terminal's account provisioning (see config.example.yaml).
-      LCM_SSH_PROVISION: ${LCM_SSH_PROVISION:-}
-      LCM_SSH_PROVISION_SUDO: ${LCM_SSH_PROVISION_SUDO:-}
+    # See .env.example. Passing the file whole means a new setting works
+    # without also being added to a list here — which is how the
+    # bootstrap password silently went missing before.
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - app-data:/data
     ports:
