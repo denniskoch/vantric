@@ -153,6 +153,20 @@ Surface the daily 90% here and link out for the rest.
   provider when `?provider=` is absent — a lab has one identity
   service, and making every page pass an id it can't get wrong is
   noise.
+- Network is the same split a fifth time: `internal/network.Provider`
+  is the boundary (UniFi first), controllers are DB records with
+  write-only credentials, one live provider per record in
+  `network.Registry`, and a factory maps type → implementation. READ
+  ONLY for now — the console reports what the controller says, it does
+  not reconfigure your network. UniFi ships in two generations and the
+  driver speaks both: UniFi OS serves the network app under
+  /proxy/network and logs in at /api/auth/login, the standalone
+  controller has no prefix and uses /api/login. Which one you have is
+  discovered on the first call rather than configured. Credentials are
+  an API key where the controller offers one and a local account where
+  it doesn't, and clients merge live sessions with known-but-offline
+  records, because a reserved address that's powered off still
+  occupies it.
 - IAM & Admin (this console's own RBAC) and Identity Platform (the
   lab's identity service) are deliberately separate sections: one
   governs access to this app, the other manages a service in the lab.

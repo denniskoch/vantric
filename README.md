@@ -130,6 +130,10 @@ Base path `/api/v1`:
   `PUT /database/servers/{id}/users/{name}/password`,
   `DELETE /database/servers/{id}/users/{name}`
 - `GET /database/servers/{id}/connections`
+- `GET /network/provider-types`, `GET /network/providers`,
+  `POST /network/providers`, `PUT/DELETE /network/providers/{id}`
+- `GET /network/{networks,clients,devices}` — read from the configured
+  controller, which defaults to the only one when `?provider=` is absent
 - `GET /identity/provider-types`, `GET /identity/providers`,
   `POST /identity/providers`, `PUT/DELETE /identity/providers/{id}`
 - `GET/POST /identity/users`,

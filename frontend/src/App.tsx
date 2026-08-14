@@ -17,6 +17,13 @@ import DatabaseInstanceDetailPage from './pages/DatabaseInstanceDetailPage'
 import AddDatabaseInstancePage from './pages/AddDatabaseInstancePage'
 import DatabasesPage from './pages/DatabasesPage'
 import {
+  NetworkNetworksPage,
+  NetworkClientsPage,
+  NetworkDevicesPage,
+} from './pages/NetworkPages'
+import NetworkControllersPage from './pages/NetworkControllersPage'
+import NetworkControllerFormPage from './pages/NetworkControllerFormPage'
+import {
   CreateDatabasePage,
   CreateDatabaseUserPage,
   DatabaseUserPasswordPage,
@@ -55,6 +62,12 @@ export default function App() {
         {/* Every section has an overview, on the shared landing template. */}
         <Route path="/storage/overview" element={<SectionLandingPage />} />
         <Route path="/network/overview" element={<SectionLandingPage />} />
+        <Route path="/network/networks" element={<NetworkNetworksPage />} />
+        <Route path="/network/clients" element={<NetworkClientsPage />} />
+        <Route path="/network/devices" element={<NetworkDevicesPage />} />
+        <Route path="/network/controllers" element={<NetworkControllersPage />} />
+        <Route path="/network/controllers/add" element={<NetworkControllerFormPage />} />
+        <Route path="/network/controllers/:id/edit" element={<NetworkControllerFormPage />} />
         <Route path="/databases/overview" element={<SectionLandingPage />} />
         <Route path="/databases/instances" element={<DatabaseInstancesPage />} />
         <Route path="/databases/instances/add" element={<AddDatabaseInstancePage />} />

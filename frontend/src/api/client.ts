@@ -355,6 +355,88 @@ export interface DNSRecord {
   comment?: string
 }
 
+export type NetworkProviderType = 'unifi'
+
+export interface NetworkInfo {
+  version: string
+  site: string
+  networks: number
+  clients: number
+  devices: number
+}
+
+export interface NetworkProvider {
+  id: string
+  name: string
+  type: NetworkProviderType
+  baseUrl: string
+  site: string
+  username: string
+  insecureTls: boolean
+  hasCredentials: boolean
+  status: 'connected' | 'unreachable' | 'unknown'
+  info?: NetworkInfo
+  error?: string
+  createdAt: string
+}
+
+export interface NetworkProviderRequest {
+  name: string
+  type: NetworkProviderType
+  baseUrl: string
+  site: string
+  apiKey: string
+  username: string
+  password: string
+  insecureTls: boolean
+}
+
+/** A configured network — a VLAN with its subnet and DHCP range. */
+export interface LabNetwork {
+  id: string
+  name: string
+  vlan: number
+  subnet: string
+  purpose: string
+  enabled: boolean
+  dhcpEnabled: boolean
+  dhcpStart: string
+  dhcpStop: string
+  domainName: string
+}
+
+export interface NetworkClient {
+  id: string
+  name: string
+  hostname: string
+  mac: string
+  ip: string
+  network: string
+  vlan: number
+  wired: boolean
+  online: boolean
+  fixedIp: boolean
+  uplink: string
+  port: number
+  lastSeen: number
+  vendor: string
+}
+
+export interface NetworkDevice {
+  id: string
+  name: string
+  model: string
+  /** gateway | switch | ap | other */
+  kind: string
+  mac: string
+  ip: string
+  version: string
+  state: string
+  adopted: boolean
+  uptimeSeconds: number
+  clients: number
+}
+
 export type IdentityProviderType = 'authentik'
 
 export interface IdentityInfo {
@@ -705,6 +787,25 @@ export const api = {
     }),
   deleteMachineType: (name: string) =>
     request<void>(`/machine-types/${name}`, { method: 'DELETE' }),
+
+  listNetworkProviderTypes: () =>
+    request<NetworkProviderType[]>('/network/provider-types'),
+  listNetworkProviders: () => request<NetworkProvider[]>('/network/providers'),
+  createNetworkProvider: (body: NetworkProviderRequest) =>
+    request<NetworkProvider>('/network/providers', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateNetworkProvider: (id: string, body: NetworkProviderRequest) =>
+    request<NetworkProvider>(`/network/providers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  deleteNetworkProvider: (id: string) =>
+    request<void>(`/network/providers/${id}`, { method: 'DELETE' }),
+  listLabNetworks: () => request<LabNetwork[]>('/network/networks'),
+  listNetworkClients: () => request<NetworkClient[]>('/network/clients'),
+  listNetworkDevices: () => request<NetworkDevice[]>('/network/devices'),
 
   listIdentityProviderTypes: () =>
     request<IdentityProviderType[]>('/identity/provider-types'),

@@ -22,6 +22,8 @@ import (
 	"lab-cloud-manager/internal/hypervisor/factory"
 	"lab-cloud-manager/internal/identity"
 	identityfactory "lab-cloud-manager/internal/identity/factory"
+	"lab-cloud-manager/internal/network"
+	networkfactory "lab-cloud-manager/internal/network/factory"
 	"lab-cloud-manager/internal/store"
 )
 
@@ -61,7 +63,11 @@ func main() {
 	identityRegistry := identity.NewRegistry()
 	loadIdentityRegistry(ctx, st, identityRegistry, log)
 
-	server := api.New(st, registry, dnsRegistry, dbRegistry, identityRegistry, log, cfg.StaticDir)
+	networkRegistry := network.NewRegistry()
+	loadNetworkRegistry(ctx, st, networkRegistry, log)
+
+	server := api.New(st, registry, dnsRegistry, dbRegistry, identityRegistry,
+		networkRegistry, log, cfg.StaticDir)
 	reconciler := api.NewReconciler(st, registry, log, 2*time.Second)
 	go reconciler.Run(ctx)
 
@@ -154,6 +160,25 @@ func loadIdentityRegistry(ctx context.Context, st *store.Store, registry *identi
 		registry.Set(providers[i].ID, provider)
 	}
 	log.Info("identity registry loaded", "providers", len(providers))
+}
+
+// loadNetworkRegistry builds a live provider for every configured
+// network controller.
+func loadNetworkRegistry(ctx context.Context, st *store.Store, registry *network.Registry, log *slog.Logger) {
+	providers, err := st.ListNetworkProviders(ctx)
+	if err != nil {
+		log.Error("listing network providers", "error", err)
+		return
+	}
+	for i := range providers {
+		provider, err := networkfactory.Build(&providers[i])
+		if err != nil {
+			log.Error("building network provider", "provider", providers[i].Name, "error", err)
+			continue
+		}
+		registry.Set(providers[i].ID, provider)
+	}
+	log.Info("network registry loaded", "providers", len(providers))
 }
 
 // seedServerFromConfig registers an initial server on first run, driven

@@ -25,6 +25,9 @@ import FingerprintIcon from '@mui/icons-material/Fingerprint'
 import PersonIcon from '@mui/icons-material/Person'
 import GroupIcon from '@mui/icons-material/Group'
 import AppsIcon from '@mui/icons-material/Apps'
+import RouterIcon from '@mui/icons-material/Router'
+import DevicesIcon from '@mui/icons-material/Devices'
+import HubIcon from '@mui/icons-material/Hub'
 import HistoryIcon from '@mui/icons-material/History'
 import { createSvgIcon } from '@mui/material/utils'
 import { siDocker } from 'simple-icons'
@@ -159,8 +162,44 @@ export const sections: Section[] = [
     prefix: '/network',
     home: '/network/overview',
     items: [{ label: 'Overview', icon: DashboardIcon, to: '/network/overview' }],
-    groups: [],
-    description: 'Bridges, VLANs and firewall rules across your hosts.',
+    groups: [
+      {
+        label: 'Networks',
+        items: [
+          {
+            label: 'Networks',
+            icon: HubIcon,
+            to: '/network/networks',
+            hint: 'VLANs, their subnets and DHCP ranges',
+          },
+          {
+            label: 'Clients',
+            icon: DevicesIcon,
+            to: '/network/clients',
+            hint: 'What holds an address, leased or reserved',
+          },
+          {
+            label: 'Devices',
+            icon: RouterIcon,
+            to: '/network/devices',
+            hint: 'Gateways, switches and access points',
+          },
+        ],
+      },
+      {
+        label: 'Settings',
+        items: [
+          {
+            label: 'Controllers',
+            icon: VpnKeyIcon,
+            to: '/network/controllers',
+            hint: 'The network controller this console reads',
+          },
+        ],
+      },
+    ],
+    description:
+      'The networks your lab runs on — VLANs and their subnets, what holds an address, and the hardware carrying it.',
   },
   {
     id: 'databases',
