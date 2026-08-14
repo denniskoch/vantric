@@ -27,6 +27,7 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { api } from '../api/client'
 import type { Instance } from '../api/client'
+import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import ConnectButton from '../components/ConnectButton'
 import PageHeader from '../components/PageHeader'
 import StatusIcon from '../components/StatusIcon'
@@ -38,6 +39,7 @@ export default function InstancesPage() {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
   const [menuInstance, setMenuInstance] = useState<Instance | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<Instance | null>(null)
 
   const { data: instances = [], refetch, isLoading } = useQuery({
     queryKey: ['instances'],
@@ -59,8 +61,14 @@ export default function InstancesPage() {
 
   const remove = useMutation({
     mutationFn: (name: string) => api.deleteInstance(name),
-    onSuccess: invalidate,
-    onError: (e: Error) => setError(e.message),
+    onSuccess: () => {
+      setDeleting(null)
+      invalidate()
+    },
+    onError: (e: Error) => {
+      setDeleting(null)
+      setError(e.message)
+    },
   })
 
   const openMenu = (e: React.MouseEvent<HTMLElement>, inst: Instance) => {
@@ -184,7 +192,7 @@ export default function InstancesPage() {
         </MenuItem>
         <MenuItem
           onClick={() => {
-            if (menuInstance) remove.mutate(menuInstance.name)
+            setDeleting(menuInstance)
             closeMenu()
           }}
           disabled={menuInstance?.protected}
@@ -194,6 +202,23 @@ export default function InstancesPage() {
           {menuInstance?.protected ? 'Delete (protected)' : 'Delete'}
         </MenuItem>
       </Menu>
+
+      <ConfirmDeleteDialog
+        open={Boolean(deleting)}
+        title={`Delete ${deleting?.name}?`}
+        body={
+          <>
+            This destroys the virtual machine and its disks on{' '}
+            {serverName(deleting?.serverId ?? '')}. Snapshots and backups taken
+            of it are not removed, but nothing else brings this instance back.
+          </>
+        }
+        confirmPhrase={deleting?.name}
+        confirmLabel="to delete it"
+        pending={remove.isPending}
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => deleting && remove.mutate(deleting.name)}
+      />
     </Box>
   )
 }

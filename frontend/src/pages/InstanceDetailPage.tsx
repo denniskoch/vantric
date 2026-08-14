@@ -28,6 +28,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { api } from '../api/client'
 import type { MetricTimeframe } from '../api/client'
+import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import StatusIcon from '../components/StatusIcon'
 import DetailTable, { DetailSection } from '../components/DetailTable'
 import TimeSeriesChart from '../components/TimeSeriesChart'
@@ -71,6 +72,7 @@ export default function InstanceDetailPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [tab, setTab] = useState<TabID>('details')
   const [timeframe, setTimeframe] = useState<MetricTimeframe>('hour')
 
@@ -120,7 +122,10 @@ export default function InstanceDetailPage() {
   const remove = useMutation({
     mutationFn: () => api.deleteInstance(name!),
     onSuccess: () => navigate('/compute/instances'),
-    onError: (e: Error) => setError(e.message),
+    onError: (e: Error) => {
+      setDeleting(false)
+      setError(e.message)
+    },
   })
 
   const protect = useMutation({
@@ -236,7 +241,7 @@ export default function InstanceDetailPage() {
           color="error"
           startIcon={<DeleteIcon />}
           disabled={remove.isPending || inst.protected}
-          onClick={() => remove.mutate()}
+          onClick={() => setDeleting(true)}
         >
           Delete
         </Button>
@@ -676,6 +681,21 @@ export default function InstanceDetailPage() {
           </>
         )}
       </Box>
+
+      <ConfirmDeleteDialog
+        open={deleting}
+        title={`Delete ${inst.name}?`}
+        body={
+          <>
+            This destroys the virtual machine and its disks. Snapshots and backups\n            taken of it are not removed, but nothing else brings it back.
+          </>
+        }
+        confirmPhrase={inst.name}
+        confirmLabel="to delete it"
+        pending={remove.isPending}
+        onCancel={() => setDeleting(false)}
+        onConfirm={() => remove.mutate()}
+      />
     </Box>
   )
 }

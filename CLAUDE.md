@@ -263,6 +263,16 @@ Surface the daily 90% here and link out for the rest.
   TEXT timestamps, no engine-specific types. Postgres is planned, not wired.
 - Frontend talks only to `/api/v1` via `src/api/client.ts` (typed client);
   server state lives in TanStack Query (3s polling), not local state.
+- DESTRUCTIVE ACTIONS ASK IN PROPORTION, via
+  `components/ConfirmDeleteDialog`. A one-click dialog is right for
+  something that comes back — a credential you can re-enter, a grant
+  you can re-issue, a disconnect that re-adopts. When the answer is
+  "that data is gone", pass `confirmPhrase` and the user must TYPE it:
+  the resource's own name (instance, container, database, DNS zone, VM
+  template) or `I UNDERSTAND` where its name is a 60-character archive
+  filename nobody would retype (backups). Typing is the point — it
+  can't be muscle memory, and it makes you read which row you clicked.
+  Deleting a VM had no confirmation at all before this rule existed.
 - MODALS ARE FOR CONFIRMATION ONLY — a dialog asks "are you sure?" and
   nothing else. Anything you fill in gets its own page with the
   standard back link and Create/Save + Cancel bar: creating a resource,

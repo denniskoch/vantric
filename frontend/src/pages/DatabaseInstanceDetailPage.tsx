@@ -484,6 +484,9 @@ export default function DatabaseInstanceDetailPage() {
         body={`This deletes the database and everything in it — ${
           droppingDatabase ? formatBytes(droppingDatabase.sizeBytes) : ''
         } of data. It cannot be undone from here.`}
+        confirmPhrase={droppingDatabase?.name}
+        confirmLabel="to drop it"
+        actionLabel="Drop"
         pending={dropDatabase.isPending}
         onCancel={() => setDroppingDatabase(null)}
         onConfirm={() => droppingDatabase && dropDatabase.mutate(droppingDatabase)}

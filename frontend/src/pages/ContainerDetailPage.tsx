@@ -19,6 +19,7 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { useState } from 'react'
 import { api } from '../api/client'
+import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import StatusIcon from '../components/StatusIcon'
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -35,6 +36,7 @@ export default function ContainerDetailPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const { data: ct } = useQuery({
     queryKey: ['container', name],
@@ -59,7 +61,10 @@ export default function ContainerDetailPage() {
   const remove = useMutation({
     mutationFn: () => api.deleteContainer(name!),
     onSuccess: () => navigate('/compute/containers'),
-    onError: (e: Error) => setError(e.message),
+    onError: (e: Error) => {
+      setDeleting(false)
+      setError(e.message)
+    },
   })
 
   const protect = useMutation({
@@ -114,7 +119,7 @@ export default function ContainerDetailPage() {
           color="error"
           startIcon={<DeleteIcon />}
           disabled={remove.isPending || ct.protected}
-          onClick={() => remove.mutate()}
+          onClick={() => setDeleting(true)}
         >
           Delete
         </Button>
@@ -175,6 +180,21 @@ export default function ContainerDetailPage() {
           </TableBody>
         </Table>
       </Paper>
+
+      <ConfirmDeleteDialog
+        open={deleting}
+        title={`Delete ${ct.name}?`}
+        body={
+          <>
+            This destroys the container and its root filesystem. Backups taken of it\n            are not removed, but nothing else brings it back.
+          </>
+        }
+        confirmPhrase={ct.name}
+        confirmLabel="to delete it"
+        pending={remove.isPending}
+        onCancel={() => setDeleting(false)}
+        onConfirm={() => remove.mutate()}
+      />
     </Box>
   )
 }

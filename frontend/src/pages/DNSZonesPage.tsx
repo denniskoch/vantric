@@ -181,6 +181,8 @@ export default function DNSZonesPage() {
         body={`This removes the zone and all of its records at ${
           confirming ? providerName(confirming.providerId) : 'the provider'
         }. The domain itself is not affected, but it will stop resolving through this provider.`}
+        confirmPhrase={confirming?.name}
+        confirmLabel="to delete it"
         pending={remove.isPending}
         onCancel={() => setConfirming(null)}
         onConfirm={() => confirming && remove.mutate(confirming)}

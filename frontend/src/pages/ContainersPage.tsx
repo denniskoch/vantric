@@ -28,6 +28,7 @@ import { Button } from '@mui/material'
 import { api } from '../api/client'
 import type { Container } from '../api/client'
 import StatusIcon from '../components/StatusIcon'
+import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import PageHeader from '../components/PageHeader'
 
 // CT (LXC) instances. Separate from VM instances by design — they
@@ -37,6 +38,7 @@ export default function ContainersPage() {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
   const [menuContainer, setMenuContainer] = useState<Container | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<Container | null>(null)
 
   const { data: containers = [], refetch, isLoading } = useQuery({
     queryKey: ['containers'],
@@ -58,8 +60,14 @@ export default function ContainersPage() {
 
   const remove = useMutation({
     mutationFn: (name: string) => api.deleteContainer(name),
-    onSuccess: invalidate,
-    onError: (e: Error) => setError(e.message),
+    onSuccess: () => {
+      setDeleting(null)
+      invalidate()
+    },
+    onError: (e: Error) => {
+      setDeleting(null)
+      setError(e.message)
+    },
   })
 
   const openMenu = (e: React.MouseEvent<HTMLElement>, ct: Container) => {
@@ -177,7 +185,7 @@ export default function ContainersPage() {
         </MenuItem>
         <MenuItem
           onClick={() => {
-            if (menuContainer) remove.mutate(menuContainer.name)
+            setDeleting(menuContainer)
             closeMenu()
           }}
           disabled={menuContainer?.protected}
@@ -187,6 +195,22 @@ export default function ContainersPage() {
           {menuContainer?.protected ? 'Delete (protected)' : 'Delete'}
         </MenuItem>
       </Menu>
+
+      <ConfirmDeleteDialog
+        open={Boolean(deleting)}
+        title={`Delete ${deleting?.name}?`}
+        body={
+          <>
+            This destroys the container and its root filesystem. Backups taken
+            of it are not removed, but nothing else brings it back.
+          </>
+        }
+        confirmPhrase={deleting?.name}
+        confirmLabel="to delete it"
+        pending={remove.isPending}
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => deleting && remove.mutate(deleting.name)}
+      />
     </Box>
   )
 }

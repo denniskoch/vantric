@@ -166,6 +166,8 @@ export default function VMTemplatesPage() {
             )}
           </>
         }
+        confirmPhrase={confirming?.name}
+        confirmLabel="to delete it"
         pending={remove.isPending}
         onCancel={() => setConfirming(null)}
         onConfirm={() => confirming && remove.mutate(confirming)}

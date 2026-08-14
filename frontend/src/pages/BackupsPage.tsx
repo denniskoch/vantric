@@ -180,6 +180,8 @@ export default function BackupsPage() {
             ? new Date(confirming.createdAt * 1000).toLocaleString()
             : 'at an unknown time'
         }. Deleting the archive doesn't touch the guest, but this restore point is gone.`}
+        confirmPhrase="I UNDERSTAND"
+        confirmLabel="to delete this restore point"
         pending={remove.isPending}
         onCancel={() => setConfirming(null)}
         onConfirm={() => confirming && remove.mutate(confirming)}
