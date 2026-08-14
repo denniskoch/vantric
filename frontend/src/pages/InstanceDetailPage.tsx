@@ -26,7 +26,6 @@ import StopIcon from '@mui/icons-material/Stop'
 import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import DeleteIcon from '@mui/icons-material/Delete'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
-import TerminalIcon from '@mui/icons-material/Terminal'
 import { api } from '../api/client'
 import type { MetricTimeframe } from '../api/client'
 import StatusIcon from '../components/StatusIcon'
@@ -36,8 +35,7 @@ import { chart } from '../chartPalette'
 import { formatBytes, formatBytesPerSec, formatPercent, formatUptime } from '../format'
 import BrandIcon from '../components/BrandIcon'
 import { osBrand } from '../brands'
-import { connectionFor } from '../connect'
-import { sshUsername } from '../user'
+import ConnectButton from '../components/ConnectButton'
 
 type TabID = 'details' | 'observability' | 'os' | 'console'
 
@@ -149,7 +147,6 @@ export default function InstanceDetailPage() {
   const running = inst.status === 'RUNNING'
   const serialPort = detail?.devices?.find((d) => d.kind === 'Serial port')
   const hypervisorURL = server?.type === 'proxmox' ? server.baseUrl : ''
-  const connection = connectionFor(inst.osType, inst.internalIp, inst.name)
   const hypervisorLink = (mode: 'novnc' | 'xtermjs') => (
     <Button
       size="small"
@@ -188,35 +185,6 @@ export default function InstanceDetailPage() {
           : `${serialPort.key} — ${serialPort.value}`,
       ready: running && Boolean(serialPort) && Boolean(hypervisorURL),
       action: hypervisorLink('xtermjs'),
-    },
-    {
-      name: connection?.kind === 'RDP' ? 'Remote Desktop' : 'SSH',
-      availability: !connection
-        ? 'No address known for this instance'
-        : connection.kind === 'RDP'
-          ? `${inst.internalIp}:${connection.port} — opens your own client`
-          : `${sshUsername()}@${inst.internalIp} — proxied by this console`,
-      ready: Boolean(connection),
-      action:
-        connection?.kind === 'RDP' ? (
-          <Button size="small" endIcon={<OpenInNewIcon />} component="a" href={connection.href}>
-            Open Remote Desktop
-          </Button>
-        ) : (
-          <Button
-            size="small"
-            endIcon={<TerminalIcon />}
-            onClick={() =>
-              window.open(
-                connection!.href,
-                `ssh-${inst.name}`,
-                'width=1024,height=640,menubar=no,toolbar=no,location=no,status=no',
-              )
-            }
-          >
-            Open terminal
-          </Button>
-        ),
     },
   ]
 
@@ -300,6 +268,11 @@ export default function InstanceDetailPage() {
                 metadata only.
               </Alert>
             )}
+
+            {/* The way in comes before the facts about it, GCP-style. */}
+            <Box sx={{ mb: 3 }}>
+              <ConnectButton instance={inst} variant="outlined" />
+            </Box>
 
             <DetailSection title="Basic information">
               <DetailTable

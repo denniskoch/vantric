@@ -17,7 +17,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Tooltip,
   Typography,
 } from '@mui/material'
 import AddBoxIcon from '@mui/icons-material/AddBox'
@@ -27,89 +26,11 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
 import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import DeleteIcon from '@mui/icons-material/Delete'
-import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown'
 import { api } from '../api/client'
-import { connectionFor } from '../connect'
 import type { Instance } from '../api/client'
+import ConnectButton from '../components/ConnectButton'
 import StatusIcon from '../components/StatusIcon'
 
-/**
- * SSH or RDP, whichever the guest speaks. The split button opens the
- * browser terminal; the arrow offers the alternative — your own client
- * over ssh://, for when you want scp, port forwards or a real tmux.
- */
-function ConnectCell({ instance }: { instance: Instance }) {
-  const [menu, setMenu] = useState<null | HTMLElement>(null)
-  const connection = connectionFor(instance.osType, instance.internalIp, instance.name)
-  const running = instance.status === 'RUNNING'
-
-  // A terminal belongs in its own window: it outlives the page you
-  // launched it from, and you'll want the console beside it.
-  const openTerminal = () => {
-    if (!connection) return
-    window.open(
-      connection.href,
-      `ssh-${instance.name}`,
-      'width=1024,height=640,menubar=no,toolbar=no,location=no,status=no',
-    )
-  }
-
-  if (!connection) {
-    return (
-      <Tooltip title={running ? 'No address known yet' : 'Instance is not running'}>
-        <Box component="span" sx={{ color: '#5f6368' }}>
-          —
-        </Box>
-      </Tooltip>
-    )
-  }
-  // RDP has no proxy here, so it stays a single button handing the URI
-  // to whatever client the desktop registered.
-  if (connection.kind === 'RDP') {
-    return (
-      <Tooltip title={running ? connection.command : 'Instance is not running'}>
-        <span>
-          <Button size="small" href={connection.href} disabled={!running} sx={{ minWidth: 0, px: 1 }}>
-            RDP
-          </Button>
-        </span>
-      </Tooltip>
-    )
-  }
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-      <Button size="small" disabled={!running} onClick={openTerminal} sx={{ minWidth: 0, px: 1 }}>
-        SSH
-      </Button>
-      <IconButton
-        size="small"
-        disabled={!running}
-        onClick={(e) => setMenu(e.currentTarget)}
-        aria-label="Other ways to connect"
-      >
-        <ArrowDropDownIcon fontSize="small" />
-      </IconButton>
-      <Menu anchorEl={menu} open={Boolean(menu)} onClose={() => setMenu(null)}>
-        <MenuItem
-          onClick={() => {
-            setMenu(null)
-            openTerminal()
-          }}
-        >
-          Open in browser window
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            setMenu(null)
-            window.location.href = `ssh://${instance.internalIp}`
-          }}
-        >
-          Use another SSH client
-        </MenuItem>
-      </Menu>
-    </Box>
-  )
-}
 
 export default function InstancesPage() {
   const navigate = useNavigate()
@@ -216,7 +137,7 @@ export default function InstancesPage() {
                 <TableCell>{inst.internalIp || '—'}</TableCell>
                 <TableCell>{inst.externalIp || '—'}</TableCell>
                 <TableCell>
-                  <ConnectCell instance={inst} />
+                  <ConnectButton instance={inst} />
                 </TableCell>
                 <TableCell align="right">
                   <IconButton size="small" onClick={(e) => openMenu(e, inst)}>
