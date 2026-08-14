@@ -20,12 +20,13 @@ vocabulary, so you stop jumping between fifteen consoles.
 
 ## Quick start
 
-Nothing but Docker required. There's a mock hypervisor you can add from
-the UI, so you can see the app work without a Proxmox cluster.
-
 ```bash
-docker compose -f docker-compose.dev.yml up
+make dev
 ```
+
+Go and Node run on your machine, both reloading. `make` on its own lists
+everything else. There's a mock hypervisor you can add from the UI, so
+you can see the app work without a Proxmox cluster.
 
 **Then find your sign-in password.** On first run the app creates one
 owner account and logs its generated password exactly once:
@@ -40,30 +41,23 @@ password yourself instead, put `LCM_AUTH_BOOTSTRAP_PASSWORD` in `.env`
 **before** the first start — after that the account exists and the
 setting is ignored.
 
-Go changes rebuild via air, the frontend has Vite HMR. Both watchers
-poll, because file-change events don't cross the macOS→VM bind mount —
-don't remove that.
-
-There are two compose files and no switches between them:
-`docker-compose.yml` is the app, one built image on :8080;
-`docker-compose.dev.yml` is the source bind-mounted with both halves
-reloading. Run one at a time — they both want :8080.
-
-Native alternative (no Docker), two terminals. The backend runs on
-:8080 and Vite proxies `/api` to it:
+Behind `make dev` are two ordinary commands, if you'd rather run them in
+separate terminals — `make api` and `make ui`, or:
 
 ```bash
 cd backend && go run ./cmd/server
 ```
 
 ```bash
-cd frontend && npm install && npm run dev
+cd frontend && npm run dev
 ```
 
-`go run ./cmd/server` takes no arguments and needs no setup: the
-defaults put SQLite in the working directory and serve on
-127.0.0.1:8080. Export any `LCM_*` variable from the table below to
-change that.
+The backend takes no arguments and needs no setup: the defaults put
+SQLite in `backend/labcloud.db` and serve on 127.0.0.1:8080, which is
+where Vite proxies `/api`. Export any `LCM_*` variable to change that.
+
+Docker builds the app; it isn't used to develop it. `make up` runs the
+built image on :8080, `make down` stops it.
 
 ## Connecting your lab
 

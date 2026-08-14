@@ -7,11 +7,10 @@ backed by Proxmox, with the hypervisor abstracted for future backends.
 ## Commands
 
 ```bash
-docker compose -f docker-compose.dev.yml up    # dev: air hot-reload :8080 + vite HMR :5173
-docker compose up -d --build                   # the app: one image (API + UI) on :8080
-cd backend && go build ./... && go vet ./...   # build + vet backend
-cd backend && go run ./cmd/server              # native API run (mock driver, :8080)
-cd frontend && npx tsc -b && npm run build     # type-check + build frontend
+make dev      # both halves, reloading — open http://localhost:5173
+make check    # go build + vet, tsc + vite build. Must pass before a commit
+make up       # build and run the app image in Docker (:8080)
+make          # everything else
 ```
 
 Docker is the deployment target (single image: Go binary + static UI, see
@@ -391,17 +390,13 @@ Surface the daily 90% here and link out for the rest.
   render their `planned` list instead. Landing copy (`description`,
   `planned`, per-item `hint`) lives in nav.tsx with everything else, so
   a new section needs no new page component.
-- TWO COMPOSE FILES, no profiles and no toggle: `docker-compose.yml` is
-  the app (one built image, :8080, `app-data` volume) and
-  `docker-compose.dev.yml` is the source bind-mounted with air and Vite
-  reloading (:8080 + :5173, `dev-data` volume). They are different
-  jobs, not two settings of one — the dev file exists only so a change
-  is live in seconds rather than a full image build. Both share the
-  project name, so volumes are stable across the pair; run one at a
-  time, since both bind :8080.
-- docker-compose dev caveat: file-change events don't cross the macOS→VM
-  bind mount, so both watchers poll (air `poll = true`, vite
-  `watch.usePolling`). Don't remove either.
+- DEVELOPMENT IS NATIVE, Docker only ships. `make dev` runs `go run`
+  and `vite` on the host; there is ONE compose file and it builds the
+  app image. The dev containers are gone: they existed to run the same
+  two commands one filesystem away, and paid for it with bind-mount
+  polling (air `poll = true`, vite `watch.usePolling`, both still set
+  and harmless) and a database inside a volume you had to dig into.
+  The Makefile is the interface — `make` lists it.
 - Colima dev caveat: this stack's whole job is reaching lab services on
   the LAN. Colima's default route is the user-mode NIC, whose traffic
   is NAT'd by a proxy on the host; that path does reach the LAN until

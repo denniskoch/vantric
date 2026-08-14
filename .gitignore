@@ -1,7 +1,7 @@
 # Settings, and possibly the first account's password
 .env
 
-# Local databases
+# Local databases — `make dev` writes backend/labcloud.db
 *.db
 *.db-shm
 *.db-wal
