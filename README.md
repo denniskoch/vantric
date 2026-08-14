@@ -152,11 +152,28 @@ account's SSH private key, so treat it as a secret. The image runs as
 uid 1000; on a host where you aren't that user, `chown -R 1000:1000
 data` once.
 
-Put it behind TLS if it leaves your LAN: the session cookie is marked
-`Secure` only when the request arrives over HTTPS (directly or via
-`X-Forwarded-Proto`), because a Secure cookie on a plain-http LAN
-console is simply never sent, which looks like a sign-in loop with no
-explanation.
+### Reaching it from outside the lab
+
+```bash
+make tunnel
+```
+
+Runs the app plus `cloudflared`, so the console is published through a
+Cloudflare Tunnel without opening a port or holding a certificate.
+Create the tunnel in Zero Trust → Networks → Tunnels, point its public
+hostname at `http://app:8080`, and put the token in `.env` as
+`TUNNEL_TOKEN`. Without a token nothing changes — cloudflared only
+starts for this target.
+
+**Put an Access policy in front of it.** This console holds credentials
+for every backend in your lab and can open a root-capable shell on your
+guests. It shouldn't be a URL anyone can reach.
+
+The session cookie sorts itself out through the tunnel: it's marked
+`Secure` when the request arrives over HTTPS or with
+`X-Forwarded-Proto: https`, which cloudflared sets. On plain http over
+the LAN it isn't, because a Secure cookie there is simply never sent —
+which looks like a sign-in loop with no explanation.
 
 ## Architecture
 
