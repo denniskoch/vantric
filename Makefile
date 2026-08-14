@@ -4,7 +4,7 @@
 # Docker is for running the app, not for building it.
 
 .DEFAULT_GOAL := help
-.PHONY: help dev api ui check build up down logs clean
+.PHONY: help dev api ui check build up rebuild down logs clean
 
 help: ## Show this help
 	@echo "lab-cloud-manager"
@@ -38,6 +38,11 @@ build: check ## Alias for check; there is no separate build step
 
 up: ## Build and run the app in Docker (:8080)
 	docker compose up -d --build
+	@echo "→ http://localhost:8080"
+
+rebuild: ## Rebuild the image from scratch, ignoring the cache
+	docker compose build --no-cache
+	docker compose up -d
 	@echo "→ http://localhost:8080"
 
 down: ## Stop it
