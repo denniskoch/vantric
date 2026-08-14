@@ -53,7 +53,6 @@ var migrations = []string{
 		name TEXT NOT NULL UNIQUE,
 		server_id TEXT NOT NULL REFERENCES servers(id),
 		zone TEXT NOT NULL,
-		machine_type TEXT NOT NULL,
 		cpus INTEGER NOT NULL,
 		memory_mb INTEGER NOT NULL,
 		disk_gb INTEGER NOT NULL,
@@ -126,13 +125,6 @@ var migrations = []string{
 		insecure_tls INTEGER NOT NULL DEFAULT 0,
 		created_at TEXT NOT NULL
 	)`,
-	`CREATE TABLE IF NOT EXISTS machine_types (
-		name TEXT PRIMARY KEY,
-		description TEXT NOT NULL DEFAULT '',
-		cpus INTEGER NOT NULL,
-		memory_mb INTEGER NOT NULL,
-		created_at TEXT NOT NULL
-	)`,
 	// This console's own accounts — distinct from the identity provider
 	// it manages. password_hash is empty for an account that signs in
 	// some other way, which is what SSO will look like when it lands.
@@ -168,14 +160,25 @@ func (s *Store) migrate() error {
 	// outcome on every boot after the first — so that error alone is
 	// not a failure.
 	for _, m := range columnMigrations {
-		if _, err := s.db.Exec(m); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+		// "duplicate column" is an ADD that already ran; "no such column"
+		// is a DROP that already ran. Both are the expected outcome on
+		// every boot after the first.
+		if _, err := s.db.Exec(m); err != nil &&
+			!strings.Contains(err.Error(), "duplicate column") &&
+			!strings.Contains(err.Error(), "no such column") {
 			return fmt.Errorf("store: migration failed: %w", err)
 		}
 	}
 	return nil
 }
 
+// Machine types were a GCP analogue that didn't earn its keep in a lab
+// where you size a VM by typing the numbers you want. Existing
+// databases drop the column and the catalog; fresh ones never make
+// them, so both of these are "already done" on most boots.
 var columnMigrations = []string{
+	`ALTER TABLE instances DROP COLUMN machine_type`,
+	`DROP TABLE IF EXISTS machine_types`,
 	`ALTER TABLE instances ADD COLUMN os_type TEXT NOT NULL DEFAULT ''`,
 	// Each account signs in to guests with its own key, so a guest's
 	// auth log names a person. Generated on first use; the public half

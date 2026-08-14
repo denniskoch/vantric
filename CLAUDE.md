@@ -74,6 +74,14 @@ Surface the daily 90% here and link out for the rest.
   Config seeds one server on first run only; after
   that config driver settings are ignored. Server secrets never leave the
   backend (`json:"-"`; API exposes `hasSecret`).
+- SIZING IS TYPED IN, not chosen from a catalog. Machine types were a
+  GCP analogue (`hl-standard-2` and friends) that didn't earn its keep:
+  a lab has one of everything, so "4 vCPU, 8 GB" is the answer rather
+  than the name of a shape somebody has to define first. The create
+  flow takes vCPUs and memory directly; the table, the Settings page
+  and the `/machine-types` endpoints are gone, and a migration drops
+  the column and the catalog. `InstanceDetail.machineType` is unrelated
+  — that's the chipset (i440fx/q35) and stays.
 - Instance statuses are GCP's: PROVISIONING, STAGING, RUNNING, STOPPING,
   TERMINATED. Drivers map native states to these.
 - The driver is the source of truth for runtime state (status/IPs); the

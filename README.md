@@ -97,7 +97,6 @@ Concept mapping:
 |---|---|
 | Zone | Cluster node |
 | Image | Template VM (create instances = full clone) |
-| Machine type | `hl-*` presets → cores/memory config |
 | Instance status | GCP-style: `PROVISIONING`, `STAGING`, `RUNNING`, `STOPPING`, `TERMINATED` |
 
 ## Deploying
@@ -221,7 +220,6 @@ and `/auth/me` needs a session cookie:
   datastore's `import` content)
 - `POST /vm-templates/build` + `GET /vm-templates/builds/{id}` — builds
   a cloud-init template from a disk image, tracked step by step
-- `GET/POST /machine-types`, `DELETE /machine-types/{name}`
 - `GET /servers`, `POST /servers`, `PUT/DELETE /servers/{id}`,
   `GET /server-types`
 - `GET/POST /instances`

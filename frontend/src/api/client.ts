@@ -85,7 +85,6 @@ export interface Instance {
   name: string
   serverId: string
   zone: string
-  machineType: string
   cpus: number
   memoryMb: number
   diskGb: number
@@ -711,13 +710,6 @@ export interface DNSRecordSetRequest {
   values: { content: string; priority: number }[]
 }
 
-export interface MachineType {
-  name: string
-  description: string
-  cpus: number
-  memoryMb: number
-}
-
 /** Guest configuration handed to cloud-init. */
 export interface CloudInitConfig {
   user: string
@@ -755,9 +747,8 @@ export interface CreateInstanceRequest {
   name: string
   serverId: string
   zone: string
-  machineType: string
-  cpus?: number
-  memoryMb?: number
+  cpus: number
+  memoryMb: number
   diskGb?: number
   imageId: string
   netBridge?: string
@@ -936,15 +927,6 @@ export const api = {
     request<Server>(`/servers/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteServer: (id: string) =>
     request<void>(`/servers/${id}`, { method: 'DELETE' }),
-  listMachineTypes: () => request<MachineType[]>('/machine-types'),
-  createMachineType: (body: MachineType) =>
-    request<MachineType>('/machine-types', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }),
-  deleteMachineType: (name: string) =>
-    request<void>(`/machine-types/${name}`, { method: 'DELETE' }),
-
   listNetworkProviderTypes: () =>
     request<NetworkProviderType[]>('/network/provider-types'),
   listNetworkProviders: () => request<NetworkProvider[]>('/network/providers'),

@@ -337,8 +337,8 @@ export default function InstanceDetailPage() {
               <DetailTable
                 rows={[
                   {
-                    label: 'Machine type',
-                    value: `${inst.machineType || 'custom'} (${inst.cpus} vCPU, ${inst.memoryMb} MB memory)`,
+                    label: 'Size',
+                    value: `${inst.cpus} vCPU, ${inst.memoryMb} MB memory`,
                   },
                   {
                     label: 'vCPUs',

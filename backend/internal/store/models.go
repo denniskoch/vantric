@@ -14,7 +14,6 @@ type Instance struct {
 	Name        string `json:"name"`
 	ServerID    string `json:"serverId"`
 	Zone        string `json:"zone"`
-	MachineType string `json:"machineType"`
 	CPUs        int    `json:"cpus"`
 	MemoryMB    int    `json:"memoryMb"`
 	DiskGB      int    `json:"diskGb"`
@@ -44,7 +43,7 @@ func parseTime(s string) time.Time {
 	return t
 }
 
-const instanceCols = `id, name, server_id, zone, machine_type, cpus, memory_mb, disk_gb,
+const instanceCols = `id, name, server_id, zone, cpus, memory_mb, disk_gb,
 	image_id, status, driver_id, internal_ip, external_ip, net_bridge, vlan_tag,
 	description, protected, os_type, created_at, updated_at`
 
@@ -52,7 +51,7 @@ func scanInstance(scan func(dest ...any) error) (*Instance, error) {
 	var i Instance
 	var created, updated string
 	var protected int
-	err := scan(&i.ID, &i.Name, &i.ServerID, &i.Zone, &i.MachineType, &i.CPUs, &i.MemoryMB,
+	err := scan(&i.ID, &i.Name, &i.ServerID, &i.Zone, &i.CPUs, &i.MemoryMB,
 		&i.DiskGB, &i.ImageID, &i.Status, &i.DriverID, &i.InternalIP, &i.ExternalIP,
 		&i.NetBridge, &i.VLANTag, &i.Description, &protected, &i.OSType, &created, &updated)
 	if err != nil {
@@ -68,8 +67,8 @@ func (s *Store) CreateInstance(ctx context.Context, i *Instance) error {
 	ts := now()
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO instances (`+instanceCols+`)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		i.ID, i.Name, i.ServerID, i.Zone, i.MachineType, i.CPUs, i.MemoryMB, i.DiskGB,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		i.ID, i.Name, i.ServerID, i.Zone, i.CPUs, i.MemoryMB, i.DiskGB,
 		i.ImageID, i.Status, i.DriverID, i.InternalIP, i.ExternalIP, i.NetBridge, i.VLANTag,
 		i.Description, boolInt(i.Protected), i.OSType, ts, ts)
 	i.CreatedAt = parseTime(ts)

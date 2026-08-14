@@ -34,6 +34,12 @@ type SectionID = 'machine' | 'os' | 'networking' | 'security' | 'advanced'
 
 const nameRe = /^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$/
 
+/** MB is what the hypervisor takes; GB is what you think in. */
+function formatMemory(mb: number): string {
+  if (!Number.isFinite(mb) || mb < 128) return ''
+  return mb % 1024 === 0 ? `${mb / 1024} GB` : `${(mb / 1024).toFixed(1)} GB`
+}
+
 export default function CreateInstancePage() {
   const navigate = useNavigate()
   const [section, setSection] = useState<SectionID>('machine')
@@ -43,7 +49,6 @@ export default function CreateInstancePage() {
   const [name, setName] = useState('')
   const [serverId, setServerId] = useState('')
   const [zone, setZone] = useState('')
-  const [machineType, setMachineType] = useState('hl-standard-2')
   const [cpus, setCpus] = useState(2)
   const [memoryMb, setMemoryMb] = useState(2048)
   // OS and storage
@@ -59,10 +64,6 @@ export default function CreateInstancePage() {
   const [protection, setProtection] = useState(false)
 
   const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
-  const { data: machineTypes = [] } = useQuery({
-    queryKey: ['machineTypes'],
-    queryFn: api.listMachineTypes,
-  })
   const { data: zones = [] } = useQuery({
     queryKey: ['zones', serverId],
     queryFn: () => api.listZones(serverId),
@@ -96,9 +97,8 @@ export default function CreateInstancePage() {
         name,
         serverId,
         zone,
-        machineType,
-        cpus: machineType === 'custom' ? cpus : undefined,
-        memoryMb: machineType === 'custom' ? memoryMb : undefined,
+        cpus,
+        memoryMb,
         diskGb,
         imageId,
         netBridge: netBridge || undefined,
@@ -111,7 +111,11 @@ export default function CreateInstancePage() {
     onError: (e: Error) => setError(e.message),
   })
 
-  const machineValid = nameRe.test(name) && Boolean(serverId) && Boolean(zone)
+  const cpuError = cpus < 1 || cpus > 128 ? 'Between 1 and 128' : ''
+  const memoryError = memoryMb < 128 ? 'At least 128 MB' : ''
+
+  const machineValid =
+    nameRe.test(name) && Boolean(serverId) && Boolean(zone) && !cpuError && !memoryError
   const osValid = Boolean(imageId) && diskGb >= 1
   const valid = machineValid && osValid
 
@@ -128,7 +132,7 @@ export default function CreateInstancePage() {
       id: 'machine',
       label: 'Machine configuration',
       summary: machineValid
-        ? `${machineType === 'custom' ? `${cpus} vCPU, ${memoryMb} MB` : machineType}, ${serverName}/${zone}`
+        ? `${cpus} vCPU, ${formatMemory(memoryMb)}, ${serverName}/${zone}`
         : 'Name, server, zone, size',
       invalid: !machineValid,
     },
@@ -265,42 +269,31 @@ export default function CreateInstancePage() {
                   </MenuItem>
                 ))}
               </TextField>
-              <Divider textAlign="left">Machine type</Divider>
-              <TextField
-                label="Machine type"
-                size="small"
-                select
-                value={machineType}
-                onChange={(e) => setMachineType(e.target.value)}
-                fullWidth
-              >
-                {machineTypes.map((mt) => (
-                  <MenuItem key={mt.name} value={mt.name}>
-                    {mt.name} — {mt.description}
-                  </MenuItem>
-                ))}
-                <MenuItem value="custom">custom — choose vCPU and memory</MenuItem>
-              </TextField>
-              {machineType === 'custom' && (
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <TextField
-                    label="vCPUs"
-                    size="small"
-                    type="number"
-                    value={cpus}
-                    onChange={(e) => setCpus(Number(e.target.value))}
-                    slotProps={{ htmlInput: { min: 1, max: 128 } }}
-                  />
-                  <TextField
-                    label="Memory (MB)"
-                    size="small"
-                    type="number"
-                    value={memoryMb}
-                    onChange={(e) => setMemoryMb(Number(e.target.value))}
-                    slotProps={{ htmlInput: { min: 128, step: 128 } }}
-                  />
-                </Box>
-              )}
+              <Divider textAlign="left">Size</Divider>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <TextField
+                  label="vCPUs"
+                  size="small"
+                  type="number"
+                  value={cpus}
+                  onChange={(e) => setCpus(Number(e.target.value))}
+                  error={Boolean(cpuError)}
+                  helperText={cpuError || 'Cores the guest sees'}
+                  slotProps={{ htmlInput: { min: 1, max: 128 } }}
+                  fullWidth
+                />
+                <TextField
+                  label="Memory (MB)"
+                  size="small"
+                  type="number"
+                  value={memoryMb}
+                  onChange={(e) => setMemoryMb(Number(e.target.value))}
+                  error={Boolean(memoryError)}
+                  helperText={memoryError || formatMemory(memoryMb)}
+                  slotProps={{ htmlInput: { min: 128, step: 128 } }}
+                  fullWidth
+                />
+              </Box>
             </>
           )}
 

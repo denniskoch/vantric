@@ -6,7 +6,6 @@ import StorageIcon from '@mui/icons-material/Storage'
 import LanIcon from '@mui/icons-material/Lan'
 import MemoryIcon from '@mui/icons-material/Memory'
 import DnsIcon from '@mui/icons-material/Dns'
-import TuneIcon from '@mui/icons-material/Tune'
 import LayersIcon from '@mui/icons-material/Layers'
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
 import BackupIcon from '@mui/icons-material/Backup'
@@ -139,12 +138,6 @@ export const sections: Section[] = [
             icon: DnsIcon,
             to: '/compute/settings/hypervisors',
             hint: 'Virtualization hosts backing everything else',
-          },
-          {
-            label: 'Machine types',
-            icon: TuneIcon,
-            to: '/compute/settings/machine-types',
-            hint: 'Sizing presets offered when creating an instance',
           },
         ],
       },

@@ -43,7 +43,6 @@ import {
   DatabaseUserPasswordPage,
 } from './pages/DatabaseFormPages'
 import HypervisorFormPage from './pages/HypervisorFormPage'
-import MachineTypeFormPage from './pages/MachineTypeFormPage'
 import DNSProviderFormPage from './pages/DNSProviderFormPage'
 import IdentityUsersPage from './pages/IdentityUsersPage'
 import IdentityUserEditPage from './pages/IdentityUserEditPage'
@@ -56,7 +55,6 @@ import IdentityProvidersPage from './pages/IdentityProvidersPage'
 import AddIdentityProviderPage from './pages/AddIdentityProviderPage'
 import DNSProvidersPage from './pages/DNSProvidersPage'
 import ServersPage from './pages/ServersPage'
-import MachineTypesPage from './pages/MachineTypesPage'
 import DisksPage from './pages/DisksPage'
 import SnapshotsPage from './pages/SnapshotsPage'
 import BackupsPage from './pages/BackupsPage'
@@ -174,8 +172,6 @@ export default function App() {
         <Route path="/compute/servers" element={<Navigate to="/compute/settings/hypervisors" replace />} />
         <Route path="/compute/settings/hypervisors/add" element={<HypervisorFormPage />} />
         <Route path="/compute/settings/hypervisors/:id/edit" element={<HypervisorFormPage />} />
-        <Route path="/compute/settings/machine-types" element={<MachineTypesPage />} />
-        <Route path="/compute/settings/machine-types/create" element={<MachineTypeFormPage />} />
       </Route>
     </Routes>
   )

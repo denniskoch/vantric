@@ -4,7 +4,6 @@ package api
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"regexp"
@@ -121,9 +120,6 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		r.Get("/tasks/{taskId}", s.taskStatus)
 		r.Get("/datastores", s.listDatastores)
 		r.Get("/ct-templates", s.listCTTemplates)
-		r.Get("/machine-types", s.listMachineTypes)
-		r.Post("/machine-types", s.createMachineType)
-		r.Delete("/machine-types/{name}", s.deleteMachineType)
 
 		// Your SSH identity, not the console's — see ssh.go.
 		r.Get("/ssh-key", s.mySSHKey)
@@ -181,61 +177,6 @@ func (s *Server) fail(w http.ResponseWriter, err error, context string) {
 	}
 	s.log.Error(context, "error", err)
 	s.err(w, http.StatusInternalServerError, context+": "+err.Error())
-}
-
-// --- machine types ---
-
-func (s *Server) listMachineTypes(w http.ResponseWriter, r *http.Request) {
-	types, err := s.store.ListMachineTypes(r.Context())
-	if err != nil {
-		s.fail(w, err, "machine types")
-		return
-	}
-	s.json(w, http.StatusOK, types)
-}
-
-func (s *Server) createMachineType(w http.ResponseWriter, r *http.Request) {
-	var mt store.MachineType
-	if err := json.NewDecoder(r.Body).Decode(&mt); err != nil {
-		s.err(w, http.StatusBadRequest, "invalid JSON body")
-		return
-	}
-	if !nameRe.MatchString(mt.Name) {
-		s.err(w, http.StatusBadRequest, "name must be lowercase letters, digits, hyphens (start with a letter)")
-		return
-	}
-	if mt.CPUs < 1 || mt.MemoryMB < 128 {
-		s.err(w, http.StatusBadRequest, "cpus must be >= 1 and memoryMb >= 128")
-		return
-	}
-	if mt.Description == "" {
-		mt.Description = describeMachineType(mt.CPUs, mt.MemoryMB)
-	}
-	if existing, err := s.store.GetMachineType(r.Context(), mt.Name); err == nil && existing != nil {
-		s.err(w, http.StatusConflict, "a machine type with this name already exists")
-		return
-	}
-	if err := s.store.CreateMachineType(r.Context(), &mt); err != nil {
-		s.fail(w, err, "creating machine type")
-		return
-	}
-	s.json(w, http.StatusCreated, mt)
-}
-
-func (s *Server) deleteMachineType(w http.ResponseWriter, r *http.Request) {
-	if err := s.store.DeleteMachineType(r.Context(), chi.URLParam(r, "name")); err != nil {
-		s.fail(w, err, "deleting machine type")
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func describeMachineType(cpus, memoryMB int) string {
-	mem := fmt.Sprintf("%d MB", memoryMB)
-	if memoryMB%1024 == 0 {
-		mem = fmt.Sprintf("%d GB", memoryMB/1024)
-	}
-	return fmt.Sprintf("%d vCPU, %s", cpus, mem)
 }
 
 // --- instances ---
@@ -332,7 +273,6 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		Name        string           `json:"name"`
 		ServerID    string           `json:"serverId"`
 		Zone        string           `json:"zone"`
-		MachineType string           `json:"machineType"`
 		CPUs        int              `json:"cpus"`
 		MemoryMB    int              `json:"memoryMb"`
 		DiskGB      int              `json:"diskGb"`
@@ -360,21 +300,15 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, "unknown serverId")
 		return
 	}
-	// Resolve sizing from machine type unless custom values are given.
-	if req.MachineType != "" && req.MachineType != "custom" {
-		mt, err := s.store.GetMachineType(r.Context(), req.MachineType)
-		if errors.Is(err, store.ErrNotFound) {
-			s.err(w, http.StatusBadRequest, "unknown machineType")
-			return
-		}
-		if err != nil {
-			s.fail(w, err, "machine type")
-			return
-		}
-		req.CPUs, req.MemoryMB = mt.CPUs, mt.MemoryMB
+	// Sizing is typed in, not chosen from a catalog of presets: a lab
+	// has one of everything and "4 vCPU, 8 GB" is the answer, not the
+	// name of a shape somebody has to define first.
+	if req.CPUs < 1 || req.CPUs > 128 {
+		s.err(w, http.StatusBadRequest, "cpus must be between 1 and 128")
+		return
 	}
-	if req.CPUs < 1 || req.MemoryMB < 128 {
-		s.err(w, http.StatusBadRequest, "cpus and memoryMb are required (machineType or custom values)")
+	if req.MemoryMB < 128 {
+		s.err(w, http.StatusBadRequest, "memoryMb must be at least 128")
 		return
 	}
 	if req.DiskGB == 0 {
@@ -412,7 +346,6 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		Name:        req.Name,
 		ServerID:    req.ServerID,
 		Zone:        req.Zone,
-		MachineType: req.MachineType,
 		CPUs:        req.CPUs,
 		MemoryMB:    req.MemoryMB,
 		DiskGB:      req.DiskGB,

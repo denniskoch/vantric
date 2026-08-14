@@ -50,7 +50,6 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	ensureDefaultMachineTypes(ctx, st, log)
 	if err := api.EnsureBootstrapUser(ctx, st, log,
 		cfg.Auth.BootstrapEmail, cfg.Auth.BootstrapPassword); err != nil {
 		log.Error("seeding the first account", "error", err)
@@ -225,32 +224,4 @@ func seedServerFromConfig(ctx context.Context, st *store.Store, cfg config.Confi
 		return
 	}
 	log.Info("seeded server from config", "name", sv.Name, "type", sv.Type)
-}
-
-// ensureDefaultMachineTypes seeds the preset catalog on first run; after
-// that it's user-managed via Settings → Machine types.
-func ensureDefaultMachineTypes(ctx context.Context, st *store.Store, log *slog.Logger) {
-	n, err := st.CountMachineTypes(ctx)
-	if err != nil {
-		log.Error("counting machine types", "error", err)
-		return
-	}
-	if n > 0 {
-		return
-	}
-	defaults := []store.MachineType{
-		{Name: "hl-micro", Description: "1 vCPU, 512 MB", CPUs: 1, MemoryMB: 512},
-		{Name: "hl-small", Description: "1 vCPU, 1 GB", CPUs: 1, MemoryMB: 1024},
-		{Name: "hl-standard-2", Description: "2 vCPU, 2 GB", CPUs: 2, MemoryMB: 2048},
-		{Name: "hl-standard-4", Description: "4 vCPU, 4 GB", CPUs: 4, MemoryMB: 4096},
-		{Name: "hl-highmem-4", Description: "4 vCPU, 8 GB", CPUs: 4, MemoryMB: 8192},
-		{Name: "hl-highmem-8", Description: "8 vCPU, 16 GB", CPUs: 8, MemoryMB: 16384},
-	}
-	for i := range defaults {
-		if err := st.CreateMachineType(ctx, &defaults[i]); err != nil {
-			log.Error("seeding machine type", "name", defaults[i].Name, "error", err)
-			return
-		}
-	}
-	log.Info("seeded default machine types", "count", len(defaults))
 }
