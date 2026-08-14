@@ -56,6 +56,14 @@ Dockerfile).
   future drivers without containers stay simple. Proxmox's
   cluster/resources?type=vm returns BOTH qemu and lxc: always filter by
   the resource Type field.
+- Backups are READ AND DELETE ONLY: the hypervisor's own backup jobs
+  write them, this console lists what exists and removes what you no
+  longer want. Listing is the optional `hypervisor.BackupDriver`
+  capability (type assertion), so a driver without a backup catalog
+  stays simple and its servers contribute nothing rather than erroring.
+  A backup outlives its guest, so the archive carries the vmid and
+  guest type; the name is resolved from the cluster where the guest
+  still exists and left blank where it doesn't.
 - Template builds (cloud image → import disk → cloud-init drive →
   serial console → convert) run detached in a goroutine tracked by an
   in-memory registry in internal/api/buildtemplate.go, because the

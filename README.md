@@ -104,6 +104,9 @@ Base path `/api/v1`:
   `DELETE /ct-templates?server=&zone=&volume=`,
   `DELETE /images/{id}?server=` (destroys a template VM),
   `GET /tasks/{taskId}` for import progress
+- `GET /backups` — guest backup archives across every server that
+  keeps a catalog (`hypervisor.BackupDriver`), newest first;
+  `DELETE /backups?server=&zone=&volume=`
 - `GET /bridges` — network bridges per node, for the NIC pickers
 - `GET /cloud-images`, `POST /cloud-images/{download,upload}`,
   `DELETE /cloud-images?server=&zone=&volume=` (disk images in a

@@ -73,6 +73,33 @@ type ISO = Volume
 // from, held in a datastore's "import" content.
 type CloudImage = Volume
 
+// Backup is a guest backup archive held on a datastore. It carries
+// more than a plain volume: a backup outlives the guest it came from,
+// so what it restores to has to travel with it.
+type Backup struct {
+	// ServerID is filled in by the API layer, not the driver.
+	ServerID  string `json:"serverId"`
+	ID        string `json:"id"` // volume ID
+	Name      string `json:"name"`
+	Zone      string `json:"zone"`
+	Storage   string `json:"storage"`
+	SizeBytes int64  `json:"sizeBytes"`
+	// CreatedAt is unix seconds; 0 when unknown.
+	CreatedAt int64 `json:"createdAt"`
+	// VMID identifies the guest; 0 when the archive doesn't say.
+	VMID int `json:"vmid"`
+	// GuestName is empty once the guest is gone — which is exactly
+	// when a backup matters most.
+	GuestName string `json:"guestName"`
+	// GuestType is "qemu" or "lxc".
+	GuestType string `json:"guestType"`
+	// Format is the archive format, e.g. vma.zst or tar.zst.
+	Format string `json:"format"`
+	Notes  string `json:"notes"`
+	// Protected backups are exempt from retention pruning.
+	Protected bool `json:"protected"`
+}
+
 // ISODownloadSpec asks the hypervisor to fetch an image itself, so the
 // bytes never pass through this app.
 type ISODownloadSpec struct {
@@ -416,6 +443,15 @@ type Driver interface {
 	Stop(ctx context.Context, driverID string) error
 	Reset(ctx context.Context, driverID string) error
 	Delete(ctx context.Context, driverID string) error
+}
+
+// BackupDriver is an optional capability for backends that keep a
+// catalog of guest backups. Not every hypervisor does, and one that
+// doesn't should stay simple — so this is a type assertion like
+// ContainerDriver, and servers without it are skipped in the listing
+// rather than reporting an error.
+type BackupDriver interface {
+	Backups(ctx context.Context) ([]Backup, error)
 }
 
 // ContainerDriver is an optional capability for backends that support

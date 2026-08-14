@@ -214,6 +214,25 @@ export interface ISO {
 export type CTTemplate = ISO
 export type CloudImage = ISO
 
+/** A guest backup archive on a datastore. */
+export interface Backup {
+  serverId: string
+  id: string
+  name: string
+  zone: string
+  storage: string
+  sizeBytes: number
+  createdAt: number
+  vmid: number
+  /** Empty once the guest itself is gone. */
+  guestName: string
+  /** qemu | lxc */
+  guestType: string
+  format: string
+  notes: string
+  protected: boolean
+}
+
 export interface TemplateBuildRequest {
   name: string
   zone: string
@@ -705,6 +724,13 @@ export const api = {
     ),
   deleteDNSZone: (providerId: string, zoneId: string) =>
     request<void>(`/dns/zones/${zoneId}?provider=${providerId}`, { method: 'DELETE' }),
+
+  listBackups: () => request<Backup[]>('/backups'),
+  deleteBackup: (serverId: string, zone: string, volume: string) =>
+    request<{ taskId: string }>(
+      `/backups?server=${serverId}&zone=${encodeURIComponent(zone)}&volume=${encodeURIComponent(volume)}`,
+      { method: 'DELETE' },
+    ),
 
   listInstances: () => request<Instance[]>('/instances'),
   getInstance: (name: string) => request<Instance>(`/instances/${name}/`),

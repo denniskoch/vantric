@@ -61,6 +61,8 @@ func (s *Server) Router() http.Handler {
 		r.Post("/isos/upload", s.uploadVolume("iso", isoExtensions))
 		r.Delete("/isos", s.deleteVolume("iso", "an ISO image"))
 		r.Delete("/ct-templates", s.deleteVolume("vztmpl", "a CT template"))
+		r.Get("/backups", s.listBackups)
+		r.Delete("/backups", s.deleteVolume("backup", "a backup"))
 		r.Delete("/images/{id}", s.deleteImage)
 		r.Get("/cloud-images", s.listCloudImages)
 		r.Post("/cloud-images/download", s.downloadCloudImage)

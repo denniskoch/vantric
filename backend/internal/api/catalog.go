@@ -150,6 +150,32 @@ func (s *Server) listISOs(w http.ResponseWriter, r *http.Request) {
 	s.json(w, http.StatusOK, isos)
 }
 
+// listBackups spans every server that keeps a backup catalog, newest
+// first — a backup list is read to answer "what can I restore right
+// now", so recency beats alphabetical order here.
+func (s *Server) listBackups(w http.ResponseWriter, r *http.Request) {
+	backups, err := listAcrossServers(s, r,
+		func(ctx context.Context, d hypervisor.Driver) ([]hypervisor.Backup, error) {
+			bd, ok := d.(hypervisor.BackupDriver)
+			if !ok {
+				return nil, nil
+			}
+			return bd.Backups(ctx)
+		},
+		func(b *hypervisor.Backup, id string) { b.ServerID = id })
+	if err != nil {
+		s.fail(w, err, "backups")
+		return
+	}
+	slices.SortFunc(backups, func(a, b hypervisor.Backup) int {
+		if a.CreatedAt != b.CreatedAt {
+			return int(b.CreatedAt - a.CreatedAt)
+		}
+		return strings.Compare(a.Name, b.Name)
+	})
+	s.json(w, http.StatusOK, backups)
+}
+
 func (s *Server) listCTTemplates(w http.ResponseWriter, r *http.Request) {
 	templates, err := listAcrossServers(s, r,
 		func(ctx context.Context, d hypervisor.Driver) ([]hypervisor.CTTemplate, error) {

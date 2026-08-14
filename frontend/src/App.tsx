@@ -21,6 +21,7 @@ import ServersPage from './pages/ServersPage'
 import MachineTypesPage from './pages/MachineTypesPage'
 import DisksPage from './pages/DisksPage'
 import SnapshotsPage from './pages/SnapshotsPage'
+import BackupsPage from './pages/BackupsPage'
 import ContainersPage from './pages/ContainersPage'
 import ContainerDetailPage from './pages/ContainerDetailPage'
 import ISOsPage from './pages/ISOsPage'
@@ -68,6 +69,7 @@ export default function App() {
         <Route path="/compute/images" element={<Navigate to="/compute/vm-templates" replace />} />
         <Route path="/compute/disks" element={<DisksPage />} />
         <Route path="/compute/snapshots" element={<SnapshotsPage />} />
+        <Route path="/compute/backups" element={<BackupsPage />} />
         <Route path="/compute/isos" element={<ISOsPage />} />
         <Route path="/compute/isos/add" element={<AddMediaPage kind={isoKind} />} />
         <Route path="/compute/cloud-images" element={<CloudImagesPage />} />

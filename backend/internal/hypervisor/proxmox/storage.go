@@ -132,6 +132,12 @@ type contentItem struct {
 	Storage   string
 	SizeBytes int64
 	CreatedAt int64
+	// Backup-only fields; zero for every other content type.
+	VMID      int
+	Format    string
+	Notes     string
+	Protected bool
+	Subtype   string
 }
 
 // storageContent lists volumes of one content type ("iso", "vztmpl")
@@ -152,6 +158,13 @@ func (d *Driver) storageContent(ctx context.Context, contentType string) ([]cont
 			VolID string `json:"volid"`
 			Size  int64  `json:"size"`
 			CTime int64  `json:"ctime"`
+			// Backups report which guest they came from and how they
+			// were written; other content types leave these empty.
+			VMID      int    `json:"vmid"`
+			Format    string `json:"format"`
+			Notes     string `json:"notes"`
+			Protected bool   `json:"protected"`
+			Subtype   string `json:"subtype"`
 		}
 		path := fmt.Sprintf("/nodes/%s/storage/%s/content?content=%s", s.Node, s.Storage, contentType)
 		if err := d.do(ctx, http.MethodGet, path, nil, &content); err != nil {
@@ -173,6 +186,11 @@ func (d *Driver) storageContent(ctx context.Context, contentType string) ([]cont
 				Storage:   s.Storage,
 				SizeBytes: c.Size,
 				CreatedAt: c.CTime,
+				VMID:      c.VMID,
+				Format:    c.Format,
+				Notes:     c.Notes,
+				Protected: c.Protected,
+				Subtype:   c.Subtype,
 			})
 		}
 	}
@@ -209,6 +227,31 @@ func (d *Driver) CTTemplates(ctx context.Context) ([]hypervisor.CTTemplate, erro
 		})
 	}
 	return templates, nil
+}
+
+// Backups lists vzdump archives across every datastore holding them,
+// naming the guest each came from where that guest still exists.
+func (d *Driver) Backups(ctx context.Context) ([]hypervisor.Backup, error) {
+	items, err := d.storageContent(ctx, "backup")
+	if err != nil {
+		return nil, err
+	}
+	names := map[int]string{}
+	if vms, err := d.clusterVMs(ctx); err == nil {
+		for _, vm := range vms {
+			names[vm.VMID] = vm.Name
+		}
+	}
+	backups := make([]hypervisor.Backup, 0, len(items))
+	for _, it := range items {
+		backups = append(backups, hypervisor.Backup{
+			ID: it.VolID, Name: it.Name, Zone: it.Node, Storage: it.Storage,
+			SizeBytes: it.SizeBytes, CreatedAt: it.CreatedAt,
+			VMID: it.VMID, GuestName: names[it.VMID], GuestType: it.Subtype,
+			Format: it.Format, Notes: it.Notes, Protected: it.Protected,
+		})
+	}
+	return backups, nil
 }
 
 // Snapshots lists snapshots of every (non-template) VM.
