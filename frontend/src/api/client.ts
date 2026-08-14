@@ -420,6 +420,10 @@ export interface LabNetwork {
   downMbps: number
   upMbps: number
   speedtestAt: number
+  cellular: boolean
+  signalPercent: number
+  radio: string
+  dataPlan: string
 }
 
 export interface NetworkWiFi {

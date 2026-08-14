@@ -74,6 +74,14 @@ type Network struct {
 	UpMbps   float64 `json:"upMbps"`
 	// SpeedtestAt is unix seconds of that test; 0 when never run.
 	SpeedtestAt int64 `json:"speedtestAt"`
+
+	// Cellular uplinks report their radio instead of a link speed.
+	Cellular bool `json:"cellular"`
+	// SignalPercent is 0-100; Radio is the technology and band, e.g.
+	// "5G n2". DataPlan names the plan when the carrier reports one.
+	SignalPercent int    `json:"signalPercent"`
+	Radio         string `json:"radio"`
+	DataPlan      string `json:"dataPlan"`
 }
 
 // WiFi is a wireless network (SSID) the controller broadcasts.

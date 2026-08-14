@@ -172,7 +172,12 @@ Surface the daily 90% here and link out for the rest.
   nav follows the controller's own vocabulary — WiFi, Networks,
   Internet, VPN, Devices, Clients — with networks split by the
   `category` the driver derives from UniFi's purpose field. WiFi
-  passphrases are never read.
+  passphrases are never read. A WAN's live state comes from two places
+  the network config doesn't hold — /stat/health for ISP and latency,
+  the gateway device for each port's address — and a cellular backup
+  is a device rather than a WAN port, so it's synthesized into the
+  Internet list from its `mbb` object (carrier, signal, radio, plan).
+  A failover uplink sitting idle reads "Standby", not a fault.
 - IAM & Admin (this console's own RBAC) and Identity Platform (the
   lab's identity service) are deliberately separate sections: one
   governs access to this app, the other manages a service in the lab.

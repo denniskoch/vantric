@@ -450,6 +450,12 @@ func (p *Provider) networksIn(ctx context.Context, site network.Site) ([]network
 	if err := p.getSite(ctx, site.ID, "/rest/networkconf", &res); err != nil {
 		return nil, err
 	}
+	// A cellular backup is its own device rather than a port on the
+	// gateway, so it never appears in the network config — but it is
+	// unmistakably an internet connection, and the one you care about
+	// most on the day the fibre dies.
+	cellular, _ := p.cellularWANs(ctx, site)
+
 	// Only fetched when the site actually has an uplink to describe.
 	var wan map[string]wanStatus
 	for _, n := range res {
@@ -488,7 +494,72 @@ func (p *Provider) networksIn(ctx context.Context, site network.Site) ([]network
 			last.SpeedtestAt = status.SpeedtestAt
 		}
 	}
-	return networks, nil
+	return append(networks, cellular...), nil
+}
+
+// cellularWANs reads the mobile broadband devices at a site. Their
+// state lives under an "mbb" object: which carrier, how strong the
+// signal, and whether the plan still has room.
+func (p *Provider) cellularWANs(ctx context.Context, site network.Site) ([]network.Network, error) {
+	var devices []struct {
+		ID       string `json:"_id"`
+		Type     string `json:"type"`
+		Name     string `json:"name"`
+		State    int    `json:"state"`
+		Internet bool   `json:"internet"`
+		MBB      *struct {
+			Mode    string `json:"mode"`
+			GeoInfo struct {
+				Address string `json:"address"`
+				ISP     string `json:"isp"`
+			} `json:"geo_info"`
+			Radio struct {
+				RAT             string `json:"rat"`
+				Band            string `json:"band"`
+				NetworkOperator string `json:"networkoperator"`
+				SignalPercent   int    `json:"signal_percent"`
+			} `json:"radio"`
+		} `json:"mbb"`
+		DataPlan *struct {
+			PlanName string `json:"plan_name"`
+			Status   string `json:"status"`
+		} `json:"kore_esim_data_plan"`
+	}
+	if err := p.getSite(ctx, site.ID, "/stat/device", &devices); err != nil {
+		return nil, err
+	}
+	wans := []network.Network{}
+	for _, d := range devices {
+		if d.Type != "umbb" || d.MBB == nil {
+			continue
+		}
+		radio := strings.TrimSpace(d.MBB.Radio.RAT + " " + d.MBB.Radio.Band)
+		plan := ""
+		if d.DataPlan != nil && d.DataPlan.PlanName != "" {
+			plan = d.DataPlan.PlanName
+			if d.DataPlan.Status != "" && d.DataPlan.Status != "active" {
+				plan += " (" + d.DataPlan.Status + ")"
+			}
+		}
+		wans = append(wans, network.Network{
+			Site:     site.Name,
+			Category: "wan",
+			ID:       d.ID,
+			Name:     d.Name,
+			// The mode is the useful word here: a failover uplink
+			// being idle is success, not a fault.
+			Purpose:       firstNonEmpty(d.MBB.Mode, "cellular"),
+			Enabled:       true,
+			IP:            d.MBB.GeoInfo.Address,
+			ISP:           firstNonEmpty(d.MBB.GeoInfo.ISP, d.MBB.Radio.NetworkOperator),
+			Up:            d.Internet && d.State == 1,
+			Cellular:      true,
+			SignalPercent: d.MBB.Radio.SignalPercent,
+			Radio:         radio,
+			DataPlan:      plan,
+		})
+	}
+	return wans, nil
 }
 
 // category groups UniFi's purposes the way its own navigation does:

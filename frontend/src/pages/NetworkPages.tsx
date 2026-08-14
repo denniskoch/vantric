@@ -429,11 +429,12 @@ export function NetworkInternetPage() {
             <TableRow>
               <TableCell>Site</TableCell>
               <TableCell>Name</TableCell>
+              <TableCell>Role</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>IP</TableCell>
               <TableCell>ISP</TableCell>
               <TableCell align="right">Latency</TableCell>
-              <TableCell align="right">Speed test</TableCell>
+              <TableCell align="right">Signal / speed test</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -443,8 +444,17 @@ export function NetworkInternetPage() {
                 <TableRow key={`${wan.site}/${wan.id}`} hover>
                   <TableCell>{wan.site}</TableCell>
                   <TableCell>{wan.name}</TableCell>
+                  <TableCell sx={{ color: '#5f6368' }}>
+                    {wan.cellular ? `cellular ${wan.purpose}` : 'wired'}
+                  </TableCell>
                   <TableCell sx={{ color: wan.up ? '#188038' : '#5f6368' }}>
-                    {wan.up ? 'Up' : blind ? '—' : 'Not connected'}
+                    {wan.up
+                      ? wan.purpose === 'failover'
+                        ? 'Standby'
+                        : 'Up'
+                      : blind
+                        ? '—'
+                        : 'Not connected'}
                   </TableCell>
                   <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
                     {wan.ip || (blind ? '—' : '—')}
@@ -467,17 +477,30 @@ export function NetworkInternetPage() {
                   <TableCell align="right" sx={{ color: wan.latencyMs > 100 ? '#f29900' : undefined }}>
                     {wan.latencyMs ? `${wan.latencyMs} ms` : '—'}
                   </TableCell>
-                  <TableCell align="right" sx={{ color: '#5f6368' }}>
-                    {wan.downMbps
-                      ? `${Math.round(wan.downMbps)} ↓ / ${Math.round(wan.upMbps)} ↑ Mbps`
-                      : '—'}
+                  <TableCell
+                    align="right"
+                    sx={{
+                      color: wan.cellular && wan.signalPercent < 40 ? '#f29900' : '#5f6368',
+                    }}
+                  >
+                    {wan.cellular ? (
+                      <Tooltip title={wan.dataPlan || 'No data plan reported'}>
+                        <span>
+                          {wan.signalPercent}% · {wan.radio || 'cellular'}
+                        </span>
+                      </Tooltip>
+                    ) : wan.downMbps ? (
+                      `${Math.round(wan.downMbps)} ↓ / ${Math.round(wan.upMbps)} ↑ Mbps`
+                    ) : (
+                      '—'
+                    )}
                   </TableCell>
                 </TableRow>
               )
             })}
             {wans.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#5f6368' }}>
                   {isLoading ? 'Loading…' : 'No internet connections.'}
                 </TableCell>
               </TableRow>
