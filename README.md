@@ -1,55 +1,95 @@
 # lab-cloud-manager
 
-A home lab manager with a Google Cloud Console–inspired UI. Manage VMs on
-your homelab hypervisor the way you'd manage Compute Engine instances.
+A single pane of glass over the tools already running in your home lab,
+wearing a Google Cloud Console–inspired UI. It doesn't reimplement what
+those tools do — it connects to them and presents them in one
+vocabulary, so you stop jumping between fifteen consoles.
 
-- **Backend**: Go — REST API, SQLite storage, pluggable hypervisor drivers
-- **Sign-in**: local accounts (bcrypt) with server-side sessions; SSO later
+| Section | Backed by | What you get |
+|---|---|---|
+| **Compute** | Proxmox VE | VM and LXC instances, disks, snapshots, backups, templates, ISOs, browser SSH |
+| **Databases** | PostgreSQL, MySQL/MariaDB | Servers you already run: databases, tables, users, permissions |
+| **Network** | UniFi | Sites, WiFi, networks, WAN/internet, VPN, devices, clients (read-only) |
+| **DNS** | Cloudflare | Zones and record sets |
+| **Identity Platform** | authentik | Users, groups, applications, events |
+| **IAM & Admin** | this app | Who may use *this* console, and your own account |
+
+- **Backend**: Go — REST API (chi), SQLite storage, pluggable drivers per section
 - **Frontend**: React + TypeScript + MUI (Vite)
-- **Hypervisors**: Proxmox VE (via API token), plus a mock driver for development
-- **Databases**: PostgreSQL and MySQL/MariaDB servers you already run, connected read/write
+- **Sign-in**: local accounts (bcrypt) with server-side sessions; SSO later
 
-## Quick start (Docker, no cluster needed)
+## Quick start
+
+Nothing but Docker required — the mock hypervisor driver means you don't
+need a Proxmox cluster to see the app work.
 
 ```bash
 docker compose --profile dev up
 ```
 
-Open http://localhost:5173. Backend hot-reloads on Go changes (air, polling
-mode for macOS bind mounts), frontend has Vite HMR. Create an instance and
-watch it go PROVISIONING → STAGING → RUNNING.
+**Then find your sign-in password.** On first run the app creates one
+owner account and logs its generated password exactly once:
 
-Native alternative (no Docker): `cd backend && go run ./cmd/server` plus
-`cd frontend && npm run dev`.
-
-## Deploying
-
-The production image bundles the API and the built UI into one ~32 MB image;
-the Go server serves the SPA with client-route fallback:
-
-```bash
-docker compose --profile prod up --build -d   # serves everything on :8080
+```
+msg="created the first owner account — sign in and change this password" email=lab@localhost password=…
 ```
 
-Point it at Proxmox with env vars (or bake a config.yaml into a bind mount):
+Open http://localhost:5173, sign in with `lab@localhost` and that
+password, and change it under IAM & Admin → My account. To choose the
+password yourself instead, set `auth.bootstrapPassword` in config.yaml
+(or `LCM_AUTH_BOOTSTRAP_PASSWORD`) **before** the first start — after
+that the account exists and the setting is ignored.
+
+The dev stack hot-reloads: Go changes rebuild via air, the frontend has
+Vite HMR. Both watchers poll, because file-change events don't cross the
+macOS→VM bind mount — don't remove that.
+
+Native alternative (no Docker), two terminals. The backend runs on
+:8080 and Vite proxies `/api` to it:
 
 ```bash
-LCM_DRIVER=proxmox \
-LCM_PROXMOX_URL=https://pve.example.lan:8006 \
-LCM_PROXMOX_TOKEN_ID='root@pam!labcloud' \
-LCM_PROXMOX_SECRET=xxxx \
-docker compose --profile prod up --build -d
+cd backend && go run ./cmd/server
 ```
 
-SQLite data persists in the `app-data` volume (`/data/labcloud.db`).
+```bash
+cd frontend && npm install && npm run dev
+```
 
-## Using Proxmox
+`go run ./cmd/server` with no arguments uses the built-in defaults —
+SQLite in the working directory, the mock hypervisor. Add
+`-config ../config.yaml` once you have one (`cp config.example.yaml
+config.yaml`); it's gitignored, since it holds your Proxmox token.
 
-1. Create an API token: Datacenter → Permissions → API Tokens (needs VM
-   privileges on the nodes/VMs it will manage).
-2. `cp config.example.yaml config.yaml` and fill in `proxmox:` settings,
-   set `driver: proxmox` — or use the `LCM_*` env vars shown above.
-3. Restart the backend (native: `go run ./cmd/server -config ../config.yaml`).
+## Connecting your lab
+
+Every section connects the same way: a credential record you add in the
+GUI, verified against the real service before it's stored. Nothing but
+the first hypervisor can be seeded from config, so most of setup happens
+in the app.
+
+| To connect | Go to | You'll need |
+|---|---|---|
+| Proxmox | Compute → Settings → Hypervisors | API token (see below) |
+| PostgreSQL / MySQL | Databases → Instances → Add | Host, port, a user that can read the catalog |
+| Cloudflare | DNS → Providers | API token that can read and edit zones |
+| authentik | Identity Platform → Providers | Admin API token |
+| UniFi | Network → Controller | API key, or a local account on the controller |
+
+### Proxmox
+
+1. Datacenter → Permissions → API Tokens → Add. Simplest is to leave
+   privilege separation off, so the token inherits its user's rights;
+   otherwise give it a role covering the nodes, VMs and datastores it
+   should manage.
+2. One privilege is worth naming: **`VM.Monitor`**. It's what lets the
+   console create its SSH account inside a guest through the QEMU guest
+   agent. Without it everything else works, and the browser terminal
+   fails on any guest that has never seen your key — with a message
+   saying exactly that.
+3. Add it under Compute → Settings → Hypervisors. The credentials are
+   verified before they're stored, so a saved hypervisor is one that
+   answers. Config can seed the first one instead (`driver: proxmox`
+   plus the `proxmox:` block) — first run only.
 
 Concept mapping:
 
@@ -60,36 +100,97 @@ Concept mapping:
 | Machine type | `hl-*` presets → cores/memory config |
 | Instance status | GCP-style: `PROVISIONING`, `STAGING`, `RUNNING`, `STOPPING`, `TERMINATED` |
 
+## Deploying
+
+The production image bundles the API and the built UI into one image;
+the Go server serves the SPA with client-route fallback:
+
+```bash
+docker compose --profile prod up --build -d   # everything on :8080
+```
+
+Configuration is `config.yaml` (see `config.example.yaml`, which
+documents every setting) or `LCM_*` environment variables, which win:
+
+```bash
+LCM_DRIVER=proxmox \
+LCM_PROXMOX_URL=https://pve.example.lan:8006 \
+LCM_PROXMOX_TOKEN_ID='root@pam!labcloud' \
+LCM_PROXMOX_SECRET=xxxx \
+LCM_AUTH_BOOTSTRAP_EMAIL=you@example.com \
+LCM_AUTH_BOOTSTRAP_PASSWORD='something long' \
+docker compose --profile prod up --build -d
+```
+
+SQLite data persists in the `app-data` volume (`/data/labcloud.db`).
+That file holds your accounts, every backend credential and every
+account's SSH private key — back it up, and treat it as a secret.
+
+Put it behind TLS if it leaves your LAN: the session cookie is marked
+`Secure` only when the request arrives over HTTPS (directly or via
+`X-Forwarded-Proto`), because a Secure cookie on a plain-http LAN
+console is simply never sent, which looks like a sign-in loop with no
+explanation.
+
 ## Architecture
 
 ```
 backend/
-  cmd/server/            entry point
+  cmd/server/            entry point: loads config, builds registries, serves
   internal/
-    api/                 REST handlers (chi) + reconciler loop
+    api/                 REST handlers (chi), auth middleware, reconciler loop,
+                         browser-SSH websocket bridge
     config/              YAML + LCM_* env config
-    hypervisor/          Driver interface (the abstraction point)
-      mock/              in-memory driver with simulated state transitions
-      proxmox/           Proxmox VE REST driver
     store/               SQLite persistence (portable SQL, Postgres planned)
+    hypervisor/          Driver interface — mock/ and proxmox/
+    database/            Driver interface — postgres/ and mysql/
+    dns/                 Provider interface — cloudflare/
+    identity/            Provider interface — authentik/
+    network/             Provider interface — unifi/
 frontend/
   src/
-    api/                 typed API client
-    components/          Shell (top bar + nav drawer), StatusIcon
-    pages/               Instances, CreateInstance, InstanceDetail, Images, Overview
+    api/client.ts        typed API client; every call goes through it
+    components/          Shell (top bar + section nav), nav.tsx (the site map),
+                         FormPage, DetailTable, BrandIcon, ConnectButton
+    pages/               one per screen, named for its route
+    user.ts              useSession() — who you're signed in as
 ```
+
+Each section repeats the same shape, and that's deliberate: an
+interface package is the boundary, backends are DB records holding
+write-only credentials, one live instance per record lives in a
+`Registry`, and a factory maps a type string to an implementation.
+Adding a backend means implementing the interface and registering it in
+the factory — the API and the GUI dropdown follow automatically.
 
 Design notes:
 
-- **The hypervisor is the source of truth for runtime state** (status, IPs);
-  the store owns metadata (machine types, creation record). A
-  reconciler polls the driver every 2s and syncs the store; the UI polls the
-  API every 3s.
-- **Adding a hypervisor** = implementing `hypervisor.Driver` (see
-  `internal/hypervisor/driver.go`) and registering it in `cmd/server/main.go`.
-- **Postgres**: all SQL is written portably (TEXT keys, RFC3339 timestamps).
-  Adding it means a `pgx` driver branch in `store.Open` plus `?`→`$n`
-  placeholder handling.
+- **The backing tool is the source of truth**, not this app. The
+  hypervisor owns runtime state (status, IPs); the store owns metadata.
+  A reconciler syncs driver → store every 2s and the UI polls the API
+  every 3s, so handlers never poll a hypervisor to answer a read.
+- **Listings span every backend** and stamp each row with the server,
+  provider or site it came from — one that errors is skipped and
+  logged, not fatal to the page.
+- **Sessions are rows, not tokens.** Signing out, disabling an account
+  or changing a password takes effect on the next request rather than
+  whenever a token would have expired.
+- **SSH keys are per account.** The console signs in to guests as the
+  local part of your email with your own key, so a guest's auth log
+  names a person; the private half never leaves the backend.
+- **Postgres for the store**: all SQL is written portably (TEXT keys,
+  RFC3339 timestamps). Adding it means a `pgx` branch in `store.Open`
+  plus `?`→`$n` placeholder handling.
+
+## Development
+
+```bash
+cd backend  && go build ./... && go vet ./...     # build + vet
+cd frontend && npx tsc -b && npm run build        # type-check + build
+```
+
+Both must pass before a commit. There is no test suite yet; changes are
+verified against real backends.
 
 ## API
 
@@ -101,7 +202,6 @@ and `/auth/me` needs a session cookie:
   (change your own, needs the current one)
 - `GET /iam/roles`, `GET/POST /iam/users`,
   `GET/PUT/DELETE /iam/users/{id}`, `PUT /iam/users/{id}/password`
-
 - `GET /zones`, `GET /images`, `GET /isos`, `GET /ct-templates`,
   `GET /datastores`, `GET /disks`, `GET /snapshots` — span every
   registered server, each item stamped with `serverId`; `?server=`
@@ -156,8 +256,9 @@ and `/auth/me` needs a session cookie:
 - `GET /database/servers/{id}/connections`
 - `GET /network/provider-types`, `GET /network/providers`,
   `POST /network/providers`, `PUT/DELETE /network/providers/{id}`
-- `GET /network/{networks,clients,devices}` — read from the configured
-  controller, which defaults to the only one when `?provider=` is absent
+- `GET /network/{sites,networks,wifi,clients,devices}` — read across
+  every site the controller manages, each row stamped with its site;
+  defaults to the only controller when `?provider=` is absent
 - `GET /identity/provider-types`, `GET /identity/providers`,
   `POST /identity/providers`, `PUT/DELETE /identity/providers/{id}`
 - `GET/POST /identity/users`,
