@@ -20,6 +20,14 @@ type Config struct {
 	// Listen is the address the API serves on.
 	Listen   string
 	Database Database
+	// SiteURL is the address people reach this console at, e.g.
+	// https://console.example.com. Behind a proxy or a tunnel the app
+	// cannot work this out — the request arrives addressed to whatever
+	// the proxy dialled, an internal name and port — so anything the
+	// outside world has to match, notably the OIDC redirect URI, is
+	// built from this. Empty means derive it from the request, which is
+	// right when you reach the app directly.
+	SiteURL string
 	// StaticDir, when set, serves the built frontend from this directory
 	// (with SPA fallback). Empty in development, where Vite serves the UI.
 	StaticDir string
@@ -66,6 +74,7 @@ func Load() Config {
 	overrideStr(&cfg.Listen, "LCM_LISTEN")
 	overrideStr(&cfg.Database.Driver, "LCM_DB_DRIVER")
 	overrideStr(&cfg.Database.DSN, "LCM_DB_DSN")
+	overrideStr(&cfg.SiteURL, "LCM_SITE_URL")
 	overrideStr(&cfg.StaticDir, "LCM_STATIC_DIR")
 	overrideBool(&cfg.SSH.Provision, "LCM_SSH_PROVISION")
 	overrideBool(&cfg.SSH.ProvisionSudo, "LCM_SSH_PROVISION_SUDO")

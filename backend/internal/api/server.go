@@ -33,6 +33,9 @@ type Server struct {
 	networkRegistry *network.Registry
 	log             *slog.Logger
 	staticDir       string
+	// siteURL is the address the outside world reaches this console at,
+	// when that isn't the one the request arrived on. See config.SiteURL.
+	siteURL string
 	// dataDir is where the store lives; the console's SSH key sits
 	// beside it.
 	dataDir string
@@ -57,12 +60,13 @@ func New(
 	log *slog.Logger,
 	staticDir string,
 	dataDir string,
+	siteURL string,
 	sshOpts SSHOptions,
 ) *Server {
 	return &Server{
 		store: st, registry: registry, dnsRegistry: dnsRegistry, dbRegistry: dbRegistry,
 		identityRegistry: identityRegistry, networkRegistry: networkRegistry,
-		log: log, staticDir: staticDir, dataDir: dataDir, ssh: sshOpts,
+		log: log, staticDir: staticDir, dataDir: dataDir, siteURL: siteURL, ssh: sshOpts,
 		builds: newBuildRegistry(),
 	}
 }

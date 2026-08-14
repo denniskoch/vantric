@@ -390,6 +390,17 @@ Surface the daily 90% here and link out for the rest.
   render their `planned` list instead. Landing copy (`description`,
   `planned`, per-item `hint`) lives in nav.tsx with everything else, so
   a new section needs no new page component.
+- THE APP DOESN'T GUESS ITS OWN ADDRESS when told: `LCM_SITE_URL` is
+  the public origin, and everything the outside world has to match is
+  built from it — today the OIDC redirect URI, via `siteOrigin`. Behind
+  a tunnel the request arrives addressed to whatever the proxy dialled
+  (`app:8080`), which is what silently broke sign-in. Unset, it falls
+  back to the request, which is right on a laptop. It is NOT used for
+  the cookie Secure flag: that stays per-request (`isTLS`), so the same
+  server works over https through the tunnel and plain http on the LAN.
+  The settings page shows the redirect URI THE SERVER computes rather
+  than one the browser derives, since behind a proxy the two disagree
+  and only the server's is the one to register.
 - PUBLISHING IS A CLOUDFLARE TUNNEL. `cloudflared` is an ordinary
   service in the one compose file — NO PROFILES, here or anywhere: a
   service you have to remember a flag to start is a service you'll

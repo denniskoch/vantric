@@ -118,6 +118,7 @@ cp .env.example .env
 |---|---|---|
 | `LCM_AUTH_BOOTSTRAP_EMAIL` | `lab@localhost` | The first account. First run only |
 | `LCM_AUTH_BOOTSTRAP_PASSWORD` | *generated* | Left empty, one is generated and logged once |
+| `LCM_SITE_URL` | *from the request* | The address people reach this console at. Required behind a proxy or tunnel — see below |
 | `LCM_SSH_PROVISION` | `true` | Create the console's login on a guest through the guest agent |
 | `LCM_SSH_PROVISION_SUDO` | `false` | Give that login passwordless sudo |
 | `LCM_LISTEN` | `0.0.0.0:8080` | Set by the image |
@@ -159,6 +160,15 @@ certificate. Create the tunnel in Zero Trust → Networks → Tunnels, point
 its public hostname at `http://app:8080`, and put the token in `.env` as
 `TUNNEL_TOKEN`. Without a token that container restarts until you set
 one; the app itself doesn't care.
+
+**Set `LCM_SITE_URL` when you do this.** Behind the tunnel the request
+reaches the app addressed to `app:8080`, so anything the outside world
+must agree with — the OIDC redirect URI in particular — would be built
+from that and rejected by your identity provider:
+
+```
+LCM_SITE_URL=https://console.example.com
+```
 
 **Put an Access policy in front of it.** This console holds credentials
 for every backend in your lab and can open a root-capable shell on your

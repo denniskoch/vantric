@@ -279,17 +279,42 @@ type oidcRequest struct {
 	Enabled      bool   `json:"enabled"`
 }
 
+// oidcView is the provider plus the redirect URI THIS SERVER will send.
+// Computed here rather than in the browser, because behind a tunnel the
+// two can disagree — and the one the provider must be told is this one.
+type oidcView struct {
+	*store.OIDCProvider
+	RedirectURI string `json:"redirectUri"`
+	// SiteURLSet says the address came from LCM_SITE_URL rather than
+	// being guessed from the request, which is what you want to see
+	// when the console sits behind something.
+	SiteURLSet bool `json:"siteUrlSet"`
+}
+
+func (s *Server) oidcView(r *http.Request, p *store.OIDCProvider) oidcView {
+	if p == nil {
+		p = &store.OIDCProvider{Scopes: "openid profile email", DefaultRole: store.RoleViewer}
+	}
+	return oidcView{
+		OIDCProvider: p,
+		RedirectURI:  s.oidcRedirectURI(r),
+		SiteURLSet:   s.siteURL != "",
+	}
+}
+
 func (s *Server) getOIDC(w http.ResponseWriter, r *http.Request) {
 	p, err := s.store.GetOIDCProvider(r.Context())
 	if err == store.ErrNotFound {
-		s.json(w, http.StatusOK, nil)
+		// Not configured yet, but the page still needs the redirect URI
+		// to set up the application at the other end.
+		s.json(w, http.StatusOK, s.oidcView(r, nil))
 		return
 	}
 	if err != nil {
 		s.fail(w, err, "sign-on provider")
 		return
 	}
-	s.json(w, http.StatusOK, p)
+	s.json(w, http.StatusOK, s.oidcView(r, p))
 }
 
 func (s *Server) saveOIDC(w http.ResponseWriter, r *http.Request) {
@@ -344,7 +369,7 @@ func (s *Server) saveOIDC(w http.ResponseWriter, r *http.Request) {
 	s.log.Info("oidc provider saved", "issuer", p.Issuer, "enabled", p.Enabled,
 		"autoCreate", p.AutoCreate)
 	p.HasSecret = p.ClientSecret != ""
-	s.json(w, http.StatusOK, p)
+	s.json(w, http.StatusOK, s.oidcView(r, p))
 }
 
 func (s *Server) deleteOIDC(w http.ResponseWriter, r *http.Request) {

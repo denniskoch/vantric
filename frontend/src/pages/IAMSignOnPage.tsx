@@ -42,7 +42,7 @@ export default function IAMSignOnPage() {
   const { data: roles = [] } = useQuery({ queryKey: ['iamRoles'], queryFn: api.listRoles })
 
   useEffect(() => {
-    if (!provider) return
+    if (!provider?.issuer) return
     setName(provider.name)
     setIssuer(provider.issuer)
     setClientId(provider.clientId)
@@ -52,10 +52,12 @@ export default function IAMSignOnPage() {
     setEnabled(provider.enabled)
   }, [provider])
 
-  // The provider has to be told exactly this, so it's shown rather than
-  // described — a redirect URI that differs by a slash is the classic
-  // hour lost to OIDC.
-  const redirectURI = `${window.location.origin}/api/v1/auth/oidc/callback`
+  // Straight from the server: behind a tunnel the browser's origin and
+  // the URI the server actually sends are different things, and the
+  // provider has to be told the server's one. A redirect URI that
+  // differs by so much as a slash is the classic hour lost to OIDC.
+  const redirectURI =
+    provider?.redirectUri ?? `${window.location.origin}/api/v1/auth/oidc/callback`
 
   const save = useMutation({
     mutationFn: () =>
@@ -139,6 +141,14 @@ export default function IAMSignOnPage() {
             {copied ? 'Copied' : 'Copy'}
           </Button>
         </Box>
+        {provider && !provider.siteUrlSet && (
+          <Typography sx={{ fontSize: 12, color: '#5f6368', mt: 1 }}>
+            Worked out from this request. If the console sits behind a proxy or
+            a tunnel, set <code>LCM_SITE_URL</code> in <code>.env</code> to the
+            address people actually use — otherwise this is the address the
+            proxy dialled, and the provider will reject it.
+          </Typography>
+        )}
       </Paper>
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
@@ -259,7 +269,7 @@ export default function IAMSignOnPage() {
         >
           {save.isPending ? 'Checking the issuer…' : 'Save'}
         </Button>
-        {provider && (
+        {provider?.issuer && (
           <Button color="error" disabled={remove.isPending} onClick={() => remove.mutate()}>
             Remove
           </Button>

@@ -36,6 +36,11 @@ export interface OIDCProvider {
   autoCreate: boolean
   defaultRole: RoleID
   enabled: boolean
+  /** What THIS server will send as redirect_uri — tell the provider
+   *  exactly this. Behind a proxy it differs from the browser's origin. */
+  redirectUri: string
+  /** True when it comes from LCM_SITE_URL rather than being guessed. */
+  siteUrlSet: boolean
   createdAt: string
   updatedAt: string
 }
@@ -879,7 +884,7 @@ export const api = {
       body: JSON.stringify({ privateKey, passphrase }),
     }),
   authProviders: () => request<AuthProviders>('/auth/providers'),
-  getOIDC: () => request<OIDCProvider | null>('/iam/oidc'),
+  getOIDC: () => request<OIDCProvider>('/iam/oidc'),
   saveOIDC: (body: OIDCRequest) =>
     request<OIDCProvider>('/iam/oidc', { method: 'PUT', body: JSON.stringify(body) }),
   deleteOIDC: () => request<void>('/iam/oidc', { method: 'DELETE' }),

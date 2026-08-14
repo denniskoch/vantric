@@ -433,10 +433,24 @@ func (s *Server) linkOIDCUser(
 	return user, nil
 }
 
-// oidcRedirectURI is where the provider sends the browser back. It has
-// to match the application's configuration exactly, so it's derived
-// from the request rather than configured twice.
+// oidcRedirectURI is where the provider sends the browser back, and it
+// has to match what the provider has on file character for character.
+//
+// LCM_SITE_URL wins when set, because behind a tunnel the request
+// arrives addressed to whatever the proxy dialled — an internal name
+// and port — and a redirect_uri built from that is one the provider has
+// never heard of. Falling back to the request is right when you reach
+// the app directly, which is how it works on a laptop.
 func (s *Server) oidcRedirectURI(r *http.Request) string {
+	return s.siteOrigin(r) + oidcCallbackPath
+}
+
+const oidcCallbackPath = "/api/v1/auth/oidc/callback"
+
+func (s *Server) siteOrigin(r *http.Request) string {
+	if s.siteURL != "" {
+		return strings.TrimRight(s.siteURL, "/")
+	}
 	scheme := "http"
 	if isTLS(r) {
 		scheme = "https"
@@ -445,7 +459,7 @@ func (s *Server) oidcRedirectURI(r *http.Request) string {
 	if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" {
 		host = forwarded
 	}
-	return scheme + "://" + host + "/api/v1/auth/oidc/callback"
+	return scheme + "://" + host
 }
 
 // redirectToSignIn returns the browser to the page it came from with
