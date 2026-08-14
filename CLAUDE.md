@@ -17,6 +17,29 @@ cd frontend && npx tsc -b && npm run build     # type-check + build frontend
 Docker is the deployment target (single image: Go binary + static UI, see
 Dockerfile).
 
+## What this is
+
+A SINGLE PANE OF GLASS over tools that already run in the lab. The
+point is to stop jumping between fifteen consoles — not to reimplement
+what those consoles do. So the default answer to "should we build X?"
+is: find the thing that already does X, connect to it, and present it
+in this UI's vocabulary.
+
+That shapes every section. Proxmox runs the VMs; this lists and
+controls them. Cloudflare holds the zones. The hypervisor's own job
+runner takes the backups; this lists and prunes them. The database
+servers already exist; this connects to them. Where a tool owns data,
+it stays the source of truth and this app reads it — a second registry
+that nobody updates is worse than no registry.
+
+What this app owns is the CONNECTIVE work no single tool can do: one
+consistent UI, and the correlation between tools — what's running vs
+what DNS publishes vs what the IPAM documents. Drift between systems
+is the app's own contribution; the systems' data is not.
+
+Corollary: don't build a worse version of a tool's deep features. Link
+out when the work belongs there.
+
 ## Architecture rules
 
 - `internal/hypervisor.Driver` is the abstraction boundary. Nothing outside
