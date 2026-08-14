@@ -102,9 +102,11 @@ Dockerfile).
   rule gates submission, it needs a matching field error.
 - UI style: GCP-inspired via MUI + the custom theme in `src/theme.ts`
   (Google blue #1a73e8, white surfaces, #dadce0 borders, dense tables).
-  NO PILL BORDERS and no chip backgrounds: a chip is its icon and its
-  words sitting in the row like text, set once in the theme's MuiChip
-  override — don't reintroduce an outline or a tint behind one.
+  NO PILL BORDERS and no chip backgrounds (theme MuiChip override).
+  Chips are for TAGS AND LABELS only — "RAM", "shared", "system", a
+  VM's tags. What a row fundamentally IS (hypervisor type, database
+  engine, DNS provider) is primary information: plain cell text at the
+  table's own size, via `BrandLabel`, never shrunk into a badge.
 - Brand marks (engines, hypervisors, DNS providers, guest operating
   systems) come from simple-icons, drawn inline by
   `components/BrandIcon.tsx` and looked up in `src/brands.ts`. Every

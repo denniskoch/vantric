@@ -1,3 +1,4 @@
+import { Box } from '@mui/material'
 import type { SimpleIcon } from 'simple-icons'
 
 /**
@@ -32,5 +33,28 @@ export default function BrandIcon({
       <title>{title ?? icon.title}</title>
       <path d={icon.path} />
     </svg>
+  )
+}
+
+/**
+ * What something *is* — a hypervisor's type, a database engine, a DNS
+ * provider — as ordinary cell text with its mark beside it. This is
+ * primary information, so it reads at the table's own size; chips are
+ * for tags and labels, not for a row's defining attribute.
+ */
+export function BrandLabel({
+  icon,
+  label,
+  size = 16,
+}: {
+  icon: SimpleIcon | null
+  label: string
+  size?: number
+}) {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      {icon ? <BrandIcon icon={icon} size={size} /> : <Box sx={{ width: size }} />}
+      {label}
+    </Box>
   )
 }

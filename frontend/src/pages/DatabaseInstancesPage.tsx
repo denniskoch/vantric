@@ -5,7 +5,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   IconButton,
   Link,
   Menu,
@@ -31,7 +30,7 @@ import { api } from '../api/client'
 import type { DatabaseServer } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import { engineLabels } from '../databases'
-import BrandIcon from '../components/BrandIcon'
+import { BrandLabel } from '../components/BrandIcon'
 import { databaseBrand } from '../brands'
 import { formatBytes } from '../format'
 
@@ -51,18 +50,14 @@ function StatusGlyph({ server }: { server: DatabaseServer }) {
   )
 }
 
-/** MariaDB only reveals itself in the version banner, so the chip
- *  reads the brand from the server rather than its engine type. */
-function EngineChip({ server }: { server: DatabaseServer }) {
+/** MariaDB only reveals itself in the version banner, so the engine
+ *  is read from the server rather than from its type. */
+function EngineLabel({ server }: { server: DatabaseServer }) {
   const brand = databaseBrand(server.type, server.info?.version)
-  const mariadb = brand?.title === 'MariaDB'
   return (
-    <Chip
-      icon={brand ? <BrandIcon icon={brand} size={16} /> : undefined}
-      label={mariadb ? 'MariaDB' : (engineLabels[server.type] ?? server.type)}
-      size="small"
-      variant="outlined"
-      sx={{ fontSize: 12, height: 20, '& .MuiChip-icon': { ml: 0, mr: 0 } }}
+    <BrandLabel
+      icon={brand}
+      label={brand?.title ?? engineLabels[server.type] ?? server.type}
     />
   )
 }
@@ -148,7 +143,7 @@ export default function DatabaseInstancesPage() {
                   </Link>
                 </TableCell>
                 <TableCell>
-                  <EngineChip server={server} />
+                  <EngineLabel server={server} />
                 </TableCell>
                 <TableCell>{server.info?.version ?? '—'}</TableCell>
                 <TableCell>

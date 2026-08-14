@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -33,7 +32,7 @@ import HelpIcon from '@mui/icons-material/Help'
 import { api } from '../api/client'
 import type { Server, ServerRequest, ServerType } from '../api/client'
 import { resourceNameError, resourceNameRe, urlError } from '../validation'
-import BrandIcon from '../components/BrandIcon'
+import { BrandLabel } from '../components/BrandIcon'
 import { hypervisorBrand } from '../brands'
 
 const typeLabels: Record<ServerType, string> = {
@@ -174,16 +173,9 @@ export default function ServersPage() {
                 </TableCell>
                 <TableCell>{server.name}</TableCell>
                 <TableCell>
-                  <Chip
-                    icon={
-                      hypervisorBrand(server.type) ? (
-                        <BrandIcon icon={hypervisorBrand(server.type)!} size={16} />
-                      ) : undefined
-                    }
+                  <BrandLabel
+                    icon={hypervisorBrand(server.type)}
                     label={typeLabels[server.type] ?? server.type}
-                    size="small"
-                    variant="outlined"
-                    sx={{ fontSize: 12, height: 20, '& .MuiChip-icon': { ml: 0, mr: 0 } }}
                   />
                 </TableCell>
                 <TableCell>{server.baseUrl || '—'}</TableCell>
