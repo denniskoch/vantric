@@ -298,7 +298,7 @@ func (s *Server) saveOIDC(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	req.Issuer = strings.TrimRight(strings.TrimSpace(req.Issuer), "/")
+	req.Issuer = normalizeIssuer(req.Issuer)
 	if !strings.HasPrefix(req.Issuer, "http://") && !strings.HasPrefix(req.Issuer, "https://") {
 		s.err(w, http.StatusBadRequest, "the issuer must be a URL")
 		return

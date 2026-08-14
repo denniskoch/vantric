@@ -63,7 +63,7 @@ var (
 )
 
 func discover(ctx context.Context, issuer string) (*oidcDiscovery, error) {
-	issuer = strings.TrimRight(issuer, "/")
+	issuer = normalizeIssuer(issuer)
 	discoveryMu.Lock()
 	cached, ok := discoveryCache[issuer]
 	discoveryMu.Unlock()
@@ -71,7 +71,7 @@ func discover(ctx context.Context, issuer string) (*oidcDiscovery, error) {
 		return cached, nil
 	}
 
-	url := issuer + "/.well-known/openid-configuration"
+	url := issuer + discoveryPath
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -104,6 +104,21 @@ func discover(ctx context.Context, issuer string) (*oidcDiscovery, error) {
 	discoveryMu.Unlock()
 	return &doc, nil
 }
+
+// normalizeIssuer takes what a person actually pastes.
+//
+// The discovery URL is the thing you have on screen when you're setting
+// this up — it's what the provider shows you and what you curl to check
+// — so pasting it into a box labelled "issuer" is the obvious mistake,
+// and it produced a 404 on a doubled path that read as if the provider
+// were unreachable.
+func normalizeIssuer(issuer string) string {
+	issuer = strings.TrimSpace(issuer)
+	issuer = strings.TrimSuffix(strings.TrimRight(issuer, "/"), discoveryPath)
+	return strings.TrimRight(issuer, "/")
+}
+
+const discoveryPath = "/.well-known/openid-configuration"
 
 // describeResponder turns "404" into something you can act on: whatever
 // the thing on the other end says about itself.

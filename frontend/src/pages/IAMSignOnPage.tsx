@@ -157,7 +157,7 @@ export default function IAMSignOnPage() {
           error={Boolean(issuerError)}
           helperText={
             issuerError ||
-            'The base URL; the console reads /.well-known/openid-configuration from it'
+            'The base URL — pasting the full /.well-known/openid-configuration link works too'
           }
           placeholder="https://auth.example.com/application/o/lab-cloud/"
           size="small"
