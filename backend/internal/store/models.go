@@ -127,6 +127,22 @@ func (s *Store) UpdateInstanceState(ctx context.Context, id, status, internalIP,
 	return err
 }
 
+// UpdateInstanceShape syncs the metadata the hypervisor owns: what the
+// VM is called and how big it is.
+//
+// It exists because adoption is a race. A VM that appears in the
+// hypervisor's cluster listing while it is still being created has no
+// name and no sizing yet, and a record written from that snapshot used
+// to keep those zeroes forever. It also means renaming or resizing a
+// guest in the hypervisor shows up here instead of quietly drifting.
+func (s *Store) UpdateInstanceShape(ctx context.Context, id, name, zone string, cpus, memoryMB, diskGB int) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE instances SET name = ?, zone = ?, cpus = ?, memory_mb = ?, disk_gb = ?,
+		 updated_at = ? WHERE id = ?`,
+		name, zone, cpus, memoryMB, diskGB, now(), id)
+	return err
+}
+
 func (s *Store) SetInstanceStatus(ctx context.Context, id, status string) error {
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE instances SET status = ?, updated_at = ? WHERE id = ?`, status, now(), id)

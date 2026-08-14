@@ -91,6 +91,16 @@ func (s *Store) UpdateContainerState(ctx context.Context, id, status, internalIP
 	return err
 }
 
+// UpdateContainerShape is UpdateInstanceShape for containers; same
+// race, same drift.
+func (s *Store) UpdateContainerShape(ctx context.Context, id, name, zone string, cpus, memoryMB, diskGB int) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE containers SET name = ?, zone = ?, cpus = ?, memory_mb = ?, disk_gb = ?,
+		 updated_at = ? WHERE id = ?`,
+		name, zone, cpus, memoryMB, diskGB, now(), id)
+	return err
+}
+
 func (s *Store) SetContainerStatus(ctx context.Context, id, status string) error {
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE containers SET status = ?, updated_at = ? WHERE id = ?`, status, now(), id)

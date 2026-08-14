@@ -141,6 +141,15 @@ Surface the daily 90% here and link out for the rest.
   per instance by the reconciler on a slow beat because List doesn't
   report it and it never changes. Its only job is deciding whether
   Connect offers SSH or RDP.
+- The reconciler syncs NAME AND SIZING as well as status and IPs
+  (`syncShape`). Adoption is a race: a VM picked up while the
+  hypervisor is still creating it reports no name and zero cpus/memory,
+  and a record written from that snapshot used to keep those zeroes
+  forever — which is what happened to VMs created in Proxmox after
+  their hypervisor was added. Reconciling it every sweep also means a
+  rename or resize done in the hypervisor shows up here. Only
+  meaningful values are taken: a blank name or a zero count is the
+  hypervisor not knowing yet, not an instruction to forget.
 - The reconciler also ADOPTS VMs found on a server that the app didn't
   create (they appear as instances with deletion protection enabled) and
   removes instances whose VM vanished out-of-band. Driver.List must be

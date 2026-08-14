@@ -151,6 +151,38 @@ func (r *Reconciler) syncContainer(ctx context.Context, cd hypervisor.ContainerD
 			r.log.Warn("reconciler: container update failed", "name", ct.Name, "error", err)
 		}
 	}
+	r.syncContainerShape(ctx, ct, state)
+}
+
+// syncContainerShape is syncShape for containers.
+func (r *Reconciler) syncContainerShape(ctx context.Context, ct *store.Container, state hypervisor.InstanceState) {
+	name, zone := ct.Name, ct.Zone
+	cpus, memoryMB, diskGB := ct.CPUs, ct.MemoryMB, ct.DiskGB
+	if state.Name != "" {
+		name = state.Name
+	}
+	if state.Zone != "" {
+		zone = state.Zone
+	}
+	if state.CPUs > 0 {
+		cpus = state.CPUs
+	}
+	if state.MemoryMB > 0 {
+		memoryMB = state.MemoryMB
+	}
+	if state.DiskGB > 0 {
+		diskGB = state.DiskGB
+	}
+	if name == ct.Name && zone == ct.Zone && cpus == ct.CPUs &&
+		memoryMB == ct.MemoryMB && diskGB == ct.DiskGB {
+		return
+	}
+	if err := r.store.UpdateContainerShape(ctx, ct.ID, name, zone, cpus, memoryMB, diskGB); err != nil {
+		r.log.Warn("reconciler: container shape update failed", "name", ct.Name, "error", err)
+		return
+	}
+	ct.Name, ct.Zone = name, zone
+	ct.CPUs, ct.MemoryMB, ct.DiskGB = cpus, memoryMB, diskGB
 }
 
 // adoptContainer records a container found on the hypervisor that this
@@ -205,7 +237,54 @@ func (r *Reconciler) syncInstance(ctx context.Context, driver hypervisor.Driver,
 			r.log.Warn("reconciler: update failed", "name", inst.Name, "error", err)
 		}
 	}
+	r.syncShape(ctx, inst, state)
 	r.fillOSType(ctx, driver, inst)
+}
+
+// syncShape keeps the name and sizing in step with the hypervisor.
+//
+// Adoption is a race: a VM picked up while it is still being created
+// carries no name and no sizing, and without this the record would
+// keep those zeroes for good — which is exactly what happened to VMs
+// created in Proxmox after their hypervisor was added. Reconciling it
+// on every sweep also means a rename or a resize done in the
+// hypervisor shows up here rather than drifting apart silently.
+//
+// Only meaningful values are taken. A blank name or a zero count is
+// the hypervisor not knowing yet, not an instruction to forget.
+func (r *Reconciler) syncShape(ctx context.Context, inst *store.Instance, state hypervisor.InstanceState) {
+	name, zone := inst.Name, inst.Zone
+	cpus, memoryMB, diskGB := inst.CPUs, inst.MemoryMB, inst.DiskGB
+	if state.Name != "" {
+		name = state.Name
+	}
+	if state.Zone != "" {
+		zone = state.Zone
+	}
+	if state.CPUs > 0 {
+		cpus = state.CPUs
+	}
+	if state.MemoryMB > 0 {
+		memoryMB = state.MemoryMB
+	}
+	if state.DiskGB > 0 {
+		diskGB = state.DiskGB
+	}
+	if name == inst.Name && zone == inst.Zone && cpus == inst.CPUs &&
+		memoryMB == inst.MemoryMB && diskGB == inst.DiskGB {
+		return
+	}
+	if err := r.store.UpdateInstanceShape(ctx, inst.ID, name, zone, cpus, memoryMB, diskGB); err != nil {
+		// A rename can collide with another instance's name, which is
+		// worth saying once rather than every two seconds.
+		r.log.Warn("reconciler: shape update failed", "name", inst.Name, "error", err)
+		return
+	}
+	if name != inst.Name {
+		r.log.Info("reconciler: instance renamed on the hypervisor", "from", inst.Name, "to", name)
+	}
+	inst.Name, inst.Zone = name, zone
+	inst.CPUs, inst.MemoryMB, inst.DiskGB = cpus, memoryMB, diskGB
 }
 
 // fillOSType asks the hypervisor what kind of guest this is, once.
