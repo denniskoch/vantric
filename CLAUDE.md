@@ -195,6 +195,14 @@ Surface the daily 90% here and link out for the rest.
 - docker-compose dev caveat: file-change events don't cross the macOS→VM
   bind mount, so both watchers poll (air `poll = true`, vite
   `watch.usePolling`). Don't remove either.
+- Colima dev caveat: this stack's whole job is reaching lab services on
+  the LAN, and Colima's default route is the user-mode NIC, which
+  refuses RFC1918 destinations. Symptom: every hypervisor, database
+  and provider reads "unreachable" with `connect: connection refused`
+  at once, while the same address answers from the Mac — a routing
+  problem, not credentials. Fix is `preferredRoute: true` in
+  `~/.colima/default/colima.yaml` (needs a restart), or per-boot
+  `colima ssh -- sudo ip route add <lab subnet> via 192.168.64.1 dev col0`.
 
 ## Config
 
