@@ -2,7 +2,6 @@ import { Link as RouterLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   Box,
-  Chip,
   Link,
   Paper,
   Table,
@@ -54,6 +53,7 @@ export default function DatabasesPage() {
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
+              <TableCell>Type</TableCell>
               <TableCell>Instance</TableCell>
               <TableCell align="right">Size</TableCell>
               <TableCell>Encoding</TableCell>
@@ -63,17 +63,8 @@ export default function DatabasesPage() {
           <TableBody>
             {databases.map((db) => (
               <TableRow key={`${db.serverId}/${db.name}`} hover>
-                <TableCell>
-                  {db.name}
-                  {db.system && (
-                    <Chip
-                      label="system"
-                      size="small"
-                      variant="outlined"
-                      sx={{ fontSize: 10, height: 18, ml: 1 }}
-                    />
-                  )}
-                </TableCell>
+                <TableCell>{db.name}</TableCell>
+                <TableCell>{db.system ? 'System' : 'User'}</TableCell>
                 <TableCell>
                   <Link
                     component={RouterLink}
@@ -97,7 +88,7 @@ export default function DatabasesPage() {
             ))}
             {databases.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 6, color: '#5f6368' }}>
                   {isLoading ? 'Loading…' : 'No databases — connect an instance first.'}
                 </TableCell>
               </TableRow>

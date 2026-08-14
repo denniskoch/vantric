@@ -6,7 +6,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -317,6 +316,7 @@ export default function DatabaseInstanceDetailPage() {
                 <TableHead>
                   <TableRow>
                     <TableCell>Name</TableCell>
+                    <TableCell>Type</TableCell>
                     {hasOwners && <TableCell>Owner</TableCell>}
                     <TableCell align="right">Size</TableCell>
                     <TableCell>Encoding</TableCell>
@@ -328,17 +328,8 @@ export default function DatabaseInstanceDetailPage() {
                 <TableBody>
                   {databases.map((db) => (
                     <TableRow key={db.name} hover>
-                      <TableCell>
-                        {db.name}
-                        {db.system && (
-                          <Chip
-                            label="system"
-                            size="small"
-                            variant="outlined"
-                            sx={{ fontSize: 10, height: 18, ml: 1 }}
-                          />
-                        )}
-                      </TableCell>
+                      <TableCell>{db.name}</TableCell>
+                      <TableCell>{db.system ? 'System' : 'User'}</TableCell>
                       {hasOwners && <TableCell>{db.owner}</TableCell>}
                       <TableCell align="right">
                         {db.sizeBytes ? formatBytes(db.sizeBytes) : '—'}
@@ -368,7 +359,7 @@ export default function DatabaseInstanceDetailPage() {
                   {databases.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={hasOwners ? 7 : 6}
+                        colSpan={hasOwners ? 8 : 7}
                         align="center"
                         sx={{ py: 6, color: '#5f6368' }}
                       >
@@ -408,6 +399,7 @@ export default function DatabaseInstanceDetailPage() {
                 <TableHead>
                   <TableRow>
                     <TableCell>Name</TableCell>
+                    <TableCell>Type</TableCell>
                     <TableCell>Can log in</TableCell>
                     <TableCell>Superuser</TableCell>
                     <TableCell>Create DB</TableCell>
@@ -423,6 +415,7 @@ export default function DatabaseInstanceDetailPage() {
                         {user.name}
                         {user.host && <Box component="span" sx={{ color: '#5f6368' }}>@{user.host}</Box>}
                       </TableCell>
+                      <TableCell>{user.system ? 'System' : 'User'}</TableCell>
                       <TableCell>{yesNo(user.canLogin)}</TableCell>
                       <TableCell>{yesNo(user.superuser)}</TableCell>
                       <TableCell>{yesNo(user.createDb)}</TableCell>
@@ -444,7 +437,7 @@ export default function DatabaseInstanceDetailPage() {
                   ))}
                   {users.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                      <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#5f6368' }}>
                         {usersLoading ? 'Loading…' : 'No users.'}
                       </TableCell>
                     </TableRow>
