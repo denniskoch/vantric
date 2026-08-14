@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
-import { useMutation } from '@tanstack/react-query'
-import { Alert, Box, Button, Paper, TextField, Typography } from '@mui/material'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { Alert, Box, Button, Divider, Paper, TextField, Typography } from '@mui/material'
 import { api } from '../api/client'
 import { useRefreshSession } from '../user'
 import logoLight from '../assets/brand/kochlabs-logo-light.svg'
@@ -21,6 +21,17 @@ export default function SignInPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [params] = useSearchParams()
+
+  // Which doors exist. The single sign-on round trip comes back here
+  // with ?error= when it fails, since by then the browser is following
+  // redirects rather than reading JSON.
+  const { data: providers } = useQuery({
+    queryKey: ['authProviders'],
+    queryFn: api.authProviders,
+    retry: false,
+  })
+  const redirectError = params.get('error')
 
   // Where they were headed before being bounced here.
   const from = (location.state as { from?: string } | null)?.from ?? '/compute/instances'
@@ -65,10 +76,24 @@ export default function SignInPage() {
           Use your Lab Cloud account.
         </Typography>
 
-        {error && (
+        {(error || redirectError) && (
           <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
+            {error || redirectError}
           </Alert>
+        )}
+
+        {providers?.oidc && (
+          <>
+            <Button
+              variant="outlined"
+              fullWidth
+              href="/api/v1/auth/oidc/start"
+              sx={{ mb: 2 }}
+            >
+              Sign in with {providers.oidc.name}
+            </Button>
+            <Divider sx={{ mb: 2, fontSize: 12, color: '#5f6368' }}>or</Divider>
+          </>
         )}
 
         <TextField

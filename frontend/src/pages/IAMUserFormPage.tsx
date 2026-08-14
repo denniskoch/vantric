@@ -68,11 +68,12 @@ export default function IAMUserFormPage() {
   const emailError = email && !/^[^\s@]+@[^\s@]+$/.test(email.trim())
     ? 'Enter an email address'
     : ''
+  // Blank is allowed on create: that's an account which exists only to
+  // be matched by single sign-on.
   const passwordError =
-    !editing && password && password.length < 12
-      ? 'At least 12 characters'
-      : ''
-  const incomplete = !email || Boolean(emailError) || (!editing && password.length < 12)
+    !editing && password && password.length < 12 ? 'At least 12 characters' : ''
+  const incomplete =
+    !email || Boolean(emailError) || (!editing && password !== '' && password.length < 12)
 
   const editingSelf = editing && me?.id === id
 
@@ -133,7 +134,10 @@ export default function IAMUserFormPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           error={Boolean(passwordError)}
-          helperText={passwordError || 'At least 12 characters. They can change it after signing in.'}
+          helperText={
+            passwordError ||
+            'At least 12 characters — or leave blank for an account that only signs in through single sign-on.'
+          }
           autoComplete="new-password"
           size="small"
           fullWidth

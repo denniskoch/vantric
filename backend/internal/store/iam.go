@@ -250,3 +250,97 @@ func (s *Store) SetUserSSHKey(ctx context.Context, id, private, public string, i
 		private, public, flag, time.Now().UTC().Format(time.RFC3339), id)
 	return err
 }
+
+// Signing in through the lab's identity service.
+//
+// One provider, stored as one row: a lab has one identity service, and
+// the local accounts above stay as the fallback door for when it's the
+// thing that's broken.
+
+type OIDCProvider struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// Issuer is the base URL; discovery hangs off it.
+	Issuer   string `json:"issuer"`
+	ClientID string `json:"clientId"`
+	// ClientSecret never leaves the backend.
+	ClientSecret string `json:"-"`
+	HasSecret    bool   `json:"hasSecret"`
+	Scopes       string `json:"scopes"`
+	// AutoCreate makes an account for anyone the provider vouches for.
+	// Off by default: being in the directory shouldn't by itself be a
+	// way into the console that runs the lab.
+	AutoCreate  bool      `json:"autoCreate"`
+	DefaultRole string    `json:"defaultRole"`
+	Enabled     bool      `json:"enabled"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+const oidcColumns = `id, name, issuer, client_id, client_secret, scopes, auto_create,
+	default_role, enabled, created_at, updated_at`
+
+// GetOIDCProvider returns the configured provider, or ErrNotFound when
+// sign-in is local-only.
+func (s *Store) GetOIDCProvider(ctx context.Context) (*OIDCProvider, error) {
+	var p OIDCProvider
+	var autoCreate, enabled int
+	var created, updated string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT `+oidcColumns+` FROM auth_oidc LIMIT 1`).
+		Scan(&p.ID, &p.Name, &p.Issuer, &p.ClientID, &p.ClientSecret, &p.Scopes,
+			&autoCreate, &p.DefaultRole, &enabled, &created, &updated)
+	if err == sql.ErrNoRows {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	p.AutoCreate = autoCreate == 1
+	p.Enabled = enabled == 1
+	p.HasSecret = p.ClientSecret != ""
+	p.CreatedAt, _ = time.Parse(time.RFC3339, created)
+	p.UpdatedAt, _ = time.Parse(time.RFC3339, updated)
+	return &p, nil
+}
+
+// SaveOIDCProvider writes the single row, creating it the first time.
+// An empty secret keeps the stored one, the way every other credential
+// form in this app behaves.
+func (s *Store) SaveOIDCProvider(ctx context.Context, p *OIDCProvider) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	autoCreate, enabled := 0, 0
+	if p.AutoCreate {
+		autoCreate = 1
+	}
+	if p.Enabled {
+		enabled = 1
+	}
+	existing, err := s.GetOIDCProvider(ctx)
+	if err != nil && err != ErrNotFound {
+		return err
+	}
+	if err == ErrNotFound {
+		_, err := s.db.ExecContext(ctx,
+			`INSERT INTO auth_oidc (`+oidcColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			p.ID, p.Name, p.Issuer, p.ClientID, p.ClientSecret, p.Scopes,
+			autoCreate, p.DefaultRole, enabled, now, now)
+		return err
+	}
+	if p.ClientSecret == "" {
+		p.ClientSecret = existing.ClientSecret
+	}
+	_, err = s.db.ExecContext(ctx,
+		`UPDATE auth_oidc SET name = ?, issuer = ?, client_id = ?, client_secret = ?,
+		 scopes = ?, auto_create = ?, default_role = ?, enabled = ?, updated_at = ?
+		 WHERE id = ?`,
+		p.Name, p.Issuer, p.ClientID, p.ClientSecret, p.Scopes,
+		autoCreate, p.DefaultRole, enabled, now, existing.ID)
+	p.ID = existing.ID
+	return err
+}
+
+func (s *Store) DeleteOIDCProvider(ctx context.Context) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM auth_oidc`)
+	return err
+}

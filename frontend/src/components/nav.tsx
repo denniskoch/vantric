@@ -285,6 +285,12 @@ export const sections: Section[] = [
             to: '/iam/users',
             hint: 'Accounts that can sign in to this console',
           },
+          {
+            label: 'Single sign-on',
+            icon: VpnKeyIcon,
+            to: '/iam/sign-on',
+            hint: "Sign in through the lab's identity provider",
+          },
         ],
       },
     ],

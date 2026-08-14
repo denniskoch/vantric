@@ -16,7 +16,7 @@ vocabulary, so you stop jumping between fifteen consoles.
 
 - **Backend**: Go — REST API (chi), SQLite storage, pluggable drivers per section
 - **Frontend**: React + TypeScript + MUI (Vite)
-- **Sign-in**: local accounts (bcrypt) with server-side sessions; SSO later
+- **Sign-in**: local accounts (bcrypt) or OIDC single sign-on, both ending in a server-side session
 
 ## Quick start
 
@@ -74,6 +74,7 @@ in the app.
 | Cloudflare | DNS → Providers | API token that can read and edit zones |
 | authentik | Identity Platform → Providers | Admin API token |
 | UniFi | Network → Controller | API key, or a local account on the controller |
+| Single sign-on | IAM & Admin → Single sign-on | An OIDC application: issuer URL, client ID, and the redirect URI the page shows you |
 
 ### Proxmox
 
@@ -199,6 +200,10 @@ and `/auth/me` needs a session cookie:
 - `POST /auth/login` (email + password → session cookie),
   `POST /auth/logout`, `GET /auth/me`, `POST /auth/password`
   (change your own, needs the current one)
+- `GET /auth/providers` — which sign-in doors exist, read before anyone
+  is signed in; `GET /auth/oidc/start` and `GET /auth/oidc/callback`
+  are the round trip through the identity provider
+- `GET/PUT/DELETE /iam/oidc` — the single sign-on configuration
 - `GET /iam/roles`, `GET/POST /iam/users`,
   `GET/PUT/DELETE /iam/users/{id}`, `PUT /iam/users/{id}/password`
 - `GET /zones`, `GET /images`, `GET /isos`, `GET /ct-templates`,

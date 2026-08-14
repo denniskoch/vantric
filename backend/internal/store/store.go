@@ -139,6 +139,22 @@ var migrations = []string{
 		created_at TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	)`,
+	// Signing in through the lab's identity service. One row: a lab has
+	// one identity provider, and making every page pass an id it can't
+	// get wrong is noise. Local accounts stay the fallback door.
+	`CREATE TABLE IF NOT EXISTS auth_oidc (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL DEFAULT '',
+		issuer TEXT NOT NULL,
+		client_id TEXT NOT NULL,
+		client_secret TEXT NOT NULL DEFAULT '',
+		scopes TEXT NOT NULL DEFAULT 'openid profile email',
+		auto_create INTEGER NOT NULL DEFAULT 0,
+		default_role TEXT NOT NULL DEFAULT 'viewer',
+		enabled INTEGER NOT NULL DEFAULT 1,
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	)`,
 	// Sessions live server-side so signing out, or disabling an account,
 	// takes effect immediately — which a self-contained token can't do.
 	`CREATE TABLE IF NOT EXISTS iam_sessions (

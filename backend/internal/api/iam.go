@@ -26,6 +26,9 @@ func (s *Server) iamRoutes(r chi.Router) {
 	r.Put("/iam/users/{id}", s.updateUser)
 	r.Delete("/iam/users/{id}", s.deleteUser)
 	r.Put("/iam/users/{id}/password", s.setUserPassword)
+	r.Get("/iam/oidc", s.getOIDC)
+	r.Put("/iam/oidc", s.saveOIDC)
+	r.Delete("/iam/oidc", s.deleteOIDC)
 }
 
 type roleInfo struct {
@@ -85,17 +88,21 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	// An account with no password can't sign in, which is a fine way to
-	// pre-create someone for SSO but a confusing way to create the
-	// person you're about to hand a laptop to. Require one here.
-	if err := validatePassword(req.Password); err != nil {
-		s.err(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	hash, err := hashPassword(req.Password)
-	if err != nil {
-		s.fail(w, err, "hashing password")
-		return
+	// An empty password means an account that exists only to be matched
+	// by single sign-on — which is how you let someone in without
+	// letting in everyone the directory knows. The form says so; it
+	// isn't something to discover by locking a colleague out.
+	var hash string
+	if req.Password != "" {
+		if err := validatePassword(req.Password); err != nil {
+			s.err(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		var err error
+		if hash, err = hashPassword(req.Password); err != nil {
+			s.fail(w, err, "hashing password")
+			return
+		}
 	}
 	user := &store.User{
 		ID:           uuid.NewString(),
@@ -254,3 +261,101 @@ func validateUser(req userRequest) error {
 type errValidation string
 
 func (e errValidation) Error() string { return string(e) }
+
+// --- single sign-on configuration ---
+//
+// One provider, managed like every other backend credential in this
+// app: a form, a write-only secret, and a check against the real
+// service before it's stored.
+
+type oidcRequest struct {
+	Name         string `json:"name"`
+	Issuer       string `json:"issuer"`
+	ClientID     string `json:"clientId"`
+	ClientSecret string `json:"clientSecret"`
+	Scopes       string `json:"scopes"`
+	AutoCreate   bool   `json:"autoCreate"`
+	DefaultRole  string `json:"defaultRole"`
+	Enabled      bool   `json:"enabled"`
+}
+
+func (s *Server) getOIDC(w http.ResponseWriter, r *http.Request) {
+	p, err := s.store.GetOIDCProvider(r.Context())
+	if err == store.ErrNotFound {
+		s.json(w, http.StatusOK, nil)
+		return
+	}
+	if err != nil {
+		s.fail(w, err, "sign-on provider")
+		return
+	}
+	s.json(w, http.StatusOK, p)
+}
+
+func (s *Server) saveOIDC(w http.ResponseWriter, r *http.Request) {
+	var req oidcRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	req.Issuer = strings.TrimRight(strings.TrimSpace(req.Issuer), "/")
+	if !strings.HasPrefix(req.Issuer, "http://") && !strings.HasPrefix(req.Issuer, "https://") {
+		s.err(w, http.StatusBadRequest, "the issuer must be a URL")
+		return
+	}
+	if strings.TrimSpace(req.ClientID) == "" {
+		s.err(w, http.StatusBadRequest, "a client ID is required")
+		return
+	}
+	if req.Scopes == "" {
+		req.Scopes = "openid profile email"
+	}
+	if req.DefaultRole == "" {
+		req.DefaultRole = store.RoleViewer
+	}
+	if !store.ValidRole(req.DefaultRole) {
+		s.err(w, http.StatusBadRequest, "pick a role: owner, editor or viewer")
+		return
+	}
+	// Check the issuer answers before storing it, the same way a
+	// hypervisor or a DNS token is checked — a saved provider should be
+	// one that works, not one you find out about at the sign-in page.
+	forgetDiscovery()
+	if _, err := discover(r.Context(), req.Issuer); err != nil {
+		s.err(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	p := &store.OIDCProvider{
+		ID:           newID(),
+		Name:         strings.TrimSpace(req.Name),
+		Issuer:       req.Issuer,
+		ClientID:     strings.TrimSpace(req.ClientID),
+		ClientSecret: req.ClientSecret,
+		Scopes:       req.Scopes,
+		AutoCreate:   req.AutoCreate,
+		DefaultRole:  req.DefaultRole,
+		Enabled:      req.Enabled,
+	}
+	if err := s.store.SaveOIDCProvider(r.Context(), p); err != nil {
+		s.fail(w, err, "saving the sign-on provider")
+		return
+	}
+	s.log.Info("oidc provider saved", "issuer", p.Issuer, "enabled", p.Enabled,
+		"autoCreate", p.AutoCreate)
+	p.HasSecret = p.ClientSecret != ""
+	s.json(w, http.StatusOK, p)
+}
+
+func (s *Server) deleteOIDC(w http.ResponseWriter, r *http.Request) {
+	if err := s.store.DeleteOIDCProvider(r.Context()); err != nil {
+		s.fail(w, err, "removing the sign-on provider")
+		return
+	}
+	forgetDiscovery()
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// newID is uuid.NewString, named here so the OIDC code doesn't import
+// uuid for one call.
+func newID() string { return uuid.NewString() }

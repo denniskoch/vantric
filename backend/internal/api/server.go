@@ -77,6 +77,11 @@ func (s *Server) Router() http.Handler {
 		r.Post("/auth/login", s.login)
 		r.Post("/auth/logout", s.logout)
 		r.Get("/auth/me", s.currentUser)
+		// Which doors exist, and the round trip through the identity
+		// provider — all necessarily reachable before anyone is signed in.
+		r.Get("/auth/providers", s.authProviders)
+		r.Get("/auth/oidc/start", s.oidcStart)
+		r.Get("/auth/oidc/callback", s.oidcCallback)
 
 		r.Group(func(r chi.Router) {
 			r.Use(s.requireAuth)

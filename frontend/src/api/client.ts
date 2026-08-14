@@ -24,6 +24,39 @@ export interface IAMUser {
   updatedAt: string
 }
 
+/** Signing in through the lab's identity service. */
+export interface OIDCProvider {
+  id: string
+  name: string
+  issuer: string
+  clientId: string
+  hasSecret: boolean
+  scopes: string
+  /** Make an account for anyone the provider vouches for. */
+  autoCreate: boolean
+  defaultRole: RoleID
+  enabled: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface OIDCRequest {
+  name: string
+  issuer: string
+  clientId: string
+  /** Blank keeps the stored secret. */
+  clientSecret: string
+  scopes: string
+  autoCreate: boolean
+  defaultRole: RoleID
+  enabled: boolean
+}
+
+/** What the sign-in page needs before anyone is signed in. */
+export interface AuthProviders {
+  oidc: { name: string } | null
+}
+
 /** Your SSH identity. The private half is never returned. */
 export interface SSHKey {
   publicKey: string
@@ -845,6 +878,11 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ privateKey, passphrase }),
     }),
+  authProviders: () => request<AuthProviders>('/auth/providers'),
+  getOIDC: () => request<OIDCProvider | null>('/iam/oidc'),
+  saveOIDC: (body: OIDCRequest) =>
+    request<OIDCProvider>('/iam/oidc', { method: 'PUT', body: JSON.stringify(body) }),
+  deleteOIDC: () => request<void>('/iam/oidc', { method: 'DELETE' }),
   listRoles: () => request<Role[]>('/iam/roles'),
   listIAMUsers: () => request<IAMUser[]>('/iam/users'),
   getIAMUser: (id: string) => request<IAMUser>(`/iam/users/${id}`),

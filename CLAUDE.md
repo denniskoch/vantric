@@ -333,6 +333,23 @@ Surface the daily 90% here and link out for the rest.
   email + bcrypt hash + role, and SSO joins it later rather than
   replacing it (an account with an empty `password_hash` is what an
   SSO-only user will look like).
+- SSO IS OIDC, and it joins local accounts rather than replacing them
+  (internal/api/oidc.go). Authorization code + PKCE, run entirely
+  server-side, ending in the SAME session cookie a local sign-in
+  produces — so disabling an account, signing out and roles work
+  without knowing which door someone came through. Written on net/http
+  like every other integration here: identity comes from a direct call
+  to the provider's userinfo endpoint with a token just fetched from
+  its token endpoint, which is why no ID token signature verification
+  (and no JWT library) is needed — OIDC Core 3.1.3.7 says as much. One
+  provider, one row in `auth_oidc`, configured in IAM & Admin → Single
+  sign-on and verified against discovery before it's stored.
+- BEING IN THE DIRECTORY IS NOT A WAY IN. OIDC matches a person to an
+  existing account by EMAIL, which is already this app's login name and
+  SSH username. `autoCreate` (default OFF) is what turns a successful
+  authentication into a new account; with it off, an owner pre-creates
+  the account — a user with a blank password is exactly that, and the
+  create form says so.
 - Sessions are SERVER-SIDE rows in `iam_sessions`, keyed by a random
   token in an HttpOnly cookie — not a self-contained token — so
   signing out, disabling an account or resetting a password takes
