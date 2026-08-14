@@ -166,8 +166,6 @@ export default function InstancesPage() {
               <TableCell>Name</TableCell>
               <TableCell>Server</TableCell>
               <TableCell>Zone</TableCell>
-              <TableCell align="right">vCPUs</TableCell>
-              <TableCell align="right">Memory (MB)</TableCell>
               <TableCell>Internal IP</TableCell>
               <TableCell>External IP</TableCell>
               <TableCell>Connect</TableCell>
@@ -194,9 +192,8 @@ export default function InstancesPage() {
                 </TableCell>
                 <TableCell>{serverName(inst.serverId)}</TableCell>
                 <TableCell>{inst.zone}</TableCell>
-                <TableCell align="right">{inst.cpus}</TableCell>
-                <TableCell align="right">{inst.memoryMb}</TableCell>
                 <TableCell>{inst.internalIp || '—'}</TableCell>
+                <TableCell>{inst.externalIp || '—'}</TableCell>
                 <TableCell>
                   <ConnectCell instance={inst} />
                 </TableCell>
@@ -209,7 +206,7 @@ export default function InstancesPage() {
             ))}
             {instances.length === 0 && (
               <TableRow>
-                <TableCell colSpan={11} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={9} align="center" sx={{ py: 6, color: '#5f6368' }}>
                   {isLoading
                     ? 'Loading…'
                     : 'No VM instances yet. Click "Create instance" to get started.'}
