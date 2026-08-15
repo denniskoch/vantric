@@ -450,6 +450,28 @@ export default function BuildTemplatePage() {
                 hard to spot. A serial console is always configured too: cloud
                 images log to it and often carry no graphics driver.
               </Typography>
+              <Typography variant="body2" color="text.secondary">
+                RHEL-family images (Rocky, Alma, CentOS, RHEL) do carry the agent,
+                but ship it with command execution blocked, so Connect can't create
+                its account on a guest that has never seen your key. This drops the
+                two exec calls from the agent's block list and leaves the file ones
+                blocked:
+              </Typography>
+              <Box
+                component="pre"
+                sx={{
+                  m: 0,
+                  p: 1.5,
+                  fontSize: 12,
+                  bgcolor: '#f8f9fa',
+                  border: '1px solid #e8eaed',
+                  borderRadius: 1,
+                  overflowX: 'auto',
+                }}
+              >
+                {`virt-customize -a your-image.qcow2 \\
+  --run-command "sed -i 's/,guest-exec,guest-exec-status//' /etc/sysconfig/qemu-ga"`}
+              </Box>
             </>
           )}
         </Paper>

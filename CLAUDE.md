@@ -215,6 +215,16 @@ Surface the daily 90% here and link out for the rest.
   makes it hard to spot. The build page says so at the checkbox; this
   app can't do it, because reaching the image means SSH to the host,
   the same credential it refuses for `cicustom`.
+- HAVING THE AGENT ISN'T HAVING guest-exec. The RHEL family (Rocky,
+  Alma, CentOS, RHEL) ships qemu-guest-agent with the exec and file
+  RPCs BLOCKED — `BLOCK_RPCS` in /etc/sysconfig/qemu-ga, older builds
+  `BLACKLIST_RPC` — so JIT console provisioning gets a 500 "Command
+  guest-exec has been disabled" on a guest where everything else about
+  the agent works. That refusal is the GUEST's, not the token's, which
+  is why `execError` names it: a bare 500 sends you auditing
+  VM.Monitor on a privilege that was never the problem. The fix is one
+  sed in the template image, and the build page carries it next to the
+  agent note; the terminal falls back to printing the key either way.
 - WORK THAT OUTLIVES ITS REQUEST IS AN OPERATION, and operations
   report in the NOTIFICATION BELL — left of the account avatar, where
   a cloud console puts it. A clone, a disk import, an ISO fetch: the

@@ -3,6 +3,7 @@ package proxmox
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -101,19 +102,42 @@ func (d *Driver) EnsureConsoleUser(ctx context.Context, driverID string, user hy
 	}
 }
 
-// execError translates the two failures worth naming. Everything else
+// execError translates the failures worth naming. Everything else
 // passes through: a guest agent that isn't running says so plainly.
+//
+// The distinction that matters here is WHOSE refusal it is. A 403 is
+// Proxmox declining on the token's behalf, and the fix is on the
+// hypervisor. "Command guest-exec has been disabled" is the guest
+// agent declining on the guest's behalf, and no amount of privilege on
+// this side changes it — which is exactly the wrong conclusion to
+// leave someone to draw from a bare 500.
 func execError(err error) error {
 	msg := err.Error()
 	switch {
 	case strings.Contains(msg, "403"), strings.Contains(msg, "Permission check failed"):
 		return fmt.Errorf("this API token may not run commands in guests — it needs the VM.Monitor privilege: %w", err)
+	case strings.Contains(msg, "has been disabled"):
+		return errGuestExecDisabled
 	case strings.Contains(msg, "QEMU guest agent is not running"),
 		strings.Contains(msg, "No QEMU guest agent"):
 		return fmt.Errorf("the QEMU guest agent isn't running on this guest: %w", err)
 	}
 	return err
 }
+
+// errGuestExecDisabled is the RHEL family's default, and it is a
+// deliberate one: Red Hat ships qemu-guest-agent with the command
+// execution and file RPCs blocked, so Rocky, Alma, CentOS and RHEL
+// guests refuse guest-exec until their own config says otherwise. The
+// message carries the fix because the alternative — "500 Agent error"
+// — sends you looking at the token, the node and the agent's install,
+// all of which are fine.
+var errGuestExecDisabled = errors.New(
+	"this guest's agent refuses guest-exec, which is how RHEL-family images ship " +
+		"(Rocky, Alma, CentOS, RHEL). To let the console provision accounts here, drop " +
+		"guest-exec and guest-exec-status from BLOCK_RPCS (older builds: BLACKLIST_RPC) " +
+		"in /etc/sysconfig/qemu-ga on the guest and restart qemu-guest-agent — best done " +
+		"once, in the template")
 
 // provisionScript renders the work as POSIX sh: the guests worth
 // reaching this way run everything from Alpine's busybox to RHEL, and
