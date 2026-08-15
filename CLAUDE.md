@@ -230,7 +230,18 @@ Surface the daily 90% here and link out for the rest.
   in the frontend, since the backend has no business knowing them.
   State is in memory: a restart forgets what was in flight, which is
   honest, where rows in the database would survive as operations stuck
-  at RUNNING with nothing left to advance them. Template builds are
+  at RUNNING with nothing left to advance them.
+- THE BELL REPORTS WITHOUT BEING OPENED, which is the only reason to
+  put it in the toolbar: it RINGS while something runs (a swing that
+  decays over a second, then rests — a permanent animation stops being
+  information), and keeps a coloured dot on work that finished since
+  you last looked, red if any of it failed. Opening the menu is
+  reading it. One `mode` drives the icon, the badge and the label
+  together, because deriving them separately let them disagree — and
+  MUI hides a badge whose content is zero, which quietly swallowed the
+  finished-work dot until the three cases were rendered separately.
+  `prefers-reduced-motion` turns the ring off; the colour and the dot
+  say the same thing without it. Template builds are
   the same path (cloud image → import disk → cloud-init drive → serial
   console → convert), so a build interrupted by a restart still leaves
   a VM, not a template — it shows up in VM instances.

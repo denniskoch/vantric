@@ -12,7 +12,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material'
-import NotificationsIcon from '@mui/icons-material/Notifications'
+import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import CloseIcon from '@mui/icons-material/Close'
@@ -26,8 +26,11 @@ import type { Operation } from '../api/client'
  * Cloning a VM, importing a disk and fetching an ISO all take longer
  * than a form should sit there for, so the handler starts the work and
  * answers with an operation. This watches them all in one place, the
- * way a cloud console does — the badge counts what's still running,
- * and a finished one says what it did until you dismiss it.
+ * way a cloud console does — and it tells you WITHOUT BEING OPENED,
+ * which is the whole point of putting it in the toolbar: it rings while
+ * something is running, and keeps a dot on whatever finished since you
+ * last looked. Nobody should have to sit with a menu open to find out
+ * their VM came up.
  */
 
 /** Which cached lists an operation's outcome invalidates. The backend
@@ -44,6 +47,9 @@ const affects: Record<string, string[]> = {
 
 export default function NotificationBell() {
   const [anchor, setAnchor] = useState<null | HTMLElement>(null)
+  // Operations that finished since the menu was last open. The point of
+  // a bell is not having to keep it open to find out.
+  const [unseen, setUnseen] = useState<Set<string>>(new Set())
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
@@ -60,14 +66,36 @@ export default function NotificationBell() {
   // the operation touched as it lands.
   const settled = useRef(new Set<string>())
   useEffect(() => {
+    const landed: string[] = []
     for (const op of operations) {
       if (op.status === 'RUNNING' || settled.current.has(op.id)) continue
       settled.current.add(op.id)
+      landed.push(op.id)
       for (const key of affects[op.resourceType] ?? []) {
         queryClient.invalidateQueries({ queryKey: [key] })
       }
     }
+    if (landed.length > 0) {
+      setUnseen((current) => new Set([...current, ...landed]))
+    }
   }, [operations, queryClient])
+
+  // Opening the menu is reading them.
+  useEffect(() => {
+    if (anchor) setUnseen(new Set())
+  }, [anchor])
+
+  // One state drives the icon, the badge and the label, so they can't
+  // contradict each other: busy while something runs, then done or
+  // failed until you look, then idle.
+  const mode: BellMode =
+    running.length > 0
+      ? 'busy'
+      : unseen.size === 0
+        ? 'idle'
+        : operations.some((op) => unseen.has(op.id) && op.status === 'ERROR')
+          ? 'failed'
+          : 'done'
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['operations'] })
   const dismiss = useMutation({ mutationFn: api.dismissOperation, onSuccess: refresh })
@@ -75,19 +103,30 @@ export default function NotificationBell() {
 
   return (
     <>
-      <Tooltip title={running.length ? `${running.length} in progress` : 'Notifications'}>
+      <Tooltip title={label(mode, running.length, unseen.size)}>
         <IconButton
-          size="small"
           onClick={(e) => setAnchor(e.currentTarget)}
-          aria-label={`Notifications: ${running.length} in progress`}
+          aria-label={label(mode, running.length, unseen.size)}
+          aria-live="polite"
         >
-          <Badge
-            badgeContent={running.length}
-            color="primary"
-            slotProps={{ badge: { sx: { fontSize: 10, height: 16, minWidth: 16 } } }}
-          >
-            <NotificationsIcon fontSize="small" sx={{ color: '#5f6368' }} />
-          </Badge>
+          {/* Three separate cases rather than one badge with clever
+              props: MUI treats a badge whose content is 0 as one to
+              hide, which quietly swallowed the finished-work dot. */}
+          {mode === 'busy' ? (
+            <Badge
+              badgeContent={running.length}
+              color="primary"
+              slotProps={{ badge: { sx: { fontSize: 10, height: 16, minWidth: 16 } } }}
+            >
+              <NotificationsNoneIcon sx={bellIcon(mode)} />
+            </Badge>
+          ) : mode === 'idle' ? (
+            <NotificationsNoneIcon sx={bellIcon(mode)} />
+          ) : (
+            <Badge variant="dot" color={mode === 'failed' ? 'error' : 'success'}>
+              <NotificationsNoneIcon sx={bellIcon(mode)} />
+            </Badge>
+          )}
         </IconButton>
       </Tooltip>
 
@@ -210,4 +249,48 @@ function elapsed(op: Operation): string {
       ? `${seconds}s`
       : `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s`
   return op.status === 'RUNNING' ? `Running for ${took}` : `Took ${took}`
+}
+
+type BellMode = 'idle' | 'busy' | 'done' | 'failed'
+
+/**
+ * The bell rings while work is running, because the whole point is not
+ * having to open it to find out. It swings for under a second and then
+ * rests, rather than shaking continuously — a permanent animation in a
+ * toolbar stops being information and becomes a distraction.
+ */
+function bellIcon(mode: BellMode) {
+  const busy = mode === 'busy'
+  return {
+    fontSize: 22,
+    color: busy ? '#1a73e8' : mode === 'failed' ? '#d93025' : '#5f6368',
+    transformOrigin: 'top center',
+    animation: busy ? 'lcmBellRing 2.4s ease-in-out infinite' : 'none',
+    '@keyframes lcmBellRing': {
+      '0%, 45%, 100%': { transform: 'rotate(0deg)' },
+      '4%': { transform: 'rotate(14deg)' },
+      '9%': { transform: 'rotate(-12deg)' },
+      '14%': { transform: 'rotate(10deg)' },
+      '19%': { transform: 'rotate(-8deg)' },
+      '24%': { transform: 'rotate(5deg)' },
+      '29%': { transform: 'rotate(-3deg)' },
+      '34%': { transform: 'rotate(1deg)' },
+    },
+    // Movement isn't the only signal — the colour and the badge say the
+    // same thing — so it costs nothing to leave people alone here.
+    '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
+  }
+}
+
+function label(mode: BellMode, running: number, unseen: number): string {
+  switch (mode) {
+    case 'busy':
+      return `${running} operation${running === 1 ? '' : 's'} in progress`
+    case 'failed':
+      return `${unseen} finished, one of them badly`
+    case 'done':
+      return `${unseen} finished`
+    default:
+      return 'Notifications'
+  }
 }
