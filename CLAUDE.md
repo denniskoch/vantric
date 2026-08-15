@@ -235,6 +235,26 @@ Surface the daily 90% here and link out for the rest.
   the operation ends in an error that says the instance was created but
   wouldn't start. The record is written before the boot is attempted,
   so Start is one click away either way.
+- THE GUEST'S ADDRESS IS CHOSEN, NOT TAKEN. A guest reports every
+  interface it has, in whatever order the kernel lists them, and a
+  Docker host has three or four: the old rule (first one that isn't
+  `lo`) therefore depended on whether docker0 was created before or
+  after the NIC was renamed. `pickGuestIP` RANKS them instead — an
+  ordinary NIC beats a tunnel (tailscale, wireguard) beats a container
+  bridge (docker0, br-*, veth*) — and rejects loopback and the
+  link-local address a machine assigns itself when DHCP fails. A bridge
+  address is still returned when it's all there is, since something
+  beats blank, but it can never outrank the LAN address. Its test
+  carries the real interface lists of the guests this was written for,
+  because the old rule got several of them right by luck.
+- AN ADDRESS IS RE-READ, NOT REMEMBERED. The agent lookup used to run
+  only while the field was EMPTY, so a lease learned once was kept
+  forever: DHCP moves the guest, the console keeps offering the old
+  address, and the SSH terminal dials something nothing answers on —
+  which looks like broken SSH rather than a stale record. `dueForIP`
+  asks often while there's no address (every 5th sweep, since a booting
+  VM gets one in seconds) and slowly once there is (every 30th), which
+  is one agent call a minute per running guest.
 - The reconciler also ADOPTS VMs found on a server that the app didn't
   create (they appear as instances with deletion protection enabled) and
   removes instances whose VM vanished out-of-band. Driver.List must be

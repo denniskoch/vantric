@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -363,17 +364,87 @@ func (d *Driver) guestIP(ctx context.Context, node, vmid string) string {
 	if err := d.do(ctx, http.MethodGet, path, nil, &res); err != nil {
 		return ""
 	}
+	interfaces := make([]guestInterface, 0, len(res.Result))
 	for _, iface := range res.Result {
-		if iface.Name == "lo" {
-			continue
-		}
+		g := guestInterface{Name: iface.Name}
 		for _, a := range iface.Addrs {
 			if a.Type == "ipv4" {
-				return a.Addr
+				g.IPv4 = append(g.IPv4, a.Addr)
 			}
 		}
+		interfaces = append(interfaces, g)
 	}
-	return ""
+	return pickGuestIP(interfaces)
+}
+
+type guestInterface struct {
+	Name string
+	IPv4 []string
+}
+
+// Interfaces that exist on the guest but aren't how you reach it. A
+// container bridge answers on the guest's own side only, so handing one
+// to the SSH terminal produces a connection attempt to an address that
+// was never routable from here.
+var containerInterfaces = []string{
+	"docker", "br-", "veth", "virbr", "lxcbr", "lxdbr", "cni", "flannel",
+	"cali", "kube", "weave", "podman", "cbr", "vmbr",
+}
+
+// Tunnels are routable, just not the LAN address — worth using when
+// there's nothing else, never in preference to the real NIC.
+var tunnelInterfaces = []string{"tailscale", "wg", "tun", "tap", "zt", "ppp", "nebula"}
+
+// pickGuestIP chooses the address a guest can actually be reached on.
+//
+// The agent reports every interface the guest has, in whatever order the
+// kernel lists them, and the old rule — first one that isn't lo — was
+// therefore luck: on a Docker host the answer depends on whether
+// docker0 was created before or after the NIC was renamed. A guest
+// whose stored address is its own bridge looks fine in the list and
+// fails at Connect, which is the worst way to be wrong.
+func pickGuestIP(interfaces []guestInterface) string {
+	best, bestRank := "", 99
+	for _, iface := range interfaces {
+		name := strings.ToLower(iface.Name)
+		if name == "lo" || strings.HasPrefix(name, "lo:") {
+			continue
+		}
+		rank := 0
+		switch {
+		case hasPrefixAny(name, containerInterfaces):
+			rank = 2
+		case hasPrefixAny(name, tunnelInterfaces):
+			rank = 1
+		}
+		for _, addr := range iface.IPv4 {
+			if !usableIPv4(addr) {
+				continue
+			}
+			if rank < bestRank {
+				best, bestRank = addr, rank
+			}
+			break // one address per interface is enough
+		}
+	}
+	return best
+}
+
+func hasPrefixAny(name string, prefixes []string) bool {
+	for _, p := range prefixes {
+		if strings.HasPrefix(name, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// usableIPv4 rejects the addresses that are never an answer to "where
+// is this guest": loopback, and the link-local block a machine gives
+// itself when DHCP failed.
+func usableIPv4(addr string) bool {
+	ip := net.ParseIP(addr)
+	return ip != nil && ip.To4() != nil && !ip.IsLoopback() && !ip.IsLinkLocalUnicast() && !ip.IsUnspecified()
 }
 
 func mapStatus(status, lock string) hypervisor.Status {

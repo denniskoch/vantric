@@ -213,6 +213,21 @@ func (r *Reconciler) adoptContainer(ctx context.Context, server store.Server, st
 	r.log.Info("reconciler: adopted container", "name", ct.Name, "server", server.Name)
 }
 
+// dueForIP decides when to ask the guest agent again.
+//
+// A guest with no address yet is asked often, because a new VM has one
+// within seconds of booting. A guest that HAS one is asked anyway, just
+// rarely — the old rule only ever asked while the field was empty,
+// which meant an address learned once was kept forever. DHCP hands out
+// a different lease, the console keeps offering the old one, and the
+// SSH terminal dials an address nothing answers on.
+func (r *Reconciler) dueForIP(current string) bool {
+	if current == "" {
+		return r.sweeps%5 == 0
+	}
+	return r.sweeps%30 == 0
+}
+
 // syncInstance applies observed runtime state to a managed instance.
 func (r *Reconciler) syncInstance(ctx context.Context, driver hypervisor.Driver, inst *store.Instance, state hypervisor.InstanceState) {
 	internalIP := inst.InternalIP
@@ -222,7 +237,7 @@ func (r *Reconciler) syncInstance(ctx context.Context, driver hypervisor.Driver,
 		internalIP, externalIP = "", ""
 	case state.InternalIP != "":
 		internalIP = state.InternalIP
-	case state.Status == hypervisor.StatusRunning && internalIP == "" && r.sweeps%5 == 0:
+	case state.Status == hypervisor.StatusRunning && r.dueForIP(internalIP):
 		// List omits IPs on some drivers; ask the guest agent via Get,
 		// throttled since agentless VMs will never answer.
 		if full, err := driver.Get(ctx, inst.DriverID); err == nil {
