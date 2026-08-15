@@ -420,12 +420,37 @@ export interface VulnerableSoftware {
   resolvedInVersion: string
 }
 
+/** One CVSS scoring. NVD carries several — its own and the vendor's,
+ *  in different versions of the standard — and they often disagree. */
+export interface NVDMetric {
+  version: string
+  score: number
+  severity: string
+  vector: string
+  source: string
+  primary: boolean
+}
+
+export interface NVDRecord {
+  cve: string
+  description: string
+  published: number
+  lastModified: number
+  metrics: NVDMetric[] | null
+  weaknesses: string[] | null
+  references: { url: string; tags: string[] | null }[] | null
+}
+
 export interface VulnerabilityDetail {
   summary: VulnerabilitySummary
   hosts: (InventoryHost & { instance: string; managed: boolean })[]
   software: VulnerableSoftware[]
   detectedAt: number
   hostsCountedAt: number
+  /** What the public database says about the flaw; absent when it has
+   *  nothing or couldn't be reached. */
+  nvd?: NVDRecord
+  nvdError?: string
 }
 
 export interface InventoryVulnerabilities {

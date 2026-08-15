@@ -15,6 +15,7 @@ import (
 
 	"lab-cloud-manager/internal/inventory"
 	inventoryfactory "lab-cloud-manager/internal/inventory/factory"
+	"lab-cloud-manager/internal/nvd"
 	"lab-cloud-manager/internal/store"
 )
 
@@ -425,6 +426,11 @@ type vulnerabilityDetailView struct {
 	Software       []inventory.VulnerableSoftware `json:"software"`
 	DetectedAt     int64                          `json:"detectedAt"`
 	HostsCountedAt int64                          `json:"hostsCountedAt"`
+	// NVD is what the public database says about the flaw itself:
+	// absent when it has nothing, or when it couldn't be reached, which
+	// is a page with less on it rather than a page that failed.
+	NVD      *nvd.Record `json:"nvd,omitempty"`
+	NVDError string      `json:"nvdError,omitempty"`
 }
 
 func (s *Server) getInventoryVulnerability(w http.ResponseWriter, r *http.Request) {
@@ -433,9 +439,29 @@ func (s *Server) getInventoryVulnerability(w http.ResponseWriter, r *http.Reques
 		s.err(w, http.StatusNotFound, "no inventory service is connected")
 		return
 	}
-	detail, err := provider.Vulnerability(r.Context(), chi.URLParam(r, "cve"))
-	if err != nil {
-		s.fail(w, err, "vulnerability")
+	cve := chi.URLParam(r, "cve")
+	// The inventory service and the public database are asked at the
+	// same time: one knows who has it, the other knows what it is, and
+	// neither should wait for the other.
+	var (
+		detail    *inventory.VulnerabilityDetail
+		record    *nvd.Record
+		fleetErr  error
+		lookupErr error
+		wg        sync.WaitGroup
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		detail, fleetErr = provider.Vulnerability(r.Context(), cve)
+	}()
+	go func() {
+		defer wg.Done()
+		record, lookupErr = s.nvd.Lookup(r.Context(), cve)
+	}()
+	wg.Wait()
+	if fleetErr != nil {
+		s.fail(w, fleetErr, "vulnerability")
 		return
 	}
 	instances, err := s.store.ListInstances(r.Context())
@@ -455,6 +481,13 @@ func (s *Server) getInventoryVulnerability(w http.ResponseWriter, r *http.Reques
 		Software:       detail.Software,
 		DetectedAt:     detail.DetectedAt,
 		HostsCountedAt: detail.HostsCountedAt,
+		NVD:            record,
+	}
+	if lookupErr != nil {
+		// Said out loud rather than swallowed: "no description" and
+		// "couldn't reach NVD" are different facts.
+		out.NVDError = lookupErr.Error()
+		s.log.Warn("nvd lookup failed", "cve", cve, "error", lookupErr)
 	}
 	for _, host := range detail.Hosts {
 		view := vulnerabilityHostView{Host: host}

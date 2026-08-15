@@ -22,6 +22,7 @@ import (
 	"lab-cloud-manager/internal/identity"
 	"lab-cloud-manager/internal/inventory"
 	"lab-cloud-manager/internal/network"
+	"lab-cloud-manager/internal/nvd"
 	"lab-cloud-manager/internal/store"
 )
 
@@ -48,8 +49,11 @@ type Server struct {
 	// inventoryRegistry holds the live device inventory services
 	// (FleetDM) — what's installed inside the guests.
 	inventoryRegistry *inventory.Registry
-	log               *slog.Logger
-	staticDir         string
+	// nvd looks CVEs up in the public vulnerability database. No
+	// credential, cached, and never fatal — see internal/nvd.
+	nvd       *nvd.Client
+	log       *slog.Logger
+	staticDir string
 	// siteURL is the address the outside world reaches this console at,
 	// when that isn't the one the request arrived on. See config.SiteURL.
 	siteURL string
@@ -86,6 +90,7 @@ func New(
 		store: st, registry: registry, dnsRegistry: dnsRegistry, dbRegistry: dbRegistry,
 		identityRegistry: identityRegistry, networkRegistry: networkRegistry,
 		inventoryRegistry: inventoryRegistry,
+		nvd:               nvd.New(),
 		log:               log, staticDir: staticDir, dataDir: dataDir, siteURL: siteURL, ssh: sshOpts,
 		ops: newOpRegistry(),
 	}

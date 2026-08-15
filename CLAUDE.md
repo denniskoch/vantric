@@ -436,6 +436,22 @@ Surface the daily 90% here and link out for the rest.
   because Fleet reports the number and leaves the naming to whoever
   displays it, worst is sorted first, and "no fix published" is
   spelled out — the difference between patch this and wait.
+- A CVE IS ENRICHED FROM NVD, which is a PUBLIC REFERENCE rather than
+  a tool in the lab — no account, no credential, nothing to configure,
+  so `internal/nvd` is a client and a cache rather than another
+  provider. It exists because an inventory service answers "who has
+  this" and NVD answers "what is it, how bad, and where's the patch",
+  and the free tier of Fleet carries no CVSS at all — every severity
+  would otherwise read MINIMAL because the score is absent, not low.
+  Two rules follow from it being on the internet: answers are CACHED
+  (12 hours, and 15 minutes for a miss, because NVD rate-limits
+  anonymous callers to a handful a minute), and a failure is NEVER
+  fatal — the page loses its description, not its host list, and says
+  which happened. NVD and the inventory service are asked CONCURRENTLY;
+  neither should wait for the other. Scores are shown WITH THEIR
+  SOURCE, since NVD's own analysis and the vendor's routinely disagree
+  (CVE-2025-12781 is 5.3 to NVD and 6.3 to python.org), and a number
+  with no provenance is a number to argue about.
 - INSTALLERS ARE THE ONE THING THIS CONSOLE OWNS. Everywhere else it
   is a view onto somebody else's source of truth; agent packages are
   files it holds, because Fleet builds installers without hosting them
