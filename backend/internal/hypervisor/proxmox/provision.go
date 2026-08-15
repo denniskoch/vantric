@@ -160,21 +160,25 @@ func provisionScript(user hypervisor.ConsoleUser) string {
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 
-# Which tool exists is a separate question from whether it worked, and
-# conflating them is how "no useradd or adduser" got reported on a guest
-# that has useradd exactly where RHEL puts it. Look the binary up first,
-# then let its own stderr through: the whole value of running this
-# through the agent is finding out why the guest said no.
+# Report what the guest actually said. An earlier version decided for
+# itself that a non-zero useradd meant no useradd, which was wrong
+# twice over: the tool can fail for its own reasons, and on a RHEL
+# guest SELinux confines the agent (virt_qemu_ga_t) to the point where
+# it is denied even getattr on /usr/sbin/useradd — so the shell HONESTLY
+# reports "not found" for a binary sitting in plain sight. No lookup
+# from in here can tell those apart, so both errors go up verbatim and
+# the guest's own audit log settles it.
 if ! id -u "$user" >/dev/null 2>&1; then
-  if create=$(command -v useradd 2>/dev/null); then
-    out=$("$create" -m -s /bin/bash "$user" 2>&1) \
-      || { echo "$create failed: ${out:-no output, exit $?}" >&2; exit 1; }
-  elif create=$(command -v adduser 2>/dev/null); then
-    out=$("$create" -D -s /bin/sh "$user" 2>&1) \
-      || { echo "$create failed: ${out:-no output, exit $?}" >&2; exit 1; }
-  else
-    echo "could not create $user: no useradd or adduser on PATH ($PATH)" >&2
-    exit 1
+  if ! useradd_err=$(useradd -m -s /bin/bash "$user" 2>&1); then
+    if ! adduser_err=$(adduser -D -s /bin/sh "$user" 2>&1); then
+      echo "could not create $user" >&2
+      echo "  useradd: ${useradd_err:-exited non-zero}" >&2
+      echo "  adduser: ${adduser_err:-exited non-zero}" >&2
+      if [ -f /etc/selinux/config ]; then
+        echo "  this guest runs SELinux: if those read as not found or permission denied, it is confining the guest agent rather than missing the tools — check ausearch -m avc" >&2
+      fi
+      exit 1
+    fi
   fi
 fi
 

@@ -132,7 +132,16 @@ Surface the daily 90% here and link out for the rest.
   RHEL-family guests that arrives without /usr/sbin, where useradd
   lives — while Debian and Ubuntu pass a fuller one, which is what
   made "no useradd or adduser" look like a Rocky bug rather than the
-  script assuming someone else's environment. Sudo is a SEPARATE decision
+  script assuming someone else's environment. It also REPORTS WHAT THE
+  GUEST SAID rather than diagnosing from in there: SELinux confines the
+  agent on RHEL guests (`virt_qemu_ga_t`) tightly enough to deny
+  getattr on /usr/sbin/useradd, so the shell truthfully says "not
+  found" about a binary in plain sight, and nothing inside the script
+  can tell that from an image without the tool. Both errors go up
+  verbatim, with a note where /etc/selinux/config exists. Such a guest
+  needs its booleans loosened or its key installed by hand — the
+  terminal's fallback — and the console doesn't pretend otherwise.
+  Sudo is a SEPARATE decision
   (`ssh.provisionSudo`, default off): creating a login is implied by
   clicking Connect, granting root fleet-wide is not. `ssh.provision:
   false` turns the whole path off and the terminal goes back to
