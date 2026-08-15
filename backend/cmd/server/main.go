@@ -20,6 +20,8 @@ import (
 	"lab-cloud-manager/internal/hypervisor/factory"
 	"lab-cloud-manager/internal/identity"
 	identityfactory "lab-cloud-manager/internal/identity/factory"
+	"lab-cloud-manager/internal/inventory"
+	inventoryfactory "lab-cloud-manager/internal/inventory/factory"
 	"lab-cloud-manager/internal/network"
 	networkfactory "lab-cloud-manager/internal/network/factory"
 	"lab-cloud-manager/internal/store"
@@ -59,10 +61,13 @@ func main() {
 	networkRegistry := network.NewRegistry()
 	loadNetworkRegistry(ctx, st, networkRegistry, log)
 
+	inventoryRegistry := inventory.NewRegistry()
+	loadInventoryRegistry(ctx, st, inventoryRegistry, log)
+
 	// The console's SSH key lives beside the database.
 	dataDir := filepath.Dir(cfg.Database.DSN)
 	server := api.New(st, registry, dnsRegistry, dbRegistry, identityRegistry,
-		networkRegistry, log, cfg.StaticDir, dataDir, cfg.SiteURL,
+		networkRegistry, inventoryRegistry, log, cfg.StaticDir, dataDir, cfg.SiteURL,
 		api.SSHOptions{Provision: cfg.SSH.Provision, Sudo: cfg.SSH.ProvisionSudo})
 	reconciler := api.NewReconciler(st, registry, log, 2*time.Second)
 	go reconciler.Run(ctx)
@@ -175,4 +180,21 @@ func loadNetworkRegistry(ctx context.Context, st *store.Store, registry *network
 		registry.Set(providers[i].ID, provider)
 	}
 	log.Info("network registry loaded", "providers", len(providers))
+}
+
+func loadInventoryRegistry(ctx context.Context, st *store.Store, registry *inventory.Registry, log *slog.Logger) {
+	providers, err := st.ListInventoryProviders(ctx)
+	if err != nil {
+		log.Error("listing inventory providers", "error", err)
+		return
+	}
+	for i := range providers {
+		provider, err := inventoryfactory.Build(&providers[i])
+		if err != nil {
+			log.Error("building inventory provider", "provider", providers[i].Name, "error", err)
+			continue
+		}
+		registry.Set(providers[i].ID, provider)
+	}
+	log.Info("inventory registry loaded", "providers", len(providers))
 }

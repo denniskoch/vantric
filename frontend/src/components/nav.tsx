@@ -34,6 +34,7 @@ import WifiIcon from '@mui/icons-material/Wifi'
 import PublicOffIcon from '@mui/icons-material/Public'
 import VpnLockIcon from '@mui/icons-material/VpnLock'
 import HistoryIcon from '@mui/icons-material/History'
+import FactCheckIcon from '@mui/icons-material/FactCheck'
 import { createSvgIcon } from '@mui/material/utils'
 import { siDocker } from 'simple-icons'
 
@@ -155,6 +156,12 @@ export const sections: Section[] = [
             icon: DnsIcon,
             to: '/compute/settings/hypervisors',
             hint: 'Virtualization hosts backing everything else',
+          },
+          {
+            label: 'Inventory',
+            icon: FactCheckIcon,
+            to: '/compute/settings/inventory',
+            hint: "What's installed inside your guests, and its known vulnerabilities",
           },
         ],
       },

@@ -308,6 +308,80 @@ export interface Overview {
   datastores: OverviewDatastore[]
 }
 
+/** A CVE affecting an installed package, as the inventory service
+ *  reports it. */
+export interface Vulnerability {
+  cve: string
+  package: string
+  installedVersion: string
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'MINIMAL'
+  cvssScore: number
+  epss: number
+  knownExploited: boolean
+  /** Empty when no fixed version has been published. */
+  resolvedInVersion: string
+  publishedAt: number
+  detailsUrl: string
+}
+
+export interface InventoryPackage {
+  name: string
+  version: string
+  source: string
+  vulnerabilities: Vulnerability[] | null
+}
+
+export interface InventoryHost {
+  id: string
+  hostname: string
+  uuid: string
+  serial: string
+  platform: string
+  osVersion: string
+  status: string
+  seenAt: number
+  updatedAt: number
+  issuesFailing: number
+}
+
+/**
+ * Three states, deliberately distinct: no service connected, a service
+ * that has never seen this machine, and a machine it knows. The middle
+ * one is a finding, not an empty list.
+ */
+export interface InstanceInventory {
+  configured: boolean
+  enrolled: boolean
+  detail?: {
+    host: InventoryHost
+    packages: InventoryPackage[]
+    vulnerabilities: Vulnerability[]
+  }
+  uuid: string
+  error?: string
+}
+
+export interface InventoryProvider {
+  id: string
+  name: string
+  type: string
+  baseUrl: string
+  insecureTls: boolean
+  createdAt: string
+  hasToken: boolean
+  status: string
+  info?: { version: string; hosts: number }
+  error?: string
+}
+
+export interface InventoryProviderRequest {
+  name: string
+  type: string
+  baseUrl: string
+  token?: string
+  insecureTls?: boolean
+}
+
 export interface Server {
   id: string
   name: string
@@ -1034,6 +1108,25 @@ export const api = {
   listDatastores: () => request<Datastore[]>('/datastores'),
 
   overview: () => request<Overview>('/overview'),
+
+  /** What the inventory service knows about this guest's insides. */
+  instanceInventory: (name: string) =>
+    request<InstanceInventory>(`/instances/${name}/inventory`),
+
+  listInventoryProviderTypes: () => request<string[]>('/inventory/provider-types'),
+  listInventoryProviders: () => request<InventoryProvider[]>('/inventory/providers'),
+  createInventoryProvider: (body: InventoryProviderRequest) =>
+    request<InventoryProvider>('/inventory/providers', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateInventoryProvider: (id: string, body: InventoryProviderRequest) =>
+    request<InventoryProvider>(`/inventory/providers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  deleteInventoryProvider: (id: string) =>
+    request<void>(`/inventory/providers/${id}`, { method: 'DELETE' }),
 
   listOperations: () => request<Operation[]>('/operations'),
   dismissOperation: (id: string) => request<void>(`/operations/${id}`, { method: 'DELETE' }),

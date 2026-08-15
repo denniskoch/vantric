@@ -411,6 +411,31 @@ Surface the daily 90% here and link out for the rest.
   is a device rather than a WAN port, so it's synthesized into the
   Internet list from its `mbb` object (carrier, signal, radio, plan).
   A failover uplink sitting idle reads "Standby", not a fault.
+- DEVICE INVENTORY is the same split a sixth time:
+  `internal/inventory.Provider` is the boundary (FleetDM first),
+  services are DB records with a write-only token, one live provider
+  per record in `inventory.Registry`, and a factory maps type →
+  implementation. Credentials are verified before storing, and a 401
+  says out loud that Fleet wants an API-ONLY user's token, since a
+  token copied from a browser session is the usual mistake. READ ONLY,
+  and more strictly than Network: this reports what the agents found.
+  Live queries and policies stay in the tool whose blast radius they
+  are.
+- THE JOIN IS THE SMBIOS UUID, which is the whole reason it was
+  pulled. The hypervisor knows a guest's UUID and the agent inside
+  reports the same value, so `/instances/{name}/inventory` looks the
+  machine up by identity rather than by hostname, which two systems
+  can disagree about. The answer distinguishes THREE states instead of
+  collapsing them: no service connected, a service that has never seen
+  this machine, and a machine it knows — the middle one is an
+  unenrolled guest, a finding rather than an empty table. Packages and
+  CVEs render under the guest agent's own OS report, read on demand,
+  never polled: it is someone else's database and only changes when
+  their agent checks in, which is why every panel states when it was
+  last collected. Severity is derived from the CVSS score (NVD bands)
+  because Fleet reports the number and leaves the naming to whoever
+  displays it, worst is sorted first, and "no fix published" is
+  spelled out — the difference between patch this and wait.
 - IAM & Admin (this console's own RBAC) and Identity Platform (the
   lab's identity service) are deliberately separate sections: one
   governs access to this app, the other manages a service in the lab.

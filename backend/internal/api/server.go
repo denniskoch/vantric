@@ -20,6 +20,7 @@ import (
 	"lab-cloud-manager/internal/dns"
 	"lab-cloud-manager/internal/hypervisor"
 	"lab-cloud-manager/internal/identity"
+	"lab-cloud-manager/internal/inventory"
 	"lab-cloud-manager/internal/network"
 	"lab-cloud-manager/internal/store"
 )
@@ -44,8 +45,11 @@ type Server struct {
 	identityRegistry *identity.Registry
 	// networkRegistry holds the live network controllers (UniFi).
 	networkRegistry *network.Registry
-	log             *slog.Logger
-	staticDir       string
+	// inventoryRegistry holds the live device inventory services
+	// (FleetDM) — what's installed inside the guests.
+	inventoryRegistry *inventory.Registry
+	log               *slog.Logger
+	staticDir         string
 	// siteURL is the address the outside world reaches this console at,
 	// when that isn't the one the request arrived on. See config.SiteURL.
 	siteURL string
@@ -71,6 +75,7 @@ func New(
 	dbRegistry *database.Registry,
 	identityRegistry *identity.Registry,
 	networkRegistry *network.Registry,
+	inventoryRegistry *inventory.Registry,
 	log *slog.Logger,
 	staticDir string,
 	dataDir string,
@@ -80,7 +85,8 @@ func New(
 	return &Server{
 		store: st, registry: registry, dnsRegistry: dnsRegistry, dbRegistry: dbRegistry,
 		identityRegistry: identityRegistry, networkRegistry: networkRegistry,
-		log: log, staticDir: staticDir, dataDir: dataDir, siteURL: siteURL, ssh: sshOpts,
+		inventoryRegistry: inventoryRegistry,
+		log:               log, staticDir: staticDir, dataDir: dataDir, siteURL: siteURL, ssh: sshOpts,
 		ops: newOpRegistry(),
 	}
 }
@@ -166,6 +172,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		s.databaseRoutes(r)
 		s.identityRoutes(r)
 		s.networkRoutes(r)
+		s.inventoryRoutes(r)
 
 		r.Get("/instances", s.listInstances)
 		r.Post("/instances", s.createInstance)
@@ -174,6 +181,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 			r.Get("/describe", s.describeInstance)
 			r.Get("/metrics", s.instanceMetrics)
 			r.Get("/os-info", s.instanceOSInfo)
+			r.Get("/inventory", s.instanceInventory)
 			r.Get("/ssh", s.instanceSSH)
 			r.Delete("/", s.deleteInstance)
 			r.Post("/start", s.instanceAction("start"))

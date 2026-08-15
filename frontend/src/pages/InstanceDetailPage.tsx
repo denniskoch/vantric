@@ -37,6 +37,7 @@ import { chart } from '../chartPalette'
 import { formatBytes, formatBytesPerSec, formatPercent, formatUptime } from '../format'
 import { OSIcon } from '../components/OSName'
 import ConnectButton from '../components/ConnectButton'
+import GuestInventory from '../components/GuestInventory'
 
 type TabID = 'details' | 'observability' | 'os' | 'console'
 
@@ -701,6 +702,11 @@ export default function InstanceDetailPage() {
                 />
               </DetailSection>
             )}
+
+            {/* Below the guest agent's own report: what an inventory
+                service found inside the machine. Different source,
+                different collection time, so it says both. */}
+            <GuestInventory instance={inst.name} />
           </>
         )}
 

@@ -61,6 +61,8 @@ import IdentityProvidersPage from './pages/IdentityProvidersPage'
 import AddIdentityProviderPage from './pages/AddIdentityProviderPage'
 import DNSProvidersPage from './pages/DNSProvidersPage'
 import ServersPage from './pages/ServersPage'
+import InventoryProvidersPage from './pages/InventoryProvidersPage'
+import InventoryProviderFormPage from './pages/InventoryProviderFormPage'
 import DisksPage from './pages/DisksPage'
 import SnapshotsPage from './pages/SnapshotsPage'
 import BackupsPage from './pages/BackupsPage'
@@ -83,6 +85,12 @@ export default function App() {
         <Route path="/" element={<Navigate to="/overview" replace />} />
         <Route path="/overview" element={<CloudOverviewPage />} />
         <Route path="/compute/overview" element={<OverviewPage />} />
+        <Route path="/compute/settings/inventory" element={<InventoryProvidersPage />} />
+        <Route path="/compute/settings/inventory/add" element={<InventoryProviderFormPage />} />
+        <Route
+          path="/compute/settings/inventory/:id/edit"
+          element={<InventoryProviderFormPage />}
+        />
         <Route
           path="/compute/instances/:name/description"
           element={<EditDescriptionPage target={instanceDescription} />}
