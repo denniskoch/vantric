@@ -26,8 +26,11 @@ import type { CloudImage } from '../api/client'
 import { formatBytes } from '../format'
 import { useServerNames } from '../useServerNames'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
+import { usePermissions } from '../user'
 
 export default function CloudImagesPage() {
+  // Offered only where the API would allow it; see rbac.go.
+  const { canEdit } = usePermissions()
   const queryClient = useQueryClient()
   const serverName = useServerNames()
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
@@ -57,7 +60,7 @@ export default function CloudImagesPage() {
       <PageHeader
         title="Cloud images"
         actions={
-          <>
+          canEdit && (
             <Button
               component={RouterLink}
               to="/compute/cloud-images/add"
@@ -67,7 +70,7 @@ export default function CloudImagesPage() {
             >
               Add cloud image
             </Button>
-          </>
+          )
         }
       />
 
@@ -104,15 +107,17 @@ export default function CloudImagesPage() {
                   {image.createdAt ? new Date(image.createdAt * 1000).toLocaleDateString() : '—'}
                 </TableCell>
                 <TableCell align="right">
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      setMenuAnchor(e.currentTarget)
-                      setMenuImage(image)
-                    }}
-                  >
-                    <MoreVertIcon fontSize="small" />
-                  </IconButton>
+                  {canEdit && (
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        setMenuAnchor(e.currentTarget)
+                        setMenuImage(image)
+                      }}
+                    >
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

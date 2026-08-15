@@ -28,8 +28,11 @@ import PageHeader from '../components/PageHeader'
 import type { IdentityUser } from '../api/client'
 import { userKind } from '../identity'
 import { formatDuration } from '../format'
+import { usePermissions } from '../user'
 
 export default function IdentityUsersPage() {
+  // Offered only where the API would allow it; see rbac.go.
+  const { canEdit } = usePermissions()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [menu, setMenu] = useState<{ anchor: HTMLElement; user: IdentityUser } | null>(null)
@@ -75,7 +78,7 @@ export default function IdentityUsersPage() {
       <PageHeader
         title="Users"
         actions={
-          <>
+          canEdit && (
             <Button
               variant="contained"
               size="small"
@@ -85,7 +88,7 @@ export default function IdentityUsersPage() {
             >
               Create user
             </Button>
-          </>
+          )
         }
         description={
           <>
@@ -176,12 +179,14 @@ export default function IdentityUsersPage() {
                 </TableCell>
                 <TableCell>{lastLogin(user.lastLogin)}</TableCell>
                 <TableCell align="right">
-                  <IconButton
-                    size="small"
-                    onClick={(e) => setMenu({ anchor: e.currentTarget, user })}
-                  >
-                    <MoreVertIcon fontSize="small" />
-                  </IconButton>
+                  {canEdit && (
+                    <IconButton
+                      size="small"
+                      onClick={(e) => setMenu({ anchor: e.currentTarget, user })}
+                    >
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

@@ -30,6 +30,7 @@ import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import { OSIcon } from '../components/OSName'
 import { formatBytes } from '../format'
 import { timeAgo } from '../format'
+import { usePermissions } from '../user'
 
 /**
  * Agent installers, kept here so a machine being set up can fetch one
@@ -45,6 +46,9 @@ import { timeAgo } from '../format'
  * otherwise enrol a host of their own.
  */
 export default function DevicesInstallersPage() {
+  // Holding a file is editor work; the download token is a credential,
+  // so rotating it is not. See rbac.go.
+  const { canEdit, canAdmin } = usePermissions()
   const queryClient = useQueryClient()
   const fileInput = useRef<HTMLInputElement>(null)
   const [fraction, setFraction] = useState<number | null>(null)
@@ -108,23 +112,27 @@ export default function DevicesInstallersPage() {
         description="Agent packages this console holds, so a machine being enrolled can fetch one with a single command. The download link carries a token — a fleetd package contains your enrollment secret, so it isn't left open."
         actions={
           <>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<UploadIcon />}
-              disabled={fraction !== null}
-              onClick={() => fileInput.current?.click()}
-            >
-              Upload installer
-            </Button>
-            <Button
-              size="small"
-              startIcon={<KeyIcon />}
-              disabled={rotate.isPending}
-              onClick={() => rotate.mutate()}
-            >
-              Rotate token
-            </Button>
+            {canEdit && (
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<UploadIcon />}
+                disabled={fraction !== null}
+                onClick={() => fileInput.current?.click()}
+              >
+                Upload installer
+              </Button>
+            )}
+            {canAdmin && (
+              <Button
+                size="small"
+                startIcon={<KeyIcon />}
+                disabled={rotate.isPending}
+                onClick={() => rotate.mutate()}
+              >
+                Rotate token
+              </Button>
+            )}
           </>
         }
       />
@@ -240,15 +248,18 @@ export default function DevicesInstallersPage() {
         >
           <ContentCopyIcon fontSize="small" sx={{ mr: 1 }} /> Copy download URL
         </MenuItem>
-        <MenuItem
-          onClick={() => {
-            setDeleting(selected)
-            setMenuAnchor(null)
-          }}
-          sx={{ color: '#d93025' }}
-        >
-          <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Delete
-        </MenuItem>
+        {/* Copying the link is a read; removing the file is not. */}
+        {canEdit && (
+          <MenuItem
+            onClick={() => {
+              setDeleting(selected)
+              setMenuAnchor(null)
+            }}
+            sx={{ color: '#d93025' }}
+          >
+            <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Delete
+          </MenuItem>
+        )}
       </Menu>
 
       <ConfirmDeleteDialog

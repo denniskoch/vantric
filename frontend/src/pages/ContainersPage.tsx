@@ -30,10 +30,13 @@ import type { Container } from '../api/client'
 import StatusIcon from '../components/StatusIcon'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import PageHeader from '../components/PageHeader'
+import { usePermissions } from '../user'
 
 // CT (LXC) instances. Separate from VM instances by design — they
 // list and provision differently.
 export default function ContainersPage() {
+  // Offered only where the API would allow it; see rbac.go.
+  const { canEdit } = usePermissions()
   const queryClient = useQueryClient()
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
   const [menuContainer, setMenuContainer] = useState<Container | null>(null)
@@ -145,9 +148,11 @@ export default function ContainersPage() {
                 <TableCell align="right">{ct.memoryMb}</TableCell>
                 <TableCell>{ct.internalIp || '—'}</TableCell>
                 <TableCell align="right">
-                  <IconButton size="small" onClick={(e) => openMenu(e, ct)}>
-                    <MoreVertIcon fontSize="small" />
-                  </IconButton>
+                  {canEdit && (
+                    <IconButton size="small" onClick={(e) => openMenu(e, ct)}>
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

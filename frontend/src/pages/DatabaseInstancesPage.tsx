@@ -29,6 +29,7 @@ import { api } from '../api/client'
 import type { DatabaseServer } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import PageHeader from '../components/PageHeader'
+import { usePermissions } from '../user'
 import { engineLabels } from '../databases'
 import { BrandLabel } from '../components/BrandIcon'
 import { databaseBrand } from '../brands'
@@ -63,6 +64,9 @@ function EngineLabel({ server }: { server: DatabaseServer }) {
 }
 
 export default function DatabaseInstancesPage() {
+  // A database server is a stored credential, so this whole page's
+  // actions are owner-only; see rbac.go.
+  const { canAdmin } = usePermissions()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
@@ -93,7 +97,7 @@ export default function DatabaseInstancesPage() {
       <PageHeader
         title="Instances"
         actions={
-          <>
+          canAdmin && (
             <Button
               variant="contained"
               size="small"
@@ -102,7 +106,7 @@ export default function DatabaseInstancesPage() {
             >
               Add instance
             </Button>
-          </>
+          )
         }
         description={
           <>
@@ -165,15 +169,17 @@ export default function DatabaseInstancesPage() {
                     : '—'}
                 </TableCell>
                 <TableCell align="right">
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      setMenuAnchor(e.currentTarget)
-                      setMenuServer(server)
-                    }}
-                  >
-                    <MoreVertIcon fontSize="small" />
-                  </IconButton>
+                  {canAdmin && (
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        setMenuAnchor(e.currentTarget)
+                        setMenuServer(server)
+                      }}
+                    >
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

@@ -23,10 +23,13 @@ import type { CTTemplate } from '../api/client'
 import { formatBytes } from '../format'
 import { useServerNames } from '../useServerNames'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
+import { usePermissions } from '../user'
 
 // CT templates (LXC root-filesystem tarballs) — the sources containers
 // are provisioned from.
 export default function CTTemplatesPage() {
+  // Offered only where the API would allow it; see rbac.go.
+  const { canEdit } = usePermissions()
   const queryClient = useQueryClient()
   const serverName = useServerNames()
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
@@ -88,15 +91,17 @@ export default function CTTemplatesPage() {
                   {tpl.createdAt ? new Date(tpl.createdAt * 1000).toLocaleDateString() : '—'}
                 </TableCell>
                 <TableCell align="right">
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      setMenuAnchor(e.currentTarget)
-                      setMenuTemplate(tpl)
-                    }}
-                  >
-                    <MoreVertIcon fontSize="small" />
-                  </IconButton>
+                  {canEdit && (
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        setMenuAnchor(e.currentTarget)
+                        setMenuTemplate(tpl)
+                      }}
+                    >
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

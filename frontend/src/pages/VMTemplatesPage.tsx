@@ -27,11 +27,14 @@ import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import PageHeader from '../components/PageHeader'
 import { OSIcon } from '../components/OSName'
 import { templateIdentity } from '../osIdentity'
+import { usePermissions } from '../user'
 
 // VM templates (Proxmox template VMs) — the sources "create instance"
 // clones from. Deleting one destroys a VM and its disks, unlike the
 // file-based CT template and ISO listings.
 export default function VMTemplatesPage() {
+  // Offered only where the API would allow it; see rbac.go.
+  const { canEdit } = usePermissions()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const serverName = useServerNames()
@@ -71,7 +74,7 @@ export default function VMTemplatesPage() {
       <PageHeader
         title="VM templates"
         actions={
-          <>
+          canEdit && (
             <Button
               component={RouterLink}
               to="/compute/vm-templates/build"
@@ -81,7 +84,7 @@ export default function VMTemplatesPage() {
             >
               Build template
             </Button>
-          </>
+          )
         }
       />
 
@@ -144,15 +147,17 @@ export default function VMTemplatesPage() {
                 <TableCell>{builtOn(tpl.createdAt)}</TableCell>
                 <TableCell sx={{ color: '#5f6368' }}>{id.notes || '—'}</TableCell>
                 <TableCell align="right">
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      setMenuAnchor(e.currentTarget)
-                      setMenuTemplate(tpl)
-                    }}
-                  >
-                    <MoreVertIcon fontSize="small" />
-                  </IconButton>
+                  {canEdit && (
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        setMenuAnchor(e.currentTarget)
+                        setMenuTemplate(tpl)
+                      }}
+                    >
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                  )}
                 </TableCell>
               </TableRow>
               )

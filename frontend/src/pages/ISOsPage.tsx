@@ -26,8 +26,11 @@ import type { ISO } from '../api/client'
 import { formatBytes } from '../format'
 import { useServerNames } from '../useServerNames'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
+import { usePermissions } from '../user'
 
 export default function ISOsPage() {
+  // Offered only where the API would allow it; see rbac.go.
+  const { canEdit } = usePermissions()
   const queryClient = useQueryClient()
   const serverName = useServerNames()
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
@@ -57,7 +60,7 @@ export default function ISOsPage() {
       <PageHeader
         title="ISOs"
         actions={
-          <>
+          canEdit && (
             <Button
               component={RouterLink}
               to="/compute/isos/add"
@@ -67,7 +70,7 @@ export default function ISOsPage() {
             >
               Add ISO
             </Button>
-          </>
+          )
         }
       />
 
@@ -104,15 +107,17 @@ export default function ISOsPage() {
                   {iso.createdAt ? new Date(iso.createdAt * 1000).toLocaleDateString() : '—'}
                 </TableCell>
                 <TableCell align="right">
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      setMenuAnchor(e.currentTarget)
-                      setMenuISO(iso)
-                    }}
-                  >
-                    <MoreVertIcon fontSize="small" />
-                  </IconButton>
+                  {canEdit && (
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        setMenuAnchor(e.currentTarget)
+                        setMenuISO(iso)
+                      }}
+                    >
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

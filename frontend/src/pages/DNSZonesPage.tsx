@@ -27,8 +27,11 @@ import { api } from '../api/client'
 import type { DNSZone } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import PageHeader from '../components/PageHeader'
+import { usePermissions } from '../user'
 
 export default function DNSZonesPage() {
+  // Offered only where the API would allow it; see rbac.go.
+  const { canEdit } = usePermissions()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
@@ -67,7 +70,7 @@ export default function DNSZonesPage() {
       <PageHeader
         title="Zones"
         actions={
-          <>
+          canEdit && (
             <Button
               variant="contained"
               size="small"
@@ -77,7 +80,7 @@ export default function DNSZonesPage() {
             >
               Create zone
             </Button>
-          </>
+          )
         }
         description={
           <>
@@ -140,15 +143,17 @@ export default function DNSZonesPage() {
                 <TableCell>{providerName(zone.providerId)}</TableCell>
                 <TableCell>{zone.accountName || '—'}</TableCell>
                 <TableCell align="right">
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      setMenuAnchor(e.currentTarget)
-                      setMenuZone(zone)
-                    }}
-                  >
-                    <MoreVertIcon fontSize="small" />
-                  </IconButton>
+                  {canEdit && (
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        setMenuAnchor(e.currentTarget)
+                        setMenuZone(zone)
+                      }}
+                    >
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

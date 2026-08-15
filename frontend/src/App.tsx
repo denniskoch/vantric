@@ -108,11 +108,19 @@ export default function App() {
         />
         <Route
           path="/compute/instances/:name/description"
-          element={<EditDescriptionPage target={instanceDescription} />}
+          element={
+            <RequireRole>
+              <EditDescriptionPage target={instanceDescription} />
+            </RequireRole>
+          }
         />
         <Route
           path="/compute/vm-templates/:serverId/:id/description"
-          element={<EditDescriptionPage target={templateDescription} />}
+          element={
+            <RequireRole>
+              <EditDescriptionPage target={templateDescription} />
+            </RequireRole>
+          }
         />
         {/* Every section has an overview, on the shared landing template. */}
         <Route path="/storage/overview" element={<SectionLandingPage />} />
@@ -139,16 +147,16 @@ export default function App() {
         />
         <Route
           path="/databases/instances/:id/databases/:name/access"
-          element={<DatabaseAccessPage />}
+          element={<RequireRole><DatabaseAccessPage /></RequireRole>}
         />
         <Route
           path="/databases/instances/:id/databases/create"
-          element={<CreateDatabasePage />}
+          element={<RequireRole><CreateDatabasePage /></RequireRole>}
         />
-        <Route path="/databases/instances/:id/users/create" element={<CreateDatabaseUserPage />} />
+        <Route path="/databases/instances/:id/users/create" element={<RequireRole><CreateDatabaseUserPage /></RequireRole>} />
         <Route
           path="/databases/instances/:id/users/:name/password"
-          element={<DatabaseUserPasswordPage />}
+          element={<RequireRole><DatabaseUserPasswordPage /></RequireRole>}
         />
         <Route path="/docker/overview" element={<SectionLandingPage />} />
         <Route path="/iam/overview" element={<SectionLandingPage />} />
@@ -163,8 +171,8 @@ export default function App() {
         <Route path="/iam/users/:id/password" element={<RequireRole admin><IAMPasswordPage /></RequireRole>} />
         <Route path="/identity/overview" element={<SectionLandingPage />} />
         <Route path="/identity/users" element={<IdentityUsersPage />} />
-        <Route path="/identity/users/create" element={<IdentityUserCreatePage />} />
-        <Route path="/identity/users/:id/edit" element={<IdentityUserEditPage />} />
+        <Route path="/identity/users/create" element={<RequireRole><IdentityUserCreatePage /></RequireRole>} />
+        <Route path="/identity/users/:id/edit" element={<RequireRole><IdentityUserEditPage /></RequireRole>} />
         <Route path="/identity/groups" element={<IdentityGroupsPage />} />
         <Route path="/identity/groups/:id" element={<IdentityGroupDetailPage />} />
         <Route path="/identity/applications" element={<IdentityApplicationsPage />} />
@@ -174,10 +182,10 @@ export default function App() {
         <Route path="/identity/providers/:id/edit" element={<RequireRole admin><AddIdentityProviderPage /></RequireRole>} />
         <Route path="/dns/overview" element={<SectionLandingPage />} />
         <Route path="/dns/zones" element={<DNSZonesPage />} />
-        <Route path="/dns/zones/create" element={<CreateZonePage />} />
+        <Route path="/dns/zones/create" element={<RequireRole><CreateZonePage /></RequireRole>} />
         <Route path="/dns/zones/:providerId/:zoneId" element={<DNSZoneDetailPage />} />
-        <Route path="/dns/zones/:providerId/:zoneId/records/new" element={<RecordSetPage />} />
-        <Route path="/dns/zones/:providerId/:zoneId/records/edit" element={<RecordSetPage />} />
+        <Route path="/dns/zones/:providerId/:zoneId/records/new" element={<RequireRole><RecordSetPage /></RequireRole>} />
+        <Route path="/dns/zones/:providerId/:zoneId/records/edit" element={<RequireRole><RecordSetPage /></RequireRole>} />
         <Route path="/dns/providers" element={<RequireRole admin><DNSProvidersPage /></RequireRole>} />
         <Route path="/dns/providers/add" element={<RequireRole admin><DNSProviderFormPage /></RequireRole>} />
         <Route path="/dns/providers/:id/edit" element={<RequireRole admin><DNSProviderFormPage /></RequireRole>} />
@@ -189,12 +197,12 @@ export default function App() {
         <Route path="/identity" element={<Navigate to="/identity/overview" replace />} />
         <Route path="/dns" element={<Navigate to="/dns/overview" replace />} />
         <Route path="/compute/instances" element={<InstancesPage />} />
-        <Route path="/compute/instances/create" element={<CreateInstancePage />} />
+        <Route path="/compute/instances/create" element={<RequireRole><CreateInstancePage /></RequireRole>} />
         <Route path="/compute/instances/:name" element={<InstanceDetailPage />} />
         <Route path="/compute/containers" element={<ContainersPage />} />
         <Route path="/compute/containers/:name" element={<ContainerDetailPage />} />
         <Route path="/compute/vm-templates" element={<VMTemplatesPage />} />
-        <Route path="/compute/vm-templates/build" element={<BuildTemplatePage />} />
+        <Route path="/compute/vm-templates/build" element={<RequireRole><BuildTemplatePage /></RequireRole>} />
         <Route path="/compute/ct-templates" element={<CTTemplatesPage />} />
         {/* legacy path */}
         <Route path="/compute/images" element={<Navigate to="/compute/vm-templates" replace />} />
@@ -202,11 +210,22 @@ export default function App() {
         <Route path="/compute/snapshots" element={<SnapshotsPage />} />
         <Route path="/compute/backups" element={<BackupsPage />} />
         <Route path="/compute/isos" element={<ISOsPage />} />
-        <Route path="/compute/isos/add" element={<AddMediaPage kind={isoKind} />} />
+        <Route
+          path="/compute/isos/add"
+          element={
+            <RequireRole>
+              <AddMediaPage kind={isoKind} />
+            </RequireRole>
+          }
+        />
         <Route path="/compute/cloud-images" element={<CloudImagesPage />} />
         <Route
           path="/compute/cloud-images/add"
-          element={<AddMediaPage kind={cloudImageKind} />}
+          element={
+            <RequireRole>
+              <AddMediaPage kind={cloudImageKind} />
+            </RequireRole>
+          }
         />
         <Route path="/compute/datastores" element={<DatastoresPage />} />
         <Route path="/compute/settings/hypervisors" element={<RequireRole admin><ServersPage /></RequireRole>} />
