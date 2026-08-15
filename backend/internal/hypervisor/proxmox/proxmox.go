@@ -158,7 +158,47 @@ func (d *Driver) Images(ctx context.Context) ([]hypervisor.Image, error) {
 			})
 		}
 	}
+	d.describeImages(ctx, images)
 	return images, nil
+}
+
+// describeImages fills in what /cluster/resources doesn't carry —
+// description, tags, architecture and creation time — with one config
+// read per template.
+//
+// This is the exception to "one cheap call": a lab has a handful of
+// templates, this list isn't polled the way instances are, and the
+// alternative is a picker that can't show what it's picking. The reads
+// run concurrently and a failure is left blank rather than failing the
+// listing, since a template you can still clone is worth showing
+// without its label.
+func (d *Driver) describeImages(ctx context.Context, images []hypervisor.Image) {
+	const parallel = 8
+	sem := make(chan struct{}, parallel)
+	var wg sync.WaitGroup
+	for i := range images {
+		wg.Add(1)
+		go func(img *hypervisor.Image) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			var cfg map[string]any
+			path := fmt.Sprintf("/nodes/%s/qemu/%s/config", img.Zone, img.ID)
+			if err := d.do(ctx, http.MethodGet, path, nil, &cfg); err != nil {
+				return
+			}
+			img.Description = strings.TrimSpace(cfgString(cfg, "description"))
+			if tags := cfgString(cfg, "tags"); tags != "" {
+				img.Tags = strings.FieldsFunc(tags, func(r rune) bool { return r == ';' || r == ',' })
+			}
+			img.Architecture = cfgString(cfg, "arch")
+			if img.Architecture == "" {
+				img.Architecture = "x86_64"
+			}
+			img.CreatedAt = creationTime(cfgString(cfg, "meta"))
+		}(&images[i])
+	}
+	wg.Wait()
 }
 
 func (d *Driver) node(ctx context.Context, driverID string) (string, error) {

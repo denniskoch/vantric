@@ -25,7 +25,8 @@ import type { Image } from '../api/client'
 import { useServerNames } from '../useServerNames'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import PageHeader from '../components/PageHeader'
-import OSName from '../components/OSName'
+import { OSIcon } from '../components/OSName'
+import { templateIdentity } from '../osIdentity'
 
 // VM templates (Proxmox template VMs) — the sources "create instance"
 // clones from. Deleting one destroys a VM and its disks, unlike the
@@ -95,25 +96,53 @@ export default function VMTemplatesPage() {
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
+              <TableCell>Operating system</TableCell>
               <TableCell>ID</TableCell>
               <TableCell>Server</TableCell>
               <TableCell>Zone</TableCell>
               <TableCell align="right">Instances</TableCell>
-              <TableCell>Description</TableCell>
+              <TableCell>Built</TableCell>
+              <TableCell>Notes</TableCell>
               <TableCell align="right" />
             </TableRow>
           </TableHead>
           <TableBody>
-            {templates.map((tpl) => (
+            {templates.map((tpl) => {
+              const id = templateIdentity(tpl)
+              return (
               <TableRow key={`${tpl.serverId}/${tpl.id}`} hover>
                 <TableCell>
-                  <OSName name={tpl.name} />
+                  {/* What it is, then what it's called. The raw name
+                      stays visible because it's what Proxmox shows and
+                      what you type when something goes wrong. */}
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                    <Box sx={{ width: 16, mt: 0.25 }}>
+                      <OSIcon name={`${tpl.name} ${id.family}`} />
+                    </Box>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Box>{id.title}</Box>
+                      {id.title !== tpl.name && (
+                        <Box sx={{ fontSize: 11, color: '#5f6368' }}>{tpl.name}</Box>
+                      )}
+                    </Box>
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  {id.family === 'Other' ? (
+                    '—'
+                  ) : (
+                    <>
+                      {id.family}
+                      {id.version && ` ${id.version}`}
+                    </>
+                  )}
                 </TableCell>
                 <TableCell>{tpl.id}</TableCell>
                 <TableCell>{serverName(tpl.serverId)}</TableCell>
                 <TableCell>{tpl.zone || '—'}</TableCell>
                 <TableCell align="right">{clonesOf(tpl) || '—'}</TableCell>
-                <TableCell>{tpl.description || '—'}</TableCell>
+                <TableCell>{builtOn(tpl.createdAt)}</TableCell>
+                <TableCell sx={{ color: '#5f6368' }}>{id.notes || '—'}</TableCell>
                 <TableCell align="right">
                   <IconButton
                     size="small"
@@ -126,10 +155,11 @@ export default function VMTemplatesPage() {
                   </IconButton>
                 </TableCell>
               </TableRow>
-            ))}
+              )
+            })}
             {templates.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={9} align="center" sx={{ py: 6, color: '#5f6368' }}>
                   {isLoading ? 'Loading…' : 'No VM templates found on your servers.'}
                 </TableCell>
               </TableRow>
@@ -189,4 +219,15 @@ export default function VMTemplatesPage() {
       />
     </Box>
   )
+}
+
+/** The hypervisor records when a template VM was made; nobody should
+ *  be typing that into a description. */
+function builtOn(createdAt: number): string {
+  if (!createdAt) return '—'
+  return new Date(createdAt * 1000).toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
 }

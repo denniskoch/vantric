@@ -33,11 +33,22 @@ type Zone struct {
 // template VM identified by its VMID.
 type Image struct {
 	// ServerID is filled in by the API layer, not the driver.
-	ServerID    string `json:"serverId"`
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Zone        string `json:"zone"`
-	Description string `json:"description"`
+	ServerID string `json:"serverId"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Zone     string `json:"zone"`
+	// Description is the hypervisor's notes field. Its first line is
+	// the template's friendly name where someone has written one — the
+	// only part of what a picker shows that a machine can't work out.
+	Description string   `json:"description"`
+	Tags        []string `json:"tags"`
+	// Architecture and CreatedAt are the rest of what a picker shows —
+	// "amd64, built 15 Aug 2026" — and neither should ever be typed by
+	// hand: one is a fact about the image, the other goes stale the
+	// moment the template is rebuilt.
+	Architecture string `json:"architecture"`
+	// CreatedAt is unix seconds; 0 when the hypervisor doesn't record it.
+	CreatedAt int64 `json:"createdAt"`
 }
 
 // Disk is a virtual disk attached to an instance.

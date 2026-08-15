@@ -334,7 +334,12 @@ export interface Image {
   id: string
   name: string
   zone: string
+  /** The hypervisor's notes. Its first line is the friendly name. */
   description: string
+  tags: string[] | null
+  architecture: string
+  /** unix seconds; 0 when the hypervisor doesn't record it */
+  createdAt: number
 }
 
 export interface Disk {

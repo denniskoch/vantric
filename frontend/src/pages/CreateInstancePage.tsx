@@ -27,6 +27,8 @@ import {
   CloudInitNetworkFields,
 } from '../components/CloudInitFields'
 import { resourceNameError } from '../validation'
+import { templateIdentity } from '../osIdentity'
+import { OSIcon } from '../components/OSName'
 
 // GCP-style sectioned create flow: a left stepper with per-section
 // summaries and a persistent Create/Cancel bar.
@@ -54,6 +56,10 @@ export default function CreateInstancePage() {
   const [memoryMb, setMemoryMb] = useState(2048)
   // OS and storage
   const [imageId, setImageId] = useState('')
+  // Empty until someone picks: the family otherwise follows whichever
+  // template is selected, which is what makes a prefilled image show
+  // its own family without a second piece of state to keep in step.
+  const [familyChoice, setFamilyChoice] = useState('')
   const [diskGb, setDiskGb] = useState(10)
   // Networking
   const [netBridge, setNetBridge] = useState('')
@@ -162,6 +168,29 @@ export default function CreateInstancePage() {
   const valid = machineValid && osValid
 
   const serverName = servers.find((s) => s.id === serverId)?.name
+  // Templates, read for what they are. The family list is whatever is
+  // actually on the server — a lab shows what it has, not a catalogue
+  // of what it could have.
+  const identified = images.map((img) => ({ img, id: templateIdentity(img) }))
+  const families = [...new Set(identified.map((i) => i.id.family))].sort((a, b) =>
+    a === 'Other' ? 1 : b === 'Other' ? -1 : a.localeCompare(b),
+  )
+  const chosen = identified.find((i) => i.img.id === imageId)
+  const family = familyChoice || chosen?.id.family || ''
+  const versions = identified
+    .filter((i) => i.id.family === family)
+    .sort((a, b) => compareVersions(b.id.version, a.id.version))
+
+  // Picking a family picks its newest release, the way choosing
+  // "Debian" should already have answered "which one" for most people.
+  const chooseFamily = (next: string) => {
+    setFamilyChoice(next)
+    const newest = identified
+      .filter((i) => i.id.family === next)
+      .sort((a, b) => compareVersions(b.id.version, a.id.version))[0]
+    setImageId(newest?.img.id ?? '')
+  }
+
   const imageName = images.find((i) => i.id === imageId)?.name
 
   const sections: {
@@ -348,25 +377,67 @@ export default function CreateInstancePage() {
           {section === 'os' && (
             <>
               <Typography variant="h6">Operating system and storage</Typography>
+              {/* Two steps, the way a cloud console asks it: which
+                  system, then which release. Both come from reading the
+                  templates rather than from a catalogue anyone has to
+                  maintain — see osIdentity. */}
               <TextField
-                label="Image"
+                label="Operating system"
                 size="small"
                 select
-                value={imageId}
-                onChange={(e) => setImageId(e.target.value)}
+                value={family}
+                onChange={(e) => chooseFamily(e.target.value)}
                 disabled={!serverId}
                 helperText={
                   !serverId
                     ? 'Select a server first (Machine configuration)'
                     : images.length === 0
                       ? 'No templates found on this server'
-                      : 'Templates available on the selected server'
+                      : 'Read from the templates on this server'
                 }
                 fullWidth
               >
-                {images.map((img) => (
+                {families.map((f) => (
+                  <MenuItem key={f} value={f}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 16 }}>
+                        <OSIcon name={f} />
+                      </Box>
+                      {f}
+                    </Box>
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                label="Version"
+                size="small"
+                select
+                value={imageId}
+                onChange={(e) => setImageId(e.target.value)}
+                disabled={!family}
+                helperText={
+                  chosen
+                    ? `${chosen.img.name} · ${chosen.img.zone}${
+                        chosen.img.architecture ? ` · ${chosen.img.architecture}` : ''
+                      }${chosen.img.createdAt ? `, built ${builtOn(chosen.img.createdAt)}` : ''}`
+                    : 'Which release to clone'
+                }
+                slotProps={{
+                  // The closed field shows the name only; the two-line
+                  // form belongs in the open list.
+                  select: { renderValue: (v) => versions.find((x) => x.img.id === v)?.id.title ?? '' },
+                }}
+                fullWidth
+              >
+                {versions.map(({ img, id }) => (
                   <MenuItem key={img.id} value={img.id}>
-                    {img.name}
+                    <Box>
+                      <Box>{id.title}</Box>
+                      <Box sx={{ fontSize: 11, color: '#5f6368' }}>
+                        {img.name}
+                        {img.createdAt ? ` · built ${builtOn(img.createdAt)}` : ''}
+                      </Box>
+                    </Box>
                   </MenuItem>
                 ))}
               </TextField>
@@ -501,4 +572,23 @@ export default function CreateInstancePage() {
       </Box>
     </Box>
   )
+}
+
+/** Newest first, comparing 24.04 against 9 as numbers rather than text. */
+function compareVersions(a: string, b: string): number {
+  const parts = (v: string) => v.split('.').map((n) => Number(n) || 0)
+  const [x, y] = [parts(a), parts(b)]
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const diff = (x[i] ?? 0) - (y[i] ?? 0)
+    if (diff !== 0) return diff
+  }
+  return 0
+}
+
+function builtOn(createdAt: number): string {
+  return new Date(createdAt * 1000).toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
 }

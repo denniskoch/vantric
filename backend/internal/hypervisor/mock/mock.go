@@ -62,9 +62,13 @@ func New() *Driver {
 				Zone: "lab-node-a", Storage: "local", SizeBytes: 2754981888, CreatedAt: time.Now().Add(-30 * 24 * time.Hour).Unix()},
 		},
 		images: []hypervisor.Image{
-			{ID: "9000", Name: "debian-12-cloudinit", Zone: "lab-node-a", Description: "Debian 12 (bookworm) cloud-init template"},
-			{ID: "9001", Name: "ubuntu-2404-cloudinit", Zone: "lab-node-a", Description: "Ubuntu 24.04 LTS cloud-init template"},
-			{ID: "9002", Name: "alpine-321", Zone: "lab-node-b", Description: "Alpine Linux 3.21 template"},
+			{ID: "9000", Name: "debian-12-cloudinit", Zone: "lab-node-a",
+				Description:  "Debian GNU/Linux 12 (bookworm)\ncloud-init, qemu-guest-agent",
+				Architecture: "x86_64", CreatedAt: time.Now().Add(-40 * 24 * time.Hour).Unix()},
+			{ID: "9001", Name: "ubuntu-2404-cloudinit", Zone: "lab-node-a",
+				Architecture: "x86_64", CreatedAt: time.Now().Add(-12 * 24 * time.Hour).Unix()},
+			{ID: "9002", Name: "alpine-321", Zone: "lab-node-b",
+				Architecture: "x86_64", CreatedAt: time.Now().Add(-5 * 24 * time.Hour).Unix()},
 		},
 		ctTemplates: []hypervisor.CTTemplate{
 			{ID: "local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst", Name: "debian-12-standard_12.7-1_amd64.tar.zst",
@@ -149,7 +153,8 @@ func (d *Driver) BuildTemplate(ctx context.Context, spec hypervisor.TemplateSpec
 	id := fmt.Sprintf("%d", d.nextID)
 	d.images = append(d.images, hypervisor.Image{
 		ID: id, Name: spec.Name, Zone: spec.Zone,
-		Description: "Built from " + spec.SourceVolume,
+		Description:  "Built from " + spec.SourceVolume,
+		Architecture: "x86_64", CreatedAt: time.Now().Unix(),
 	})
 	if progress != nil {
 		progress("Template ready")

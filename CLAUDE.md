@@ -410,6 +410,28 @@ Surface the daily 90% here and link out for the rest.
   mid-boot is the same mistake — while PROVISIONING and STOPPING are
   deliberately allowed through, since a create that died in
   PROVISIONING still has to be removable.
+- FRIENDLY NAMES ARE DERIVED, NOT STORED (`src/osIdentity.ts`). A boot
+  disk picker needs an OS and a release, and both are already sitting
+  in the template's name — `debian-13-cloudinit`,
+  `noble-server-cloudimg` — so they're read rather than kept. A stored
+  display name is a second registry: it goes wrong the first time
+  somebody renames a template in Proxmox, and nothing notices.
+  Derivation can't go stale. The FIRST LINE OF THE DESCRIPTION
+  overrides it, because that's the one thing a person wrote on
+  purpose, and it's a plain label rather than a positional format —
+  a comma-separated schema in a free-text field breaks the first time
+  someone writes "Rocky Linux, release 9, minimal". Architecture and
+  build date are never typed: `Images` reads them from each template's
+  config (`arch`, and the ctime in `meta`), which is one call per
+  template — the deliberate exception to "one cheap call", since this
+  list isn't polled and a picker that can't say what it's picking is
+  the alternative. A derived label only becomes the TITLE when it
+  carries a version: "Debian GNU/Linux 13 (trixie)" says more than the
+  file name, where a bare "Debian" says less — which is what an
+  `os-debian` tag produces on a template named for its job, and
+  renaming that to Debian would lie about what it's for. Names that
+  say nothing land under Other, honestly, and the fix is on the object
+  either way: write the first line, or tag it.
 - A GUEST'S NOTES BELONG TO THE HYPERVISOR. Editing a description
   writes Proxmox's own field — the one its Notes panel shows — so this
   console and that one are editing the same thing rather than keeping
