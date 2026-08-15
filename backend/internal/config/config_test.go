@@ -1,6 +1,10 @@
 package config
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 // The app was called lab-cloud-manager, and its variables LCM_*, until
 // it was renamed. These pin the transition, because every way it can
@@ -45,4 +49,56 @@ func TestLegacyBool(t *testing.T) {
 	if !Load().SSH.ProvisionSudo {
 		t.Error("ProvisionSudo = false, want the LCM_ value honoured")
 	}
+}
+
+// The database was renamed with the app. SQLite CREATES a file it
+// can't find, so getting this wrong doesn't error — it silently opens
+// an empty database, and the console comes up with no hypervisors, no
+// credentials and no accounts.
+func TestResolveSQLite(t *testing.T) {
+	dir := t.TempDir()
+	current := filepath.Join(dir, "vantric.db")
+	legacy := filepath.Join(dir, LegacyDBName)
+
+	t.Run("falls back to the pre-rename file", func(t *testing.T) {
+		if err := os.WriteFile(legacy, []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		defer os.Remove(legacy)
+
+		got, wanted := ResolveSQLite("sqlite", current)
+		if got != legacy {
+			t.Errorf("opened %q, want the existing %q", got, legacy)
+		}
+		if wanted != current {
+			t.Errorf("wanted = %q, want %q so startup can say what to rename", wanted, current)
+		}
+	})
+
+	t.Run("prefers the current name when both exist", func(t *testing.T) {
+		for _, p := range []string{current, legacy} {
+			if err := os.WriteFile(p, []byte("x"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			defer os.Remove(p)
+		}
+		if got, wanted := ResolveSQLite("sqlite", current); got != current || wanted != "" {
+			t.Errorf("ResolveSQLite = (%q, %q), want the current name and no warning", got, wanted)
+		}
+	})
+
+	t.Run("first run creates the current name", func(t *testing.T) {
+		if got, wanted := ResolveSQLite("sqlite", current); got != current || wanted != "" {
+			t.Errorf("ResolveSQLite = (%q, %q), want the current name on an empty directory", got, wanted)
+		}
+	})
+
+	// Postgres DSNs are connection strings, not paths — stat would be
+	// meaningless and the fallback must not touch them.
+	t.Run("leaves other drivers alone", func(t *testing.T) {
+		dsn := "postgres://user@host/db"
+		if got, wanted := ResolveSQLite("postgres", dsn); got != dsn || wanted != "" {
+			t.Errorf("ResolveSQLite = (%q, %q), want the DSN untouched", got, wanted)
+		}
+	})
 }

@@ -839,12 +839,22 @@ Surface the daily 90% here and link out for the rest.
   so the session cookie becomes Secure through the tunnel and stays
   usable over plain http on the LAN.
 - THE DATABASE IS A FILE IN A DIRECTORY, not a named volume:
-  `./data/labcloud.db` under Docker, `backend/labcloud.db` under `make
+  `./data/vantric.db` under Docker, `backend/vantric.db` under `make
   dev`. One SQLite file holds everything — accounts, every backend
   credential, every account's SSH private key — so backup is `cp` and
   inspection is `sqlite3`, neither of which should need a throwaway
   container. The image runs as uid 1000; a host whose operator isn't
   uid 1000 needs one `chown` on the directory.
+  It was `labcloud.db` before the rename, and `config.ResolveSQLite`
+  still opens that name when the current one isn't there, warning as
+  it does. Being a file is what makes this necessary: SQLite CREATES a
+  database it can't find, so a deploy whose data sits at the old path
+  doesn't fail — it comes up clean, with no hypervisors, no
+  credentials and no accounts, which reads as an upgrade that wiped
+  everything. Renaming by hand means moving the `-wal` and `-shm`
+  ALONGSIDE it (journal_mode is WAL): a clean shutdown checkpoints and
+  removes them, but after an unclean stop the `-wal` holds committed
+  transactions, and moving only the main file strands them.
 - DEVELOPMENT IS NATIVE, Docker only ships. `make dev` runs `go run`
   and `vite` on the host; there is ONE compose file and it builds the
   app image. The dev containers are gone: they existed to run the same

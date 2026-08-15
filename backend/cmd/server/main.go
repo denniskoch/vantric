@@ -38,6 +38,15 @@ func main() {
 			"variables", strings.Join(old, ", "))
 	}
 
+	// An existing database keeps being found after the rename, rather
+	// than being silently replaced by an empty one at the new path.
+	dsn, wanted := config.ResolveSQLite(cfg.Database.Driver, cfg.Database.DSN)
+	if wanted != "" {
+		log.Warn("opening the pre-rename database; rename it (and its -wal/-shm) to finish the move",
+			"opening", dsn, "expected", wanted)
+		cfg.Database.DSN = dsn
+	}
+
 	st, err := store.Open(cfg.Database.Driver, cfg.Database.DSN)
 	if err != nil {
 		log.Error("opening store", "error", err)

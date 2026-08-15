@@ -13,6 +13,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -68,7 +69,7 @@ type Auth struct {
 func Load() Config {
 	cfg := Config{
 		Listen:   "127.0.0.1:8080",
-		Database: Database{Driver: "sqlite", DSN: "labcloud.db"},
+		Database: Database{Driver: "sqlite", DSN: "vantric.db"},
 		SSH:      SSH{Provision: true},
 	}
 	overrideStr(&cfg.Listen, "LISTEN")
@@ -81,6 +82,35 @@ func Load() Config {
 	overrideStr(&cfg.Auth.BootstrapEmail, "AUTH_BOOTSTRAP_EMAIL")
 	overrideStr(&cfg.Auth.BootstrapPassword, "AUTH_BOOTSTRAP_PASSWORD")
 	return cfg
+}
+
+// LegacyDBName is what the SQLite file was called before the rename.
+const LegacyDBName = "labcloud.db"
+
+// ResolveSQLite keeps an existing database findable after the file was
+// renamed with the app. It returns the path to open and, when it had
+// to fall back, the path that was asked for.
+//
+// This exists because the failure it prevents is invisible. SQLite
+// creates a database it can't find, so a deployment whose data is
+// still at the old path doesn't error — it comes up clean, with no
+// hypervisors, no credentials and no accounts, which reads as "the
+// upgrade wiped everything" rather than "it opened the wrong file".
+// The image sets the path explicitly, so pulling a new one is exactly
+// how somebody meets this.
+func ResolveSQLite(driver, dsn string) (path, wanted string) {
+	if driver != "sqlite" || dsn == "" {
+		return dsn, ""
+	}
+	if _, err := os.Stat(dsn); err == nil {
+		return dsn, ""
+	}
+	legacy := filepath.Join(filepath.Dir(dsn), LegacyDBName)
+	if _, err := os.Stat(legacy); err == nil {
+		return legacy, dsn
+	}
+	// Neither exists: a first run, which should create the new name.
+	return dsn, ""
 }
 
 // Legacy returns the LCM_* variables still in use, so startup can name

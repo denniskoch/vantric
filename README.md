@@ -53,7 +53,7 @@ cd frontend && npm run dev
 ```
 
 The backend takes no arguments and needs no setup: the defaults put
-SQLite in `backend/labcloud.db` and serve on 127.0.0.1:8080, which is
+SQLite in `backend/vantric.db` and serve on 127.0.0.1:8080, which is
 where Vite proxies `/api`. Export any `VANTRIC_*` variable to change that.
 
 Docker builds the app; it isn't used to develop it. `make up` runs the
@@ -122,7 +122,7 @@ cp .env.example .env
 | `VANTRIC_SSH_PROVISION` | `true` | Create the console's login on a guest through the guest agent |
 | `VANTRIC_SSH_PROVISION_SUDO` | `false` | Give that login passwordless sudo |
 | `VANTRIC_LISTEN` | `0.0.0.0:8080` | Set by the image |
-| `VANTRIC_DB_DRIVER` / `VANTRIC_DB_DSN` | `sqlite`, `/data/labcloud.db` | Set by the image |
+| `VANTRIC_DB_DRIVER` / `VANTRIC_DB_DSN` | `sqlite`, `/data/vantric.db` | Set by the image |
 | `VANTRIC_STATIC_DIR` | `/app/static` | Set by the image |
 
 That's the whole list. Everything else — hypervisors, DNS providers,
@@ -139,7 +139,7 @@ docker compose up -d --build
 
 Backends aren't set here — sign in and add them in the UI.
 
-State lives in `./data/labcloud.db`, a bind-mounted directory rather
+State lives in `./data/vantric.db`, a bind-mounted directory rather
 than a named volume — the whole app is one SQLite file, and a file you
 can see is a file you can copy:
 
