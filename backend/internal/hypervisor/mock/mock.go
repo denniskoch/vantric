@@ -12,12 +12,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+
 	"lab-cloud-manager/internal/hypervisor"
 )
 
 type instance struct {
 	state   hypervisor.InstanceState
 	created time.Time
+	// uuid stands in for the SMBIOS system UUID a real guest carries,
+	// so the fields that correlate with outside tools have something
+	// to show in development.
+	uuid string
 	// pending transition, applied when 'at' passes
 	next hypervisor.Status
 	at   time.Time
@@ -206,6 +212,7 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 	id := fmt.Sprintf("%d", d.nextID)
 	d.vms[id] = &instance{
 		created: time.Now(),
+		uuid:    uuid.NewString(),
 		state: hypervisor.InstanceState{
 			DriverID: id,
 			Name:     spec.Name,
@@ -276,6 +283,7 @@ func (d *Driver) Describe(ctx context.Context, driverID string) (*hypervisor.Ins
 	d.tick(vm)
 	state := vm.state
 	created := vm.created
+	guestUUID := vm.uuid
 	d.mu.Unlock()
 
 	return &hypervisor.InstanceDetail{
@@ -283,6 +291,7 @@ func (d *Driver) Describe(ctx context.Context, driverID string) (*hypervisor.Ins
 		Description:    "Mock instance for development",
 		Tags:           []string{"mock", "lab"},
 		OSType:         "l26",
+		UUID:           guestUUID,
 		CPUType:        "host",
 		Architecture:   "x86_64",
 		Sockets:        1,

@@ -238,7 +238,7 @@ func (r *Reconciler) syncInstance(ctx context.Context, driver hypervisor.Driver,
 		}
 	}
 	r.syncShape(ctx, inst, state)
-	r.fillOSType(ctx, driver, inst)
+	r.fillFacts(ctx, driver, inst)
 }
 
 // syncShape keeps the name and sizing in step with the hypervisor.
@@ -287,23 +287,35 @@ func (r *Reconciler) syncShape(ctx context.Context, inst *store.Instance, state 
 	inst.CPUs, inst.MemoryMB, inst.DiskGB = cpus, memoryMB, diskGB
 }
 
-// fillOSType asks the hypervisor what kind of guest this is, once.
-// List doesn't carry it and it barely ever changes, so it's read on a
-// slow beat for instances still missing it and then left alone —
-// enough to know whether "connect" means SSH or RDP.
-func (r *Reconciler) fillOSType(ctx context.Context, driver hypervisor.Driver, inst *store.Instance) {
-	if inst.OSType != "" || r.sweeps%10 != 0 {
+// fillFacts asks the hypervisor for the things a guest is born with,
+// once. List carries neither of them and neither changes over a VM's
+// life: the guest type decides whether "connect" means SSH or RDP, and
+// the SMBIOS UUID is what the machine calls itself to anything running
+// inside it. So they're read together on a slow beat for instances
+// still missing them, and then left alone — one Describe, not two.
+func (r *Reconciler) fillFacts(ctx context.Context, driver hypervisor.Driver, inst *store.Instance) {
+	if (inst.OSType != "" && inst.UUID != "") || r.sweeps%10 != 0 {
 		return
 	}
 	detail, err := driver.Describe(ctx, inst.DriverID)
-	if err != nil || detail.OSType == "" {
+	if err != nil || (detail.OSType == "" && detail.UUID == "") {
 		return
 	}
-	if err := r.store.SetInstanceOSType(ctx, inst.ID, detail.OSType); err != nil {
-		r.log.Warn("reconciler: os type update failed", "name", inst.Name, "error", err)
+	// Keep what's already known: a hypervisor that reports one and not
+	// the other must not blank the one it knows.
+	osType, uuid := firstNonEmpty(detail.OSType, inst.OSType), firstNonEmpty(detail.UUID, inst.UUID)
+	if err := r.store.SetInstanceFacts(ctx, inst.ID, osType, uuid); err != nil {
+		r.log.Warn("reconciler: fact update failed", "name", inst.Name, "error", err)
 		return
 	}
-	inst.OSType = detail.OSType
+	inst.OSType, inst.UUID = osType, uuid
+}
+
+func firstNonEmpty(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
 }
 
 // adoptInstance records a VM found on the hypervisor that this app

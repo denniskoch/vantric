@@ -111,7 +111,7 @@ type User struct {
 	Replication bool     `json:"replication"`
 	MemberOf    []string `json:"memberOf"`
 	// ConnectionLimit is -1 for unlimited.
-	ConnectionLimit int `json:"connectionLimit"`
+	ConnectionLimit int  `json:"connectionLimit"`
 	System          bool `json:"system"`
 }
 

@@ -284,20 +284,27 @@ type Device struct {
 // supply stay zero.
 type InstanceDetail struct {
 	InstanceState
-	Description    string   `json:"description"`
-	Tags           []string `json:"tags"`
-	OSType         string   `json:"osType"`
-	CPUType        string   `json:"cpuType"` // GCP calls this "CPU platform"
-	Architecture   string   `json:"architecture"`
-	Sockets        int      `json:"sockets"`
-	BootOrder      string   `json:"bootOrder"`
-	BIOS           string   `json:"bios"`           // seabios, ovmf (UEFI)
-	MachineType    string   `json:"machineType"`    // i440fx, q35 (chipset)
-	Display        string   `json:"display"`        // std, qxl, virtio, serial0, none
-	SCSIController string   `json:"scsiController"` // virtio-scsi-single, lsi, …
-	OnBoot         bool     `json:"onBoot"`
-	GuestAgent     bool     `json:"guestAgent"`
-	HostProtected  bool     `json:"hostProtected"` // hypervisor-side protection flag
+	Description string   `json:"description"`
+	Tags        []string `json:"tags"`
+	OSType      string   `json:"osType"`
+	// UUID is the guest's SMBIOS system UUID — what the guest itself
+	// reads as /sys/class/dmi/id/product_uuid, and what inventory and
+	// monitoring tools record as its identity. It's the only handle
+	// that survives a rename, a migration and a vmid being reused, so
+	// it's the join key between a record here and anything reporting
+	// from inside the machine.
+	UUID           string `json:"uuid"`
+	CPUType        string `json:"cpuType"` // GCP calls this "CPU platform"
+	Architecture   string `json:"architecture"`
+	Sockets        int    `json:"sockets"`
+	BootOrder      string `json:"bootOrder"`
+	BIOS           string `json:"bios"`           // seabios, ovmf (UEFI)
+	MachineType    string `json:"machineType"`    // i440fx, q35 (chipset)
+	Display        string `json:"display"`        // std, qxl, virtio, serial0, none
+	SCSIController string `json:"scsiController"` // virtio-scsi-single, lsi, …
+	OnBoot         bool   `json:"onBoot"`
+	GuestAgent     bool   `json:"guestAgent"`
+	HostProtected  bool   `json:"hostProtected"` // hypervisor-side protection flag
 	// CreatedAt is unix seconds as recorded by the hypervisor; 0 when unknown.
 	CreatedAt       int64          `json:"createdAt"`
 	CloudInitUser   string         `json:"cloudInitUser"`

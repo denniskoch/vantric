@@ -196,6 +196,9 @@ var columnMigrations = []string{
 	`ALTER TABLE instances DROP COLUMN machine_type`,
 	`DROP TABLE IF EXISTS machine_types`,
 	`ALTER TABLE instances ADD COLUMN os_type TEXT NOT NULL DEFAULT ''`,
+	// The guest's own identity, for correlating with tools that run
+	// inside it. Filled in beside os_type on the reconciler's slow beat.
+	`ALTER TABLE instances ADD COLUMN uuid TEXT NOT NULL DEFAULT ''`,
 	// Each account signs in to guests with its own key, so a guest's
 	// auth log names a person. Generated on first use; the public half
 	// is stored beside it rather than derived on every read.

@@ -368,6 +368,17 @@ export default function InstanceDetailPage() {
                   { label: 'CPU platform', value: detail?.cpuType || '—' },
                   { label: 'Architecture', value: detail?.architecture || '—' },
                   { label: 'Guest OS type', value: detail?.osType || '—' },
+                  {
+                    label: 'System UUID',
+                    // The stored copy first: it's there for every
+                    // instance, while the live read can be a moment
+                    // behind on a page opened during creation.
+                    value: (
+                      <Box component="span" sx={{ fontFamily: 'monospace', fontSize: 12 }}>
+                        {inst.uuid || detail?.uuid || '—'}
+                      </Box>
+                    ),
+                  },
                   { label: 'BIOS', value: detail?.bios || '—' },
                   { label: 'Chipset', value: detail?.machineType || '—' },
                   { label: 'Display', value: detail?.display || '—' },

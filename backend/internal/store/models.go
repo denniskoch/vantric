@@ -29,7 +29,12 @@ type Instance struct {
 	// OSType is the hypervisor's guest-type hint (Proxmox's l26, win11,
 	// …). Filled in once per instance, and only used to decide whether
 	// "connect" means SSH or RDP.
-	OSType    string    `json:"osType"`
+	OSType string `json:"osType"`
+	// UUID is the guest's SMBIOS system UUID, filled in beside OSType.
+	// It is what the guest sees as its own identity, so it's what
+	// correlates this record with inventory and monitoring that run
+	// inside the machine — and unlike the vmid, it isn't reused.
+	UUID      string    `json:"uuid"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
@@ -45,7 +50,7 @@ func parseTime(s string) time.Time {
 
 const instanceCols = `id, name, server_id, zone, cpus, memory_mb, disk_gb,
 	image_id, status, driver_id, internal_ip, external_ip, net_bridge, vlan_tag,
-	description, protected, os_type, created_at, updated_at`
+	description, protected, os_type, uuid, created_at, updated_at`
 
 func scanInstance(scan func(dest ...any) error) (*Instance, error) {
 	var i Instance
@@ -53,7 +58,8 @@ func scanInstance(scan func(dest ...any) error) (*Instance, error) {
 	var protected int
 	err := scan(&i.ID, &i.Name, &i.ServerID, &i.Zone, &i.CPUs, &i.MemoryMB,
 		&i.DiskGB, &i.ImageID, &i.Status, &i.DriverID, &i.InternalIP, &i.ExternalIP,
-		&i.NetBridge, &i.VLANTag, &i.Description, &protected, &i.OSType, &created, &updated)
+		&i.NetBridge, &i.VLANTag, &i.Description, &protected, &i.OSType, &i.UUID,
+		&created, &updated)
 	if err != nil {
 		return nil, err
 	}
@@ -67,20 +73,21 @@ func (s *Store) CreateInstance(ctx context.Context, i *Instance) error {
 	ts := now()
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO instances (`+instanceCols+`)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		i.ID, i.Name, i.ServerID, i.Zone, i.CPUs, i.MemoryMB, i.DiskGB,
 		i.ImageID, i.Status, i.DriverID, i.InternalIP, i.ExternalIP, i.NetBridge, i.VLANTag,
-		i.Description, boolInt(i.Protected), i.OSType, ts, ts)
+		i.Description, boolInt(i.Protected), i.OSType, i.UUID, ts, ts)
 	i.CreatedAt = parseTime(ts)
 	i.UpdatedAt = i.CreatedAt
 	return err
 }
 
-// SetInstanceOSType records the guest type once the hypervisor has
-// been asked for it.
-func (s *Store) SetInstanceOSType(ctx context.Context, id, osType string) error {
+// SetInstanceFacts records the things a guest is born with and never
+// changes — its configured type and its SMBIOS UUID — once the
+// hypervisor has been asked for them.
+func (s *Store) SetInstanceFacts(ctx context.Context, id, osType, uuid string) error {
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE instances SET os_type = ? WHERE id = ?`, osType, id)
+		`UPDATE instances SET os_type = ?, uuid = ? WHERE id = ?`, osType, uuid, id)
 	return err
 }
 

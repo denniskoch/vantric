@@ -210,6 +210,7 @@ func (d *Driver) Describe(ctx context.Context, driverID string) (*hypervisor.Ins
 			*field = fallback + " (default)"
 		}
 	}
+	detail.UUID = smbiosUUID(cfgString(cfg, "smbios1"))
 	if tags := cfgString(cfg, "tags"); tags != "" {
 		detail.Tags = strings.FieldsFunc(tags, func(r rune) bool { return r == ';' || r == ',' })
 	}
@@ -291,4 +292,16 @@ func (d *Driver) guestIPsByMAC(ctx context.Context, node, vmid string) map[strin
 		}
 	}
 	return ips
+}
+
+// smbiosUUID pulls the system UUID out of Proxmox's smbios1 setting: a
+// comma-separated list whose other fields may be base64-encoded, and
+// whose uuid never is.
+func smbiosUUID(smbios1 string) string {
+	for _, field := range strings.Split(smbios1, ",") {
+		if value, ok := strings.CutPrefix(field, "uuid="); ok {
+			return value
+		}
+	}
+	return ""
 }

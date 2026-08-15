@@ -152,10 +152,21 @@ Surface the daily 90% here and link out for the rest.
   serial port, which is the usual reason it's missing). Only SSH is
   proxied here; display and serial deep-link to the hypervisor's own
   console until they are, because linking out beats a disabled button.
-- Instances carry an `osType` (Proxmox's l26, win11, …), filled once
-  per instance by the reconciler on a slow beat because List doesn't
-  report it and it never changes. Its only job is deciding whether
-  Connect offers SSH or RDP.
+- Instances carry the two FACTS A GUEST IS BORN WITH — `osType`
+  (Proxmox's l26, win11, …) and `uuid`, its SMBIOS system UUID — filled
+  once per instance by `fillFacts` in the reconciler on a slow beat,
+  because List reports neither and neither changes. One Describe fills
+  both. osType decides whether Connect offers SSH or RDP. The UUID is
+  the CORRELATION KEY: it is what the guest reads about itself
+  (/sys/class/dmi/id/product_uuid) and what inventory and monitoring
+  record as its identity, so it's how a record here lines up with a
+  tool running inside the machine. It is also the only identifier that
+  survives a rename, a migration and a vmid being REUSED — which is
+  why any future local metadata keys on serverId + uuid, never on the
+  vmid. Proxmox spells it inside `smbios1`, a list whose other fields
+  may be base64; `smbiosUUID` parses it and is one of the repo's few
+  tests, since an empty result would show up as a correlation that
+  silently never happens rather than as an error.
 - The reconciler syncs NAME AND SIZING as well as status and IPs
   (`syncShape`). Adoption is a race: a VM picked up while the
   hypervisor is still creating it reports no name and zero cpus/memory,

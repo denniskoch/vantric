@@ -137,6 +137,13 @@ export interface Instance {
   protected: boolean
   /** The hypervisor's guest-type hint (l26, win11, …). */
   osType: string
+  /**
+   * The guest's SMBIOS system UUID — what it reads about itself as
+   * /sys/class/dmi/id/product_uuid, and what inventory and monitoring
+   * running inside it record as its identity. Unlike the vmid it is
+   * never reused, so it's the join key to those tools.
+   */
+  uuid: string
   createdAt: string
   updatedAt: string
 }
@@ -182,6 +189,8 @@ export interface InstanceDetail {
   description: string
   tags: string[] | null
   osType: string
+  /** SMBIOS system UUID — see Instance.uuid. */
+  uuid: string
   cpuType: string
   architecture: string
   sockets: number

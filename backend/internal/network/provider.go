@@ -52,7 +52,7 @@ type Network struct {
 	// Category groups the controller's purposes the way its own UI
 	// does: lan, wan, vpn or other.
 	Category string `json:"category"`
-	Enabled bool   `json:"enabled"`
+	Enabled  bool   `json:"enabled"`
 	// DHCP range; empty when the controller doesn't serve DHCP here,
 	// which is itself worth showing.
 	DHCPEnabled bool   `json:"dhcpEnabled"`

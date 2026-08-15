@@ -135,4 +135,3 @@ func (s *Store) CountServers(ctx context.Context) (int, error) {
 	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM servers`).Scan(&n)
 	return n, err
 }
-
