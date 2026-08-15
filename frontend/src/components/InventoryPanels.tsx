@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import {
   Box,
+  IconButton,
   Chip,
   Link,
   Paper,
@@ -14,6 +15,8 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import type { InventoryPackage, Vulnerability } from "../api/client";
 
 /**
@@ -124,6 +127,15 @@ const severityColor: Record<string, string> = {
   MINIMAL: "#5f6368",
 };
 
+/**
+ * One row per CVE, not one per package.
+ *
+ * A machine carrying an old kernel reports the same flaw once for
+ * every installed version — rowlf listed CVE-2012-4542 three times,
+ * which is one finding wearing three hats. Grouping collapses that and
+ * puts the packages behind an expander, where they belong: the CVE is
+ * what you look up, the package list is what you fix.
+ */
 function VulnerabilityTable({
   vulnerabilities,
 }: {
@@ -131,94 +143,169 @@ function VulnerabilityTable({
 }) {
   const [page, setPage] = useState(0);
   const [perPage, setPerPage] = useState(10);
-  const sorted = [...vulnerabilities].sort(
-    (a, b) =>
-      (severityRank[a.severity] ?? 9) - (severityRank[b.severity] ?? 9) ||
-      b.cvssScore - a.cvssScore ||
-      a.cve.localeCompare(b.cve),
-  );
-  // A machine can carry hundreds of these; the same treatment its
-  // package list already gets.
-  const shown = sorted.slice(page * perPage, page * perPage + perPage);
+  const [open, setOpen] = useState<string | null>(null);
+
+  // Columns only where the data is. A free Fleet scores nothing, so a
+  // Severity column would read MINIMAL for every row — a judgement
+  // where there was only an absence. The list page already works this
+  // way; this is the same rule, applied where I'd left it out.
+  const hasScores = vulnerabilities.some((v) => v.cvssScore > 0);
+  const hasPublished = vulnerabilities.some((v) => v.publishedAt > 0);
+
+  const grouped = new Map<string, Vulnerability[]>();
+  for (const v of vulnerabilities) {
+    grouped.set(v.cve, [...(grouped.get(v.cve) ?? []), v]);
+  }
+  const rows = [...grouped.entries()]
+    .map(([cve, entries]) => ({
+      cve,
+      entries,
+      first: entries[0],
+      // A CVE is fixed only where every affected package has an
+      // upgrade; one unfixed package means there is still work
+      // outstanding, so the row shouldn't claim otherwise.
+      fixes: [...new Set(entries.map((e) => e.resolvedInVersion).filter(Boolean))],
+      unfixed: entries.some((e) => !e.resolvedInVersion),
+    }))
+    .sort(
+      (a, b) =>
+        Number(b.first.knownExploited) - Number(a.first.knownExploited) ||
+        (severityRank[a.first.severity] ?? 9) - (severityRank[b.first.severity] ?? 9) ||
+        b.first.cvssScore - a.first.cvssScore ||
+        b.entries.length - a.entries.length ||
+        a.cve.localeCompare(b.cve),
+    );
+  const shown = rows.slice(page * perPage, page * perPage + perPage);
+
   return (
     <>
       <TableContainer>
         <Table size="small">
           <TableHead>
             <TableRow>
+              <TableCell sx={{ width: 36 }} />
               <TableCell>CVE</TableCell>
-              <TableCell>Severity</TableCell>
-              <TableCell>Package</TableCell>
-              <TableCell>Installed</TableCell>
+              <TableCell>Affected packages</TableCell>
               <TableCell>Fixed in</TableCell>
-              <TableCell>Published</TableCell>
+              {hasScores && <TableCell>Severity</TableCell>}
+              {hasPublished && <TableCell>Published</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
-            {shown.map((v) => (
-              <TableRow key={`${v.cve}/${v.package}`} hover>
-                <TableCell>
-                  {/* Into the console's own CVE page, not out to NVD —
-                    same destination whether you got here from a guest,
-                    a host, or the estate-wide list. */}
-                  <Link
-                    component={RouterLink}
-                    to={`/devices/vulnerabilities/${encodeURIComponent(v.cve)}`}
-                    underline="hover"
-                  >
-                    {v.cve}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Box
-                      component="span"
-                      sx={{ color: severityColor[v.severity] ?? "#5f6368" }}
-                    >
-                      {v.severity}
-                    </Box>
-                    {v.cvssScore > 0 && (
-                      <Box
-                        component="span"
-                        sx={{ fontSize: 11, color: "#80868b" }}
-                      >
-                        {v.cvssScore.toFixed(1)}
-                      </Box>
-                    )}
-                    {/* Known exploited beats any score: it is being used. */}
-                    {v.knownExploited && (
-                      <Chip
-                        label="Exploited"
+            {shown.map((row) => (
+              <Fragment key={row.cve}>
+                <TableRow hover>
+                  <TableCell sx={{ width: 36 }}>
+                    {row.entries.length > 1 && (
+                      <IconButton
                         size="small"
-                        sx={{
-                          fontSize: 10,
-                          height: 18,
-                          bgcolor: "#fce8e6",
-                          color: "#d93025",
-                        }}
-                      />
+                        aria-label={open === row.cve ? "Hide packages" : "Show packages"}
+                        onClick={() => setOpen(open === row.cve ? null : row.cve)}
+                      >
+                        {open === row.cve ? (
+                          <ExpandLessIcon sx={{ fontSize: 16 }} />
+                        ) : (
+                          <ExpandMoreIcon sx={{ fontSize: 16 }} />
+                        )}
+                      </IconButton>
                     )}
-                  </Box>
-                </TableCell>
-                <TableCell>{v.package}</TableCell>
-                <TableCell>{v.installedVersion || "—"}</TableCell>
-                {/* The difference between "patch this" and "wait". */}
-                <TableCell>
-                  {v.resolvedInVersion || "No fix published"}
-                </TableCell>
-                <TableCell>
-                  {v.publishedAt
-                    ? new Date(v.publishedAt * 1000).toLocaleDateString()
-                    : "—"}
-                </TableCell>
-              </TableRow>
+                  </TableCell>
+                  <TableCell>
+                    {/* Into the console's own CVE page, not out to NVD —
+                      same destination whether you got here from a guest,
+                      a host, or the estate-wide list. */}
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Link
+                        component={RouterLink}
+                        to={`/devices/vulnerabilities/${encodeURIComponent(row.cve)}`}
+                        underline="hover"
+                      >
+                        {row.cve}
+                      </Link>
+                      {row.first.knownExploited && (
+                        <Chip
+                          label="Exploited"
+                          size="small"
+                          sx={{
+                            fontSize: 10,
+                            height: 18,
+                            bgcolor: "#fce8e6",
+                            color: "#d93025",
+                          }}
+                        />
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    {row.entries.length === 1
+                      ? `${row.first.package} ${row.first.installedVersion}`
+                      : `${row.entries.length} packages`}
+                  </TableCell>
+                  {/* The difference between "patch this" and "wait". */}
+                  <TableCell>
+                    {row.fixes.length === 0 ? (
+                      <Box component="span" sx={{ color: "#5f6368" }}>
+                        No fix published
+                      </Box>
+                    ) : row.fixes.length === 1 && !row.unfixed ? (
+                      row.fixes[0]
+                    ) : (
+                      `${row.fixes.length} versions${row.unfixed ? ", some unfixed" : ""}`
+                    )}
+                  </TableCell>
+                  {hasScores && (
+                    <TableCell>
+                      <Box component="span" sx={{ color: severityColor[row.first.severity] ?? "#5f6368" }}>
+                        {row.first.severity} {row.first.cvssScore.toFixed(1)}
+                      </Box>
+                    </TableCell>
+                  )}
+                  {hasPublished && (
+                    <TableCell>
+                      {row.first.publishedAt
+                        ? new Date(row.first.publishedAt * 1000).toLocaleDateString()
+                        : "—"}
+                    </TableCell>
+                  )}
+                </TableRow>
+                {open === row.cve && (
+                  <TableRow>
+                    <TableCell colSpan={6} sx={{ bgcolor: "#f8f9fa", py: 1 }}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Package</TableCell>
+                            <TableCell>Installed</TableCell>
+                            <TableCell>Fixed in</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {row.entries.map((e) => (
+                            <TableRow key={`${e.package}/${e.installedVersion}`}>
+                              <TableCell>{e.package}</TableCell>
+                              <TableCell>{e.installedVersion || "—"}</TableCell>
+                              <TableCell>
+                                {e.resolvedInVersion || (
+                                  <Box component="span" sx={{ color: "#5f6368" }}>
+                                    No fix published
+                                  </Box>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </Fragment>
             ))}
           </TableBody>
         </Table>
       </TableContainer>
       <TablePagination
         component="div"
-        count={sorted.length}
+        count={rows.length}
         page={page}
         onPageChange={(_, next) => setPage(next)}
         rowsPerPage={perPage}
