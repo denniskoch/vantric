@@ -7,7 +7,6 @@ import {
   Button,
   Checkbox,
   FormControlLabel,
-  LinearProgress,
   List,
   ListItemButton,
   ListItemText,
@@ -22,11 +21,9 @@ import { Link as RouterLink } from 'react-router-dom'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CircleIcon from '@mui/icons-material/Circle'
 import ErrorIcon from '@mui/icons-material/Error'
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import { api, emptyCloudInit } from '../api/client'
 import type { CloudInitConfig } from '../api/client'
 import CloudInitFields from '../components/CloudInitFields'
-import PageHeader from '../components/PageHeader'
 import { formatBytes } from '../format'
 import { resourceNameError } from '../validation'
 
@@ -58,7 +55,6 @@ export default function BuildTemplatePage() {
   const [vlanTag, setVlanTag] = useState(0)
   const [enableAgent, setEnableAgent] = useState(true)
 
-  const [buildId, setBuildId] = useState<string | null>(null)
 
   const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
   const { data: cloudImages = [] } = useQuery({
@@ -90,13 +86,6 @@ export default function BuildTemplatePage() {
       (!image || d.zone === image.zone),
   )
 
-  const { data: build } = useQuery({
-    queryKey: ['templateBuild', buildId],
-    queryFn: () => api.getTemplateBuild(buildId!),
-    enabled: Boolean(buildId),
-    refetchInterval: (query) => (query.state.data?.running === false ? false : 2000),
-  })
-
   const start = useMutation({
     mutationFn: () =>
       api.buildTemplate(serverId, {
@@ -115,7 +104,13 @@ export default function BuildTemplatePage() {
         enableAgent,
         description: `Cloud template built from ${image?.name ?? sourceVolume}`,
       }),
-    onSuccess: (b) => setBuildId(b.id),
+    // The build takes minutes and reports to the notification bell, so
+    // this page has nothing left to say — the template shows up in the
+    // list when it's done.
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['operations'] })
+      navigate('/compute/vm-templates')
+    },
     onError: (e: Error) => setError(e.message),
   })
 
@@ -147,62 +142,6 @@ export default function BuildTemplatePage() {
       summary: `${bios}, ${machineType}, ${netBridge || 'no network'}`,
     },
   ]
-
-  if (buildId) {
-    const done = build && !build.running
-    const failed = done && Boolean(build?.error)
-    return (
-      <Box sx={{ p: 3, maxWidth: 720 }}>
-      <PageHeader title="Building template {name}" />
-        <Paper variant="outlined" sx={{ p: 3 }}>
-          {!done && (
-            <>
-              <Typography variant="body2" sx={{ mb: 1 }}>
-                {build?.step ?? 'Starting…'}
-              </Typography>
-              <LinearProgress />
-            </>
-          )}
-          <Box sx={{ mt: done ? 0 : 2 }}>
-            {(build?.steps ?? []).map((s, i) => (
-              <Typography
-                key={`${s}-${i}`}
-                variant="body2"
-                sx={{ color: '#5f6368', display: 'flex', alignItems: 'center', gap: 1 }}
-              >
-                <CheckCircleIcon sx={{ fontSize: 14, color: '#188038' }} /> {s}
-              </Typography>
-            ))}
-          </Box>
-          {done && !failed && (
-            <Alert severity="success" sx={{ mt: 2 }}>
-              Template {name} is ready (VM {build?.imageId}). It's now available in the
-              create-instance flow.
-            </Alert>
-          )}
-          {failed && (
-            <Alert severity="error" sx={{ mt: 2 }}>
-              {build?.error}
-            </Alert>
-          )}
-          <Box sx={{ display: 'flex', gap: 1, mt: 3 }}>
-            <Button
-              variant="contained"
-              onClick={() => {
-                queryClient.invalidateQueries({ queryKey: ['images'] })
-                navigate('/compute/vm-templates')
-              }}
-            >
-              {done ? 'Done' : 'Run in background'}
-            </Button>
-            {failed && (
-              <Button onClick={() => setBuildId(null)}>Back to the wizard</Button>
-            )}
-          </Box>
-        </Paper>
-      </Box>
-    )
-  }
 
   return (
     <Box sx={{ p: 3, display: 'flex', flexDirection: 'column' }}>

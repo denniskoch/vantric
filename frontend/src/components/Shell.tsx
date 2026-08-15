@@ -26,6 +26,7 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { sections, sectionFor } from './nav'
 import { api } from '../api/client'
+import NotificationBell from './NotificationBell'
 import { initialFor, useRefreshSession, useSession } from '../user'
 import type { SectionItem } from './nav'
 
@@ -123,6 +124,10 @@ export default function Shell() {
             />
           </Box>
           <Box sx={{ flex: 1 }} />
+
+          {/* Long-running work reports here, left of the account —
+              where a cloud console puts it. */}
+          <NotificationBell />
 
           {/* Account. Reads the live session; the menu's actions are
               real now that there's something to sign out of. */}

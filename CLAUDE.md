@@ -203,11 +203,33 @@ Surface the daily 90% here and link out for the rest.
   makes it hard to spot. The build page says so at the checkbox; this
   app can't do it, because reaching the image means SSH to the host,
   the same credential it refuses for `cicustom`.
-- Template builds (cloud image → import disk → cloud-init drive →
-  serial console → convert) run detached in a goroutine tracked by an
-  in-memory registry in internal/api/buildtemplate.go, because the
-  sequence outlives its request. A build interrupted by a restart
-  leaves a VM, not a template — it shows up in VM instances.
+- WORK THAT OUTLIVES ITS REQUEST IS AN OPERATION, and operations
+  report in the NOTIFICATION BELL — left of the account avatar, where
+  a cloud console puts it. A clone, a disk import, an ISO fetch: the
+  handler validates, starts the work, and answers 202 with the
+  operation (`internal/api/operations.go`, RUNNING → DONE | ERROR).
+  This replaced three mechanisms that each tracked one thing: a build
+  registry, raw hypervisor task ids handed to the browser so every
+  page that started one had to watch it, and a create handler that
+  simply blocked. Two ways to run: `Server.run` for work this console
+  does itself, `Server.watchTask` for a task the hypervisor is running
+  (same shape in the bell either way). The bell also INVALIDATES what
+  an operation touched as it lands — `resourceType` maps to query keys
+  in the frontend, since the backend has no business knowing them.
+  State is in memory: a restart forgets what was in flight, which is
+  honest, where rows in the database would survive as operations stuck
+  at RUNNING with nothing left to advance them. Template builds are
+  the same path (cloud image → import disk → cloud-init drive → serial
+  console → convert), so a build interrupted by a restart still leaves
+  a VM, not a template — it shows up in VM instances.
+- A PAGE WAITS ONLY FOR WORK THE BROWSER ITSELF IS DOING. An upload
+  keeps its progress bar because the bytes are leaving this machine;
+  the hypervisor's import afterwards is the bell's. A download from a
+  URL, a build and a create navigate away immediately — they were
+  never anything the form could contribute to, and a wizard that sits
+  spinning is a wizard that loses the answer when the laptop sleeps.
+  Deleting an instance is still synchronous, since the record has to
+  be gone before the list is right.
 - DNS mirrors the hypervisor split: `internal/dns.Provider` is the
   boundary (Cloudflare first), providers are DB records with a
   write-only token, one live provider per record in `dns.Registry`, and

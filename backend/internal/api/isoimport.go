@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/url"
 	"path"
 	"slices"
 	"strings"
@@ -104,7 +103,10 @@ func (s *Server) downloadISO(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err, "starting image download")
 		return
 	}
-	s.json(w, http.StatusAccepted, map[string]string{"taskId": taskID})
+	op := s.ops.start("Downloading ISO "+filename, "iso", filename,
+		r.URL.Query().Get("server"), "/compute/isos")
+	s.watchTask(op, driver, taskID, "Downloaded to "+req.Storage)
+	s.json(w, http.StatusAccepted, op)
 }
 
 // uploadVolume streams the raw request body to the hypervisor. The body
@@ -149,7 +151,13 @@ func (s *Server) uploadVolume(content string, extensions []string) http.HandlerF
 			s.fail(w, err, "uploading image")
 			return
 		}
-		s.json(w, http.StatusAccepted, map[string]string{"taskId": taskID})
+		kind, to := "iso", "/compute/isos"
+		if content == "import" {
+			kind, to = "cloudImage", "/compute/cloud-images"
+		}
+		op := s.ops.start("Uploading "+filename, kind, filename, q.Get("server"), to)
+		s.watchTask(op, driver, taskID, "Uploaded to "+storage)
+		s.json(w, http.StatusAccepted, op)
 	}
 }
 
@@ -157,7 +165,7 @@ func (s *Server) uploadVolume(content string, extensions []string) http.HandlerF
 // the query string because it contains both a colon and a slash.
 // kind restricts which volumes an endpoint may touch: the underlying
 // storage-content path would happily delete VM disks and backups too.
-func (s *Server) deleteVolume(kind, label string) http.HandlerFunc {
+func (s *Server) deleteVolume(kind, label, resourceType string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		driver := s.driverForServer(w, r)
 		if driver == nil {
@@ -170,7 +178,7 @@ func (s *Server) deleteVolume(kind, label string) http.HandlerFunc {
 			return
 		}
 		if !strings.Contains(volume, ":"+kind+"/") {
-			s.err(w, http.StatusBadRequest, "volume is not "+label)
+			s.err(w, http.StatusBadRequest, "volume is not a "+label)
 			return
 		}
 		taskID, err := driver.DeleteVolume(r.Context(), zone, volume)
@@ -178,7 +186,11 @@ func (s *Server) deleteVolume(kind, label string) http.HandlerFunc {
 			s.fail(w, err, "deleting "+label)
 			return
 		}
-		s.json(w, http.StatusOK, map[string]string{"taskId": taskID})
+		name := volume[strings.LastIndex(volume, "/")+1:]
+		op := s.ops.start("Deleting "+label+" "+name, resourceType, name,
+			q.Get("server"), "")
+		s.watchTask(op, driver, taskID, "Deleted")
+		s.json(w, http.StatusAccepted, op)
 	}
 }
 
@@ -230,25 +242,8 @@ func (s *Server) deleteImage(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err, "deleting VM template")
 		return
 	}
-	s.json(w, http.StatusOK, map[string]string{"taskId": taskID})
-}
-
-func (s *Server) taskStatus(w http.ResponseWriter, r *http.Request) {
-	driver := s.driverForServer(w, r)
-	if driver == nil {
-		return
-	}
-	// Task ids contain colons, so they arrive percent-encoded; chi routes
-	// on the escaped path and hands back the raw value.
-	taskID, err := url.PathUnescape(chi.URLParam(r, "taskId"))
-	if err != nil {
-		s.err(w, http.StatusBadRequest, "malformed task id")
-		return
-	}
-	status, err := driver.TaskStatus(r.Context(), taskID)
-	if err != nil {
-		s.fail(w, err, "task status")
-		return
-	}
-	s.json(w, http.StatusOK, status)
+	op := s.ops.start("Deleting VM template "+imageID, "image", imageID,
+		serverID, "/compute/vm-templates")
+	s.watchTask(op, driver, taskID, "Deleted")
+	s.json(w, http.StatusAccepted, op)
 }

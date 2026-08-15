@@ -400,16 +400,27 @@ export interface TemplateBuildRequest {
   description?: string
 }
 
-export interface TemplateBuild {
+/**
+ * Work that outlives the request that asked for it — a clone, a disk
+ * import, an ISO download. Started by a handler, reported in the
+ * notification bell, and never waited on by the page that began it.
+ */
+export interface Operation {
   id: string
-  name: string
-  serverId: string
-  step: string
-  steps: string[]
-  running: boolean
-  imageId: string
-  error: string
+  /** the whole sentence: "Creating instance web-1" */
+  title: string
+  resource: string
+  /** which lists to refresh when this finishes */
+  resourceType: 'instance' | 'image' | 'iso' | 'cloudImage' | 'ctTemplate' | 'backup'
+  serverId?: string
+  status: 'RUNNING' | 'DONE' | 'ERROR'
+  step?: string
+  steps?: string[]
+  error?: string
+  /** where clicking the notification goes */
+  to?: string
   startedAt: string
+  endedAt?: string
 }
 
 export interface Bridge {
@@ -434,14 +445,6 @@ export interface Datastore {
   usedBytes: number
   active: boolean
   shared: boolean
-}
-
-export interface TaskStatus {
-  id: string
-  status: string
-  exitStatus: string
-  running: boolean
-  succeeded: boolean
 }
 
 export interface ISODownloadRequest {
@@ -874,7 +877,7 @@ function uploadStream(
   file: File,
   onProgress: (fraction: number) => void,
 ) {
-  return new Promise<{ taskId: string }>((resolve, reject) => {
+  return new Promise<Operation>((resolve, reject) => {
     const query = new URLSearchParams({ server: serverId, ...params })
     const xhr = new XMLHttpRequest()
     xhr.open('POST', `/api/v1${path}?${query}`)
@@ -890,7 +893,7 @@ function uploadStream(
         body = null
       }
       if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(body as { taskId: string })
+        resolve(body as Operation)
       } else {
         reject(new Error((body as { error?: string })?.error ?? xhr.statusText ?? 'upload failed'))
       }
@@ -953,7 +956,7 @@ export const api = {
   listSnapshots: () => request<Snapshot[]>('/snapshots'),
   listISOs: () => request<ISO[]>('/isos'),
   downloadISO: (serverId: string, body: ISODownloadRequest) =>
-    request<{ taskId: string }>(`/isos/download?server=${serverId}`, {
+    request<Operation>(`/isos/download?server=${serverId}`, {
       method: 'POST',
       body: JSON.stringify(body),
     }),
@@ -966,23 +969,21 @@ export const api = {
   ) => uploadStream('/isos/upload', serverId, params, file, onProgress),
   deleteISO: (serverId: string, zone: string, volume: string) => {
     const query = new URLSearchParams({ server: serverId, zone, volume })
-    return request<{ taskId: string }>(`/isos?${query}`, { method: 'DELETE' })
+    return request<Operation>(`/isos?${query}`, { method: 'DELETE' })
   },
   deleteCTTemplate: (serverId: string, zone: string, volume: string) => {
     const query = new URLSearchParams({ server: serverId, zone, volume })
-    return request<{ taskId: string }>(`/ct-templates?${query}`, { method: 'DELETE' })
+    return request<Operation>(`/ct-templates?${query}`, { method: 'DELETE' })
   },
   /** Destroys the template VM itself, not a file. */
   deleteImage: (serverId: string, imageId: string) =>
-    request<{ taskId: string }>(`/images/${imageId}?server=${serverId}`, {
+    request<Operation>(`/images/${imageId}?server=${serverId}`, {
       method: 'DELETE',
     }),
-  getTask: (serverId: string, taskId: string) =>
-    request<TaskStatus>(`/tasks/${encodeURIComponent(taskId)}?server=${serverId}`),
   listCTTemplates: () => request<CTTemplate[]>('/ct-templates'),
   listCloudImages: () => request<CloudImage[]>('/cloud-images'),
   downloadCloudImage: (serverId: string, body: ISODownloadRequest) =>
-    request<{ taskId: string }>(`/cloud-images/download?server=${serverId}`, {
+    request<Operation>(`/cloud-images/download?server=${serverId}`, {
       method: 'POST',
       body: JSON.stringify(body),
     }),
@@ -994,17 +995,20 @@ export const api = {
   ) => uploadStream('/cloud-images/upload', serverId, params, file, onProgress),
   deleteCloudImage: (serverId: string, zone: string, volume: string) => {
     const query = new URLSearchParams({ server: serverId, zone, volume })
-    return request<{ taskId: string }>(`/cloud-images?${query}`, { method: 'DELETE' })
+    return request<Operation>(`/cloud-images?${query}`, { method: 'DELETE' })
   },
   buildTemplate: (serverId: string, body: TemplateBuildRequest) =>
-    request<TemplateBuild>(`/vm-templates/build?server=${serverId}`, {
+    request<Operation>(`/vm-templates/build?server=${serverId}`, {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  getTemplateBuild: (id: string) => request<TemplateBuild>(`/vm-templates/builds/${id}`),
   listDatastores: () => request<Datastore[]>('/datastores'),
 
   overview: () => request<Overview>('/overview'),
+
+  listOperations: () => request<Operation[]>('/operations'),
+  dismissOperation: (id: string) => request<void>(`/operations/${id}`, { method: 'DELETE' }),
+  clearOperations: () => request<void>('/operations', { method: 'DELETE' }),
 
   listServers: () => request<Server[]>('/servers'),
   createServer: (body: ServerRequest) =>
@@ -1202,7 +1206,7 @@ export const api = {
 
   listBackups: () => request<Backup[]>('/backups'),
   deleteBackup: (serverId: string, zone: string, volume: string) =>
-    request<{ taskId: string }>(
+    request<Operation>(
       `/backups?server=${serverId}&zone=${encodeURIComponent(zone)}&volume=${encodeURIComponent(volume)}`,
       { method: 'DELETE' },
     ),
@@ -1215,7 +1219,7 @@ export const api = {
     request<MetricPoint[]>(`/instances/${name}/metrics?timeframe=${timeframe}`),
   instanceOSInfo: (name: string) => request<OSInfo>(`/instances/${name}/os-info`),
   createInstance: (body: CreateInstanceRequest) =>
-    request<Instance>('/instances', {
+    request<Operation>('/instances', {
       method: 'POST',
       body: JSON.stringify(body),
     }),

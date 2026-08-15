@@ -7,85 +7,12 @@ import (
 	"path"
 	"slices"
 	"strings"
-	"sync"
-	"time"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 
 	"lab-cloud-manager/internal/hypervisor"
 )
 
-// Template builds run past the request that starts them (importing a
-// disk takes minutes), so progress is tracked here and polled by the
-// wizard. State is in memory: a build interrupted by a restart leaves a
-// VM behind on the hypervisor rather than a template, which the VM
-// instances list will surface.
-
-type TemplateBuild struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	ServerID  string    `json:"serverId"`
-	Step      string    `json:"step"`
-	Steps     []string  `json:"steps"`
-	Running   bool      `json:"running"`
-	ImageID   string    `json:"imageId"`
-	Error     string    `json:"error"`
-	StartedAt time.Time `json:"startedAt"`
-}
-
-type buildRegistry struct {
-	mu     sync.Mutex
-	builds map[string]*TemplateBuild
-}
-
-func newBuildRegistry() *buildRegistry {
-	return &buildRegistry{builds: map[string]*TemplateBuild{}}
-}
-
-func (b *buildRegistry) start(name, serverID string) *TemplateBuild {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	build := &TemplateBuild{
-		ID: uuid.NewString(), Name: name, ServerID: serverID,
-		Running: true, StartedAt: time.Now(),
-	}
-	b.builds[build.ID] = build
-	return build
-}
-
-func (b *buildRegistry) step(id, step string) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if build, ok := b.builds[id]; ok {
-		build.Step = step
-		build.Steps = append(build.Steps, step)
-	}
-}
-
-func (b *buildRegistry) finish(id, imageID string, err error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	build, ok := b.builds[id]
-	if !ok {
-		return
-	}
-	build.Running = false
-	build.ImageID = imageID
-	if err != nil {
-		build.Error = err.Error()
-	}
-}
-
-func (b *buildRegistry) get(id string) (TemplateBuild, bool) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	build, ok := b.builds[id]
-	if !ok {
-		return TemplateBuild{}, false
-	}
-	return *build, true
-}
+// Cloud images are the disks templates are built from: fetched into a
+// datastore's import content, then imported by BuildTemplate.
 
 // cloudImageExtensions are the disk formats Proxmox can import.
 var cloudImageExtensions = []string{".qcow2", ".raw", ".img", ".vmdk"}
@@ -161,7 +88,10 @@ func (s *Server) downloadCloudImage(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err, "starting image download")
 		return
 	}
-	s.json(w, http.StatusAccepted, map[string]string{"taskId": taskID})
+	op := s.ops.start("Downloading cloud image "+filename, "cloudImage", filename,
+		r.URL.Query().Get("server"), "/compute/cloud-images")
+	s.watchTask(op, driver, taskID, "Downloaded to "+req.Storage)
+	s.json(w, http.StatusAccepted, op)
 }
 
 func (s *Server) buildTemplate(w http.ResponseWriter, r *http.Request) {
@@ -234,28 +164,15 @@ func (s *Server) buildTemplate(w http.ResponseWriter, r *http.Request) {
 		Description:   req.Description,
 	}
 
-	build := s.builds.start(req.Name, serverID)
-	// Detached from the request: the browser can navigate away while the
-	// disk import runs.
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Hour)
-		defer cancel()
-		imageID, err := driver.BuildTemplate(ctx, spec, func(step string) {
-			s.builds.step(build.ID, step)
-		})
-		if err != nil {
-			s.log.Error("building template", "name", spec.Name, "error", err)
-		}
-		s.builds.finish(build.ID, imageID, err)
-	}()
-	s.json(w, http.StatusAccepted, build)
-}
-
-func (s *Server) templateBuildStatus(w http.ResponseWriter, r *http.Request) {
-	build, ok := s.builds.get(chi.URLParam(r, "id"))
-	if !ok {
-		s.err(w, http.StatusNotFound, "build: not found")
-		return
-	}
-	s.json(w, http.StatusOK, build)
+	// Detached from the request: importing a disk takes minutes, and the
+	// browser is free to navigate away while it runs. A build
+	// interrupted by a restart leaves a VM rather than a template, which
+	// the VM instances list surfaces.
+	op := s.ops.start("Building template "+req.Name, "image", req.Name,
+		serverID, "/compute/vm-templates")
+	s.run(op, "Template ready", func(ctx context.Context, step func(string)) error {
+		_, err := driver.BuildTemplate(ctx, spec, step)
+		return err
+	})
+	s.json(w, http.StatusAccepted, op)
 }

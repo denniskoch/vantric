@@ -41,7 +41,8 @@ type Server struct {
 	// beside it.
 	dataDir string
 	ssh     SSHOptions
-	builds  *buildRegistry
+	// ops tracks the work that outlives its request — see operations.go.
+	ops *opRegistry
 }
 
 // SSHOptions is what the browser terminal is allowed to do to a guest
@@ -68,7 +69,7 @@ func New(
 		store: st, registry: registry, dnsRegistry: dnsRegistry, dbRegistry: dbRegistry,
 		identityRegistry: identityRegistry, networkRegistry: networkRegistry,
 		log: log, staticDir: staticDir, dataDir: dataDir, siteURL: siteURL, ssh: sshOpts,
-		builds: newBuildRegistry(),
+		ops: newOpRegistry(),
 	}
 }
 
@@ -117,19 +118,23 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		r.Get("/isos", s.listISOs)
 		r.Post("/isos/download", s.downloadISO)
 		r.Post("/isos/upload", s.uploadVolume("iso", isoExtensions))
-		r.Delete("/isos", s.deleteVolume("iso", "an ISO image"))
-		r.Delete("/ct-templates", s.deleteVolume("vztmpl", "a CT template"))
+		r.Delete("/isos", s.deleteVolume("iso", "ISO", "iso"))
+		r.Delete("/ct-templates", s.deleteVolume("vztmpl", "CT template", "ctTemplate"))
 		r.Get("/backups", s.listBackups)
-		r.Delete("/backups", s.deleteVolume("backup", "a backup"))
+		r.Delete("/backups", s.deleteVolume("backup", "backup", "backup"))
 		r.Get("/images/{id}", s.describeImage)
 		r.Delete("/images/{id}", s.deleteImage)
 		r.Get("/cloud-images", s.listCloudImages)
 		r.Post("/cloud-images/download", s.downloadCloudImage)
 		r.Post("/cloud-images/upload", s.uploadVolume("import", cloudImageExtensions))
-		r.Delete("/cloud-images", s.deleteVolume("import", "a cloud image"))
+		r.Delete("/cloud-images", s.deleteVolume("import", "cloud image", "cloudImage"))
 		r.Post("/vm-templates/build", s.buildTemplate)
-		r.Get("/vm-templates/builds/{id}", s.templateBuildStatus)
-		r.Get("/tasks/{taskId}", s.taskStatus)
+
+		// Everything long-running reports here rather than making each
+		// page that starts something responsible for watching it.
+		r.Get("/operations", s.listOperations)
+		r.Delete("/operations", s.clearOperations)
+		r.Delete("/operations/{id}", s.dismissOperation)
 		r.Get("/datastores", s.listDatastores)
 		r.Get("/ct-templates", s.listCTTemplates)
 
@@ -360,7 +365,7 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	driverID, err := driver.Create(r.Context(), hypervisor.InstanceSpec{
+	spec := hypervisor.InstanceSpec{
 		Name:          req.Name,
 		Zone:          req.Zone,
 		CPUs:          req.CPUs,
@@ -371,62 +376,71 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		VLANTag:       req.VLANTag,
 		CloudInit:     cloudInit,
 		Description:   req.Description,
-	})
-	if err != nil {
-		s.fail(w, err, "creating instance")
-		return
-	}
-	inst := &store.Instance{
-		ID:          uuid.NewString(),
-		Name:        req.Name,
-		ServerID:    req.ServerID,
-		Zone:        req.Zone,
-		CPUs:        req.CPUs,
-		MemoryMB:    req.MemoryMB,
-		DiskGB:      req.DiskGB,
-		ImageID:     req.ImageID,
-		Status:      string(hypervisor.StatusProvisioning),
-		DriverID:    driverID,
-		NetBridge:   req.NetBridge,
-		VLANTag:     req.VLANTag,
-		Description: req.Description,
-		Protected:   req.Protected,
-	}
-	// The reconciler sweeps every two seconds and adopts anything on the
-	// hypervisor it doesn't recognise, so it can easily have taken this
-	// VM already — under our name, or under vm-<vmid> if Proxmox hadn't
-	// named it yet. Either way there's a record for this machine and it
-	// should become ours rather than a second row or an error.
-	if adopted, err := s.store.GetInstanceByDriverID(r.Context(), req.ServerID, driverID); err == nil {
-		inst.ID = adopted.ID
-		if err := s.store.ClaimInstance(r.Context(), inst); err != nil {
-			s.fail(w, err, "saving instance")
-			return
-		}
-		s.log.Info("claimed an instance the reconciler adopted mid-create",
-			"name", inst.Name, "adoptedAs", adopted.Name, "driverId", driverID)
-		s.json(w, http.StatusCreated, inst)
-		return
 	}
 
-	if err := s.store.CreateInstance(r.Context(), inst); err != nil {
-		// The reconciler sweeps every two seconds and adopts anything on
-		// the hypervisor it doesn't recognise — including, sometimes, the
-		// VM we just asked for, before this line runs. That collides on
-		// the name and used to surface as "saving instance: UNIQUE
-		// constraint failed" over a machine that had in fact been created.
-		claimed, claimErr := s.claimAdopted(r.Context(), inst)
+	// Everything above answers "is this a valid request", which is the
+	// part the form is entitled to hear about. The clone itself can run
+	// for minutes, so it goes to the background and the console reports
+	// it in the notification bell.
+	op := s.ops.start("Creating instance "+req.Name, "instance", req.Name,
+		req.ServerID, "/compute/instances/"+req.Name)
+	s.run(op, "Instance created", func(ctx context.Context, step func(string)) error {
+		step("Cloning " + req.ImageID)
+		driverID, err := driver.Create(ctx, spec)
+		if err != nil {
+			return err
+		}
+		step("Recording the instance")
+		return s.saveNewInstance(ctx, &store.Instance{
+			ID:          uuid.NewString(),
+			Name:        req.Name,
+			ServerID:    req.ServerID,
+			Zone:        req.Zone,
+			CPUs:        req.CPUs,
+			MemoryMB:    req.MemoryMB,
+			DiskGB:      req.DiskGB,
+			ImageID:     req.ImageID,
+			Status:      string(hypervisor.StatusProvisioning),
+			DriverID:    driverID,
+			NetBridge:   req.NetBridge,
+			VLANTag:     req.VLANTag,
+			Description: req.Description,
+			Protected:   req.Protected,
+		})
+	})
+	s.json(w, http.StatusAccepted, op)
+}
+
+// saveNewInstance writes the record for a VM the driver has just built,
+// against a reconciler that may already have found it.
+//
+// The reconciler sweeps every two seconds and adopts anything on the
+// hypervisor it doesn't recognise, so it can easily have taken this VM
+// already — under our name, or under vm-<vmid> if Proxmox hadn't named
+// it yet. Either way there's a record for this machine and it should
+// become ours rather than a second row or an error: the failure this
+// replaced was "UNIQUE constraint failed: instances.name" reported over
+// a machine that had in fact been created.
+func (s *Server) saveNewInstance(ctx context.Context, inst *store.Instance) error {
+	if adopted, err := s.store.GetInstanceByDriverID(ctx, inst.ServerID, inst.DriverID); err == nil {
+		inst.ID = adopted.ID
+		if err := s.store.ClaimInstance(ctx, inst); err != nil {
+			return err
+		}
+		s.log.Info("claimed an instance the reconciler adopted mid-create",
+			"name", inst.Name, "adoptedAs", adopted.Name, "driverId", inst.DriverID)
+		return nil
+	}
+	if err := s.store.CreateInstance(ctx, inst); err != nil {
+		claimed, claimErr := s.claimAdopted(ctx, inst)
 		if claimErr != nil {
-			s.fail(w, claimErr, "saving instance")
-			return
+			return claimErr
 		}
 		if claimed == nil {
-			s.err(w, http.StatusConflict, "an instance with this name already exists")
-			return
+			return err
 		}
-		inst = claimed
 	}
-	s.json(w, http.StatusCreated, inst)
+	return nil
 }
 
 func (s *Server) instanceAction(action string) http.HandlerFunc {

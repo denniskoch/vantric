@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
   Box,
@@ -42,6 +42,7 @@ function formatMemory(mb: number): string {
 
 export default function CreateInstancePage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [section, setSection] = useState<SectionID>('machine')
   const [error, setError] = useState<string | null>(null)
 
@@ -143,7 +144,12 @@ export default function CreateInstancePage() {
         description: description || undefined,
         protected: protection,
       }),
-    onSuccess: () => navigate('/compute/instances'),
+    // The clone runs in the background now, so this hands off to the
+    // notification bell rather than waiting for a VM to exist.
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['operations'] })
+      navigate('/compute/instances')
+    },
     onError: (e: Error) => setError(e.message),
   })
 

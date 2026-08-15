@@ -22,7 +22,6 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CircleIcon from '@mui/icons-material/Circle'
 import ErrorIcon from '@mui/icons-material/Error'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import { api } from '../api/client'
 import PageHeader from '../components/PageHeader'
 import { formatBytes } from '../format'
@@ -96,7 +95,6 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
 
   const [error, setError] = useState<string | null>(null)
   const [uploadFraction, setUploadFraction] = useState(0)
-  const [taskId, setTaskId] = useState<string | null>(null)
 
   const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
   const { data: datastores = [] } = useQuery({
@@ -113,27 +111,20 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
   )
   const target = targets.find((d) => `${d.zone}/${d.name}` === datastore)
 
-  const { data: task } = useQuery({
-    queryKey: ['task', serverId, taskId],
-    queryFn: () => api.getTask(serverId, taskId!),
-    enabled: Boolean(taskId),
-    refetchInterval: (query) => (query.state.data?.running === false ? false : 2000),
-  })
-
   const start = useMutation({
     mutationFn: async () => {
       if (!target) throw new Error('choose a destination datastore')
       if (method === 'upload') {
         if (!file) throw new Error('choose a file to upload')
-        const res = await kind.upload(
+        await kind.upload(
           serverId,
           { zone: target.zone, storage: target.name, filename: filename || file.name },
           file,
           setUploadFraction,
         )
-        return res.taskId
+        return
       }
-      const res = await kind.download(serverId, {
+      await kind.download(serverId, {
         zone: target.zone,
         storage: target.name,
         filename,
@@ -142,9 +133,13 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
         checksumAlgorithm: checksum ? checksumAlgorithm : undefined,
         verifyCertificates,
       })
-      return res.taskId
     },
-    onSuccess: (id) => setTaskId(id),
+    // Whatever happens next happens on the hypervisor, and it reports to
+    // the notification bell. The page's job ended when the bytes did.
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['operations'] })
+      navigate(kind.listPath)
+    },
     onError: (e: Error) => setError(e.message),
   })
 
@@ -186,67 +181,21 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
     },
   ]
 
-  // Once started, the form gives way to progress.
-  if (taskId) {
-    const done = task && !task.running
-    const failed = done && !task.succeeded
+  // An upload is the one thing here the browser does itself, so it's
+  // the one thing this page waits for. Everything after the last byte —
+  // the hypervisor's own import — belongs to the notification bell.
+  if (start.isPending && method === 'upload') {
     return (
       <Box sx={{ p: 3, maxWidth: 720 }}>
-      <PageHeader
-        title={`${method === 'upload' ? 'Uploading' : 'Downloading'} ${filename}`}
-      />
+        <PageHeader title={`Uploading ${filename || file?.name}`} />
         <Paper variant="outlined" sx={{ p: 3 }}>
-          {!done && (
-            <>
-              <Typography variant="body2" sx={{ mb: 1 }}>
-                {method === 'upload' && uploadFraction < 1
-                  ? `Transferring to ${servers.find((s) => s.id === serverId)?.name}…`
-                  : 'Hypervisor is finalizing the image…'}
-              </Typography>
-              <LinearProgress
-                variant={
-                  method === 'upload' && uploadFraction < 1 ? 'determinate' : 'indeterminate'
-                }
-                value={uploadFraction * 100}
-              />
-              {method === 'upload' && uploadFraction < 1 && (
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  {(uploadFraction * 100).toFixed(0)}% of {formatBytes(file?.size ?? 0)}
-                </Typography>
-              )}
-            </>
-          )}
-          {done && !failed && (
-            <Alert icon={<CheckCircleIcon fontSize="inherit" />} severity="success">
-              {filename} is available on {target?.name}.
-            </Alert>
-          )}
-          {failed && (
-            <Alert severity="error">
-              The import failed: {task?.exitStatus || 'unknown error'}
-            </Alert>
-          )}
-          <Box sx={{ display: 'flex', gap: 1, mt: 3 }}>
-            <Button
-              variant="contained"
-              onClick={() => {
-                queryClient.invalidateQueries({ queryKey: [kind.content === 'iso' ? 'isos' : 'cloudImages'] })
-                navigate(kind.listPath)
-              }}
-            >
-              {done ? 'Done' : 'Run in background'}
-            </Button>
-            {failed && (
-              <Button
-                onClick={() => {
-                  setTaskId(null)
-                  setUploadFraction(0)
-                }}
-              >
-                Try again
-              </Button>
-            )}
-          </Box>
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            Transferring to {servers.find((s) => s.id === serverId)?.name}…
+          </Typography>
+          <LinearProgress variant="determinate" value={uploadFraction * 100} />
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            {(uploadFraction * 100).toFixed(0)}% of {formatBytes(file?.size ?? 0)}
+          </Typography>
         </Paper>
       </Box>
     )
