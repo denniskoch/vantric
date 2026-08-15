@@ -44,9 +44,7 @@ func applyCloudInit(form url.Values, ci hypervisor.CloudInit) {
 		form.Set("cipassword", ci.Password)
 	}
 	if keys := strings.TrimSpace(ci.SSHKeys); keys != "" {
-		// Proxmox expects the value itself URL-encoded (it is then
-		// form-encoded again on the wire).
-		form.Set("sshkeys", url.QueryEscape(keys))
+		form.Set("sshkeys", encodeSSHKeys(keys))
 	}
 	if ci.Nameservers != "" {
 		form.Set("nameserver", ci.Nameservers)
@@ -67,4 +65,16 @@ func applyCloudInit(form url.Values, ci hypervisor.CloudInit) {
 	if ip := formatIPConfig(ci.IP); ip != "" {
 		form.Set("ipconfig0", ip)
 	}
+}
+
+// encodeSSHKeys renders the keys the one way Proxmox accepts.
+//
+// The value has to arrive percent-encoded — Proxmox url-decodes it
+// itself, on top of the form decoding — and it will not take a space
+// written as "+". url.QueryEscape produces exactly that, so the keys
+// came through as an "invalid urlencoded string" and no VM was created.
+// Percent-encoding the spaces instead is the whole fix; newlines
+// between several keys become %0A the same way.
+func encodeSSHKeys(keys string) string {
+	return strings.ReplaceAll(url.QueryEscape(keys), "+", "%20")
 }
