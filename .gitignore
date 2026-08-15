@@ -7,6 +7,13 @@
 *.db-shm
 *.db-wal
 
+# Uploaded agent installers — runtime data, not source. `make dev`
+# writes backend/installers, the container writes data/installers, and
+# a fleetd package contains your enrollment secret, so these must never
+# be committed.
+backend/installers/
+data/installers/
+
 # Go
 backend/server
 
