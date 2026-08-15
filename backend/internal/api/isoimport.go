@@ -218,6 +218,25 @@ func (s *Server) describeImage(w http.ResponseWriter, r *http.Request) {
 	s.json(w, http.StatusOK, detail)
 }
 
+// setImageDescription writes a template's notes. A template has no
+// record of its own here — it is listed straight from the hypervisor —
+// so this is a pass-through with nothing to keep in step.
+func (s *Server) setImageDescription(w http.ResponseWriter, r *http.Request) {
+	driver := s.driverForServer(w, r)
+	if driver == nil {
+		return
+	}
+	description, ok := s.readDescription(w, r)
+	if !ok {
+		return
+	}
+	if err := driver.SetDescription(r.Context(), chi.URLParam(r, "id"), description); err != nil {
+		s.fail(w, err, "saving the description")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Server) deleteImage(w http.ResponseWriter, r *http.Request) {
 	driver := s.driverForServer(w, r)
 	if driver == nil {

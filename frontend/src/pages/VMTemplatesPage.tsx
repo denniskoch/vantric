@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link as RouterLink } from 'react-router-dom'
+import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
@@ -19,6 +19,7 @@ import {
 import AddBoxIcon from '@mui/icons-material/AddBox'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import DeleteIcon from '@mui/icons-material/Delete'
+import EditIcon from '@mui/icons-material/Edit'
 import { api } from '../api/client'
 import type { Image } from '../api/client'
 import { useServerNames } from '../useServerNames'
@@ -30,6 +31,7 @@ import OSName from '../components/OSName'
 // clones from. Deleting one destroys a VM and its disks, unlike the
 // file-based CT template and ISO listings.
 export default function VMTemplatesPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const serverName = useServerNames()
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
@@ -137,6 +139,16 @@ export default function VMTemplatesPage() {
       </TableContainer>
 
       <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
+        <MenuItem
+          onClick={() => {
+            if (menuTemplate) {
+              navigate(`/compute/vm-templates/${menuTemplate.serverId}/${menuTemplate.id}/description`)
+            }
+            setMenuAnchor(null)
+          }}
+        >
+          <EditIcon fontSize="small" sx={{ mr: 1 }} /> Edit description
+        </MenuItem>
         <MenuItem
           onClick={() => {
             setConfirming(menuTemplate)

@@ -135,6 +135,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		r.Get("/backups", s.listBackups)
 		r.Delete("/backups", s.deleteVolume("backup", "backup", "backup"))
 		r.Get("/images/{id}", s.describeImage)
+		r.Post("/images/{id}/description", s.setImageDescription)
 		r.Delete("/images/{id}", s.deleteImage)
 		r.Get("/cloud-images", s.listCloudImages)
 		r.Post("/cloud-images/download", s.downloadCloudImage)
@@ -179,6 +180,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 			r.Post("/stop", s.instanceAction("stop"))
 			r.Post("/reset", s.instanceAction("reset"))
 			r.Post("/protection", s.setInstanceProtection)
+			r.Post("/description", s.setInstanceDescription)
 		})
 	}
 }
@@ -543,6 +545,52 @@ func (s *Server) setInstanceProtection(w http.ResponseWriter, r *http.Request) {
 	}
 	inst.Protected = req.Protected
 	s.json(w, http.StatusOK, inst)
+}
+
+// The hypervisor's notes field is generous, but a console shouldn't be
+// the way somebody discovers its ceiling.
+const maxDescription = 4096
+
+// setInstanceDescription writes notes to the HYPERVISOR and mirrors
+// them here. Proxmox shows the same field in its own Notes panel, so
+// this is editing one thing in two places rather than keeping a
+// private copy — and the store's copy exists only so the list is right
+// without a Describe per row.
+func (s *Server) setInstanceDescription(w http.ResponseWriter, r *http.Request) {
+	inst, driver := s.instanceDriver(w, r)
+	if inst == nil {
+		return
+	}
+	description, ok := s.readDescription(w, r)
+	if !ok {
+		return
+	}
+	if err := driver.SetDescription(r.Context(), inst.DriverID, description); err != nil {
+		s.fail(w, err, "saving the description")
+		return
+	}
+	if err := s.store.SetInstanceDescription(r.Context(), inst.ID, description); err != nil {
+		s.fail(w, err, "saving the description")
+		return
+	}
+	inst.Description = description
+	s.json(w, http.StatusOK, inst)
+}
+
+func (s *Server) readDescription(w http.ResponseWriter, r *http.Request) (string, bool) {
+	var req struct {
+		Description string `json:"description"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid JSON body")
+		return "", false
+	}
+	if len(req.Description) > maxDescription {
+		s.err(w, http.StatusBadRequest,
+			fmt.Sprintf("description must be %d characters or fewer", maxDescription))
+		return "", false
+	}
+	return req.Description, true
 }
 
 // poweredOn is "the guest is up", as opposed to merely mid-transition.

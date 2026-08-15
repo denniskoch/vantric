@@ -17,6 +17,10 @@ import BuildTemplatePage from './pages/BuildTemplatePage'
 import CTTemplatesPage from './pages/CTTemplatesPage'
 import OverviewPage from './pages/OverviewPage'
 import CloudOverviewPage from './pages/CloudOverviewPage'
+import EditDescriptionPage, {
+  instanceDescription,
+  templateDescription,
+} from './pages/EditDescriptionPage'
 import SectionLandingPage from './pages/SectionLandingPage'
 import DNSZonesPage from './pages/DNSZonesPage'
 import DNSZoneDetailPage from './pages/DNSZoneDetailPage'
@@ -79,6 +83,14 @@ export default function App() {
         <Route path="/" element={<Navigate to="/overview" replace />} />
         <Route path="/overview" element={<CloudOverviewPage />} />
         <Route path="/compute/overview" element={<OverviewPage />} />
+        <Route
+          path="/compute/instances/:name/description"
+          element={<EditDescriptionPage target={instanceDescription} />}
+        />
+        <Route
+          path="/compute/vm-templates/:serverId/:id/description"
+          element={<EditDescriptionPage target={templateDescription} />}
+        />
         {/* Every section has an overview, on the shared landing template. */}
         <Route path="/storage/overview" element={<SectionLandingPage />} />
         <Route path="/network/overview" element={<SectionLandingPage />} />

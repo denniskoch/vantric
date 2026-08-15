@@ -91,6 +91,16 @@ func (s *Store) SetInstanceFacts(ctx context.Context, id, osType, uuid string) e
 	return err
 }
 
+// SetInstanceDescription mirrors what was just written to the
+// hypervisor, so the list is right without waiting for a sweep. The
+// hypervisor stays the source of truth; this is the copy.
+func (s *Store) SetInstanceDescription(ctx context.Context, id, description string) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE instances SET description = ?, updated_at = ? WHERE id = ?`,
+		description, now(), id)
+	return err
+}
+
 func (s *Store) SetInstanceProtection(ctx context.Context, id string, protected bool) error {
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE instances SET protected = ?, updated_at = ? WHERE id = ?`,

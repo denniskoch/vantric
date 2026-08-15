@@ -355,6 +355,18 @@ func (d *Driver) Start(ctx context.Context, driverID string) error {
 	return d.power(ctx, driverID, "start")
 }
 
+// SetDescription writes the VM's notes — the same field Proxmox shows
+// in its Notes panel, on a running VM as readily as a stopped one.
+func (d *Driver) SetDescription(ctx context.Context, driverID, description string) error {
+	node, err := d.node(ctx, driverID)
+	if err != nil {
+		return err
+	}
+	form := url.Values{"description": {description}}
+	path := fmt.Sprintf("/nodes/%s/qemu/%s/config", node, driverID)
+	return d.do(ctx, http.MethodPost, path, form, nil)
+}
+
 // Stop performs a graceful ACPI shutdown, matching GCP's Stop semantics.
 func (d *Driver) Stop(ctx context.Context, driverID string) error {
 	return d.power(ctx, driverID, "shutdown")

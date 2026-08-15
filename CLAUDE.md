@@ -410,6 +410,16 @@ Surface the daily 90% here and link out for the rest.
   mid-boot is the same mistake — while PROVISIONING and STOPPING are
   deliberately allowed through, since a create that died in
   PROVISIONING still has to be removable.
+- A GUEST'S NOTES BELONG TO THE HYPERVISOR. Editing a description
+  writes Proxmox's own field — the one its Notes panel shows — so this
+  console and that one are editing the same thing rather than keeping
+  two. `Driver.SetDescription` is core rather than a capability, since
+  a backend that can't label a guest isn't much of a backend. The
+  store's `description` is a MIRROR, updated in the same handler, and
+  it exists only so a list doesn't need a Describe per row; the
+  hypervisor wins on any disagreement. A VM template is a VM, so the
+  same driver call serves `/images/{id}/description` — and there the
+  hypervisor is the only copy, since a template has no record here.
 - DESTRUCTIVE ACTIONS ASK IN PROPORTION, via
   `components/ConfirmDeleteDialog`. A one-click dialog is right for
   something that comes back — a credential you can re-enter, a grant

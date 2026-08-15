@@ -23,7 +23,8 @@ type instance struct {
 	// uuid stands in for the SMBIOS system UUID a real guest carries,
 	// so the fields that correlate with outside tools have something
 	// to show in development.
-	uuid string
+	uuid        string
+	description string
 	// pending transition, applied when 'at' passes
 	next hypervisor.Status
 	at   time.Time
@@ -284,11 +285,15 @@ func (d *Driver) Describe(ctx context.Context, driverID string) (*hypervisor.Ins
 	state := vm.state
 	created := vm.created
 	guestUUID := vm.uuid
+	description := vm.description
+	if description == "" {
+		description = "Mock instance for development"
+	}
 	d.mu.Unlock()
 
 	return &hypervisor.InstanceDetail{
 		InstanceState:  state,
-		Description:    "Mock instance for development",
+		Description:    description,
 		Tags:           []string{"mock", "lab"},
 		OSType:         "l26",
 		UUID:           guestUUID,
@@ -380,6 +385,24 @@ func (d *Driver) OSInfo(ctx context.Context, driverID string) (*hypervisor.OSInf
 		Machine:       "x86_64",
 		OSType:        "l26",
 	}, nil
+}
+
+// SetDescription records notes for a guest, or for a template — the
+// mock keeps templates in the same map the real driver does.
+func (d *Driver) SetDescription(ctx context.Context, driverID, description string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if vm, ok := d.vms[driverID]; ok {
+		vm.description = description
+		return nil
+	}
+	for i := range d.images {
+		if d.images[i].ID == driverID {
+			d.images[i].Description = description
+			return nil
+		}
+	}
+	return hypervisor.ErrNotFound
 }
 
 func (d *Driver) Start(ctx context.Context, driverID string) error {

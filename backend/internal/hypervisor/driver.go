@@ -450,6 +450,11 @@ type Driver interface {
 	Stop(ctx context.Context, driverID string) error
 	Reset(ctx context.Context, driverID string) error
 	Delete(ctx context.Context, driverID string) error
+	// SetDescription writes a guest's notes on the hypervisor, which is
+	// where they belong: the hypervisor's own console shows the same
+	// field, so notes written here are not a private copy that drifts.
+	// Templates are VMs, so this addresses them too.
+	SetDescription(ctx context.Context, driverID, description string) error
 }
 
 // BackupDriver is an optional capability for backends that keep a

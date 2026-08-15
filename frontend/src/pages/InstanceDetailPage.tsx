@@ -302,7 +302,25 @@ export default function InstanceDetailPage() {
                 rows={[
                   { label: 'Name', value: inst.name },
                   { label: 'Instance ID', value: inst.driverId || '—' },
-                  { label: 'Description', value: detail?.description || inst.description || 'None' },
+                  {
+                    label: 'Description',
+                    // Inline Edit, the same shape as deletion protection
+                    // below: the action belongs beside the value it
+                    // changes, and the form itself gets its own page.
+                    value: (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box component="span" sx={{ whiteSpace: 'pre-wrap' }}>
+                          {detail?.description || inst.description || 'None'}
+                        </Box>
+                        <Button
+                          size="small"
+                          onClick={() => navigate(`/compute/instances/${inst.name}/description`)}
+                        >
+                          Edit
+                        </Button>
+                      </Box>
+                    ),
+                  },
                   { label: 'Type', value: 'Virtual machine' },
                   { label: 'Status', value: inst.status },
                   {

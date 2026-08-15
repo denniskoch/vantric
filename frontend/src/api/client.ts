@@ -984,6 +984,11 @@ export const api = {
     const query = new URLSearchParams({ server: serverId, zone, volume })
     return request<Operation>(`/ct-templates?${query}`, { method: 'DELETE' })
   },
+  setImageDescription: (serverId: string, imageId: string, description: string) =>
+    request<void>(`/images/${imageId}/description?server=${serverId}`, {
+      method: 'POST',
+      body: JSON.stringify({ description }),
+    }),
   /** Destroys the template VM itself, not a file. */
   deleteImage: (serverId: string, imageId: string) =>
     request<Operation>(`/images/${imageId}?server=${serverId}`, {
@@ -1234,6 +1239,12 @@ export const api = {
     }),
   instanceAction: (name: string, action: 'start' | 'stop' | 'reset') =>
     request<Instance>(`/instances/${name}/${action}`, { method: 'POST' }),
+  /** Writes notes to the hypervisor's own description field. */
+  setInstanceDescription: (name: string, description: string) =>
+    request<Instance>(`/instances/${name}/description`, {
+      method: 'POST',
+      body: JSON.stringify({ description }),
+    }),
   setInstanceProtection: (name: string, protectedFlag: boolean) =>
     request<Instance>(`/instances/${name}/protection`, {
       method: 'POST',
