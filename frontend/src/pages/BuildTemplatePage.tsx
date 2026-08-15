@@ -483,11 +483,33 @@ export default function BuildTemplatePage() {
                     onChange={(e) => setEnableAgent(e.target.checked)}
                   />
                 }
-                label="Enable the QEMU guest agent (cloud images ship it)"
+                label="Expect the QEMU guest agent"
               />
               <Typography variant="body2" color="text.secondary">
-                A serial console is always configured — cloud images log to it and
-                often carry no graphics driver.
+                This tells the hypervisor to talk to an agent inside the guest; it
+                doesn't put one there. Debian and Ubuntu cloud images don't carry{' '}
+                <code>qemu-guest-agent</code>, so add it to the image first — on the
+                hypervisor, with <code>libguestfs-tools</code> installed:
+              </Typography>
+              <Box
+                component="pre"
+                sx={{
+                  m: 0,
+                  p: 1.5,
+                  fontSize: 12,
+                  bgcolor: '#f8f9fa',
+                  border: '1px solid #e8eaed',
+                  borderRadius: 1,
+                  overflowX: 'auto',
+                }}
+              >
+                virt-customize -a your-image.qcow2 --install qemu-guest-agent
+              </Box>
+              <Typography variant="body2" color="text.secondary">
+                Without it the guest reports no IP, Connect can't reach it, and OS
+                info stays empty — everything else works, which is what makes it
+                hard to spot. A serial console is always configured too: cloud
+                images log to it and often carry no graphics driver.
               </Typography>
             </>
           )}

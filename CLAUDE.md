@@ -193,6 +193,16 @@ Surface the daily 90% here and link out for the rest.
   A backup outlives its guest, so the archive carries the vmid and
   guest type; the name is resolved from the cluster where the guest
   still exists and left blank where it doesn't.
+- THE GUEST AGENT HAS TO BE IN THE IMAGE, and Debian/Ubuntu cloud
+  images don't ship it. `enableAgent` on a build only sets `agent=1` on
+  the VM, which is the hypervisor's half; the guest half is
+  `virt-customize -a image.qcow2 --install qemu-guest-agent` on the
+  host, with libguestfs-tools. Missing it degrades exactly the things
+  that read the guest — no IP in the list, no OS info, nothing for
+  Connect to reach — while everything else keeps working, which is what
+  makes it hard to spot. The build page says so at the checkbox; this
+  app can't do it, because reaching the image means SSH to the host,
+  the same credential it refuses for `cicustom`.
 - Template builds (cloud image → import disk → cloud-init drive →
   serial console → convert) run detached in a goroutine tracked by an
   in-memory registry in internal/api/buildtemplate.go, because the

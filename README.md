@@ -337,6 +337,25 @@ and `/auth/me` needs a session cookie:
 Projects (GCP-style resource grouping) were dropped pre-ship and may
 return as a post-ship enhancement.
 
+## Building a template from a cloud image
+
+Compute → VM Templates → Build imports a downloaded cloud image, gives it
+a cloud-init drive and a serial console, and converts it to a template.
+
+**Put the guest agent in the image first.** Debian and Ubuntu cloud
+images don't ship `qemu-guest-agent`, and the build's agent checkbox only
+tells the hypervisor to expect one. On the Proxmox host, with
+`libguestfs-tools` installed:
+
+```bash
+virt-customize -a debian-13-genericcloud-amd64.qcow2 --install qemu-guest-agent
+```
+
+Without it the console still creates and runs guests, but the hypervisor
+can't ask them anything: no IP address in the instances list, no OS info,
+and Connect has nothing to SSH to. That partial failure is the reason
+this is worth doing before the template exists rather than per-VM after.
+
 ## Cloud-init
 
 Instances and templates configure guests through Proxmox's cloud-init
