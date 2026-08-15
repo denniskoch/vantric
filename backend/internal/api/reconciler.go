@@ -294,6 +294,9 @@ func (r *Reconciler) syncShape(ctx context.Context, inst *store.Instance, state 
 // inside it. So they're read together on a slow beat for instances
 // still missing them, and then left alone — one Describe, not two.
 func (r *Reconciler) fillFacts(ctx context.Context, driver hypervisor.Driver, inst *store.Instance) {
+	// A serial is usually absent rather than unknown, so it can't be
+	// part of the "already filled" test: waiting for one would mean
+	// re-reading every VM's config forever.
 	if (inst.OSType != "" && inst.UUID != "") || r.sweeps%10 != 0 {
 		return
 	}
@@ -304,11 +307,12 @@ func (r *Reconciler) fillFacts(ctx context.Context, driver hypervisor.Driver, in
 	// Keep what's already known: a hypervisor that reports one and not
 	// the other must not blank the one it knows.
 	osType, uuid := firstNonEmpty(detail.OSType, inst.OSType), firstNonEmpty(detail.UUID, inst.UUID)
-	if err := r.store.SetInstanceFacts(ctx, inst.ID, osType, uuid); err != nil {
+	serial := firstNonEmpty(detail.Serial, inst.Serial)
+	if err := r.store.SetInstanceFacts(ctx, inst.ID, osType, uuid, serial); err != nil {
 		r.log.Warn("reconciler: fact update failed", "name", inst.Name, "error", err)
 		return
 	}
-	inst.OSType, inst.UUID = osType, uuid
+	inst.OSType, inst.UUID, inst.Serial = osType, uuid, serial
 }
 
 func firstNonEmpty(a, b string) string {

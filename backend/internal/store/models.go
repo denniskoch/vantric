@@ -30,6 +30,9 @@ type Instance struct {
 	// …). Filled in once per instance, and only used to decide whether
 	// "connect" means SSH or RDP.
 	OSType string `json:"osType"`
+	// Serial is the SMBIOS serial number, empty unless somebody set
+	// one on the hypervisor. Inventory tools key on it.
+	Serial string `json:"serial"`
 	// UUID is the guest's SMBIOS system UUID, filled in beside OSType.
 	// It is what the guest sees as its own identity, so it's what
 	// correlates this record with inventory and monitoring that run
@@ -50,7 +53,7 @@ func parseTime(s string) time.Time {
 
 const instanceCols = `id, name, server_id, zone, cpus, memory_mb, disk_gb,
 	image_id, status, driver_id, internal_ip, external_ip, net_bridge, vlan_tag,
-	description, protected, os_type, uuid, created_at, updated_at`
+	description, protected, os_type, uuid, serial, created_at, updated_at`
 
 func scanInstance(scan func(dest ...any) error) (*Instance, error) {
 	var i Instance
@@ -59,7 +62,7 @@ func scanInstance(scan func(dest ...any) error) (*Instance, error) {
 	err := scan(&i.ID, &i.Name, &i.ServerID, &i.Zone, &i.CPUs, &i.MemoryMB,
 		&i.DiskGB, &i.ImageID, &i.Status, &i.DriverID, &i.InternalIP, &i.ExternalIP,
 		&i.NetBridge, &i.VLANTag, &i.Description, &protected, &i.OSType, &i.UUID,
-		&created, &updated)
+		&i.Serial, &created, &updated)
 	if err != nil {
 		return nil, err
 	}
@@ -73,10 +76,10 @@ func (s *Store) CreateInstance(ctx context.Context, i *Instance) error {
 	ts := now()
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO instances (`+instanceCols+`)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		i.ID, i.Name, i.ServerID, i.Zone, i.CPUs, i.MemoryMB, i.DiskGB,
 		i.ImageID, i.Status, i.DriverID, i.InternalIP, i.ExternalIP, i.NetBridge, i.VLANTag,
-		i.Description, boolInt(i.Protected), i.OSType, i.UUID, ts, ts)
+		i.Description, boolInt(i.Protected), i.OSType, i.UUID, i.Serial, ts, ts)
 	i.CreatedAt = parseTime(ts)
 	i.UpdatedAt = i.CreatedAt
 	return err
@@ -85,9 +88,10 @@ func (s *Store) CreateInstance(ctx context.Context, i *Instance) error {
 // SetInstanceFacts records the things a guest is born with and never
 // changes — its configured type and its SMBIOS UUID — once the
 // hypervisor has been asked for them.
-func (s *Store) SetInstanceFacts(ctx context.Context, id, osType, uuid string) error {
+func (s *Store) SetInstanceFacts(ctx context.Context, id, osType, uuid, serial string) error {
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE instances SET os_type = ?, uuid = ? WHERE id = ?`, osType, uuid, id)
+		`UPDATE instances SET os_type = ?, uuid = ?, serial = ? WHERE id = ?`,
+		osType, uuid, serial, id)
 	return err
 }
 

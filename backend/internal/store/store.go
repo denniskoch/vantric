@@ -199,6 +199,9 @@ var columnMigrations = []string{
 	// The guest's own identity, for correlating with tools that run
 	// inside it. Filled in beside os_type on the reconciler's slow beat.
 	`ALTER TABLE instances ADD COLUMN uuid TEXT NOT NULL DEFAULT ''`,
+	// Empty on almost every guest until somebody sets one; inventory
+	// tools key on it, so the console reports whether it's there.
+	`ALTER TABLE instances ADD COLUMN serial TEXT NOT NULL DEFAULT ''`,
 	// Each account signs in to guests with its own key, so a guest's
 	// auth log names a person. Generated on first use; the public half
 	// is stored beside it rather than derived on every read.

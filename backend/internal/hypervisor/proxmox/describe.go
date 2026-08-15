@@ -2,6 +2,7 @@ package proxmox
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -210,7 +211,9 @@ func (d *Driver) Describe(ctx context.Context, driverID string) (*hypervisor.Ins
 			*field = fallback + " (default)"
 		}
 	}
-	detail.UUID = smbiosUUID(cfgString(cfg, "smbios1"))
+	smbios := cfgString(cfg, "smbios1")
+	detail.UUID = smbiosUUID(smbios)
+	detail.Serial = smbiosSerial(smbios)
 	if tags := cfgString(cfg, "tags"); tags != "" {
 		detail.Tags = strings.FieldsFunc(tags, func(r rune) bool { return r == ';' || r == ',' })
 	}
@@ -294,14 +297,40 @@ func (d *Driver) guestIPsByMAC(ctx context.Context, node, vmid string) map[strin
 	return ips
 }
 
-// smbiosUUID pulls the system UUID out of Proxmox's smbios1 setting: a
-// comma-separated list whose other fields may be base64-encoded, and
-// whose uuid never is.
-func smbiosUUID(smbios1 string) string {
+// smbiosUUID pulls the system UUID out of Proxmox's smbios1 setting.
+func smbiosUUID(smbios1 string) string { return smbiosField(smbios1, "uuid") }
+
+// smbiosSerial pulls the system serial number — empty on almost every
+// VM, because Proxmox doesn't set one unless asked. It matters because
+// device inventory keys on it: osquery reports hardware_serial, and a
+// fleet of VMs that all report "" is a fleet that looks like one host.
+func smbiosSerial(smbios1 string) string { return smbiosField(smbios1, "serial") }
+
+// smbiosField reads one field of Proxmox's smbios1 setting: a
+// comma-separated list which, when it carries base64=1, has its STRING
+// fields base64-encoded — manufacturer, product, version, serial, sku,
+// family. The uuid is never encoded, which is why reading it needed no
+// decoding and reading a serial does.
+func smbiosField(smbios1, name string) string {
+	encoded := false
+	value := ""
 	for _, field := range strings.Split(smbios1, ",") {
-		if value, ok := strings.CutPrefix(field, "uuid="); ok {
-			return value
+		if field == "base64=1" {
+			encoded = true
+			continue
+		}
+		if v, ok := strings.CutPrefix(field, name+"="); ok {
+			value = v
 		}
 	}
-	return ""
+	if value == "" || name == "uuid" || !encoded {
+		return value
+	}
+	decoded, err := base64.StdEncoding.DecodeString(value)
+	if err != nil {
+		// Proxmox said it was base64 and it wasn't; the raw value is
+		// more use than nothing.
+		return value
+	}
+	return string(decoded)
 }

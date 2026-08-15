@@ -304,7 +304,13 @@ type InstanceDetail struct {
 	// that survives a rename, a migration and a vmid being reused, so
 	// it's the join key between a record here and anything reporting
 	// from inside the machine.
-	UUID           string `json:"uuid"`
+	UUID string `json:"uuid"`
+	// Serial is the SMBIOS system serial number, which a hypervisor
+	// leaves EMPTY unless somebody sets one. Device inventory keys on
+	// it — osquery reports it as hardware_serial — so a fleet of VMs
+	// that all report nothing is a fleet its own tooling can't tell
+	// apart. Reported here so the gap is visible.
+	Serial         string `json:"serial"`
 	CPUType        string `json:"cpuType"` // GCP calls this "CPU platform"
 	Architecture   string `json:"architecture"`
 	Sockets        int    `json:"sockets"`

@@ -167,6 +167,18 @@ Surface the daily 90% here and link out for the rest.
   may be base64; `smbiosUUID` parses it and is one of the repo's few
   tests, since an empty result would show up as a correlation that
   silently never happens rather than as an error.
+- THE SERIAL IS READ TOO, AND IS USUALLY EMPTY. `smbios1` also carries
+  a serial number, which a hypervisor sets for nobody: device inventory
+  built on osquery (FleetDM) keys hosts by `hardware_serial`, so a lab
+  of VMs all reporting nothing is a lab its own tooling can't tell
+  apart. The console reports it, and reports its ABSENCE in words
+  rather than as a dash, because "not set on the hypervisor" is the
+  actionable fact where "—" reads as "we didn't look". Unlike the uuid,
+  the serial IS base64-encoded whenever the config carries `base64=1`,
+  so `smbiosField` decodes it — and the uuid must not be decoded even
+  then, which is what its test pins. Setting a serial is not something
+  this console does on its own: it changes what a guest reports about
+  itself, takes a reboot to appear, and is the owner's call.
 - The reconciler syncs NAME AND SIZING as well as status and IPs
   (`syncShape`). Adoption is a race: a VM picked up while the
   hypervisor is still creating it reports no name and zero cpus/memory,

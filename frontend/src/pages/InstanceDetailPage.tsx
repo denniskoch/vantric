@@ -387,6 +387,21 @@ export default function InstanceDetailPage() {
                   { label: 'Architecture', value: detail?.architecture || '—' },
                   { label: 'Guest OS type', value: detail?.osType || '—' },
                   {
+                    label: 'Serial number',
+                    // Blank is the normal state, and "—" would read as
+                    // "we didn't look". Inventory tools key on this, so
+                    // say what its absence costs.
+                    value: (inst.serial || detail?.serial) ? (
+                      <Box component="span" sx={{ fontFamily: 'monospace', fontSize: 12 }}>
+                        {inst.serial || detail?.serial}
+                      </Box>
+                    ) : (
+                      <Box component="span" sx={{ color: '#5f6368' }}>
+                        Not set on the hypervisor
+                      </Box>
+                    ),
+                  },
+                  {
                     label: 'System UUID',
                     // The stored copy first: it's there for every
                     // instance, while the live read can be a moment

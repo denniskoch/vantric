@@ -144,6 +144,12 @@ export interface Instance {
    * never reused, so it's the join key to those tools.
    */
   uuid: string
+  /**
+   * SMBIOS serial number. Empty on almost every VM — a hypervisor sets
+   * none unless asked — and device inventory keys on it, so an empty
+   * one is a fact worth showing rather than hiding.
+   */
+  serial: string
   createdAt: string
   updatedAt: string
 }
@@ -191,6 +197,8 @@ export interface InstanceDetail {
   osType: string
   /** SMBIOS system UUID — see Instance.uuid. */
   uuid: string
+  /** SMBIOS serial number — see Instance.serial. */
+  serial: string
   cpuType: string
   architecture: string
   sockets: number

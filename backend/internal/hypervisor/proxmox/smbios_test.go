@@ -29,3 +29,29 @@ func TestSMBIOSUUID(t *testing.T) {
 		}
 	}
 }
+
+// The serial is the field FleetDM and anything else built on osquery
+// keys a host by, and unlike the uuid it IS base64-encoded whenever
+// Proxmox writes base64=1 — so reading it raw would report a device
+// identifier that is really "TEFCLTAwMQ==".
+func TestSMBIOSSerial(t *testing.T) {
+	cases := map[string]string{
+		// base64=1 present: the value is encoded.
+		"base64=1,uuid=8b3a5f2e-1c4d-4a9b-9f11-2f0d3e4a5b6c,serial=TEFCLTAwMQ==": "LAB-001",
+		// no base64 flag: the value is literal.
+		"uuid=8b3a5f2e-1c4d-4a9b-9f11-2f0d3e4a5b6c,serial=LAB-001": "LAB-001",
+		// what almost every VM actually has.
+		"uuid=8b3a5f2e-1c4d-4a9b-9f11-2f0d3e4a5b6c": "",
+		"": "",
+	}
+	for cfg, want := range cases {
+		if got := smbiosSerial(cfg); got != want {
+			t.Errorf("smbios1 %q -> serial %q, want %q", cfg, got, want)
+		}
+	}
+	// The uuid must not be decoded even when the flag is set.
+	const withFlag = "base64=1,uuid=8b3a5f2e-1c4d-4a9b-9f11-2f0d3e4a5b6c,serial=TEFCLTAwMQ=="
+	if got := smbiosUUID(withFlag); got != "8b3a5f2e-1c4d-4a9b-9f11-2f0d3e4a5b6c" {
+		t.Errorf("uuid was mangled by the base64 flag: %q", got)
+	}
+}
