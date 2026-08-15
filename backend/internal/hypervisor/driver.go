@@ -331,7 +331,12 @@ type InstanceDetail struct {
 	GuestAgent     bool   `json:"guestAgent"`
 	HostProtected  bool   `json:"hostProtected"` // hypervisor-side protection flag
 	// CreatedAt is unix seconds as recorded by the hypervisor; 0 when unknown.
-	CreatedAt       int64          `json:"createdAt"`
+	CreatedAt int64 `json:"createdAt"`
+	// CloudInit is whether the guest has a cloud-init drive at all.
+	// Without one the settings below are inert: Proxmox still reports
+	// its defaults for them, and showing those as though they applied
+	// describes a machine that doesn't exist.
+	CloudInit       bool           `json:"cloudInit"`
 	CloudInitUser   string         `json:"cloudInitUser"`
 	SSHKeys         []string       `json:"sshKeys"`
 	Nameservers     string         `json:"nameservers"`

@@ -95,6 +95,16 @@ func cfgBool(cfg map[string]any, key string) bool {
 	return cfgInt(cfg, key) == 1
 }
 
+// cfgBoolDefault is cfgBool for the keys whose Proxmox default is ON.
+// Proxmox omits a key left at its default, so absent and "0" mean
+// opposite things and cfgBool can't tell them apart.
+func cfgBoolDefault(cfg map[string]any, key string, def bool) bool {
+	if _, ok := cfg[key]; !ok {
+		return def
+	}
+	return cfgBool(cfg, key)
+}
+
 // parseDiskSpec parses a disk config value such as
 // "local-lvm:vm-101-disk-0,size=32G,ssd=1,discard=on" or a CD-ROM entry
 // "local:iso/debian.iso,media=cdrom".
@@ -196,9 +206,25 @@ func (d *Driver) Describe(ctx context.Context, driverID string) (*hypervisor.Ins
 		HostProtected:  cfgBool(cfg, "protection"),
 		CreatedAt:      creationTime(cfgString(cfg, "meta")),
 		CloudInitUser:  cfgString(cfg, "ciuser"),
+		IPConfig:       cfgString(cfg, "ipconfig0"),
+		Nameservers:    cfgString(cfg, "nameserver"),
+		SearchDomain:   cfgString(cfg, "searchdomain"),
+		Datasource:     cfgString(cfg, "citype"),
+		// Proxmox's default here is ON, so an absent key means yes —
+		// which is why this can't go through cfgBool.
+		UpgradePackages: cfgBoolDefault(cfg, "ciupgrade", true),
 	}
 	if detail.Architecture == "" {
 		detail.Architecture = "x86_64"
+	}
+	// citype follows the guest: nocloud for Linux, configdrive2 for
+	// Windows. Reported as the effective value, like BIOS and chipset.
+	if detail.Datasource == "" {
+		if strings.HasPrefix(detail.OSType, "win") {
+			detail.Datasource = "configdrive2 (default)"
+		} else {
+			detail.Datasource = "nocloud (default)"
+		}
 	}
 	// Proxmox omits keys left at their default; report the effective value.
 	for field, fallback := range map[*string]string{
@@ -247,7 +273,13 @@ func (d *Driver) Describe(ctx context.Context, driverID string) (*hypervisor.Ins
 			nic.IPAddress = ipByMAC[nic.MAC]
 			detail.NICs = append(detail.NICs, nic)
 		case diskKeyRe.MatchString(key):
-			detail.Disks = append(detail.Disks, parseDiskSpec(key, val))
+			disk := parseDiskSpec(key, val)
+			// The cloud-init drive is how you tell a guest that reads
+			// this configuration from one that ignores all of it.
+			if strings.HasSuffix(disk.Name, "cloudinit") {
+				detail.CloudInit = true
+			}
+			detail.Disks = append(detail.Disks, disk)
 		case firmwareDiskKeyRe.MatchString(key):
 			disk := parseDiskSpec(key, val)
 			disk.Media = firmwareMedia(key)

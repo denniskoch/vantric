@@ -191,6 +191,21 @@ Surface the daily 90% here and link out for the rest.
   was asked for. Setting one on a TEMPLATE is the trap to avoid —
   clones inherit it, and a fleet of identical serials is the
   duplicate-host problem the field exists to prevent.
+- A FIELD NOBODY READ MUST NOT RENDER AS A DEFAULT. The cloud-init rows
+  shipped with five values the driver never parsed — `ipconfig0`,
+  `nameserver`, `searchdomain`, `ciupgrade`, `citype` were declared on
+  `InstanceDetail` and written on create, but `describe` skipped them —
+  and the UI dressed the zero values as "image default", "host default"
+  and "No". A VM with a static `ipconfig0` therefore read as DHCP: not
+  a blank, a confident false statement, and the exact inverse of the
+  serial rule above. Two things follow. Proxmox OMITS A KEY LEFT AT ITS
+  DEFAULT, so absent and explicit-zero are different answers and the
+  default is not always off — `ciupgrade` defaults to ON, which is why
+  `cfgBoolDefault` exists and `cfgBool` was wrong here. And a guest with
+  NO CLOUD-INIT DRIVE reads none of it: `CloudInit` says whether the
+  drive is there at all, because printing a section of inert defaults
+  describes a machine that doesn't exist. Only one of this lab's
+  seventeen guests has that drive.
 - The reconciler syncs NAME AND SIZING as well as status and IPs
   (`syncShape`). Adoption is a race: a VM picked up while the
   hypervisor is still creating it reports no name and zero cpus/memory,

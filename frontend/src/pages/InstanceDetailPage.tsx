@@ -50,6 +50,15 @@ const mediaLabels: Record<string, string> = {
 
 const mediaLabel = (media: string) => mediaLabels[media] ?? 'Disk'
 
+// A value the hypervisor doesn't carry, said in words. A confident
+// fallback ("image default") states a fact about the guest; this
+// states what was read, which is nothing.
+const unset = (text: string) => (
+  <Box component="span" sx={{ color: '#5f6368' }}>
+    {text}
+  </Box>
+)
+
 /**
  * A deep link to the hypervisor's own console.
  *
@@ -544,15 +553,53 @@ export default function InstanceDetailPage() {
             <DetailSection title="Security and access">
               <DetailTable
                 rows={[
-                  { label: 'Cloud-init user', value: detail?.cloudInitUser || '—' },
-                  { label: 'IP configuration', value: detail?.ipConfig || 'image default' },
-                  { label: 'Nameservers', value: detail?.nameservers || 'host default' },
-                  { label: 'Search domain', value: detail?.searchDomain || 'host default' },
-                  {
-                    label: 'Upgrade packages on boot',
-                    value: detail?.upgradePackages ? 'Yes' : 'No',
-                  },
-                  { label: 'Datasource format', value: detail?.datasource || 'default' },
+                  // A guest with no cloud-init drive never reads any of
+                  // this. Proxmox still answers with its defaults, and
+                  // printing those would describe a machine that isn't
+                  // there — so the absence is the whole answer.
+                  ...(detail && !detail.cloudInit
+                    ? [
+                        {
+                          label: 'Cloud-init',
+                          value: unset(
+                            'No cloud-init drive on this instance — these settings would not be read',
+                          ),
+                        },
+                      ]
+                    : [
+                        // Proxmox omits a key left at its default, so
+                        // an empty value is a real answer — but it's
+                        // the hypervisor's default, not ours to
+                        // invent. Each row says whose default fills it.
+                        {
+                          label: 'Cloud-init user',
+                          value:
+                            detail?.cloudInitUser || unset('Not set — the image decides'),
+                        },
+                        {
+                          label: 'IP configuration',
+                          value:
+                            detail?.ipConfig ||
+                            unset('Not set — the image decides, usually DHCP'),
+                        },
+                        {
+                          label: 'Nameservers',
+                          value:
+                            detail?.nameservers ||
+                            unset("Not set — the Proxmox host's own resolvers"),
+                        },
+                        {
+                          label: 'Search domain',
+                          value:
+                            detail?.searchDomain ||
+                            unset("Not set — the Proxmox host's own"),
+                        },
+                        {
+                          label: 'Upgrade packages on boot',
+                          value: detail?.upgradePackages ? 'Yes' : 'No',
+                        },
+                        { label: 'Datasource format', value: detail?.datasource || '—' },
+                      ]),
                   {
                     label: 'SSH keys',
                     value: detail?.sshKeys?.length ? (

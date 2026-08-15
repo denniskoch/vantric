@@ -213,6 +213,8 @@ export interface InstanceDetail {
   hostProtected: boolean
   createdAt: number
   uptimeSeconds: number
+  /** Whether the guest has a cloud-init drive; without one the settings below are inert. */
+  cloudInit: boolean
   cloudInitUser: string
   sshKeys: string[] | null
   nameservers: string
