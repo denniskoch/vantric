@@ -60,6 +60,12 @@ export default function Shell() {
   const refreshSession = useRefreshSession()
 
   const section = sectionFor(location.pathname)
+  // A section with nothing to list gets no drawer — the Cloud overview
+  // is one page, and a nav rail holding a single link to it would only
+  // take width from the thing it links to.
+  const sectionNav = section && (section.items.length > 0 || section.groups.length > 0)
+      ? section
+      : undefined
 
   // The gate. Everything inside the shell needs a session, so an
   // expired one sends you to sign in rather than filling the console
@@ -220,7 +226,7 @@ export default function Shell() {
       </Drawer>
 
       {/* Section navigation: permanent while inside a section. */}
-      {section && (
+      {sectionNav && (
         <Drawer
           variant="permanent"
           sx={{
@@ -236,16 +242,16 @@ export default function Shell() {
           <Toolbar variant="dense" sx={{ minHeight: 48 }} />
           {/* Section header, GCP-style: product icon + large title */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, pt: 2, pb: 1.5 }}>
-            <section.icon sx={{ fontSize: 28, color: '#5f6368' }} />
+            <sectionNav.icon sx={{ fontSize: 28, color: '#5f6368' }} />
             <Typography sx={{ fontSize: 18, color: '#202124' }}>
-              {section.label}
+              {sectionNav.label}
             </Typography>
           </Box>
           <List dense>
-            {section.items.map((item) => (
+            {sectionNav.items.map((item) => (
               <NavItem key={item.to} item={item} />
             ))}
-            {section.groups.map((group) => {
+            {sectionNav.groups.map((group) => {
               const isCollapsed = collapsed[group.label] ?? false
               return (
                 <Box key={group.label}>

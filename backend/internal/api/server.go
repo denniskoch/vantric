@@ -108,6 +108,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		r.Post("/auth/password", s.changeOwnPassword)
 		s.iamRoutes(r)
 
+		r.Get("/overview", s.overview)
 		r.Get("/zones", s.listZones)
 		r.Get("/bridges", s.listBridges)
 		r.Get("/images", s.listImages)

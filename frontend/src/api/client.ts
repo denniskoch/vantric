@@ -253,6 +253,44 @@ export interface Container {
 
 export type ServerType = 'proxmox' | 'mock'
 
+/** One thing worth someone's attention on the Cloud overview. */
+export interface OverviewProblem {
+  severity: 'error' | 'warning'
+  title: string
+  detail: string
+  /** the route that shows it */
+  to: string
+}
+
+export interface OverviewCounts {
+  instances: number
+  running: number
+  containers: number
+  containersRunning: number
+  hypervisors: number
+  databases: number
+  databaseServers: number
+  dnsZones: number
+  identityUsers: number
+  networkClients: number
+  accounts: number
+}
+
+export interface OverviewDatastore {
+  name: string
+  zone: string
+  serverId: string
+  usedBytes: number
+  totalBytes: number
+  percent: number
+}
+
+export interface Overview {
+  problems: OverviewProblem[]
+  counts: OverviewCounts
+  datastores: OverviewDatastore[]
+}
+
 export interface Server {
   id: string
   name: string
@@ -965,6 +1003,8 @@ export const api = {
     }),
   getTemplateBuild: (id: string) => request<TemplateBuild>(`/vm-templates/builds/${id}`),
   listDatastores: () => request<Datastore[]>('/datastores'),
+
+  overview: () => request<Overview>('/overview'),
 
   listServers: () => request<Server[]>('/servers'),
   createServer: (body: ServerRequest) =>

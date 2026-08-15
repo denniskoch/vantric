@@ -16,6 +16,7 @@ import VMTemplatesPage from './pages/VMTemplatesPage'
 import BuildTemplatePage from './pages/BuildTemplatePage'
 import CTTemplatesPage from './pages/CTTemplatesPage'
 import OverviewPage from './pages/OverviewPage'
+import CloudOverviewPage from './pages/CloudOverviewPage'
 import SectionLandingPage from './pages/SectionLandingPage'
 import DNSZonesPage from './pages/DNSZonesPage'
 import DNSZoneDetailPage from './pages/DNSZoneDetailPage'
@@ -74,7 +75,9 @@ export default function App() {
       {/* Opened in its own window, so no shell around it. */}
       <Route path="/compute/instances/:name/ssh" element={<InstanceSSHPage />} />
       <Route element={<Shell />}>
-        <Route path="/" element={<Navigate to="/compute/instances" replace />} />
+        {/* The console opens on the overview, not on a resource list. */}
+        <Route path="/" element={<Navigate to="/overview" replace />} />
+        <Route path="/overview" element={<CloudOverviewPage />} />
         <Route path="/compute/overview" element={<OverviewPage />} />
         {/* Every section has an overview, on the shared landing template. */}
         <Route path="/storage/overview" element={<SectionLandingPage />} />

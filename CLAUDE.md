@@ -418,6 +418,22 @@ Surface the daily 90% here and link out for the rest.
   binding model is what it grows into. What IS enforced: the console
   can't lose its last active owner, and you can't delete or disable the
   account you're signed in as.
+- CLOUD OVERVIEW IS THE FRONT DOOR: `/overview`, first in the global
+  menu, and where `/` lands. It answers "what's wrong right now", which
+  every other page answers only if you already knew where to look. It
+  adds NO integration — one `/overview` endpoint fans out in parallel
+  over the probes and drivers already here and derives problems from
+  what the app knows: any backend that doesn't answer "connected"
+  (including "unknown", a driver that never built — a server with bad
+  stored credentials must not read as fine), datastores past 85/95%,
+  running guests reporting no address (the missing guest agent), and
+  guests whose newest backup is over a week old. A backend that fails
+  contributes a problem instead of failing the page, and no-problems
+  renders an explicit all-clear rather than an empty box. It polls on a
+  slow beat (30s), not the 3s of a list page, because one request
+  touches every backend at once. The section has no left nav — one link
+  to the page you're on is a rail that says nothing — so Shell gives a
+  section with no items or groups the full window.
 - Navigation model (mirrors GCP): the hamburger opens a temporary global
   menu for switching between Lab Cloud sections; each section then has a
   permanent left nav with collapsible groups (GCP-style). Sections and

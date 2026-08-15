@@ -1,5 +1,6 @@
 import type { SvgIconComponent } from '@mui/icons-material'
 import DashboardIcon from '@mui/icons-material/Dashboard'
+import HomeIcon from '@mui/icons-material/Home'
 import ComputerIcon from '@mui/icons-material/Computer'
 import AlbumIcon from '@mui/icons-material/Album'
 import StorageIcon from '@mui/icons-material/Storage'
@@ -76,6 +77,22 @@ export interface Section {
 // Global navigation: one entry per product section. Adding a section
 // here gives it a global-menu entry and its own permanent left nav.
 export const sections: Section[] = [
+  {
+    // The front door, and first for that reason: the only page that
+    // answers "what's wrong right now" without knowing where to look.
+    // It has no left nav of its own — one entry pointing at the page
+    // you're already on is a drawer that exists to say nothing — so
+    // Shell gives a section with no items the full window.
+    id: 'overview',
+    label: 'Cloud overview',
+    icon: HomeIcon,
+    prefix: '/overview',
+    home: '/overview',
+    description:
+      'Problems worth your attention, and how much of everything the lab is running.',
+    items: [],
+    groups: [],
+  },
   {
     id: 'compute',
     label: 'Compute',
