@@ -160,10 +160,22 @@ func provisionScript(user hypervisor.ConsoleUser) string {
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 
+# Which tool exists is a separate question from whether it worked, and
+# conflating them is how "no useradd or adduser" got reported on a guest
+# that has useradd exactly where RHEL puts it. Look the binary up first,
+# then let its own stderr through: the whole value of running this
+# through the agent is finding out why the guest said no.
 if ! id -u "$user" >/dev/null 2>&1; then
-  useradd -m -s /bin/bash "$user" 2>/dev/null \
-    || adduser -D -s /bin/sh "$user" 2>/dev/null \
-    || { echo "could not create $user: no useradd or adduser on PATH ($PATH)" >&2; exit 1; }
+  if create=$(command -v useradd 2>/dev/null); then
+    out=$("$create" -m -s /bin/bash "$user" 2>&1) \
+      || { echo "$create failed: ${out:-no output, exit $?}" >&2; exit 1; }
+  elif create=$(command -v adduser 2>/dev/null); then
+    out=$("$create" -D -s /bin/sh "$user" 2>&1) \
+      || { echo "$create failed: ${out:-no output, exit $?}" >&2; exit 1; }
+  else
+    echo "could not create $user: no useradd or adduser on PATH ($PATH)" >&2
+    exit 1
+  fi
 fi
 
 home=$(getent passwd "$user" 2>/dev/null | cut -d: -f6)
