@@ -62,6 +62,8 @@ import AddIdentityProviderPage from './pages/AddIdentityProviderPage'
 import DNSProvidersPage from './pages/DNSProvidersPage'
 import ServersPage from './pages/ServersPage'
 import InventoryProvidersPage from './pages/InventoryProvidersPage'
+import DevicesHostsPage from './pages/DevicesHostsPage'
+import DevicesVulnerabilitiesPage from './pages/DevicesVulnerabilitiesPage'
 import InventoryProviderFormPage from './pages/InventoryProviderFormPage'
 import DisksPage from './pages/DisksPage'
 import SnapshotsPage from './pages/SnapshotsPage'
@@ -85,10 +87,13 @@ export default function App() {
         <Route path="/" element={<Navigate to="/overview" replace />} />
         <Route path="/overview" element={<CloudOverviewPage />} />
         <Route path="/compute/overview" element={<OverviewPage />} />
-        <Route path="/compute/settings/inventory" element={<InventoryProvidersPage />} />
-        <Route path="/compute/settings/inventory/add" element={<InventoryProviderFormPage />} />
+        <Route path="/devices/overview" element={<SectionLandingPage />} />
+        <Route path="/devices/hosts" element={<DevicesHostsPage />} />
+        <Route path="/devices/vulnerabilities" element={<DevicesVulnerabilitiesPage />} />
+        <Route path="/devices/settings/inventory" element={<InventoryProvidersPage />} />
+        <Route path="/devices/settings/inventory/add" element={<InventoryProviderFormPage />} />
         <Route
-          path="/compute/settings/inventory/:id/edit"
+          path="/devices/settings/inventory/:id/edit"
           element={<InventoryProviderFormPage />}
         />
         <Route

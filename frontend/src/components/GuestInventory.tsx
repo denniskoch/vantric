@@ -46,7 +46,7 @@ export default function GuestInventory({ instance }: { instance: string }) {
     return (
       <Box sx={{ mt: 3 }}>
         <Typography variant="body2" color="text.secondary">
-          Connect a device inventory service (Compute → Settings → Inventory) to see
+          Connect a device inventory service (Devices → Settings → Inventory service) to see
           installed packages and known vulnerabilities for this guest.
         </Typography>
       </Box>

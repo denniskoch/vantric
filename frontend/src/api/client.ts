@@ -361,6 +361,41 @@ export interface InstanceInventory {
   error?: string
 }
 
+/** A host, plus the thing the inventory service can't know: whether
+ *  this console runs the machine. */
+export interface InventoryHostView extends InventoryHost {
+  instance: string
+  managed: boolean
+}
+
+export interface InventoryHosts {
+  configured: boolean
+  hosts: InventoryHostView[]
+  /** Instances this console runs that no agent reports. */
+  unenrolled: string[]
+  error?: string
+}
+
+export interface VulnerabilitySummary {
+  cve: string
+  hosts: number
+  cvssScore: number
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'MINIMAL'
+  epss: number
+  knownExploited: boolean
+  publishedAt: number
+  detailsUrl: string
+}
+
+export interface InventoryVulnerabilities {
+  configured: boolean
+  /** False when connected but the service can't answer — a missing
+   *  feature, not a broken connection. */
+  supported: boolean
+  vulnerabilities: VulnerabilitySummary[]
+  error?: string
+}
+
 export interface InventoryProvider {
   id: string
   name: string
@@ -1113,6 +1148,9 @@ export const api = {
   instanceInventory: (name: string) =>
     request<InstanceInventory>(`/instances/${name}/inventory`),
 
+  listInventoryHosts: () => request<InventoryHosts>('/inventory/hosts'),
+  listInventoryVulnerabilities: () =>
+    request<InventoryVulnerabilities>('/inventory/vulnerabilities'),
   listInventoryProviderTypes: () => request<string[]>('/inventory/provider-types'),
   listInventoryProviders: () => request<InventoryProvider[]>('/inventory/providers'),
   createInventoryProvider: (body: InventoryProviderRequest) =>

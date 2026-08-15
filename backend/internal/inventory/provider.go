@@ -24,6 +24,11 @@ import (
 
 var ErrNotFound = errors.New("inventory: not found")
 
+// ErrUnsupported is what a provider returns for a capability its
+// version or licence doesn't include — a fact about the service, not a
+// failure of this console, and reported as such.
+var ErrUnsupported = errors.New("inventory: not supported by this service")
+
 // Info is what the provider reports about itself, for the connection
 // check that runs before a record is stored.
 type Info struct {
@@ -92,6 +97,21 @@ type Vulnerability struct {
 	DetailsURL string `json:"detailsUrl"`
 }
 
+// VulnerabilitySummary is one CVE seen across the estate, which is the
+// question a per-machine list can't answer: not "what does this box
+// carry" but "who has this, and is it being exploited".
+type VulnerabilitySummary struct {
+	CVE string `json:"cve"`
+	// Hosts is how many machines carry it.
+	Hosts          int     `json:"hosts"`
+	CVSSScore      float64 `json:"cvssScore"`
+	Severity       string  `json:"severity"`
+	EPSS           float64 `json:"epss"`
+	KnownExploited bool    `json:"knownExploited"`
+	PublishedAt    int64   `json:"publishedAt"`
+	DetailsURL     string  `json:"detailsUrl"`
+}
+
 // HostDetail is everything the console shows on one guest's OS Info
 // tab: the host record, its software, and the vulnerabilities that
 // software carries.
@@ -118,6 +138,11 @@ type Provider interface {
 	// how a VM here is matched to a host there. ErrNotFound when the
 	// guest isn't enrolled — an ordinary answer, not a failure.
 	HostByUUID(ctx context.Context, uuid string) (*HostDetail, error)
+	// Vulnerabilities rolls up every CVE the service is tracking across
+	// every machine. Providers that can't answer return ErrUnsupported,
+	// which the console reports as a missing feature rather than a
+	// broken connection.
+	Vulnerabilities(ctx context.Context) ([]VulnerabilitySummary, error)
 }
 
 // Registry holds one live Provider per configured record, keyed by its

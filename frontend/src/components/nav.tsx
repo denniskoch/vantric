@@ -35,6 +35,8 @@ import PublicOffIcon from '@mui/icons-material/Public'
 import VpnLockIcon from '@mui/icons-material/VpnLock'
 import HistoryIcon from '@mui/icons-material/History'
 import FactCheckIcon from '@mui/icons-material/FactCheck'
+import BugReportIcon from '@mui/icons-material/BugReport'
+import DevicesOtherIcon from '@mui/icons-material/DevicesOther'
 import { createSvgIcon } from '@mui/material/utils'
 import { siDocker } from 'simple-icons'
 
@@ -157,11 +159,48 @@ export const sections: Section[] = [
             to: '/compute/settings/hypervisors',
             hint: 'Virtualization hosts backing everything else',
           },
+        ],
+      },
+    ],
+  },
+  {
+    // Devices, not Compute: Compute means machines this console runs,
+    // and an inventory service holds laptops and bare metal too. The
+    // correlation between the two lists is what this section is for.
+    id: 'devices',
+    label: 'Devices',
+    icon: DevicesOtherIcon,
+    prefix: '/devices',
+    home: '/devices/overview',
+    description:
+      'Machines your inventory service tracks — physical and virtual — with what they run and the vulnerabilities they carry.',
+    items: [{ label: 'Overview', icon: DashboardIcon, to: '/devices/overview' }],
+    groups: [
+      {
+        label: 'Inventory',
+        items: [
           {
-            label: 'Inventory',
+            label: 'Hosts',
             icon: FactCheckIcon,
-            to: '/compute/settings/inventory',
-            hint: "What's installed inside your guests, and its known vulnerabilities",
+            to: '/devices/hosts',
+            hint: 'Every machine an agent reports on, and which are guests here',
+          },
+          {
+            label: 'Vulnerabilities',
+            icon: BugReportIcon,
+            to: '/devices/vulnerabilities',
+            hint: 'Known CVEs across the estate, exploited ones first',
+          },
+        ],
+      },
+      {
+        label: 'Settings',
+        items: [
+          {
+            label: 'Inventory service',
+            icon: DnsIcon,
+            to: '/devices/settings/inventory',
+            hint: 'The agent fleet this section reads (FleetDM)',
           },
         ],
       },

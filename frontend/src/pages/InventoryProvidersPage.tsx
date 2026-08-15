@@ -30,11 +30,10 @@ import StatusIcon from '../components/StatusIcon'
  * Device inventory services: the agents that know what's installed
  * inside the guests.
  *
- * Listed under Compute's settings rather than in a section of their
- * own, because nothing here is a resource you manage — it's a
- * credential, the same shape as a hypervisor's. What the service
- * knows shows up on each instance's OS Info tab, next to the machine
- * it describes.
+ * The credential, kept in the section it serves — the same rule as DNS
+ * providers under DNS and controllers under Network. What the service
+ * knows shows up on the Hosts page here, and on each instance's OS
+ * Info tab next to the machine it describes.
  */
 export default function InventoryProvidersPage() {
   const navigate = useNavigate()
@@ -73,7 +72,7 @@ export default function InventoryProvidersPage() {
             size="small"
             startIcon={<AddBoxIcon />}
             component={RouterLink}
-            to="/compute/settings/inventory/add"
+            to="/devices/settings/inventory/add"
           >
             Connect service
           </Button>
@@ -146,7 +145,7 @@ export default function InventoryProvidersPage() {
       <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
         <MenuItem
           onClick={() => {
-            if (selected) navigate(`/compute/settings/inventory/${selected.id}/edit`)
+            if (selected) navigate(`/devices/settings/inventory/${selected.id}/edit`)
             setMenuAnchor(null)
           }}
         >

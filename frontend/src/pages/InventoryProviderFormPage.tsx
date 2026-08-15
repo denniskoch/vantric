@@ -7,7 +7,7 @@ import type { InventoryProvider, InventoryProviderRequest } from '../api/client'
 import FormPage from '../components/FormPage'
 import { resourceNameError, resourceNameRe } from '../validation'
 
-const backTo = '/compute/settings/inventory'
+const backTo = '/devices/settings/inventory'
 
 function ProviderForm({ editing }: { editing: InventoryProvider | null }) {
   const navigate = useNavigate()

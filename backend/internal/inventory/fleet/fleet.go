@@ -11,6 +11,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -256,4 +257,45 @@ func severity(score float64) string {
 	default:
 		return "MINIMAL"
 	}
+}
+
+// Vulnerabilities asks Fleet for every CVE it is tracking.
+//
+// This endpoint carries the interesting fields — EPSS and CISA's
+// known-exploited flag — only on Fleet Premium, and older versions
+// don't serve it at all. Both come back as an unsupported capability
+// rather than an error, because "your Fleet doesn't do this" is a fact
+// about the service and shouldn't read as a broken connection.
+func (p *Provider) Vulnerabilities(ctx context.Context) ([]inventory.VulnerabilitySummary, error) {
+	var out struct {
+		Vulnerabilities []struct {
+			CVE              string  `json:"cve"`
+			HostsCount       int     `json:"hosts_count"`
+			DetailsLink      string  `json:"details_link"`
+			CVSSScore        float64 `json:"cvss_score"`
+			EPSSProbability  float64 `json:"epss_probability"`
+			CISAKnownExploit bool    `json:"cisa_known_exploit"`
+			CVEPublished     string  `json:"cve_published"`
+		} `json:"vulnerabilities"`
+	}
+	if err := p.do(ctx, "/vulnerabilities?order_key=hosts_count&order_direction=desc", &out); err != nil {
+		if errors.Is(err, inventory.ErrNotFound) {
+			return nil, inventory.ErrUnsupported
+		}
+		return nil, err
+	}
+	summaries := make([]inventory.VulnerabilitySummary, 0, len(out.Vulnerabilities))
+	for _, v := range out.Vulnerabilities {
+		summaries = append(summaries, inventory.VulnerabilitySummary{
+			CVE:            v.CVE,
+			Hosts:          v.HostsCount,
+			CVSSScore:      v.CVSSScore,
+			Severity:       severity(v.CVSSScore),
+			EPSS:           v.EPSSProbability,
+			KnownExploited: v.CISAKnownExploit,
+			PublishedAt:    parseTime(v.CVEPublished),
+			DetailsURL:     v.DetailsLink,
+		})
+	}
+	return summaries, nil
 }

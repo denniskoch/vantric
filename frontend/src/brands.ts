@@ -8,6 +8,7 @@
  */
 import {
   siAdguard,
+  siApple,
   siAlmalinux,
   siAlpinelinux,
   siArchlinux,
@@ -171,6 +172,9 @@ const osBrands: [RegExp, SimpleIcon][] = [
   [/netbsd/i, siNetbsd],
   [/proxmox|\bpve\b|\bpbs\b/i, siProxmox],
   [/truenas|freenas/i, siTruenas],
+  // An inventory service brings laptops with it, so the marks have to
+  // cover what people carry as well as what the lab runs.
+  [/macos|mac os|osx|darwin/i, siApple],
   [/linux/i, siLinux],
 ]
 

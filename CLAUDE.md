@@ -436,6 +436,23 @@ Surface the daily 90% here and link out for the rest.
   because Fleet reports the number and leaves the naming to whoever
   displays it, worst is sorted first, and "no fix published" is
   spelled out — the difference between patch this and wait.
+- DEVICES IS ITS OWN SECTION, NOT A COMPUTE PAGE. Compute means
+  machines this console RUNS; an inventory service holds laptops and
+  bare metal too, and filing a MacBook under Compute would make the
+  word mean nothing. There's no GCP analogue because GCP has none —
+  the nearest is Azure Arc, which exists for exactly this. The section
+  earns its place on the CORRELATION: `/inventory/hosts` stamps every
+  host with the instance reporting the same UUID, and returns the
+  instances no host reports. That's drift in both directions — an
+  agent still reporting for a VM somebody deleted, and a guest with no
+  agent — and neither tool can see either alone. A host that ISN'T
+  managed here reads "External", because a laptop is supposed to be in
+  Fleet and isn't supposed to be a VM. The Fleet credential lives in
+  this section's Settings, the same rule as DNS providers under DNS.
+  The estate-wide CVE roll-up is Fleet Premium and older versions
+  don't serve it at all, so `ErrUnsupported` is a distinct answer from
+  an error: a missing feature reads as one, and the per-instance list
+  keeps working because it comes from host detail.
 - IAM & Admin (this console's own RBAC) and Identity Platform (the
   lab's identity service) are deliberately separate sections: one
   governs access to this app, the other manages a service in the lab.

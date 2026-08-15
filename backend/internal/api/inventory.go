@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"slices"
+	"sort"
 	"strings"
 	"sync"
 
@@ -35,6 +36,8 @@ func (s *Server) inventoryRoutes(r chi.Router) {
 	r.Post("/inventory/providers", s.createInventoryProvider)
 	r.Put("/inventory/providers/{id}", s.updateInventoryProvider)
 	r.Delete("/inventory/providers/{id}", s.deleteInventoryProvider)
+	r.Get("/inventory/hosts", s.listInventoryHosts)
+	r.Get("/inventory/vulnerabilities", s.listInventoryVulnerabilities)
 }
 
 type inventoryProviderView struct {
@@ -254,4 +257,112 @@ func (s *Server) instanceInventory(w http.ResponseWriter, r *http.Request) {
 	view.Enrolled = true
 	view.Detail = detail
 	s.json(w, http.StatusOK, view)
+}
+
+// inventoryHostView is a host the inventory service knows, with the
+// one thing it can't know: whether this console runs the machine.
+//
+// That correlation is the reason this section exists. Fleet holds
+// laptops and bare metal as readily as VMs and has never heard of a
+// hypervisor; this console knows the guests and nothing about a
+// MacBook. Neither can see that a VM is missing an agent, or that an
+// agent is still reporting for a VM that was deleted.
+type inventoryHostView struct {
+	inventory.Host
+	// Instance is the VM in this console reporting the same system
+	// UUID, empty when there is none.
+	Instance string `json:"instance"`
+	// Managed says the machine is one this console runs. False means
+	// physical, or somebody else's — expected, not a fault.
+	Managed bool `json:"managed"`
+}
+
+type inventoryHostsResponse struct {
+	Configured bool                `json:"configured"`
+	Hosts      []inventoryHostView `json:"hosts"`
+	// Unenrolled are instances this console runs that no agent reports:
+	// the other direction of the same drift, and the one that means
+	// somebody has to go and install something.
+	Unenrolled []string `json:"unenrolled"`
+	Error      string   `json:"error,omitempty"`
+}
+
+func (s *Server) listInventoryHosts(w http.ResponseWriter, r *http.Request) {
+	out := inventoryHostsResponse{Hosts: []inventoryHostView{}, Unenrolled: []string{}}
+	provider, ok := s.inventoryRegistry.Any()
+	if !ok {
+		s.json(w, http.StatusOK, out)
+		return
+	}
+	out.Configured = true
+	hosts, err := provider.Hosts(r.Context())
+	if err != nil {
+		out.Error = err.Error()
+		s.json(w, http.StatusOK, out)
+		return
+	}
+	instances, err := s.store.ListInstances(r.Context())
+	if err != nil {
+		s.fail(w, err, "instances")
+		return
+	}
+	byUUID := map[string]string{}
+	for _, inst := range instances {
+		if inst.UUID != "" {
+			byUUID[strings.ToLower(inst.UUID)] = inst.Name
+		}
+	}
+	seen := map[string]bool{}
+	for _, host := range hosts {
+		view := inventoryHostView{Host: host}
+		if name, found := byUUID[strings.ToLower(host.UUID)]; found {
+			view.Instance = name
+			view.Managed = true
+			seen[name] = true
+		}
+		out.Hosts = append(out.Hosts, view)
+	}
+	for _, inst := range instances {
+		if !seen[inst.Name] {
+			out.Unenrolled = append(out.Unenrolled, inst.Name)
+		}
+	}
+	sort.Strings(out.Unenrolled)
+	sort.SliceStable(out.Hosts, func(i, j int) bool {
+		return out.Hosts[i].Hostname < out.Hosts[j].Hostname
+	})
+	s.json(w, http.StatusOK, out)
+}
+
+type inventoryVulnerabilitiesResponse struct {
+	Configured bool `json:"configured"`
+	// Supported is false when the service is connected but can't answer
+	// this — an older Fleet, or one without the licence. A missing
+	// feature, not a broken connection, and it reads differently.
+	Supported       bool                             `json:"supported"`
+	Vulnerabilities []inventory.VulnerabilitySummary `json:"vulnerabilities"`
+	Error           string                           `json:"error,omitempty"`
+}
+
+func (s *Server) listInventoryVulnerabilities(w http.ResponseWriter, r *http.Request) {
+	out := inventoryVulnerabilitiesResponse{Vulnerabilities: []inventory.VulnerabilitySummary{}}
+	provider, ok := s.inventoryRegistry.Any()
+	if !ok {
+		s.json(w, http.StatusOK, out)
+		return
+	}
+	out.Configured, out.Supported = true, true
+	vulns, err := provider.Vulnerabilities(r.Context())
+	if errors.Is(err, inventory.ErrUnsupported) {
+		out.Supported = false
+		s.json(w, http.StatusOK, out)
+		return
+	}
+	if err != nil {
+		out.Error = err.Error()
+		s.json(w, http.StatusOK, out)
+		return
+	}
+	out.Vulnerabilities = vulns
+	s.json(w, http.StatusOK, out)
 }
