@@ -39,6 +39,7 @@ func (s *Server) inventoryRoutes(r chi.Router) {
 	r.Get("/inventory/hosts", s.listInventoryHosts)
 	r.Get("/inventory/hosts/{id}", s.getInventoryHost)
 	r.Get("/inventory/vulnerabilities", s.listInventoryVulnerabilities)
+	r.Get("/inventory/vulnerabilities/{cve}", s.getInventoryVulnerability)
 }
 
 type inventoryProviderView struct {
@@ -406,4 +407,61 @@ func (s *Server) getInventoryHost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	s.json(w, http.StatusOK, view)
+}
+
+// vulnerabilityHostView is an affected machine with the correlation
+// attached, which is what this page is for: Fleet can tell you six
+// hosts have a CVE, but only this console can tell you which of them
+// are yours to fix and where they live.
+type vulnerabilityHostView struct {
+	inventory.Host
+	Instance string `json:"instance"`
+	Managed  bool   `json:"managed"`
+}
+
+type vulnerabilityDetailView struct {
+	Summary        inventory.VulnerabilitySummary `json:"summary"`
+	Hosts          []vulnerabilityHostView        `json:"hosts"`
+	Software       []inventory.VulnerableSoftware `json:"software"`
+	DetectedAt     int64                          `json:"detectedAt"`
+	HostsCountedAt int64                          `json:"hostsCountedAt"`
+}
+
+func (s *Server) getInventoryVulnerability(w http.ResponseWriter, r *http.Request) {
+	provider, ok := s.inventoryRegistry.Any()
+	if !ok {
+		s.err(w, http.StatusNotFound, "no inventory service is connected")
+		return
+	}
+	detail, err := provider.Vulnerability(r.Context(), chi.URLParam(r, "cve"))
+	if err != nil {
+		s.fail(w, err, "vulnerability")
+		return
+	}
+	instances, err := s.store.ListInstances(r.Context())
+	if err != nil {
+		s.fail(w, err, "instances")
+		return
+	}
+	byUUID := map[string]string{}
+	for _, inst := range instances {
+		if inst.UUID != "" {
+			byUUID[strings.ToLower(inst.UUID)] = inst.Name
+		}
+	}
+	out := vulnerabilityDetailView{
+		Summary:        detail.Summary,
+		Hosts:          []vulnerabilityHostView{},
+		Software:       detail.Software,
+		DetectedAt:     detail.DetectedAt,
+		HostsCountedAt: detail.HostsCountedAt,
+	}
+	for _, host := range detail.Hosts {
+		view := vulnerabilityHostView{Host: host}
+		if name, found := byUUID[strings.ToLower(host.UUID)]; found {
+			view.Instance, view.Managed = name, true
+		}
+		out.Hosts = append(out.Hosts, view)
+	}
+	s.json(w, http.StatusOK, out)
 }

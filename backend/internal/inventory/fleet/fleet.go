@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"lab-cloud-manager/internal/inventory"
@@ -321,4 +322,91 @@ func (p *Provider) Vulnerabilities(ctx context.Context) ([]inventory.Vulnerabili
 		})
 	}
 	return summaries, nil
+}
+
+// Vulnerability is one CVE in full.
+//
+// Two requests, because Fleet splits the answer: the CVE endpoint
+// carries the software versions responsible, and the affected machines
+// come from the host list filtered by the CVE. They're independent, so
+// they go out together.
+func (p *Provider) Vulnerability(ctx context.Context, cve string) (*inventory.VulnerabilityDetail, error) {
+	if cve == "" {
+		return nil, inventory.ErrNotFound
+	}
+	type detailBody struct {
+		Vulnerability struct {
+			CVE                 string  `json:"cve"`
+			HostsCount          int     `json:"hosts_count"`
+			DetailsLink         string  `json:"details_link"`
+			CreatedAt           string  `json:"created_at"`
+			HostsCountUpdatedAt string  `json:"hosts_count_updated_at"`
+			CVSSScore           float64 `json:"cvss_score"`
+			EPSSProbability     float64 `json:"epss_probability"`
+			CISAKnownExploit    bool    `json:"cisa_known_exploit"`
+			CVEPublished        string  `json:"cve_published"`
+		} `json:"vulnerability"`
+		Software []struct {
+			Name              string `json:"name"`
+			Version           string `json:"version"`
+			Source            string `json:"source"`
+			HostsCount        int    `json:"hosts_count"`
+			ResolvedInVersion string `json:"resolved_in_version"`
+		} `json:"software"`
+	}
+
+	var (
+		body  detailBody
+		hosts struct {
+			Hosts []wireHost `json:"hosts"`
+		}
+		detailErr, hostsErr error
+		wg                  sync.WaitGroup
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		detailErr = p.do(ctx, "/vulnerabilities/"+url.PathEscape(cve), &body)
+	}()
+	go func() {
+		defer wg.Done()
+		hostsErr = p.do(ctx, "/hosts?per_page=500&vulnerability="+url.PathEscape(cve), &hosts)
+	}()
+	wg.Wait()
+	if detailErr != nil {
+		return nil, detailErr
+	}
+	// A CVE that exists but whose host list failed is still worth
+	// showing; the software half is the part that says what to patch.
+	out := &inventory.VulnerabilityDetail{
+		Summary: inventory.VulnerabilitySummary{
+			CVE:            body.Vulnerability.CVE,
+			Hosts:          body.Vulnerability.HostsCount,
+			CVSSScore:      body.Vulnerability.CVSSScore,
+			Severity:       severity(body.Vulnerability.CVSSScore),
+			EPSS:           body.Vulnerability.EPSSProbability,
+			KnownExploited: body.Vulnerability.CISAKnownExploit,
+			PublishedAt:    parseTime(body.Vulnerability.CVEPublished),
+			DetailsURL:     body.Vulnerability.DetailsLink,
+		},
+		Hosts:          []inventory.Host{},
+		Software:       []inventory.VulnerableSoftware{},
+		DetectedAt:     parseTime(body.Vulnerability.CreatedAt),
+		HostsCountedAt: parseTime(body.Vulnerability.HostsCountUpdatedAt),
+	}
+	if out.Summary.CVE == "" {
+		out.Summary.CVE = cve
+	}
+	for _, s := range body.Software {
+		out.Software = append(out.Software, inventory.VulnerableSoftware{
+			Name: s.Name, Version: s.Version, Source: s.Source,
+			Hosts: s.HostsCount, ResolvedInVersion: s.ResolvedInVersion,
+		})
+	}
+	if hostsErr == nil {
+		for _, h := range hosts.Hosts {
+			out.Hosts = append(out.Hosts, h.toHost())
+		}
+	}
+	return out, nil
 }

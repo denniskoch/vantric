@@ -112,6 +112,32 @@ type VulnerabilitySummary struct {
 	DetailsURL     string  `json:"detailsUrl"`
 }
 
+// VulnerableSoftware is one package version carrying a CVE, and how
+// many machines have it.
+type VulnerableSoftware struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	Source  string `json:"source"`
+	Hosts   int    `json:"hosts"`
+	// ResolvedInVersion is the upgrade that fixes it, empty when none
+	// has been published.
+	ResolvedInVersion string `json:"resolvedInVersion"`
+}
+
+// VulnerabilityDetail is one CVE across the estate: what it is, which
+// machines have it, and which package versions carry it. The list
+// answers "how bad"; this answers "where, and what do I patch".
+type VulnerabilityDetail struct {
+	Summary  VulnerabilitySummary `json:"summary"`
+	Hosts    []Host               `json:"hosts"`
+	Software []VulnerableSoftware `json:"software"`
+	// DetectedAt is when the service first saw it, HostsCountedAt when
+	// it last recounted — both unix seconds, both worth showing because
+	// they answer different questions.
+	DetectedAt     int64 `json:"detectedAt"`
+	HostsCountedAt int64 `json:"hostsCountedAt"`
+}
+
 // HostDetail is everything the console shows on one guest's OS Info
 // tab: the host record, its software, and the vulnerabilities that
 // software carries.
@@ -147,6 +173,9 @@ type Provider interface {
 	// which the console reports as a missing feature rather than a
 	// broken connection.
 	Vulnerabilities(ctx context.Context) ([]VulnerabilitySummary, error)
+	// Vulnerability is one CVE in full: the machines carrying it and
+	// the package versions responsible.
+	Vulnerability(ctx context.Context, cve string) (*VulnerabilityDetail, error)
 }
 
 // Registry holds one live Provider per configured record, keyed by its

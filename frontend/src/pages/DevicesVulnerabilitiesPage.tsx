@@ -88,13 +88,16 @@ export default function DevicesVulnerabilitiesPage() {
             {rows.map((v) => (
               <TableRow key={v.cve} hover>
                 <TableCell>
-                  {v.detailsUrl ? (
-                    <Link href={v.detailsUrl} target="_blank" rel="noreferrer" underline="hover">
-                      {v.cve}
-                    </Link>
-                  ) : (
-                    v.cve
-                  )}
+                  {/* Stays in the console: who has it and what to
+                      upgrade is the question, and NVD is a click away
+                      from there. */}
+                  <Link
+                    component={RouterLink}
+                    to={`/devices/vulnerabilities/${encodeURIComponent(v.cve)}`}
+                    underline="hover"
+                  >
+                    {v.cve}
+                  </Link>
                 </TableCell>
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

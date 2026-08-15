@@ -412,6 +412,22 @@ export interface VulnerabilitySummary {
   detailsUrl: string
 }
 
+export interface VulnerableSoftware {
+  name: string
+  version: string
+  source: string
+  hosts: number
+  resolvedInVersion: string
+}
+
+export interface VulnerabilityDetail {
+  summary: VulnerabilitySummary
+  hosts: (InventoryHost & { instance: string; managed: boolean })[]
+  software: VulnerableSoftware[]
+  detectedAt: number
+  hostsCountedAt: number
+}
+
 export interface InventoryVulnerabilities {
   configured: boolean
   /** False when connected but the service can't answer — a missing
@@ -1215,6 +1231,9 @@ export const api = {
   inventoryHost: (id: string) => request<InventoryHostDetail>(`/inventory/hosts/${id}`),
   listInventoryVulnerabilities: () =>
     request<InventoryVulnerabilities>('/inventory/vulnerabilities'),
+  /** One CVE: who has it, and what to upgrade. */
+  inventoryVulnerability: (cve: string) =>
+    request<VulnerabilityDetail>(`/inventory/vulnerabilities/${encodeURIComponent(cve)}`),
   listInventoryProviderTypes: () => request<string[]>('/inventory/provider-types'),
   listInventoryProviders: () => request<InventoryProvider[]>('/inventory/providers'),
   createInventoryProvider: (body: InventoryProviderRequest) =>
