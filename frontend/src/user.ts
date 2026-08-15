@@ -22,6 +22,26 @@ export function useSession() {
   }
 }
 
+/**
+ * What this account may do, mirroring the roles the API enforces.
+ *
+ * The API is the boundary — these only decide what to OFFER. A button
+ * that exists and then fails is a worse answer than a button that
+ * isn't there, but a hidden button is not a permission check, which is
+ * why the middleware doesn't trust any of this.
+ */
+export function usePermissions() {
+  const { user } = useSession()
+  const role = user?.role ?? 'viewer'
+  return {
+    role,
+    /** Resources: instances, records, databases, templates. */
+    canEdit: role === 'owner' || role === 'editor',
+    /** Credentials, accounts and sign-on settings. */
+    canAdmin: role === 'owner',
+  }
+}
+
 /** Drops the cached session so the app re-asks after signing in or out. */
 export function useRefreshSession() {
   const queryClient = useQueryClient()

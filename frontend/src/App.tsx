@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import Shell from './components/Shell'
+import RequireRole from './components/RequireRole'
 import InstancesPage from './pages/InstancesPage'
 import CreateInstancePage from './pages/CreateInstancePage'
 import InstanceDetailPage from './pages/InstanceDetailPage'
@@ -98,12 +99,12 @@ export default function App() {
         <Route path="/devices/vulnerabilities" element={<DevicesVulnerabilitiesPage />} />
         <Route path="/devices/vulnerabilities/:cve" element={<DevicesVulnerabilityPage />} />
         <Route path="/devices/installers" element={<DevicesInstallersPage />} />
-        <Route path="/devices/settings/enrichment" element={<DevicesEnrichmentPage />} />
-        <Route path="/devices/settings/inventory" element={<InventoryProvidersPage />} />
-        <Route path="/devices/settings/inventory/add" element={<InventoryProviderFormPage />} />
+        <Route path="/devices/settings/enrichment" element={<RequireRole admin><DevicesEnrichmentPage /></RequireRole>} />
+        <Route path="/devices/settings/inventory" element={<RequireRole admin><InventoryProvidersPage /></RequireRole>} />
+        <Route path="/devices/settings/inventory/add" element={<RequireRole admin><InventoryProviderFormPage /></RequireRole>} />
         <Route
           path="/devices/settings/inventory/:id/edit"
-          element={<InventoryProviderFormPage />}
+          element={<RequireRole admin><InventoryProviderFormPage /></RequireRole>}
         />
         <Route
           path="/compute/instances/:name/description"
@@ -123,14 +124,14 @@ export default function App() {
         <Route path="/network/vpn" element={<NetworkVPNPage />} />
         <Route path="/network/clients" element={<NetworkClientsPage />} />
         <Route path="/network/devices" element={<NetworkDevicesPage />} />
-        <Route path="/network/controllers" element={<NetworkControllersPage />} />
-        <Route path="/network/controllers/add" element={<NetworkControllerFormPage />} />
-        <Route path="/network/controllers/:id/edit" element={<NetworkControllerFormPage />} />
+        <Route path="/network/controllers" element={<RequireRole admin><NetworkControllersPage /></RequireRole>} />
+        <Route path="/network/controllers/add" element={<RequireRole admin><NetworkControllerFormPage /></RequireRole>} />
+        <Route path="/network/controllers/:id/edit" element={<RequireRole admin><NetworkControllerFormPage /></RequireRole>} />
         <Route path="/databases/overview" element={<SectionLandingPage />} />
         <Route path="/databases/instances" element={<DatabaseInstancesPage />} />
-        <Route path="/databases/instances/add" element={<AddDatabaseInstancePage />} />
+        <Route path="/databases/instances/add" element={<RequireRole admin><AddDatabaseInstancePage /></RequireRole>} />
         <Route path="/databases/instances/:id" element={<DatabaseInstanceDetailPage />} />
-        <Route path="/databases/instances/:id/edit" element={<AddDatabaseInstancePage />} />
+        <Route path="/databases/instances/:id/edit" element={<RequireRole admin><AddDatabaseInstancePage /></RequireRole>} />
         <Route path="/databases/databases" element={<DatabasesPage />} />
         <Route
           path="/databases/instances/:id/databases/:name"
@@ -154,12 +155,12 @@ export default function App() {
         <Route path="/iam/account" element={<MyAccountPage />} />
         <Route path="/iam/account/password" element={<MyPasswordPage />} />
         <Route path="/iam/account/ssh-key" element={<MySSHKeyPage />} />
-        <Route path="/iam/users" element={<IAMUsersPage />} />
-        <Route path="/iam/sign-on" element={<IAMSignOnPage />} />
+        <Route path="/iam/users" element={<RequireRole admin><IAMUsersPage /></RequireRole>} />
+        <Route path="/iam/sign-on" element={<RequireRole admin><IAMSignOnPage /></RequireRole>} />
         <Route path="/iam/activity" element={<IAMActivityPage />} />
-        <Route path="/iam/users/create" element={<IAMUserFormPage />} />
-        <Route path="/iam/users/:id/edit" element={<IAMUserFormPage />} />
-        <Route path="/iam/users/:id/password" element={<IAMPasswordPage />} />
+        <Route path="/iam/users/create" element={<RequireRole admin><IAMUserFormPage /></RequireRole>} />
+        <Route path="/iam/users/:id/edit" element={<RequireRole admin><IAMUserFormPage /></RequireRole>} />
+        <Route path="/iam/users/:id/password" element={<RequireRole admin><IAMPasswordPage /></RequireRole>} />
         <Route path="/identity/overview" element={<SectionLandingPage />} />
         <Route path="/identity/users" element={<IdentityUsersPage />} />
         <Route path="/identity/users/create" element={<IdentityUserCreatePage />} />
@@ -168,18 +169,18 @@ export default function App() {
         <Route path="/identity/groups/:id" element={<IdentityGroupDetailPage />} />
         <Route path="/identity/applications" element={<IdentityApplicationsPage />} />
         <Route path="/identity/events" element={<IdentityEventsPage />} />
-        <Route path="/identity/providers" element={<IdentityProvidersPage />} />
-        <Route path="/identity/providers/add" element={<AddIdentityProviderPage />} />
-        <Route path="/identity/providers/:id/edit" element={<AddIdentityProviderPage />} />
+        <Route path="/identity/providers" element={<RequireRole admin><IdentityProvidersPage /></RequireRole>} />
+        <Route path="/identity/providers/add" element={<RequireRole admin><AddIdentityProviderPage /></RequireRole>} />
+        <Route path="/identity/providers/:id/edit" element={<RequireRole admin><AddIdentityProviderPage /></RequireRole>} />
         <Route path="/dns/overview" element={<SectionLandingPage />} />
         <Route path="/dns/zones" element={<DNSZonesPage />} />
         <Route path="/dns/zones/create" element={<CreateZonePage />} />
         <Route path="/dns/zones/:providerId/:zoneId" element={<DNSZoneDetailPage />} />
         <Route path="/dns/zones/:providerId/:zoneId/records/new" element={<RecordSetPage />} />
         <Route path="/dns/zones/:providerId/:zoneId/records/edit" element={<RecordSetPage />} />
-        <Route path="/dns/providers" element={<DNSProvidersPage />} />
-        <Route path="/dns/providers/add" element={<DNSProviderFormPage />} />
-        <Route path="/dns/providers/:id/edit" element={<DNSProviderFormPage />} />
+        <Route path="/dns/providers" element={<RequireRole admin><DNSProvidersPage /></RequireRole>} />
+        <Route path="/dns/providers/add" element={<RequireRole admin><DNSProviderFormPage /></RequireRole>} />
+        <Route path="/dns/providers/:id/edit" element={<RequireRole admin><DNSProviderFormPage /></RequireRole>} />
         <Route path="/storage" element={<Navigate to="/storage/overview" replace />} />
         <Route path="/network" element={<Navigate to="/network/overview" replace />} />
         <Route path="/databases" element={<Navigate to="/databases/overview" replace />} />
@@ -208,10 +209,10 @@ export default function App() {
           element={<AddMediaPage kind={cloudImageKind} />}
         />
         <Route path="/compute/datastores" element={<DatastoresPage />} />
-        <Route path="/compute/settings/hypervisors" element={<ServersPage />} />
+        <Route path="/compute/settings/hypervisors" element={<RequireRole admin><ServersPage /></RequireRole>} />
         <Route path="/compute/servers" element={<Navigate to="/compute/settings/hypervisors" replace />} />
-        <Route path="/compute/settings/hypervisors/add" element={<HypervisorFormPage />} />
-        <Route path="/compute/settings/hypervisors/:id/edit" element={<HypervisorFormPage />} />
+        <Route path="/compute/settings/hypervisors/add" element={<RequireRole admin><HypervisorFormPage /></RequireRole>} />
+        <Route path="/compute/settings/hypervisors/:id/edit" element={<RequireRole admin><HypervisorFormPage /></RequireRole>} />
       </Route>
     </Routes>
   )

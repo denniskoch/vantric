@@ -33,11 +33,15 @@ import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import ConnectButton from '../components/ConnectButton'
 import PageHeader from '../components/PageHeader'
 import StatusIcon from '../components/StatusIcon'
+import { usePermissions } from '../user'
 
 
 export default function InstancesPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  // The API refuses these for a viewer anyway; offering them and then
+  // failing teaches nothing except that the console is broken.
+  const { canEdit } = usePermissions()
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
   const [menuInstance, setMenuInstance] = useState<Instance | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -125,14 +129,16 @@ export default function InstancesPage() {
         title="VM instances"
         actions={
           <>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<AddBoxIcon />}
-              onClick={() => navigate('/compute/instances/create')}
-            >
-              Create instance
-            </Button>
+            {canEdit && (
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<AddBoxIcon />}
+                onClick={() => navigate('/compute/instances/create')}
+              >
+                Create instance
+              </Button>
+            )}
             <Button size="small" startIcon={<RefreshIcon />} onClick={() => refetch()}>
               Refresh
             </Button>
@@ -146,7 +152,7 @@ export default function InstancesPage() {
         </Alert>
       )}
 
-      {selected.length > 0 && (
+      {canEdit && selected.length > 0 && (
         <Paper
           variant="outlined"
           sx={{
@@ -214,7 +220,7 @@ export default function InstancesPage() {
               <TableCell padding="checkbox">
                 <Checkbox
                   size="small"
-                  disabled={instances.length === 0}
+                  disabled={instances.length === 0 || !canEdit}
                   checked={instances.length > 0 && selected.length === instances.length}
                   indeterminate={selected.length > 0 && selected.length < instances.length}
                   onChange={(e) =>
@@ -239,6 +245,7 @@ export default function InstancesPage() {
                 <TableCell padding="checkbox">
                   <Checkbox
                     size="small"
+                    disabled={!canEdit}
                     checked={picked.has(inst.name)}
                     onChange={() => toggle(inst.name)}
                     slotProps={{ input: { 'aria-label': `Select ${inst.name}` } }}
@@ -264,9 +271,11 @@ export default function InstancesPage() {
                   <ConnectButton instance={inst} />
                 </TableCell>
                 <TableCell align="right">
-                  <IconButton size="small" onClick={(e) => openMenu(e, inst)}>
-                    <MoreVertIcon fontSize="small" />
-                  </IconButton>
+                  {canEdit && (
+                    <IconButton size="small" onClick={(e) => openMenu(e, inst)}>
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

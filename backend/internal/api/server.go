@@ -135,9 +135,10 @@ func (s *Server) Router() http.Handler {
 		r.Get("/installers/{name}/download", s.serveInstaller)
 
 		r.Group(func(r chi.Router) {
-			// Order matters: requireAuth first so the audit middleware
-			// knows who the actor is.
-			r.Use(s.requireAuth, s.auditing)
+			// Order matters: requireAuth first so both of the others
+			// know who the actor is, and requireRole before auditing so
+			// a refusal is recorded as the 403 it was.
+			r.Use(s.requireAuth, s.auditing, s.requireRole)
 			s.protectedRoutes(r)
 		})
 	})

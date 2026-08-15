@@ -747,12 +747,26 @@ Surface the daily 90% here and link out for the rest.
   It lives here first because the console already IS a SQLite file, and
   a log you can't read without standing up a cluster is a log nobody
   reads. Entries are pruned after 90 days.
-- Roles (owner/editor/viewer, GCP's basic roles) are stored and shown
-  but NOT yet enforced per-endpoint; the Users page says so rather than
-  implying a guard that isn't there. One role per user for now; the
-  binding model is what it grows into. What IS enforced: the console
-  can't lose its last active owner, and you can't delete or disable the
-  account you're signed in as.
+- ROLES ARE ENFORCED, AND THE LINE IS CREDENTIALS, NOT DANGER
+  (`internal/api/rbac.go`). GCP's basic three: a viewer reads
+  everything and changes nothing, an editor changes RESOURCES, an
+  owner also changes CREDENTIALS AND ACCESS. An editor may delete a VM
+  — destructive, and recoverable from a backup — but only an owner may
+  add a hypervisor, because a stored root token is a standing grant of
+  everything an editor could ever do, and only an owner may create an
+  account, because that is how the set of editors changes. Enforcement
+  is MIDDLEWARE for the same reason auditing is: a check inside each
+  handler is one the next handler forgets. READS ARE OPEN to anyone
+  signed in — this console shows a lab's state, and a viewer who can't
+  see it has no reason to have an account. SELF-SERVICE stays open too
+  (`/auth/password`, `/ssh-key`), or a viewer couldn't use the console
+  at all. A refusal is a 403 that names the role needed, and it lands
+  in the audit log like any other action. The frontend's
+  `usePermissions` and `RequireRole` decide what to OFFER and are
+  worth nothing on their own; the middleware doesn't trust them. One
+  role per user for now; the binding model is what it grows into. Also
+  enforced: the console can't lose its last active owner, and you
+  can't delete or disable the account you're signed in as.
 - CLOUD OVERVIEW IS THE FRONT DOOR: `/overview`, first in the global
   menu, and where `/` lands. It answers "what's wrong right now", which
   every other page answers only if you already knew where to look. It
