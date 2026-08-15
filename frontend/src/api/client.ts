@@ -368,6 +368,15 @@ export interface InventoryHostView extends InventoryHost {
   managed: boolean
 }
 
+export interface InventoryHostDetail {
+  host: InventoryHost
+  packages: InventoryPackage[]
+  vulnerabilities: Vulnerability[]
+  /** The VM here that is this machine, empty when it's external. */
+  instance: string
+  managed: boolean
+}
+
 export interface InventoryHosts {
   configured: boolean
   hosts: InventoryHostView[]
@@ -1149,6 +1158,8 @@ export const api = {
     request<InstanceInventory>(`/instances/${name}/inventory`),
 
   listInventoryHosts: () => request<InventoryHosts>('/inventory/hosts'),
+  /** One machine in full: its facts, packages and CVEs. */
+  inventoryHost: (id: string) => request<InventoryHostDetail>(`/inventory/hosts/${id}`),
   listInventoryVulnerabilities: () =>
     request<InventoryVulnerabilities>('/inventory/vulnerabilities'),
   listInventoryProviderTypes: () => request<string[]>('/inventory/provider-types'),

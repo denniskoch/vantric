@@ -63,6 +63,7 @@ import DNSProvidersPage from './pages/DNSProvidersPage'
 import ServersPage from './pages/ServersPage'
 import InventoryProvidersPage from './pages/InventoryProvidersPage'
 import DevicesHostsPage from './pages/DevicesHostsPage'
+import DevicesHostPage from './pages/DevicesHostPage'
 import DevicesVulnerabilitiesPage from './pages/DevicesVulnerabilitiesPage'
 import InventoryProviderFormPage from './pages/InventoryProviderFormPage'
 import DisksPage from './pages/DisksPage'
@@ -89,6 +90,7 @@ export default function App() {
         <Route path="/compute/overview" element={<OverviewPage />} />
         <Route path="/devices/overview" element={<SectionLandingPage />} />
         <Route path="/devices/hosts" element={<DevicesHostsPage />} />
+        <Route path="/devices/hosts/:id" element={<DevicesHostPage />} />
         <Route path="/devices/vulnerabilities" element={<DevicesVulnerabilitiesPage />} />
         <Route path="/devices/settings/inventory" element={<InventoryProvidersPage />} />
         <Route path="/devices/settings/inventory/add" element={<InventoryProviderFormPage />} />

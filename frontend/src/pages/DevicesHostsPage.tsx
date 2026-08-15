@@ -95,7 +95,15 @@ export default function DevicesHostsPage() {
                       hasn't is stopped. */}
                   <StatusIcon status={host.status === 'online' ? 'RUNNING' : 'TERMINATED'} />
                 </TableCell>
-                <TableCell>{host.hostname || '—'}</TableCell>
+                <TableCell>
+                  <Link
+                    component={RouterLink}
+                    to={`/devices/hosts/${host.id}`}
+                    underline="hover"
+                  >
+                    {host.hostname || 'Unnamed host'}
+                  </Link>
+                </TableCell>
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Box sx={{ width: 16 }}>

@@ -209,10 +209,22 @@ func (p *Provider) HostByUUID(ctx context.Context, uuid string) (*inventory.Host
 	if uuid == "" {
 		return nil, inventory.ErrNotFound
 	}
+	return p.hostDetail(ctx, "/hosts/identifier/"+url.PathEscape(uuid))
+}
+
+// HostByID is the same host by Fleet's own id, which is what a drill-in
+// page carries in its URL.
+func (p *Provider) HostByID(ctx context.Context, id string) (*inventory.HostDetail, error) {
+	if id == "" {
+		return nil, inventory.ErrNotFound
+	}
+	return p.hostDetail(ctx, "/hosts/"+url.PathEscape(id))
+}
+
+func (p *Provider) hostDetail(ctx context.Context, path string) (*inventory.HostDetail, error) {
 	var out struct {
 		Host wireHost `json:"host"`
 	}
-	path := "/hosts/identifier/" + url.PathEscape(uuid)
 	if err := p.do(ctx, path, &out); err != nil {
 		return nil, err
 	}

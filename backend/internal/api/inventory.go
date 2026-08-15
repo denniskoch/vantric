@@ -37,6 +37,7 @@ func (s *Server) inventoryRoutes(r chi.Router) {
 	r.Put("/inventory/providers/{id}", s.updateInventoryProvider)
 	r.Delete("/inventory/providers/{id}", s.deleteInventoryProvider)
 	r.Get("/inventory/hosts", s.listInventoryHosts)
+	r.Get("/inventory/hosts/{id}", s.getInventoryHost)
 	r.Get("/inventory/vulnerabilities", s.listInventoryVulnerabilities)
 }
 
@@ -365,4 +366,44 @@ func (s *Server) listInventoryVulnerabilities(w http.ResponseWriter, r *http.Req
 	}
 	out.Vulnerabilities = vulns
 	s.json(w, http.StatusOK, out)
+}
+
+// inventoryHostDetailView is one machine's page: everything the service
+// holds about it, plus the instance here reporting the same UUID.
+type inventoryHostDetailView struct {
+	*inventory.HostDetail
+	// Instance is the VM in this console that is this machine, empty
+	// when it's physical or somebody else's.
+	Instance string `json:"instance"`
+	Managed  bool   `json:"managed"`
+}
+
+func (s *Server) getInventoryHost(w http.ResponseWriter, r *http.Request) {
+	provider, ok := s.inventoryRegistry.Any()
+	if !ok {
+		s.err(w, http.StatusNotFound, "no inventory service is connected")
+		return
+	}
+	detail, err := provider.HostByID(r.Context(), chi.URLParam(r, "id"))
+	if err != nil {
+		s.fail(w, err, "host")
+		return
+	}
+	view := inventoryHostDetailView{HostDetail: detail}
+	// The correlation again, from the other end: this page knows the
+	// host and wants the guest, where the list knew the guests.
+	if detail.Host.UUID != "" {
+		instances, err := s.store.ListInstances(r.Context())
+		if err != nil {
+			s.fail(w, err, "instances")
+			return
+		}
+		for _, inst := range instances {
+			if strings.EqualFold(inst.UUID, detail.Host.UUID) {
+				view.Instance, view.Managed = inst.Name, true
+				break
+			}
+		}
+	}
+	s.json(w, http.StatusOK, view)
 }

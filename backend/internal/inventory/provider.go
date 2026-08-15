@@ -138,6 +138,10 @@ type Provider interface {
 	// how a VM here is matched to a host there. ErrNotFound when the
 	// guest isn't enrolled — an ordinary answer, not a failure.
 	HostByUUID(ctx context.Context, uuid string) (*HostDetail, error)
+	// HostByID fetches one machine by the service's own identifier,
+	// which is what a drill-in page has in its URL. Same payload as
+	// HostByUUID: the machine, its software, and the CVEs that carries.
+	HostByID(ctx context.Context, id string) (*HostDetail, error)
 	// Vulnerabilities rolls up every CVE the service is tracking across
 	// every machine. Providers that can't answer return ErrUnsupported,
 	// which the console reports as a missing feature rather than a
