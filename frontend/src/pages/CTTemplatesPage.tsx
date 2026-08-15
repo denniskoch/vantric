@@ -17,7 +17,7 @@ import {
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { api } from '../api/client'
-import VolumeName from '../components/VolumeName'
+import OSName from '../components/OSName'
 import PageHeader from '../components/PageHeader'
 import type { CTTemplate } from '../api/client'
 import { formatBytes } from '../format'
@@ -78,7 +78,7 @@ export default function CTTemplatesPage() {
             {templates.map((tpl) => (
               <TableRow key={`${tpl.serverId}/${tpl.id}`} hover>
                 <TableCell>
-                  <VolumeName name={tpl.name} />
+                  <OSName name={tpl.name} />
                 </TableCell>
                 <TableCell>{tpl.storage}</TableCell>
                 <TableCell>{serverName(tpl.serverId)}</TableCell>

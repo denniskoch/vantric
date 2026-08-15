@@ -34,8 +34,7 @@ import DetailTable, { DetailSection } from '../components/DetailTable'
 import TimeSeriesChart from '../components/TimeSeriesChart'
 import { chart } from '../chartPalette'
 import { formatBytes, formatBytesPerSec, formatPercent, formatUptime } from '../format'
-import BrandIcon from '../components/BrandIcon'
-import { osBrand } from '../brands'
+import { OSIcon } from '../components/OSName'
 import ConnectButton from '../components/ConnectButton'
 
 type TabID = 'details' | 'observability' | 'os' | 'console'
@@ -625,9 +624,7 @@ export default function InstanceDetailPage() {
                       label: 'OS name',
                       value: (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          {osBrand(osInfo.name) && (
-                            <BrandIcon icon={osBrand(osInfo.name)!} size={18} />
-                          )}
+                          <OSIcon name={osInfo.name} size={18} />
                           {osInfo.name || '—'}
                         </Box>
                       ),

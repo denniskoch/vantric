@@ -24,6 +24,7 @@ import type { Image } from '../api/client'
 import { useServerNames } from '../useServerNames'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import PageHeader from '../components/PageHeader'
+import OSName from '../components/OSName'
 
 // VM templates (Proxmox template VMs) — the sources "create instance"
 // clones from. Deleting one destroys a VM and its disks, unlike the
@@ -103,7 +104,9 @@ export default function VMTemplatesPage() {
           <TableBody>
             {templates.map((tpl) => (
               <TableRow key={`${tpl.serverId}/${tpl.id}`} hover>
-                <TableCell>{tpl.name}</TableCell>
+                <TableCell>
+                  <OSName name={tpl.name} />
+                </TableCell>
                 <TableCell>{tpl.id}</TableCell>
                 <TableCell>{serverName(tpl.serverId)}</TableCell>
                 <TableCell>{tpl.zone || '—'}</TableCell>

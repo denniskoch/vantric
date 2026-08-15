@@ -369,6 +369,21 @@ Surface the daily 90% here and link out for the rest.
   type, a version banner, a file name — so adding a logo never needs
   an API change. The app makes no outside requests: nothing is loaded
   from a CDN.
+- ANYTHING NAMED AFTER AN OS GETS ITS MARK, through one lookup
+  (`osMark`) and one component (`components/OSName.tsx`) — VM
+  templates, CT templates, cloud images, ISOs and a guest agent's
+  report all name their OS somewhere, so the icon costs nothing but
+  the regex. Three answers, in order: a simple-icons brand; a GLYPH
+  for the things no icon set carries a mark for (a terminal for the
+  DOS-era systems, a tool for media that isn't an operating system at
+  all — driver disks, virtio, rescue images), drawn in secondary text
+  colour so it doesn't read as a logo; or nothing, with a spacer so a
+  column of names doesn't jog left and right. Windows is the one mark
+  DRAWN IN `brands.ts` rather than imported: simple-icons carries no
+  Microsoft marks, and the commonest guest OS in a lab can't be the
+  blank row. Patterns must be specific enough to keep `win` out of
+  Darwin and virtio-win, and appliances (pfSense, OPNsense) are tried
+  before the BSDs they're built on.
 - AUTHENTICATION IS LOCAL FIRST and that is deliberate: signing in
   through the lab's identity provider is the better everyday door, but
   a console reachable only through another service is unreachable

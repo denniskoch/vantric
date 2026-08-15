@@ -20,7 +20,7 @@ import AddBoxIcon from '@mui/icons-material/AddBox'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { api } from '../api/client'
-import VolumeName from '../components/VolumeName'
+import OSName from '../components/OSName'
 import PageHeader from '../components/PageHeader'
 import type { ISO } from '../api/client'
 import { formatBytes } from '../format'
@@ -94,7 +94,7 @@ export default function ISOsPage() {
             {isos.map((iso) => (
               <TableRow key={`${iso.serverId}/${iso.id}`} hover>
                 <TableCell>
-                  <VolumeName name={iso.name} />
+                  <OSName name={iso.name} />
                 </TableCell>
                 <TableCell>{iso.storage}</TableCell>
                 <TableCell>{serverName(iso.serverId)}</TableCell>

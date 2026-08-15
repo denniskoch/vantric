@@ -20,7 +20,7 @@ import AddBoxIcon from '@mui/icons-material/AddBox'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { api } from '../api/client'
-import VolumeName from '../components/VolumeName'
+import OSName from '../components/OSName'
 import PageHeader from '../components/PageHeader'
 import type { CloudImage } from '../api/client'
 import { formatBytes } from '../format'
@@ -94,7 +94,7 @@ export default function CloudImagesPage() {
             {images.map((image) => (
               <TableRow key={`${image.serverId}/${image.id}`} hover>
                 <TableCell>
-                  <VolumeName name={image.name} />
+                  <OSName name={image.name} />
                 </TableCell>
                 <TableCell>{image.storage}</TableCell>
                 <TableCell>{serverName(image.serverId)}</TableCell>
