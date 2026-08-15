@@ -40,3 +40,25 @@ export function formatBytes(bytes: number): string {
   }
   return `${value >= 100 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`
 }
+
+/**
+ * How long ago, in the words people use.
+ *
+ * A timestamp to the second answers a question nobody asked: what
+ * matters about an agent's last check-in is whether it was minutes or
+ * days, and an exact clock time makes the reader do the arithmetic.
+ * Deliberately coarse — "about 5 hours ago" is the honest precision
+ * when the underlying number is a poll interval anyway.
+ */
+export function timeAgo(unixSeconds: number): string {
+  if (!unixSeconds) return 'never'
+  const seconds = Math.round(Date.now() / 1000 - unixSeconds)
+  if (seconds < 0) return 'just now'
+  if (seconds < 60) return 'just now'
+  const minutes = Math.round(seconds / 60)
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `about ${hours} hour${hours === 1 ? '' : 's'} ago`
+  const days = Math.round(hours / 24)
+  return `${days} day${days === 1 ? '' : 's'} ago`
+}

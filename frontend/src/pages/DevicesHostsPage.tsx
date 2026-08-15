@@ -14,6 +14,7 @@ import {
   Typography,
 } from '@mui/material'
 import { api } from '../api/client'
+import { timeAgo } from '../format'
 import PageHeader from '../components/PageHeader'
 import { OSIcon } from '../components/OSName'
 import StatusIcon from '../components/StatusIcon'
@@ -81,8 +82,6 @@ export default function DevicesHostsPage() {
               <TableCell>Status</TableCell>
               <TableCell>Host</TableCell>
               <TableCell>Operating system</TableCell>
-              <TableCell>Managed by</TableCell>
-              <TableCell>Serial</TableCell>
               <TableCell align="right">Issues</TableCell>
               <TableCell>Last seen</TableCell>
             </TableRow>
@@ -105,26 +104,6 @@ export default function DevicesHostsPage() {
                     {host.osVersion || host.platform || '—'}
                   </Box>
                 </TableCell>
-                <TableCell>
-                  {host.managed ? (
-                    <Link
-                      component={RouterLink}
-                      to={`/compute/instances/${host.instance}`}
-                      underline="hover"
-                    >
-                      {host.instance}
-                    </Link>
-                  ) : (
-                    // Not a fault: a laptop is supposed to be here and
-                    // isn't supposed to be a VM.
-                    <Box component="span" sx={{ color: '#5f6368' }}>
-                      External
-                    </Box>
-                  )}
-                </TableCell>
-                <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
-                  {host.serial || '—'}
-                </TableCell>
                 <TableCell align="right">
                   {host.issuesFailing > 0 ? (
                     <Box component="span" sx={{ color: '#d93025' }}>
@@ -134,14 +113,14 @@ export default function DevicesHostsPage() {
                     '—'
                   )}
                 </TableCell>
-                <TableCell sx={{ color: '#5f6368' }}>
-                  {host.seenAt ? new Date(host.seenAt * 1000).toLocaleString() : 'never'}
-                </TableCell>
+                {/* Coarse on purpose: minutes or days is the answer;
+                    the clock time is arithmetic for the reader. */}
+                <TableCell sx={{ color: '#5f6368' }}>{timeAgo(host.seenAt)}</TableCell>
               </TableRow>
             ))}
             {hosts.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 6, color: '#5f6368' }}>
                   {isLoading
                     ? 'Loading…'
                     : data?.configured
