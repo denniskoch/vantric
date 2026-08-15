@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -544,6 +545,11 @@ func (s *Server) setInstanceProtection(w http.ResponseWriter, r *http.Request) {
 	s.json(w, http.StatusOK, inst)
 }
 
+// poweredOn is "the guest is up", as opposed to merely mid-transition.
+func poweredOn(status string) bool {
+	return status == string(hypervisor.StatusRunning) || status == string(hypervisor.StatusStaging)
+}
+
 func (s *Server) deleteInstance(w http.ResponseWriter, r *http.Request) {
 	inst, err := s.store.GetInstance(r.Context(), chi.URLParam(r, "instance"))
 	if err != nil {
@@ -552,6 +558,16 @@ func (s *Server) deleteInstance(w http.ResponseWriter, r *http.Request) {
 	}
 	if inst.Protected {
 		s.err(w, http.StatusConflict, "deletion protection is enabled on this instance")
+		return
+	}
+	// A powered-on VM is one somebody may still be using, and destroying
+	// it takes its disks with it. Stopping first is one click and makes
+	// the decision twice; pulling the power as a side effect of Delete
+	// makes it never. Transitional states are deliberately allowed
+	// through: a create that died in PROVISIONING has to be removable.
+	if poweredOn(inst.Status) {
+		s.err(w, http.StatusConflict,
+			"stop "+inst.Name+" before deleting it — it is "+strings.ToLower(inst.Status))
 		return
 	}
 	driver, ok := s.registry.Get(inst.ServerID)

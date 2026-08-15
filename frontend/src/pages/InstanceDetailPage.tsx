@@ -16,6 +16,7 @@ import {
   TableRow,
   Tab,
   Tabs,
+  Tooltip,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
@@ -149,6 +150,9 @@ export default function InstanceDetailPage() {
   // which is the usual reason it doesn't work, so say so rather than
   // offering a button that opens a dead terminal.
   const running = inst.status === 'RUNNING'
+  // Powered on covers the moment between Start and RUNNING as well:
+  // deleting a VM that is mid-boot is the same mistake.
+  const poweredOn = running || inst.status === 'STAGING'
   const serialPort = detail?.devices?.find((d) => d.kind === 'Serial port')
   const hypervisorURL = server?.type === 'proxmox' ? server.baseUrl : ''
   const hypervisorLink = (mode: 'novnc' | 'xtermjs') => (
@@ -235,15 +239,30 @@ export default function InstanceDetailPage() {
         >
           Reset
         </Button>
-        <Button
-          size="small"
-          color="error"
-          startIcon={<DeleteIcon />}
-          disabled={remove.isPending || inst.protected}
-          onClick={() => setDeleting(true)}
+        {/* A powered-on VM can't be deleted out from under whoever is
+            using it; the backend refuses too, so this only saves the
+            round trip and says why. */}
+        <Tooltip
+          title={
+            inst.protected
+              ? 'Deletion protection is enabled'
+              : poweredOn
+                ? 'Stop the instance before deleting it'
+                : ''
+          }
         >
-          Delete
-        </Button>
+          <span>
+            <Button
+              size="small"
+              color="error"
+              startIcon={<DeleteIcon />}
+              disabled={remove.isPending || inst.protected || poweredOn}
+              onClick={() => setDeleting(true)}
+            >
+              Delete
+            </Button>
+          </span>
+        </Tooltip>
       </Box>
 
       <Tabs

@@ -369,6 +369,22 @@ Surface the daily 90% here and link out for the rest.
   TEXT timestamps, no engine-specific types. Postgres is planned, not wired.
 - Frontend talks only to `/api/v1` via `src/api/client.ts` (typed client);
   server state lives in TanStack Query (3s polling), not local state.
+- SELECTING ROWS RAISES AN ACTION BAR, GCP's model: the checkbox
+  column is the bulk interface, and the bar above the table carries a
+  count, a clear button and the actions that apply. Each action runs
+  against the ELIGIBLE SUBSET — Start against the stopped ones, Stop
+  against the running ones — so a mixed selection isn't a refusal, and
+  the N requests report as ONE outcome (`settle` in InstancesPage),
+  because four alerts for four instances is not a report.
+- A POWERED-ON INSTANCE CAN'T BE DELETED. Destroying a VM takes its
+  disks with it, and doing that to something still running is a
+  decision that should be made twice: stopping first is one click.
+  The backend refuses it (409, naming the state) so the rule holds
+  whatever calls the API; the list and the detail view disable Delete
+  and say which instance is in the way. STAGING counts as powered on —
+  mid-boot is the same mistake — while PROVISIONING and STOPPING are
+  deliberately allowed through, since a create that died in
+  PROVISIONING still has to be removable.
 - DESTRUCTIVE ACTIONS ASK IN PROPORTION, via
   `components/ConfirmDeleteDialog`. A one-click dialog is right for
   something that comes back — a credential you can re-enter, a grant

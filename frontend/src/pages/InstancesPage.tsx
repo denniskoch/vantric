@@ -18,7 +18,9 @@ import {
   TableHead,
   TableRow,
 } from '@mui/material'
+import { Tooltip, Typography } from '@mui/material'
 import AddBoxIcon from '@mui/icons-material/AddBox'
+import CloseIcon from '@mui/icons-material/Close'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
@@ -39,7 +41,10 @@ export default function InstancesPage() {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
   const [menuInstance, setMenuInstance] = useState<Instance | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState<Instance | null>(null)
+  const [deleting, setDeleting] = useState<Instance[] | null>(null)
+  // Selection is by name, which is what the API takes. Rows that
+  // disappear fall out of the derived list on their own.
+  const [picked, setPicked] = useState<Set<string>>(new Set())
 
   const { data: instances = [], refetch, isLoading } = useQuery({
     queryKey: ['instances'],
@@ -60,9 +65,10 @@ export default function InstancesPage() {
   })
 
   const remove = useMutation({
-    mutationFn: (name: string) => api.deleteInstance(name),
+    mutationFn: (names: string[]) => settle(names, (name) => api.deleteInstance(name)),
     onSuccess: () => {
       setDeleting(null)
+      setPicked(new Set())
       invalidate()
     },
     onError: (e: Error) => {
@@ -70,6 +76,37 @@ export default function InstancesPage() {
       setError(e.message)
     },
   })
+
+  // Bulk actions run against the eligible subset and report as one:
+  // starting four instances shouldn't produce four alerts, and one that
+  // refuses shouldn't hide the three that worked.
+  const bulk = useMutation({
+    mutationFn: ({ act, names }: { act: 'start' | 'stop' | 'reset'; names: string[] }) =>
+      settle(names, (name) => api.instanceAction(name, act)),
+    onSuccess: invalidate,
+    onError: (e: Error) => setError(e.message),
+  })
+
+  const selected = instances.filter((i) => picked.has(i.name))
+  const eligible = (want: (i: Instance) => boolean) =>
+    selected.filter(want).map((i) => i.name)
+  const startable = eligible((i) => i.status === 'TERMINATED')
+  const stoppable = eligible((i) => i.status === 'RUNNING')
+  const running = selected.filter((i) => i.status === 'RUNNING' || i.status === 'STAGING')
+  const protectedOnes = selected.filter((i) => i.protected)
+  const deleteBlocked =
+    running.length > 0
+      ? `${running.length === 1 ? running[0].name + ' is' : running.length + ' of these are'} still running — stop first`
+      : protectedOnes.length > 0
+        ? `${protectedOnes.length === 1 ? protectedOnes[0].name + ' has' : protectedOnes.length + ' of these have'} deletion protection`
+        : ''
+
+  const toggle = (name: string) =>
+    setPicked((current) => {
+      const next = new Set(current)
+      if (!next.delete(name)) next.add(name)
+      return next
+    })
 
   const openMenu = (e: React.MouseEvent<HTMLElement>, inst: Instance) => {
     setMenuAnchor(e.currentTarget)
@@ -109,12 +146,82 @@ export default function InstancesPage() {
         </Alert>
       )}
 
+      {selected.length > 0 && (
+        <Paper
+          variant="outlined"
+          sx={{
+            mb: 1,
+            px: 1,
+            py: 0.5,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+            bgcolor: '#e8f0fe',
+            borderColor: '#d2e3fc',
+          }}
+        >
+          <IconButton size="small" aria-label="Clear selection" onClick={() => setPicked(new Set())}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+          <Typography sx={{ fontSize: 13, color: '#202124', mx: 1 }}>{selected.length}</Typography>
+          <Button
+            size="small"
+            startIcon={<PlayArrowIcon />}
+            disabled={startable.length === 0 || bulk.isPending}
+            onClick={() => bulk.mutate({ act: 'start', names: startable })}
+          >
+            Start
+          </Button>
+          <Button
+            size="small"
+            startIcon={<StopIcon />}
+            disabled={stoppable.length === 0 || bulk.isPending}
+            onClick={() => bulk.mutate({ act: 'stop', names: stoppable })}
+          >
+            Stop
+          </Button>
+          <Button
+            size="small"
+            startIcon={<RestartAltIcon />}
+            disabled={stoppable.length === 0 || bulk.isPending}
+            onClick={() => bulk.mutate({ act: 'reset', names: stoppable })}
+          >
+            Reset
+          </Button>
+          <Box sx={{ flex: 1 }} />
+          {/* Disabled alone would just be a mystery, so the reason is
+              the tooltip and it names the instance in the way. */}
+          <Tooltip title={deleteBlocked}>
+            <span>
+              <Button
+                size="small"
+                startIcon={<DeleteIcon />}
+                disabled={Boolean(deleteBlocked)}
+                onClick={() => setDeleting(selected)}
+                sx={{ color: deleteBlocked ? undefined : '#d93025' }}
+              >
+                Delete
+              </Button>
+            </span>
+          </Tooltip>
+        </Paper>
+      )}
+
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell padding="checkbox">
-                <Checkbox size="small" disabled />
+                <Checkbox
+                  size="small"
+                  disabled={instances.length === 0}
+                  checked={instances.length > 0 && selected.length === instances.length}
+                  indeterminate={selected.length > 0 && selected.length < instances.length}
+                  onChange={(e) =>
+                    setPicked(e.target.checked ? new Set(instances.map((i) => i.name)) : new Set())
+                  }
+                  slotProps={{ input: { 'aria-label': 'Select all instances' } }}
+                />
               </TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Name</TableCell>
@@ -128,9 +235,14 @@ export default function InstancesPage() {
           </TableHead>
           <TableBody>
             {instances.map((inst) => (
-              <TableRow key={inst.id} hover>
+              <TableRow key={inst.id} hover selected={picked.has(inst.name)}>
                 <TableCell padding="checkbox">
-                  <Checkbox size="small" />
+                  <Checkbox
+                    size="small"
+                    checked={picked.has(inst.name)}
+                    onChange={() => toggle(inst.name)}
+                    slotProps={{ input: { 'aria-label': `Select ${inst.name}` } }}
+                  />
                 </TableCell>
                 <TableCell>
                   <StatusIcon status={inst.status} />
@@ -192,33 +304,71 @@ export default function InstancesPage() {
         </MenuItem>
         <MenuItem
           onClick={() => {
-            setDeleting(menuInstance)
+            if (menuInstance) setDeleting([menuInstance])
             closeMenu()
           }}
-          disabled={menuInstance?.protected}
+          disabled={menuInstance?.protected || isPoweredOn(menuInstance)}
           sx={{ color: '#d93025' }}
         >
           <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
-          {menuInstance?.protected ? 'Delete (protected)' : 'Delete'}
+          {menuInstance?.protected
+            ? 'Delete (protected)'
+            : isPoweredOn(menuInstance)
+              ? 'Delete (stop it first)'
+              : 'Delete'}
         </MenuItem>
       </Menu>
 
       <ConfirmDeleteDialog
         open={Boolean(deleting)}
-        title={`Delete ${deleting?.name}?`}
+        title={
+          deleting && deleting.length === 1
+            ? `Delete ${deleting[0].name}?`
+            : `Delete ${deleting?.length} instances?`
+        }
         body={
           <>
-            This destroys the virtual machine and its disks on{' '}
-            {serverName(deleting?.serverId ?? '')}. Snapshots and backups taken
-            of it are not removed, but nothing else brings this instance back.
+            This destroys{' '}
+            {deleting && deleting.length === 1
+              ? 'the virtual machine and its disks on ' + serverName(deleting[0].serverId)
+              : deleting?.map((i) => i.name).join(', ')}
+            . Snapshots and backups taken of{' '}
+            {deleting && deleting.length === 1 ? 'it' : 'them'} are not removed, but
+            nothing else brings {deleting && deleting.length === 1 ? 'this instance' : 'them'}{' '}
+            back.
           </>
         }
-        confirmPhrase={deleting?.name}
-        confirmLabel="to delete it"
+        confirmPhrase={
+          deleting && deleting.length === 1 ? deleting[0].name : 'I UNDERSTAND'
+        }
+        confirmLabel={deleting && deleting.length === 1 ? 'to delete it' : 'to delete them'}
         pending={remove.isPending}
         onCancel={() => setDeleting(null)}
-        onConfirm={() => deleting && remove.mutate(deleting.name)}
+        onConfirm={() => deleting && remove.mutate(deleting.map((i) => i.name))}
       />
     </Box>
+  )
+}
+
+function isPoweredOn(inst: Instance | null): boolean {
+  return inst?.status === 'RUNNING' || inst?.status === 'STAGING'
+}
+
+/**
+ * Runs one call per instance and reports the outcome once.
+ *
+ * Everything here is per-instance at the API, so a bulk action is N
+ * requests; what it must not be is N alerts, or a single failure that
+ * hides the ones that worked.
+ */
+async function settle<T>(names: string[], call: (name: string) => Promise<T>): Promise<void> {
+  const results = await Promise.allSettled(names.map(call))
+  const failures = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[]
+  if (failures.length === 0) return
+  const reason = (failures[0].reason as Error).message
+  throw new Error(
+    failures.length === names.length
+      ? reason
+      : `${failures.length} of ${names.length} failed — ${reason}`,
   )
 }
