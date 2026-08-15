@@ -103,7 +103,11 @@ type Vulnerability struct {
 type VulnerabilitySummary struct {
 	CVE string `json:"cve"`
 	// Hosts is how many machines carry it.
-	Hosts          int     `json:"hosts"`
+	Hosts int `json:"hosts"`
+	// DetectedAt is when the service first saw it here — unix seconds.
+	// Unlike a CVSS score, every tier reports this, which makes it the
+	// column a list can rely on.
+	DetectedAt     int64   `json:"detectedAt"`
 	CVSSScore      float64 `json:"cvssScore"`
 	Severity       string  `json:"severity"`
 	EPSS           float64 `json:"epss"`

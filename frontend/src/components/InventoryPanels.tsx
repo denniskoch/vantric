@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link as RouterLink } from 'react-router-dom'
 import {
   Box,
   Chip,
@@ -141,13 +142,16 @@ function VulnerabilityTable({ vulnerabilities }: { vulnerabilities: Vulnerabilit
           {sorted.map((v) => (
             <TableRow key={`${v.cve}/${v.package}`} hover>
               <TableCell>
-                {v.detailsUrl ? (
-                  <Link href={v.detailsUrl} target="_blank" rel="noreferrer" underline="hover">
-                    {v.cve}
-                  </Link>
-                ) : (
-                  v.cve
-                )}
+                {/* Into the console's own CVE page, not out to NVD —
+                    same destination whether you got here from a guest,
+                    a host, or the estate-wide list. */}
+                <Link
+                  component={RouterLink}
+                  to={`/devices/vulnerabilities/${encodeURIComponent(v.cve)}`}
+                  underline="hover"
+                >
+                  {v.cve}
+                </Link>
               </TableCell>
               <TableCell>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

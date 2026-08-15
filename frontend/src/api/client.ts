@@ -404,6 +404,8 @@ export interface InventoryHosts {
 export interface VulnerabilitySummary {
   cve: string
   hosts: number
+  /** When the service first saw it. Every Fleet tier reports this. */
+  detectedAt: number
   cvssScore: number
   severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'MINIMAL'
   epss: number

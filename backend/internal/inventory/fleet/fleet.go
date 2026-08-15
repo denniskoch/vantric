@@ -300,6 +300,7 @@ func (p *Provider) Vulnerabilities(ctx context.Context) ([]inventory.Vulnerabili
 			EPSSProbability  float64 `json:"epss_probability"`
 			CISAKnownExploit bool    `json:"cisa_known_exploit"`
 			CVEPublished     string  `json:"cve_published"`
+			CreatedAt        string  `json:"created_at"`
 		} `json:"vulnerabilities"`
 	}
 	if err := p.do(ctx, "/vulnerabilities?order_key=hosts_count&order_direction=desc", &out); err != nil {
@@ -318,6 +319,7 @@ func (p *Provider) Vulnerabilities(ctx context.Context) ([]inventory.Vulnerabili
 			EPSS:           v.EPSSProbability,
 			KnownExploited: v.CISAKnownExploit,
 			PublishedAt:    parseTime(v.CVEPublished),
+			DetectedAt:     parseTime(v.CreatedAt),
 			DetailsURL:     v.DetailsLink,
 		})
 	}
