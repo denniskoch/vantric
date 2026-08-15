@@ -184,6 +184,28 @@ func (s *Server) deleteVolume(kind, label string) http.HandlerFunc {
 
 // deleteImage destroys a VM template — a real VM and its disks, so it
 // refuses while any instance still records it as its source image.
+// describeImage reads a template's own configuration — a template is a
+// VM, so this is the same call the instance detail view makes.
+//
+// It exists so the create flow can show what the template already
+// carries instead of asking for it again: a template built here was
+// given a login, keys, DNS and a datasource, and cloning it keeps all
+// of that. Blank fields on create leave the clone's inherited values
+// alone, so the form was asking questions whose answers were already
+// on file.
+func (s *Server) describeImage(w http.ResponseWriter, r *http.Request) {
+	driver := s.driverForServer(w, r)
+	if driver == nil {
+		return
+	}
+	detail, err := driver.Describe(r.Context(), chi.URLParam(r, "id"))
+	if err != nil {
+		s.fail(w, err, "template")
+		return
+	}
+	s.json(w, http.StatusOK, detail)
+}
+
 func (s *Server) deleteImage(w http.ResponseWriter, r *http.Request) {
 	driver := s.driverForServer(w, r)
 	if driver == nil {

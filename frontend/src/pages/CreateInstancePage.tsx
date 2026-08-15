@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
@@ -62,6 +62,42 @@ export default function CreateInstancePage() {
   // Advanced
   const [description, setDescription] = useState('')
   const [protection, setProtection] = useState(false)
+  // Whether sizing has been typed in. A template carries its own, and
+  // adopting that is only helpful until someone has said otherwise.
+  const [sizingTouched, setSizingTouched] = useState(false)
+
+  // What the chosen template already carries. A template built here was
+  // given a login, keys and a size; a clone inherits all of it, so the
+  // form should show that rather than ask for it a second time.
+  const { data: template } = useQuery({
+    queryKey: ['image', serverId, imageId],
+    queryFn: () => api.describeImage(serverId, imageId),
+    enabled: Boolean(serverId) && Boolean(imageId),
+    retry: false,
+  })
+
+  useEffect(() => {
+    if (!template) return
+    // Only fill what's still blank — picking an image must never
+    // overwrite something already typed.
+    setCloudInit((current) => ({
+      ...current,
+      user: current.user || template.cloudInitUser,
+      sshKeys: current.sshKeys || (template.sshKeys ?? []).join('\n'),
+      nameservers: current.nameservers || template.nameservers,
+      searchDomain: current.searchDomain || template.searchDomain,
+      datasource: current.datasource || template.datasource,
+      upgradePackages: current.upgradePackages || template.upgradePackages,
+    }))
+    if (!sizingTouched) {
+      if (template.cpus > 0) setCpus(template.cpus)
+      if (template.memoryMb > 0) setMemoryMb(template.memoryMb)
+      if (template.diskGb > 0) setDiskGb(template.diskGb)
+    }
+    // sizingTouched is read, not tracked: re-running on it would undo a
+    // deliberate edit the moment it was made.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [template])
 
   const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
   const { data: zones = [] } = useQuery({
@@ -276,7 +312,10 @@ export default function CreateInstancePage() {
                   size="small"
                   type="number"
                   value={cpus}
-                  onChange={(e) => setCpus(Number(e.target.value))}
+                  onChange={(e) => {
+                    setSizingTouched(true)
+                    setCpus(Number(e.target.value))
+                  }}
                   error={Boolean(cpuError)}
                   helperText={cpuError || 'Cores the guest sees'}
                   slotProps={{ htmlInput: { min: 1, max: 128 } }}
@@ -287,7 +326,10 @@ export default function CreateInstancePage() {
                   size="small"
                   type="number"
                   value={memoryMb}
-                  onChange={(e) => setMemoryMb(Number(e.target.value))}
+                  onChange={(e) => {
+                    setSizingTouched(true)
+                    setMemoryMb(Number(e.target.value))
+                  }}
                   error={Boolean(memoryError)}
                   helperText={memoryError || formatMemory(memoryMb)}
                   slotProps={{ htmlInput: { min: 128, step: 128 } }}

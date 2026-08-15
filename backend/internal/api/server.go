@@ -120,6 +120,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		r.Delete("/ct-templates", s.deleteVolume("vztmpl", "a CT template"))
 		r.Get("/backups", s.listBackups)
 		r.Delete("/backups", s.deleteVolume("backup", "a backup"))
+		r.Get("/images/{id}", s.describeImage)
 		r.Delete("/images/{id}", s.deleteImage)
 		r.Get("/cloud-images", s.listCloudImages)
 		r.Post("/cloud-images/download", s.downloadCloudImage)

@@ -908,6 +908,9 @@ export const api = {
   listBridges: () => request<Bridge[]>('/bridges'),
   listImages: (serverId?: string) =>
     request<Image[]>(serverId ? `/images?server=${serverId}` : '/images'),
+  /** A template's own configuration — what a clone of it inherits. */
+  describeImage: (serverId: string, imageId: string) =>
+    request<InstanceDetail>(`/images/${imageId}?server=${serverId}`),
   listDisks: () => request<Disk[]>('/disks'),
   listSnapshots: () => request<Snapshot[]>('/snapshots'),
   listISOs: () => request<ISO[]>('/isos'),

@@ -151,6 +151,16 @@ Surface the daily 90% here and link out for the rest.
   rename or resize done in the hypervisor shows up here. Only
   meaningful values are taken: a blank name or a zero count is the
   hypervisor not knowing yet, not an instruction to forget.
+- THE CREATE FLOW READS THE TEMPLATE rather than asking again. A
+  template built here was given a login, keys, DNS and a size, and a
+  clone inherits all of it — Proxmox copies the config — so
+  `GET /images/{id}?server=` describes the template and the form fills
+  its blanks from that. Only blanks: picking an image never overwrites
+  something typed, and sizing stops following the template once the
+  sizing fields have been touched. This pairs with the existing rule
+  that blank cloud-init fields on create leave the clone's inherited
+  values alone — the form was asking questions whose answers were
+  already on file.
 - CREATING AN INSTANCE RACES THE RECONCILER, and the create flow wins
   by claiming rather than failing. A Proxmox clone can outlast the two
   second sweep, so the VM appears on the hypervisor before the handler

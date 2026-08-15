@@ -277,6 +277,9 @@ and `/auth/me` needs a session cookie:
   a cloud-init template from a disk image, tracked step by step
 - `GET /servers`, `POST /servers`, `PUT/DELETE /servers/{id}`,
   `GET /server-types`
+- `GET /images/{id}?server=` — a template's own configuration, which is
+  what a clone of it inherits; the create flow fills its defaults from
+  this
 - `GET/POST /instances`
 - `GET/DELETE /instances/{name}/`
 - `POST /instances/{name}/{start|stop|reset|protection}`
