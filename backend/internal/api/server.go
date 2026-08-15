@@ -135,7 +135,9 @@ func (s *Server) Router() http.Handler {
 		r.Get("/installers/{name}/download", s.serveInstaller)
 
 		r.Group(func(r chi.Router) {
-			r.Use(s.requireAuth)
+			// Order matters: requireAuth first so the audit middleware
+			// knows who the actor is.
+			r.Use(s.requireAuth, s.auditing)
 			s.protectedRoutes(r)
 		})
 	})
@@ -178,6 +180,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 
 		// Everything long-running reports here rather than making each
 		// page that starts something responsible for watching it.
+		r.Get("/audit", s.listAudit)
 		r.Get("/operations", s.listOperations)
 		r.Delete("/operations", s.clearOperations)
 		r.Delete("/operations/{id}", s.dismissOperation)

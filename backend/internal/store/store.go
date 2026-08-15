@@ -128,6 +128,25 @@ var migrations = []string{
 		fetched_at INTEGER NOT NULL DEFAULT 0,
 		missing INTEGER NOT NULL DEFAULT 0
 	)`,
+	// Who did what. See internal/store/audit.go — the mapping from an
+	// action to a person exists nowhere else, because every backend is
+	// reached through one shared credential.
+	`CREATE TABLE IF NOT EXISTS audit_log (
+		id TEXT PRIMARY KEY,
+		at INTEGER NOT NULL,
+		actor_id TEXT NOT NULL DEFAULT '',
+		actor_email TEXT NOT NULL DEFAULT '',
+		method TEXT NOT NULL DEFAULT '',
+		path TEXT NOT NULL DEFAULT '',
+		action TEXT NOT NULL DEFAULT '',
+		resource TEXT NOT NULL DEFAULT '',
+		status INTEGER NOT NULL DEFAULT 0,
+		error TEXT NOT NULL DEFAULT '',
+		duration_ms INTEGER NOT NULL DEFAULT 0,
+		remote_addr TEXT NOT NULL DEFAULT '',
+		payload TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE INDEX IF NOT EXISTS audit_log_at ON audit_log (at DESC)`,
 	// The console's own settings, as opposed to a backend's credentials.
 	// One row per key so a new one needs no migration.
 	`CREATE TABLE IF NOT EXISTS app_settings (

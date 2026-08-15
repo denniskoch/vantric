@@ -367,6 +367,12 @@ export const sections: Section[] = [
             to: '/iam/sign-on',
             hint: "Sign in through the lab's identity provider",
           },
+          {
+            label: 'Activity',
+            icon: HistoryIcon,
+            to: '/iam/activity',
+            hint: 'Every change made here, and who made it',
+          },
         ],
       },
     ],

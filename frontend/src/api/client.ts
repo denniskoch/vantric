@@ -507,6 +507,24 @@ export interface InventoryProviderRequest {
   insecureTls?: boolean
 }
 
+/** One change, and the account that made it. */
+export interface AuditEntry {
+  id: string
+  at: number
+  actorId: string
+  actorEmail: string
+  method: string
+  path: string
+  action: string
+  resource: string
+  status: number
+  error?: string
+  durationMs: number
+  remoteAddr: string
+  /** The request body, with secrets replaced. */
+  payload?: string
+}
+
 export interface Server {
   id: string
   name: string
@@ -1309,6 +1327,16 @@ export const api = {
     }),
   deleteInventoryProvider: (id: string) =>
     request<void>(`/inventory/providers/${id}`, { method: 'DELETE' }),
+
+  /** Who did what. Reads aren't recorded; see the audit middleware. */
+  listAudit: (params: { actor?: string; resource?: string; limit?: number } = {}) => {
+    const query = new URLSearchParams()
+    if (params.actor) query.set('actor', params.actor)
+    if (params.resource) query.set('resource', params.resource)
+    if (params.limit) query.set('limit', String(params.limit))
+    const suffix = query.toString()
+    return request<AuditEntry[]>(`/audit${suffix ? `?${suffix}` : ''}`)
+  },
 
   listOperations: () => request<Operation[]>('/operations'),
   dismissOperation: (id: string) => request<void>(`/operations/${id}`, { method: 'DELETE' }),

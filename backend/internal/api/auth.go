@@ -33,6 +33,15 @@ const (
 	bcryptCost = bcrypt.DefaultCost
 )
 
+// The two ways a sign-in fails, kept apart in the audit log even
+// though the caller is told the same thing either way: "no such
+// account" and "wrong password" look identical from outside on
+// purpose, and different from inside for the same reason.
+var (
+	errNoSuchAccount = errors.New("no such account, or it can't sign in with a password")
+	errWrongPassword = errors.New("wrong password")
+)
+
 // ctxUserKey carries the signed-in account down the request.
 type ctxUserKey struct{}
 
@@ -94,11 +103,16 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		_ = bcrypt.CompareHashAndPassword(
 			[]byte("$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"),
 			[]byte(req.Password))
+		// Recorded by hand: the audit middleware sits behind
+		// requireAuth, which sign-in by definition runs outside, and a
+		// login body is a password.
+		s.recordSignIn(r, nil, req.Email, errNoSuchAccount)
 		s.err(w, http.StatusUnauthorized, "that email and password don't match an account")
 		return
 	}
 	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)) != nil {
 		s.log.Warn("failed sign-in", "email", req.Email)
+		s.recordSignIn(r, nil, req.Email, errWrongPassword)
 		s.err(w, http.StatusUnauthorized, "that email and password don't match an account")
 		return
 	}
@@ -116,6 +130,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	_ = s.store.TouchUserLogin(r.Context(), user.ID)
 	s.setSessionCookie(w, r, token, expires)
 	s.log.Info("sign-in", "email", user.Email, "role", user.Role)
+	s.recordSignIn(r, user, user.Email, nil)
 	s.json(w, http.StatusOK, user)
 }
 

@@ -719,6 +719,34 @@ Surface the daily 90% here and link out for the rest.
   (same rule as the seeded hypervisor). With no password configured
   one is generated and logged once — the only time a password is
   written to the log, and better than a default nobody changes.
+- WHO DID WHAT IS THIS CONSOLE'S TO RECORD. Every backend is reached
+  through ONE shared credential — Proxmox's task log can only ever say
+  `root@pam!lcm`, which is correct for a service account and useless
+  for attribution. The mapping from an action to a PERSON exists
+  nowhere else, so `audit_log` is the record rather than a convenience.
+  It is MIDDLEWARE (`s.auditing`, mounted after `requireAuth` so the
+  actor is known), not a call in each handler, because a per-handler
+  call is what the next endpoint forgets and a log with holes invites
+  the conclusion that nothing happened. MUTATIONS ONLY: a console that
+  logged every GET would bury the one line that matters under a
+  three-second poll of the instance list. Sign-in is recorded by hand
+  (`recordSignIn`), since /auth/login runs outside the session and its
+  body is a password.
+- THE PAYLOAD IS KEPT, REDACTED, AND FOLDED AWAY. "Who changed this to
+  what" is most of the value, so the request body is stored — but any
+  field whose name looks like a secret (password, token, key, secret,
+  credential, passphrase) is replaced before it is written, with a
+  short allowlist for the ones that only sound like secrets
+  (publicKey, tokenId). A non-JSON body is dropped entirely rather
+  than stored blind: an upload has no field names to judge, and
+  guessing is how a secret reaches a log. The UI shows the verb as the
+  row and the payload behind an expander.
+- PHASE ONE IS SQLITE, ON PURPOSE. The row shape is flat and
+  sink-shaped — timestamp, actor, verb, target, outcome — so shipping
+  to OpenSearch or Graylog later is a mapping rather than a rewrite.
+  It lives here first because the console already IS a SQLite file, and
+  a log you can't read without standing up a cluster is a log nobody
+  reads. Entries are pruned after 90 days.
 - Roles (owner/editor/viewer, GCP's basic roles) are stored and shown
   but NOT yet enforced per-endpoint; the Users page says so rather than
   implying a guard that isn't there. One role per user for now; the
