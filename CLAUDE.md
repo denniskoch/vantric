@@ -374,9 +374,10 @@ Surface the daily 90% here and link out for the rest.
   templates, CT templates, cloud images, ISOs and a guest agent's
   report all name their OS somewhere, so the icon costs nothing but
   the regex. Three answers, in order: a simple-icons brand; a GLYPH
-  for the things no icon set carries a mark for (a terminal for the
-  DOS-era systems, a tool for media that isn't an operating system at
-  all — driver disks, virtio, rescue images), drawn in secondary text
+  wherever no LEGIBLE mark exists (a terminal for the DOS-era systems,
+  a tool for media that isn't an operating system at all — driver
+  disks, virtio, rescue images — and for VMware, whose only mark is a
+  wordmark that turns to grey mush at 16px), drawn in secondary text
   colour so it doesn't read as a logo; or nothing, with a spacer so a
   column of names doesn't jog left and right. Windows is the one mark
   DRAWN IN `brands.ts` rather than imported: simple-icons carries no

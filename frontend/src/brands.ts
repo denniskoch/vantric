@@ -51,7 +51,6 @@ import {
   siUbuntu,
   siUptimekuma,
   siVaultwarden,
-  siVmware,
 } from 'simple-icons'
 import type { SimpleIcon } from 'simple-icons'
 import type { SvgIconComponent } from '@mui/icons-material'
@@ -171,17 +170,19 @@ const osBrands: [RegExp, SimpleIcon][] = [
   [/openbsd/i, siOpenbsd],
   [/netbsd/i, siNetbsd],
   [/proxmox|\bpve\b|\bpbs\b/i, siProxmox],
-  [/vmware|esxi|vsphere|photon/i, siVmware],
   [/truenas|freenas/i, siTruenas],
   [/linux/i, siLinux],
 ]
 
-// Operating systems and media that no icon set carries a mark for, so
-// they get a glyph that says what kind of thing it is instead of a
-// wrong logo: a terminal for the DOS-era systems, a tool for the media
-// that isn't an OS at all — driver disks, rescue images, virtio.
+// Where no legible mark exists, a glyph says what kind of thing this is
+// instead of showing a wrong logo or nothing at all. A terminal for the
+// DOS-era systems nobody draws marks for; a tool for media that isn't
+// an operating system — driver disks, rescue images, virtio — and for
+// VMware, whose only mark is a wordmark that turns to grey mush at the
+// 16px a table row gives it.
 const osGlyphs: [RegExp, SvgIconComponent][] = [
   [/virtio|driver|rescue|gparted|clonezilla|memtest|\butil/i, HandymanIcon],
+  [/vmware|esxi|vsphere|photon/i, HandymanIcon],
   [/freedos|ms.?dos|\bdos\b|novell|netware/i, TerminalIcon],
 ]
 
