@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Alert,
   Box,
-  Chip,
   Link,
   Paper,
   Table,
@@ -17,6 +16,7 @@ import {
 import { api } from '../api/client'
 import PageHeader from '../components/PageHeader'
 import { OSIcon } from '../components/OSName'
+import StatusIcon from '../components/StatusIcon'
 
 /**
  * Every machine the inventory service knows — laptops and bare metal
@@ -78,10 +78,10 @@ export default function DevicesHostsPage() {
         <Table size="small">
           <TableHead>
             <TableRow>
+              <TableCell>Status</TableCell>
               <TableCell>Host</TableCell>
               <TableCell>Operating system</TableCell>
               <TableCell>Managed by</TableCell>
-              <TableCell>Status</TableCell>
               <TableCell>Serial</TableCell>
               <TableCell align="right">Issues</TableCell>
               <TableCell>Last seen</TableCell>
@@ -90,6 +90,12 @@ export default function DevicesHostsPage() {
           <TableBody>
             {hosts.map((host) => (
               <TableRow key={host.id} hover>
+                <TableCell>
+                  {/* The same glyph the instance lists use: an agent
+                      that's checked in recently is running, one that
+                      hasn't is stopped. */}
+                  <StatusIcon status={host.status === 'online' ? 'RUNNING' : 'TERMINATED'} />
+                </TableCell>
                 <TableCell>{host.hostname || '—'}</TableCell>
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -115,17 +121,6 @@ export default function DevicesHostsPage() {
                       External
                     </Box>
                   )}
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    label={host.status || 'unknown'}
-                    size="small"
-                    sx={{
-                      fontSize: 11,
-                      height: 20,
-                      color: host.status === 'online' ? '#188038' : '#5f6368',
-                    }}
-                  />
                 </TableCell>
                 <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
                   {host.serial || '—'}
