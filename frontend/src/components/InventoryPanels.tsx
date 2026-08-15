@@ -28,32 +28,37 @@ export default function InventoryPanels({
 }: {
   detail: {
     host: { updatedAt: number }
-    packages: InventoryPackage[]
-    vulnerabilities: Vulnerability[]
+    packages: InventoryPackage[] | null
+    vulnerabilities: Vulnerability[] | null
   }
 }) {
   const collected = detail.host.updatedAt
     ? new Date(detail.host.updatedAt * 1000).toLocaleString()
     : 'never'
+  // Defended as well as fixed at the source: an empty list arriving as
+  // null is a thing JSON APIs do, and a page that renders someone
+  // else's data shouldn't be one assumption away from a blank screen.
+  const vulnerabilities = detail.vulnerabilities ?? []
+  const packages = detail.packages ?? []
   return (
     <>
       <Panel
         title="Vulnerabilities"
         collected={collected}
         empty="No known vulnerabilities in the installed packages."
-        rows={detail.vulnerabilities.length}
+        rows={vulnerabilities.length}
       >
-        <VulnerabilityTable vulnerabilities={detail.vulnerabilities} />
+        <VulnerabilityTable vulnerabilities={vulnerabilities} />
       </Panel>
 
       <Panel
         title="Installed packages"
         collected={collected}
         empty="The agent reported no packages."
-        rows={detail.packages.length}
+        rows={packages.length}
       >
         <PackageTable
-          packages={detail.packages.map((p) => ({
+          packages={packages.map((p) => ({
             ...p,
             vulnerabilities: p.vulnerabilities ?? [],
           }))}

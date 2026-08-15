@@ -370,8 +370,9 @@ export interface InventoryHostView extends InventoryHost {
 
 export interface InventoryHostDetail {
   host: InventoryHost
-  packages: InventoryPackage[]
-  vulnerabilities: Vulnerability[]
+  /** May be null: an older API returns JSON null for an empty list. */
+  packages: InventoryPackage[] | null
+  vulnerabilities: Vulnerability[] | null
   /** The VM here that is this machine, empty when it's external. */
   instance: string
   managed: boolean

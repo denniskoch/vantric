@@ -228,9 +228,20 @@ func (p *Provider) hostDetail(ctx context.Context, path string) (*inventory.Host
 	if err := p.do(ctx, path, &out); err != nil {
 		return nil, err
 	}
-	detail := &inventory.HostDetail{Host: out.Host.toHost()}
+	// Empty, not nil: these serialize into an API a browser reads, and
+	// a nil slice becomes JSON null. A host with no CVEs is the common
+	// case, so "null" would be the common case too — and it crashed the
+	// page that trusted the contract.
+	detail := &inventory.HostDetail{
+		Host:            out.Host.toHost(),
+		Packages:        []inventory.Package{},
+		Vulnerabilities: []inventory.Vulnerability{},
+	}
 	for _, s := range out.Host.Software {
-		pkg := inventory.Package{Name: s.Name, Version: s.Version, Source: s.Source}
+		pkg := inventory.Package{
+			Name: s.Name, Version: s.Version, Source: s.Source,
+			Vulnerabilities: []inventory.Vulnerability{},
+		}
 		for _, v := range s.Vulnerabilities {
 			vuln := inventory.Vulnerability{
 				CVE:               v.CVE,
