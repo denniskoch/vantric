@@ -60,6 +60,11 @@ export default function CreateInstancePage() {
   // template is selected, which is what makes a prefilled image show
   // its own family without a second piece of state to keep in step.
   const [familyChoice, setFamilyChoice] = useState('')
+  // Blank means "use the instance name", which is resolved at submit —
+  // so typing a name after visiting this field still does the right
+  // thing, and clearing it deliberately is impossible to confuse with
+  // never having touched it.
+  const [serial, setSerial] = useState('')
   const [diskGb, setDiskGb] = useState(10)
   // Networking
   const [netBridge, setNetBridge] = useState('')
@@ -137,6 +142,7 @@ export default function CreateInstancePage() {
   const create = useMutation({
     mutationFn: () =>
       api.createInstance({
+        serial: serial.trim() || name,
         name,
         serverId,
         zone,
@@ -529,6 +535,20 @@ export default function CreateInstancePage() {
                 minRows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
+                fullWidth
+              />
+              <TextField
+                label="Serial number"
+                size="small"
+                value={serial}
+                onChange={(e) => setSerial(e.target.value)}
+                placeholder={name}
+                helperText={
+                  'Written to the guest\'s SMBIOS before it first boots, where device ' +
+                  'inventory reads it as hardware_serial. Blank leaves it unset — which is ' +
+                  'what a hypervisor does by default, and why a fleet of VMs can look ' +
+                  'like one host. Defaults to the instance name.'
+                }
                 fullWidth
               />
               <FormControlLabel

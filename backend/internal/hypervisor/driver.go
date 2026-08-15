@@ -252,6 +252,14 @@ type InstanceSpec struct {
 	// Description is free-form metadata, mirrored to the hypervisor
 	// where supported.
 	Description string
+
+	// Serial is written to the guest's SMBIOS at creation, where device
+	// inventory reads it as hardware_serial. Creation is the only good
+	// moment: SMBIOS is read at boot, so setting it later costs a
+	// reboot, and setting it on a TEMPLATE would give every clone the
+	// same one — the duplicate-host problem it exists to avoid. Empty
+	// leaves the hypervisor's default, which is no serial at all.
+	Serial string
 }
 
 // NIC is one virtual network interface of an instance.

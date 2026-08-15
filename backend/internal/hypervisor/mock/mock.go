@@ -24,6 +24,7 @@ type instance struct {
 	// so the fields that correlate with outside tools have something
 	// to show in development.
 	uuid        string
+	serial      string
 	description string
 	// pending transition, applied when 'at' passes
 	next hypervisor.Status
@@ -219,6 +220,7 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 	d.vms[id] = &instance{
 		created: time.Now(),
 		uuid:    uuid.NewString(),
+		serial:  spec.Serial,
 		state: hypervisor.InstanceState{
 			DriverID: id,
 			Name:     spec.Name,
@@ -290,6 +292,7 @@ func (d *Driver) Describe(ctx context.Context, driverID string) (*hypervisor.Ins
 	state := vm.state
 	created := vm.created
 	guestUUID := vm.uuid
+	serial := vm.serial
 	description := vm.description
 	if description == "" {
 		description = "Mock instance for development"
@@ -302,6 +305,7 @@ func (d *Driver) Describe(ctx context.Context, driverID string) (*hypervisor.Ins
 		Tags:           []string{"mock", "lab"},
 		OSType:         "l26",
 		UUID:           guestUUID,
+		Serial:         serial,
 		CPUType:        "host",
 		Architecture:   "x86_64",
 		Sockets:        1,

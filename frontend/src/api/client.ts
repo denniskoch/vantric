@@ -856,6 +856,8 @@ export interface CreateInstanceRequest {
   vlanTag?: number
   cloudInit: CloudInitConfig
   description?: string
+  /** Written to SMBIOS at creation; read by inventory as hardware_serial. */
+  serial?: string
   protected?: boolean
 }
 

@@ -7,6 +7,7 @@ package proxmox
 import (
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -266,6 +267,14 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 	if err := d.do(ctx, http.MethodPost, cfgPath, cfg, nil); err != nil {
 		return nextID, nil // instance exists; config can be fixed manually
 	}
+	if spec.Serial != "" {
+		// A machine that exists without its serial is worth more than a
+		// failed create, and the gap reports itself: the reconciler
+		// reads the serial back and the detail page says "not set on the
+		// hypervisor" rather than showing what was asked for.
+		_ = d.setSerial(ctx, spec.Zone, nextID, spec.Serial)
+	}
+
 	// Booting it is the console's job, not this method's. A new instance
 	// does start automatically — that's GCP's behaviour and the app's —
 	// but the start used to be fired here and its error discarded, which
@@ -393,6 +402,31 @@ func (d *Driver) power(ctx context.Context, driverID, action string) error {
 
 func (d *Driver) Start(ctx context.Context, driverID string) error {
 	return d.power(ctx, driverID, "start")
+}
+
+// setSerial writes a serial number into the guest's SMBIOS, keeping
+// the uuid Proxmox generated for this clone.
+//
+// smbios1 is one config key holding every SMBIOS string, so writing a
+// serial means rewriting the lot — and the uuid must survive that,
+// since it's the identity everything else correlates on. The other
+// string fields (manufacturer, product, sku, family) are dropped: they
+// are unset on every VM this console has ever seen, and carrying them
+// through a re-encode would risk mangling what it was trying to
+// preserve. base64=1 covers any serial someone types.
+func (d *Driver) setSerial(ctx context.Context, node, vmid, serial string) error {
+	var cfg map[string]any
+	cfgPath := fmt.Sprintf("/nodes/%s/qemu/%s/config", node, vmid)
+	if err := d.do(ctx, http.MethodGet, cfgPath, nil, &cfg); err != nil {
+		return err
+	}
+	uuid := smbiosUUID(cfgString(cfg, "smbios1"))
+	if uuid == "" {
+		return fmt.Errorf("no smbios uuid to preserve on %s", vmid)
+	}
+	smbios := fmt.Sprintf("uuid=%s,serial=%s,base64=1",
+		uuid, base64.StdEncoding.EncodeToString([]byte(serial)))
+	return d.do(ctx, http.MethodPost, cfgPath, url.Values{"smbios1": {smbios}}, nil)
 }
 
 // SetDescription writes the VM's notes — the same field Proxmox shows

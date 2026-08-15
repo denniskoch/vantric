@@ -176,9 +176,21 @@ Surface the daily 90% here and link out for the rest.
   actionable fact where "—" reads as "we didn't look". Unlike the uuid,
   the serial IS base64-encoded whenever the config carries `base64=1`,
   so `smbiosField` decodes it — and the uuid must not be decoded even
-  then, which is what its test pins. Setting a serial is not something
-  this console does on its own: it changes what a guest reports about
-  itself, takes a reboot to appear, and is the owner's call.
+  then, which is what its test pins.
+- A SERIAL IS SET AT BIRTH OR NOT AT ALL. The create flow writes one
+  (defaulting to the instance name), because SMBIOS is read at boot:
+  before first start it costs nothing, afterwards it costs a reboot.
+  Writing it means REWRITING `smbios1` — one config key holding every
+  SMBIOS string — so `setSerial` reads the uuid Proxmox generated for
+  the clone and preserves it, since that's the identity everything
+  correlates on; the other string fields are dropped rather than
+  re-encoded, being unset on every VM this has ever seen. A failed
+  write does not fail the create: the machine exists, and the gap
+  reports itself, because the reconciler reads the serial back and the
+  detail page says "not set on the hypervisor" instead of showing what
+  was asked for. Setting one on a TEMPLATE is the trap to avoid —
+  clones inherit it, and a fleet of identical serials is the
+  duplicate-host problem the field exists to prevent.
 - The reconciler syncs NAME AND SIZING as well as status and IPs
   (`syncShape`). Adoption is a race: a VM picked up while the
   hypervisor is still creating it reports no name and zero cpus/memory,

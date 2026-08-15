@@ -335,6 +335,7 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		VLANTag     int              `json:"vlanTag"`
 		CloudInit   cloudInitRequest `json:"cloudInit"`
 		Description string           `json:"description"`
+		Serial      string           `json:"serial"`
 		Protected   bool             `json:"protected"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -373,6 +374,11 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(req.Serial) > 64 {
+		s.err(w, http.StatusBadRequest, "serial must be 64 characters or fewer")
+		return
+	}
+
 	cloudInit, err := req.CloudInit.toCloudInit()
 	if err != nil {
 		s.err(w, http.StatusBadRequest, err.Error())
@@ -390,6 +396,7 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		VLANTag:       req.VLANTag,
 		CloudInit:     cloudInit,
 		Description:   req.Description,
+		Serial:        req.Serial,
 	}
 
 	// Everything above answers "is this a valid request", which is the
