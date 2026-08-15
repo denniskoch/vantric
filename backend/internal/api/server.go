@@ -2,6 +2,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -208,6 +209,29 @@ func (s *Server) getInstance(w http.ResponseWriter, r *http.Request) {
 	s.json(w, http.StatusOK, inst)
 }
 
+// claimAdopted turns the reconciler's adoption of a VM this app just
+// created into the record the create flow meant to write. It returns
+// nil when the clash is a real one — a different instance that happens
+// to share the name — so that still reports as a conflict.
+func (s *Server) claimAdopted(ctx context.Context, inst *store.Instance) (*store.Instance, error) {
+	existing, err := s.store.GetInstance(ctx, inst.Name)
+	if err != nil {
+		return nil, err
+	}
+	sameVM := existing.ServerID == inst.ServerID &&
+		(existing.DriverID == inst.DriverID || existing.DriverID == "")
+	if !sameVM {
+		return nil, nil
+	}
+	inst.ID = existing.ID
+	if err := s.store.ClaimInstance(ctx, inst); err != nil {
+		return nil, err
+	}
+	s.log.Info("claimed an instance the reconciler adopted mid-create",
+		"name", inst.Name, "driverId", inst.DriverID)
+	return inst, nil
+}
+
 // instanceDriver resolves an instance by name to its live driver.
 func (s *Server) instanceDriver(w http.ResponseWriter, r *http.Request) (*store.Instance, hypervisor.Driver) {
 	inst, err := s.store.GetInstance(r.Context(), chi.URLParam(r, "instance"))
@@ -366,9 +390,39 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		Description: req.Description,
 		Protected:   req.Protected,
 	}
-	if err := s.store.CreateInstance(r.Context(), inst); err != nil {
-		s.fail(w, err, "saving instance")
+	// The reconciler sweeps every two seconds and adopts anything on the
+	// hypervisor it doesn't recognise, so it can easily have taken this
+	// VM already — under our name, or under vm-<vmid> if Proxmox hadn't
+	// named it yet. Either way there's a record for this machine and it
+	// should become ours rather than a second row or an error.
+	if adopted, err := s.store.GetInstanceByDriverID(r.Context(), req.ServerID, driverID); err == nil {
+		inst.ID = adopted.ID
+		if err := s.store.ClaimInstance(r.Context(), inst); err != nil {
+			s.fail(w, err, "saving instance")
+			return
+		}
+		s.log.Info("claimed an instance the reconciler adopted mid-create",
+			"name", inst.Name, "adoptedAs", adopted.Name, "driverId", driverID)
+		s.json(w, http.StatusCreated, inst)
 		return
+	}
+
+	if err := s.store.CreateInstance(r.Context(), inst); err != nil {
+		// The reconciler sweeps every two seconds and adopts anything on
+		// the hypervisor it doesn't recognise — including, sometimes, the
+		// VM we just asked for, before this line runs. That collides on
+		// the name and used to surface as "saving instance: UNIQUE
+		// constraint failed" over a machine that had in fact been created.
+		claimed, claimErr := s.claimAdopted(r.Context(), inst)
+		if claimErr != nil {
+			s.fail(w, claimErr, "saving instance")
+			return
+		}
+		if claimed == nil {
+			s.err(w, http.StatusConflict, "an instance with this name already exists")
+			return
+		}
+		inst = claimed
 	}
 	s.json(w, http.StatusCreated, inst)
 }

@@ -127,6 +127,35 @@ func (s *Store) UpdateInstanceState(ctx context.Context, id, status, internalIP,
 	return err
 }
 
+// GetInstanceByDriverID finds the record for one VM on one server,
+// whatever it ended up being called — which is how the create flow
+// recognises a VM the reconciler adopted while it was still working.
+func (s *Store) GetInstanceByDriverID(ctx context.Context, serverID, driverID string) (*Instance, error) {
+	inst, err := scanInstance(s.db.QueryRowContext(ctx,
+		`SELECT `+instanceCols+` FROM instances WHERE server_id = ? AND driver_id = ?`,
+		serverID, driverID).Scan)
+	if err == sql.ErrNoRows {
+		return nil, ErrNotFound
+	}
+	return inst, err
+}
+
+// ClaimInstance takes over a record the reconciler adopted a moment
+// before this app's own create finished writing its own — the two race
+// whenever a VM appears on the hypervisor before the handler returns.
+// Everything the create flow knows and adoption couldn't is written on
+// top: the image it came from, the network, the description, and
+// whether deletion protection was actually asked for.
+func (s *Store) ClaimInstance(ctx context.Context, i *Instance) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE instances SET name = ?, driver_id = ?, zone = ?, cpus = ?, memory_mb = ?,
+		 disk_gb = ?, image_id = ?, net_bridge = ?, vlan_tag = ?, description = ?,
+		 protected = ?, updated_at = ? WHERE id = ?`,
+		i.Name, i.DriverID, i.Zone, i.CPUs, i.MemoryMB, i.DiskGB, i.ImageID, i.NetBridge,
+		i.VLANTag, i.Description, boolInt(i.Protected), now(), i.ID)
+	return err
+}
+
 // UpdateInstanceShape syncs the metadata the hypervisor owns: what the
 // VM is called and how big it is.
 //

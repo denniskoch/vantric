@@ -237,8 +237,10 @@ cd backend  && go build ./... && go vet ./...     # build + vet
 cd frontend && npx tsc -b && npm run build        # type-check + build
 ```
 
-Both must pass before a commit. There is no test suite yet; changes are
-verified against real backends.
+Both must pass before a commit. Changes are verified against real
+backends rather than by a test suite; the one exception is
+`internal/store/instances_test.go`, covering a create/reconciler race
+that can't be reproduced on demand — `go test ./...` runs it.
 
 ## API
 

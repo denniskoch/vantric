@@ -151,6 +151,19 @@ Surface the daily 90% here and link out for the rest.
   rename or resize done in the hypervisor shows up here. Only
   meaningful values are taken: a blank name or a zero count is the
   hypervisor not knowing yet, not an instruction to forget.
+- CREATING AN INSTANCE RACES THE RECONCILER, and the create flow wins
+  by claiming rather than failing. A Proxmox clone can outlast the two
+  second sweep, so the VM appears on the hypervisor before the handler
+  writes its record and gets adopted first — under the requested name,
+  or as `vm-<vmid>` when Proxmox hasn't named it yet. That surfaced as
+  "saving instance: UNIQUE constraint failed" over a machine that had
+  been built, or as two records for one VM. So after `driver.Create`
+  the handler looks the VM up by `GetInstanceByDriverID` and, if a
+  record exists, `ClaimInstance` renames it and writes everything
+  adoption couldn't know — image, network, description, and whether
+  protection was actually asked for. `internal/store/instances_test.go`
+  covers it; it's the one test in the repo because the race is
+  otherwise only reproducible against a slow hypervisor.
 - The reconciler also ADOPTS VMs found on a server that the app didn't
   create (they appear as instances with deletion protection enabled) and
   removes instances whose VM vanished out-of-band. Driver.List must be
