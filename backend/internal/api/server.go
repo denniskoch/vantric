@@ -107,6 +107,11 @@ func (s *Server) Router() http.Handler {
 		r.Get("/auth/oidc/start", s.oidcStart)
 		r.Get("/auth/oidc/callback", s.oidcCallback)
 
+		// The one route outside the session, and it carries its own key:
+		// a machine being enrolled has no account to sign in with. See
+		// installers.go.
+		r.Get("/installers/{name}/download", s.serveInstaller)
+
 		r.Group(func(r chi.Router) {
 			r.Use(s.requireAuth)
 			s.protectedRoutes(r)
@@ -173,6 +178,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		s.identityRoutes(r)
 		s.networkRoutes(r)
 		s.inventoryRoutes(r)
+		s.installerRoutes(r)
 
 		r.Get("/instances", s.listInstances)
 		r.Post("/instances", s.createInstance)

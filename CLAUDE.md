@@ -436,6 +436,29 @@ Surface the daily 90% here and link out for the rest.
   because Fleet reports the number and leaves the naming to whoever
   displays it, worst is sorted first, and "no fix published" is
   spelled out — the difference between patch this and wait.
+- INSTALLERS ARE THE ONE THING THIS CONSOLE OWNS. Everywhere else it
+  is a view onto somebody else's source of truth; agent packages are
+  files it holds, because Fleet builds installers without hosting them
+  and a machine being enrolled has no session to download with. They
+  are FILES IN A DIRECTORY beside the database (`<dataDir>/installers`)
+  for the same reasons the database is one — backup is `cp`, the
+  listing is a directory read, and there is no second registry to drift
+  from what's on disk. Uploads stream to a temp file and rename, so an
+  interrupted one can't leave something truncated that looks
+  installable.
+- THE DOWNLOAD IS THE ONE ROUTE OUTSIDE THE SESSION, and it carries its
+  own key: `/api/v1/installers/{name}/download?token=`. A fleetd
+  package contains the enrollment secret, so an open link would let
+  anyone who can reach this console enrol a host — but a session cookie
+  is exactly what a bare machine hasn't got. The token lives in
+  `app_settings` (a key/value table so a new setting needs no
+  migration), is minted on first use like the SSH key, is accepted as a
+  query parameter OR a bearer header (curl and wget take either,
+  PowerShell prefers the plain URL), and is rotatable from the page. A
+  bad token gets 404 rather than 403, so a stranger learns nothing
+  about which files exist. The copy-paste commands are built from
+  `siteOrigin`, the SERVER's idea of its address — behind a tunnel the
+  browser's is wrong and only the server's is reachable.
 - DEVICES IS ITS OWN SECTION, NOT A COMPUTE PAGE. Compute means
   machines this console RUNS; an inventory service holds laptops and
   bare metal too, and filing a MacBook under Compute would make the

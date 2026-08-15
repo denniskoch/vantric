@@ -368,6 +368,21 @@ export interface InventoryHostView extends InventoryHost {
   managed: boolean
 }
 
+export interface Installer {
+  name: string
+  size: number
+  uploadedAt: number
+  platform: string
+}
+
+export interface Installers {
+  installers: Installer[]
+  /** The origin a MACHINE should fetch from — the server's own idea of
+   *  its address, which behind a tunnel isn't the browser's. */
+  baseUrl: string
+  token: string
+}
+
 export interface InventoryHostDetail {
   host: InventoryHost
   /** May be null: an older API returns JSON null for an empty list. */
@@ -1013,6 +1028,34 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
  * Uploads a file with progress. XHR rather than fetch, which can't
  * report upload progress on multi-GB images.
  */
+/** Same shape as uploadStream, without a hypervisor's parameters. */
+function uploadInstallerStream(file: File, onProgress: (fraction: number) => void) {
+  return new Promise<Installer>((resolve, reject) => {
+    const query = new URLSearchParams({ filename: file.name })
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `/api/v1/installers?${query}`)
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream')
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(e.loaded / e.total)
+    }
+    xhr.onload = () => {
+      let body: unknown
+      try {
+        body = JSON.parse(xhr.responseText)
+      } catch {
+        body = null
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(body as Installer)
+      } else {
+        reject(new Error((body as { error?: string })?.error ?? xhr.statusText ?? 'upload failed'))
+      }
+    }
+    xhr.onerror = () => reject(new Error('network error during upload'))
+    xhr.send(file)
+  })
+}
+
 function uploadStream(
   path: string,
   serverId: string,
@@ -1157,6 +1200,15 @@ export const api = {
   /** What the inventory service knows about this guest's insides. */
   instanceInventory: (name: string) =>
     request<InstanceInventory>(`/instances/${name}/inventory`),
+
+  listInstallers: () => request<Installers>('/installers'),
+  /** Streams the file with progress; the bytes leave this machine. */
+  uploadInstaller: (file: File, onProgress: (fraction: number) => void) =>
+    uploadInstallerStream(file, onProgress),
+  deleteInstaller: (name: string) =>
+    request<void>(`/installers/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  rotateInstallerToken: () =>
+    request<{ token: string }>('/installers/token/rotate', { method: 'POST' }),
 
   listInventoryHosts: () => request<InventoryHosts>('/inventory/hosts'),
   /** One machine in full: its facts, packages and CVEs. */

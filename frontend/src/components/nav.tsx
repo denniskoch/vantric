@@ -36,6 +36,7 @@ import VpnLockIcon from '@mui/icons-material/VpnLock'
 import HistoryIcon from '@mui/icons-material/History'
 import FactCheckIcon from '@mui/icons-material/FactCheck'
 import BugReportIcon from '@mui/icons-material/BugReport'
+import DownloadIcon from '@mui/icons-material/Download'
 import DevicesOtherIcon from '@mui/icons-material/DevicesOther'
 import { createSvgIcon } from '@mui/material/utils'
 import { siDocker } from 'simple-icons'
@@ -190,6 +191,12 @@ export const sections: Section[] = [
             icon: BugReportIcon,
             to: '/devices/vulnerabilities',
             hint: 'Known CVEs across the estate, exploited ones first',
+          },
+          {
+            label: 'Installers',
+            icon: DownloadIcon,
+            to: '/devices/installers',
+            hint: 'Agent packages a new machine can fetch with one command',
           },
         ],
       },

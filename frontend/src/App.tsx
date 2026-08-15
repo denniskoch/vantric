@@ -65,6 +65,7 @@ import InventoryProvidersPage from './pages/InventoryProvidersPage'
 import DevicesHostsPage from './pages/DevicesHostsPage'
 import DevicesHostPage from './pages/DevicesHostPage'
 import DevicesVulnerabilitiesPage from './pages/DevicesVulnerabilitiesPage'
+import DevicesInstallersPage from './pages/DevicesInstallersPage'
 import InventoryProviderFormPage from './pages/InventoryProviderFormPage'
 import DisksPage from './pages/DisksPage'
 import SnapshotsPage from './pages/SnapshotsPage'
@@ -92,6 +93,7 @@ export default function App() {
         <Route path="/devices/hosts" element={<DevicesHostsPage />} />
         <Route path="/devices/hosts/:id" element={<DevicesHostPage />} />
         <Route path="/devices/vulnerabilities" element={<DevicesVulnerabilitiesPage />} />
+        <Route path="/devices/installers" element={<DevicesInstallersPage />} />
         <Route path="/devices/settings/inventory" element={<InventoryProvidersPage />} />
         <Route path="/devices/settings/inventory/add" element={<InventoryProviderFormPage />} />
         <Route

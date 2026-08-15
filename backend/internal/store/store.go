@@ -113,6 +113,13 @@ var migrations = []string{
 		insecure_tls INTEGER NOT NULL DEFAULT 0,
 		created_at TEXT NOT NULL
 	)`,
+	// The console's own settings, as opposed to a backend's credentials.
+	// One row per key so a new one needs no migration.
+	`CREATE TABLE IF NOT EXISTS app_settings (
+		key TEXT PRIMARY KEY,
+		value TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	)`,
 	`CREATE TABLE IF NOT EXISTS inventory_providers (
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL UNIQUE,
