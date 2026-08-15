@@ -150,10 +150,20 @@ func provisionScript(user hypervisor.ConsoleUser) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "set -e\nuser=%s\nkey=%s\n", shellQuote(user.Username), shellQuote(user.PublicKey))
 	b.WriteString(`
+# Set PATH rather than inheriting it. guest-exec runs with whatever
+# environment the guest agent's own service has, and on RHEL-family
+# guests that arrives without /usr/sbin — which is where useradd lives.
+# Debian and Ubuntu happen to pass a fuller PATH, so this looked like a
+# Rocky bug when it was really an assumption about someone else's
+# environment. Both sbin directories are listed for guests that haven't
+# merged /usr.
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
 if ! id -u "$user" >/dev/null 2>&1; then
   useradd -m -s /bin/bash "$user" 2>/dev/null \
     || adduser -D -s /bin/sh "$user" 2>/dev/null \
-    || { echo "could not create $user: no useradd or adduser" >&2; exit 1; }
+    || { echo "could not create $user: no useradd or adduser on PATH ($PATH)" >&2; exit 1; }
 fi
 
 home=$(getent passwd "$user" 2>/dev/null | cut -d: -f6)

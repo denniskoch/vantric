@@ -127,7 +127,12 @@ Surface the daily 90% here and link out for the rest.
   with real auth, real sudo, real logging. The provisioning script is
   POSIX sh, idempotent, and replaces any line tagged
   `lab-cloud-manager` rather than appending — so key rotation
-  self-heals on the next failed connect. Sudo is a SEPARATE decision
+  self-heals on the next failed connect. It SETS ITS OWN PATH: exec
+  runs with whatever environment the agent's service carries, and on
+  RHEL-family guests that arrives without /usr/sbin, where useradd
+  lives — while Debian and Ubuntu pass a fuller one, which is what
+  made "no useradd or adduser" look like a Rocky bug rather than the
+  script assuming someone else's environment. Sudo is a SEPARATE decision
   (`ssh.provisionSudo`, default off): creating a login is implied by
   clicking Connect, granting root fleet-wide is not. `ssh.provision:
   false` turns the whole path off and the terminal goes back to
