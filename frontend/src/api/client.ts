@@ -1,4 +1,4 @@
-// Typed client for the lab-cloud-manager REST API.
+// Typed client for the vantric REST API.
 
 /** A role in this console — not in the identity provider it manages. */
 export type RoleID = 'owner' | 'editor' | 'viewer'
@@ -39,7 +39,7 @@ export interface OIDCProvider {
   /** What THIS server will send as redirect_uri — tell the provider
    *  exactly this. Behind a proxy it differs from the browser's origin. */
   redirectUri: string
-  /** True when it comes from LCM_SITE_URL rather than being guessed. */
+  /** True when it comes from VANTRIC_SITE_URL rather than being guessed. */
   siteUrlSet: boolean
   createdAt: string
   updatedAt: string

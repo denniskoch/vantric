@@ -8,7 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"lab-cloud-manager/internal/database"
+	"vantric/internal/database"
 )
 
 // Looking inside one database.

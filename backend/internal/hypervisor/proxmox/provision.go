@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"lab-cloud-manager/internal/hypervisor"
+	"vantric/internal/hypervisor"
 )
 
 // Just-in-time account provisioning through the QEMU guest agent.
@@ -191,9 +191,13 @@ mkdir -p "$home/.ssh"
 touch "$home/.ssh/authorized_keys"
 # Any line this console left before, whatever account tagged it: the
 # guest account is per-person, so this can't evict a colleague's key.
-grep -v ' lab-cloud-manager' "$home/.ssh/authorized_keys" > "$home/.ssh/authorized_keys.lcm" 2>/dev/null || true
-printf '%s\n' "$key" >> "$home/.ssh/authorized_keys.lcm"
-mv "$home/.ssh/authorized_keys.lcm" "$home/.ssh/authorized_keys"
+# Both tags are matched — the app was called lab-cloud-manager before
+# it was called vantric, and guests provisioned then still carry that
+# line. Dropping the old pattern would leave a superseded key valid on
+# every one of them.
+grep -vE ' (vantric|lab-cloud-manager)' "$home/.ssh/authorized_keys" > "$home/.ssh/authorized_keys.new" 2>/dev/null || true
+printf '%s\n' "$key" >> "$home/.ssh/authorized_keys.new"
+mv "$home/.ssh/authorized_keys.new" "$home/.ssh/authorized_keys"
 
 chown -R "$user:" "$home/.ssh" 2>/dev/null || chown -R "$user" "$home/.ssh"
 chmod 700 "$home/.ssh"

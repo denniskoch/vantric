@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"lab-cloud-manager/internal/hypervisor"
+	"vantric/internal/hypervisor"
 )
 
 // Bridges lists bridges across the cluster's nodes. "any_bridge" covers

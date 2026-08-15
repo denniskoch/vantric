@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"lab-cloud-manager/internal/hypervisor"
+	"vantric/internal/hypervisor"
 )
 
 type Config struct {

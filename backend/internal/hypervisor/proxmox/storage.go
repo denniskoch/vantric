@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"lab-cloud-manager/internal/hypervisor"
+	"vantric/internal/hypervisor"
 )
 
 // diskKeyRe matches VM config keys that carry attached disks. EFI/TPM

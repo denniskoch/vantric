@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"lab-cloud-manager/internal/hypervisor"
+	"vantric/internal/hypervisor"
 )
 
 // Container handlers. Containers (LXC) are a separate resource from VM

@@ -11,8 +11,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"lab-cloud-manager/internal/hypervisor/factory"
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/hypervisor/factory"
+	"vantric/internal/store"
 )
 
 // serverView is the API shape of a server: everything but the secret,

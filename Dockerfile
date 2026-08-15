@@ -19,9 +19,9 @@ FROM alpine:3.21
 RUN apk add --no-cache ca-certificates && adduser -D -H app
 COPY --from=backend /out/server /usr/local/bin/server
 COPY --from=frontend /src/frontend/dist /app/static
-ENV LCM_LISTEN=0.0.0.0:8080 \
-    LCM_DB_DSN=/data/labcloud.db \
-    LCM_STATIC_DIR=/app/static
+ENV VANTRIC_LISTEN=0.0.0.0:8080 \
+    VANTRIC_DB_DSN=/data/labcloud.db \
+    VANTRIC_STATIC_DIR=/app/static
 RUN mkdir /data && chown app /data
 USER app
 VOLUME /data

@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	"lab-cloud-manager/internal/network"
+	"vantric/internal/network"
 )
 
 type Config struct {

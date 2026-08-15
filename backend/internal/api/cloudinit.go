@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"lab-cloud-manager/internal/hypervisor"
+	"vantric/internal/hypervisor"
 )
 
 // cloudInitRequest is the wire shape of guest configuration, shared by

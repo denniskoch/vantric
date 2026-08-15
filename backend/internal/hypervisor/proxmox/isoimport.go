@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"strings"
 
-	"lab-cloud-manager/internal/hypervisor"
+	"vantric/internal/hypervisor"
 )
 
 // DownloadISO asks the node to fetch the image itself; the bytes never

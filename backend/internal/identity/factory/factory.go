@@ -7,9 +7,9 @@ package factory
 import (
 	"fmt"
 
-	"lab-cloud-manager/internal/identity"
-	"lab-cloud-manager/internal/identity/authentik"
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/identity"
+	"vantric/internal/identity/authentik"
+	"vantric/internal/store"
 )
 
 // Types lists supported provider types, in display order.

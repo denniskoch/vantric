@@ -6,10 +6,10 @@ package factory
 import (
 	"fmt"
 
-	"lab-cloud-manager/internal/hypervisor"
-	"lab-cloud-manager/internal/hypervisor/mock"
-	"lab-cloud-manager/internal/hypervisor/proxmox"
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/hypervisor"
+	"vantric/internal/hypervisor/mock"
+	"vantric/internal/hypervisor/proxmox"
+	"vantric/internal/store"
 )
 
 // Types lists the supported server types, in display order.

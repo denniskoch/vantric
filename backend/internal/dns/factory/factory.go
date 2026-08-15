@@ -6,9 +6,9 @@ package factory
 import (
 	"fmt"
 
-	"lab-cloud-manager/internal/dns"
-	"lab-cloud-manager/internal/dns/cloudflare"
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/dns"
+	"vantric/internal/dns/cloudflare"
+	"vantric/internal/store"
 )
 
 // Types lists supported provider types, in display order.

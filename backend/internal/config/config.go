@@ -1,5 +1,5 @@
-// Package config is the app's own settings, read from LCM_* environment
-// variables.
+// Package config is the app's own settings, read from VANTRIC_*
+// environment variables.
 //
 // Environment only, and deliberately: every setting here is a single
 // scalar, Docker is the deployment target, and compose already speaks
@@ -71,28 +71,67 @@ func Load() Config {
 		Database: Database{Driver: "sqlite", DSN: "labcloud.db"},
 		SSH:      SSH{Provision: true},
 	}
-	overrideStr(&cfg.Listen, "LCM_LISTEN")
-	overrideStr(&cfg.Database.Driver, "LCM_DB_DRIVER")
-	overrideStr(&cfg.Database.DSN, "LCM_DB_DSN")
-	overrideStr(&cfg.SiteURL, "LCM_SITE_URL")
-	overrideStr(&cfg.StaticDir, "LCM_STATIC_DIR")
-	overrideBool(&cfg.SSH.Provision, "LCM_SSH_PROVISION")
-	overrideBool(&cfg.SSH.ProvisionSudo, "LCM_SSH_PROVISION_SUDO")
-	overrideStr(&cfg.Auth.BootstrapEmail, "LCM_AUTH_BOOTSTRAP_EMAIL")
-	overrideStr(&cfg.Auth.BootstrapPassword, "LCM_AUTH_BOOTSTRAP_PASSWORD")
+	overrideStr(&cfg.Listen, "LISTEN")
+	overrideStr(&cfg.Database.Driver, "DB_DRIVER")
+	overrideStr(&cfg.Database.DSN, "DB_DSN")
+	overrideStr(&cfg.SiteURL, "SITE_URL")
+	overrideStr(&cfg.StaticDir, "STATIC_DIR")
+	overrideBool(&cfg.SSH.Provision, "SSH_PROVISION")
+	overrideBool(&cfg.SSH.ProvisionSudo, "SSH_PROVISION_SUDO")
+	overrideStr(&cfg.Auth.BootstrapEmail, "AUTH_BOOTSTRAP_EMAIL")
+	overrideStr(&cfg.Auth.BootstrapPassword, "AUTH_BOOTSTRAP_PASSWORD")
 	return cfg
 }
 
-func overrideStr(dst *string, key string) {
-	if v, ok := os.LookupEnv(key); ok {
+// Legacy returns the LCM_* variables still in use, so startup can name
+// them rather than silently honouring them forever.
+func Legacy() []string {
+	var found []string
+	for _, name := range settings {
+		if _, ok := os.LookupEnv(legacyPrefix + name); ok {
+			if _, current := os.LookupEnv(prefix + name); !current {
+				found = append(found, legacyPrefix+name)
+			}
+		}
+	}
+	return found
+}
+
+const (
+	prefix       = "VANTRIC_"
+	legacyPrefix = "LCM_"
+)
+
+var settings = []string{
+	"LISTEN", "DB_DRIVER", "DB_DSN", "SITE_URL", "STATIC_DIR",
+	"SSH_PROVISION", "SSH_PROVISION_SUDO",
+	"AUTH_BOOTSTRAP_EMAIL", "AUTH_BOOTSTRAP_PASSWORD",
+}
+
+// lookup reads VANTRIC_<name>, falling back to the LCM_<name> this app
+// used before it was renamed. The fallback exists because config is
+// environment-only: a deploy that renamed the variables without it
+// would start with defaults instead of failing, and the console would
+// come up on the wrong address with the wrong database, which is worse
+// than not starting at all.
+func lookup(name string) (string, bool) {
+	if v, ok := os.LookupEnv(prefix + name); ok {
+		return v, true
+	}
+	return os.LookupEnv(legacyPrefix + name)
+}
+
+func overrideStr(dst *string, name string) {
+	if v, ok := lookup(name); ok {
 		*dst = v
 	}
 }
 
 // overrideBool leaves the default alone for anything it can't read, so
 // a typo turns into the documented behaviour rather than a surprise.
-func overrideBool(dst *bool, key string) {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+func overrideBool(dst *bool, name string) {
+	v, _ := lookup(name)
+	switch strings.ToLower(strings.TrimSpace(v)) {
 	case "1", "true", "yes", "on":
 		*dst = true
 	case "0", "false", "no", "off":

@@ -1,4 +1,4 @@
-# lab-cloud-manager
+# vantric
 
 A single pane of glass over the tools already running in your home lab,
 wearing a Google Cloud Console–inspired UI. It doesn't reimplement what
@@ -37,7 +37,7 @@ msg="created the first owner account — sign in and change this password" email
 
 Open http://localhost:5173, sign in with `lab@localhost` and that
 password, and change it under IAM & Admin → My account. To choose the
-password yourself instead, put `LCM_AUTH_BOOTSTRAP_PASSWORD` in `.env`
+password yourself instead, put `VANTRIC_AUTH_BOOTSTRAP_PASSWORD` in `.env`
 **before** the first start — after that the account exists and the
 setting is ignored.
 
@@ -54,7 +54,7 @@ cd frontend && npm run dev
 
 The backend takes no arguments and needs no setup: the defaults put
 SQLite in `backend/labcloud.db` and serve on 127.0.0.1:8080, which is
-where Vite proxies `/api`. Export any `LCM_*` variable to change that.
+where Vite proxies `/api`. Export any `VANTRIC_*` variable to change that.
 
 Docker builds the app; it isn't used to develop it. `make up` runs the
 built image on :8080, `make down` stops it.
@@ -116,14 +116,14 @@ cp .env.example .env
 
 | Variable | Default | What it does |
 |---|---|---|
-| `LCM_AUTH_BOOTSTRAP_EMAIL` | `lab@localhost` | The first account. First run only |
-| `LCM_AUTH_BOOTSTRAP_PASSWORD` | *generated* | Left empty, one is generated and logged once |
-| `LCM_SITE_URL` | *from the request* | The address people reach this console at. Required behind a proxy or tunnel — see below |
-| `LCM_SSH_PROVISION` | `true` | Create the console's login on a guest through the guest agent |
-| `LCM_SSH_PROVISION_SUDO` | `false` | Give that login passwordless sudo |
-| `LCM_LISTEN` | `0.0.0.0:8080` | Set by the image |
-| `LCM_DB_DRIVER` / `LCM_DB_DSN` | `sqlite`, `/data/labcloud.db` | Set by the image |
-| `LCM_STATIC_DIR` | `/app/static` | Set by the image |
+| `VANTRIC_AUTH_BOOTSTRAP_EMAIL` | `lab@localhost` | The first account. First run only |
+| `VANTRIC_AUTH_BOOTSTRAP_PASSWORD` | *generated* | Left empty, one is generated and logged once |
+| `VANTRIC_SITE_URL` | *from the request* | The address people reach this console at. Required behind a proxy or tunnel — see below |
+| `VANTRIC_SSH_PROVISION` | `true` | Create the console's login on a guest through the guest agent |
+| `VANTRIC_SSH_PROVISION_SUDO` | `false` | Give that login passwordless sudo |
+| `VANTRIC_LISTEN` | `0.0.0.0:8080` | Set by the image |
+| `VANTRIC_DB_DRIVER` / `VANTRIC_DB_DSN` | `sqlite`, `/data/labcloud.db` | Set by the image |
+| `VANTRIC_STATIC_DIR` | `/app/static` | Set by the image |
 
 That's the whole list. Everything else — hypervisors, DNS providers,
 database servers, authentik, UniFi, single sign-on — is added in the UI,
@@ -132,8 +132,8 @@ not configured here.
 Or set them inline:
 
 ```bash
-LCM_AUTH_BOOTSTRAP_EMAIL=you@example.com \
-LCM_AUTH_BOOTSTRAP_PASSWORD='something long' \
+VANTRIC_AUTH_BOOTSTRAP_EMAIL=you@example.com \
+VANTRIC_AUTH_BOOTSTRAP_PASSWORD='something long' \
 docker compose up -d --build
 ```
 
@@ -161,13 +161,13 @@ its public hostname at `http://app:8080`, and put the token in `.env` as
 `TUNNEL_TOKEN`. Without a token that container restarts until you set
 one; the app itself doesn't care.
 
-**Set `LCM_SITE_URL` when you do this.** Behind the tunnel the request
+**Set `VANTRIC_SITE_URL` when you do this.** Behind the tunnel the request
 reaches the app addressed to `app:8080`, so anything the outside world
 must agree with — the OIDC redirect URI in particular — would be built
 from that and rejected by your identity provider:
 
 ```
-LCM_SITE_URL=https://console.example.com
+VANTRIC_SITE_URL=https://console.example.com
 ```
 
 **Put an Access policy in front of it.** This console holds credentials
@@ -188,7 +188,7 @@ backend/
   internal/
     api/                 REST handlers (chi), auth middleware, reconciler loop,
                          browser-SSH websocket bridge
-    config/              YAML + LCM_* env config
+    config/              YAML + VANTRIC_* env config
     store/               SQLite persistence (portable SQL, Postgres planned)
     hypervisor/          Driver interface — mock/ and proxmox/
     database/            Driver interface — postgres/ and mysql/

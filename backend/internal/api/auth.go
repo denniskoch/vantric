@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/store"
 )
 
 // Local authentication: an email and a password checked against this

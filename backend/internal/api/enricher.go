@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"lab-cloud-manager/internal/inventory"
-	"lab-cloud-manager/internal/nvd"
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/inventory"
+	"vantric/internal/nvd"
+	"vantric/internal/store"
 )
 
 // The CVE enricher: a slow background pass that fills in what the flaw

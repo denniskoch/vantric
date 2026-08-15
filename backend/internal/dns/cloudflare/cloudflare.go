@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"lab-cloud-manager/internal/dns"
+	"vantric/internal/dns"
 )
 
 const apiBase = "https://api.cloudflare.com/client/v4"

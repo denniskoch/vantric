@@ -13,9 +13,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"lab-cloud-manager/internal/dns"
-	dnsfactory "lab-cloud-manager/internal/dns/factory"
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/dns"
+	dnsfactory "vantric/internal/dns/factory"
+	"vantric/internal/store"
 )
 
 // DNS providers hold credentials for a DNS account; zones are the

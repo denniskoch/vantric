@@ -12,7 +12,7 @@ import (
 
 	mysqldriver "github.com/go-sql-driver/mysql"
 
-	"lab-cloud-manager/internal/database"
+	"vantric/internal/database"
 )
 
 type Config struct {
@@ -64,7 +64,7 @@ func New(cfg Config) (*Driver, error) {
 	dsnCfg.Timeout = 10 * time.Second
 	// Client attributes, not session variables: anything left in Params
 	// is sent as SET <name>, and MySQL rejects names it doesn't know.
-	dsnCfg.ConnectionAttributes = "program_name:lab-cloud-manager"
+	dsnCfg.ConnectionAttributes = "program_name:vantric"
 
 	db, err := sql.Open("mysql", dsnCfg.FormatDSN())
 	if err != nil {

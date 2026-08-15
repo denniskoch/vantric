@@ -12,7 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/store"
 )
 
 // Audit: every change, and who made it.

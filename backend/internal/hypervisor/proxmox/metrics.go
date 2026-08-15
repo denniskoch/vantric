@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"lab-cloud-manager/internal/hypervisor"
+	"vantric/internal/hypervisor"
 )
 
 // sortByName orders a slice by a string key extracted from each element.

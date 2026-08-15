@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"lab-cloud-manager/internal/identity"
+	"vantric/internal/identity"
 )
 
 type Config struct {

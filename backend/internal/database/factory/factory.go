@@ -6,10 +6,10 @@ package factory
 import (
 	"fmt"
 
-	"lab-cloud-manager/internal/database"
-	"lab-cloud-manager/internal/database/mysql"
-	"lab-cloud-manager/internal/database/postgres"
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/database"
+	"vantric/internal/database/mysql"
+	"vantric/internal/database/postgres"
+	"vantric/internal/store"
 )
 
 // Types lists supported engines, in display order.

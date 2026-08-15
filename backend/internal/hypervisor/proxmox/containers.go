@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"strconv"
 
-	"lab-cloud-manager/internal/hypervisor"
+	"vantric/internal/hypervisor"
 )
 
 // LXC container support (hypervisor.ContainerDriver). Containers share

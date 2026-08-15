@@ -16,14 +16,14 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 
-	"lab-cloud-manager/internal/database"
-	"lab-cloud-manager/internal/dns"
-	"lab-cloud-manager/internal/hypervisor"
-	"lab-cloud-manager/internal/identity"
-	"lab-cloud-manager/internal/inventory"
-	"lab-cloud-manager/internal/network"
-	"lab-cloud-manager/internal/nvd"
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/database"
+	"vantric/internal/dns"
+	"vantric/internal/hypervisor"
+	"vantric/internal/identity"
+	"vantric/internal/inventory"
+	"vantric/internal/network"
+	"vantric/internal/nvd"
+	"vantric/internal/store"
 )
 
 var nameRe = regexp.MustCompile(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`)

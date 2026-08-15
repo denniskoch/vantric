@@ -12,9 +12,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"lab-cloud-manager/internal/network"
-	networkfactory "lab-cloud-manager/internal/network/factory"
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/network"
+	networkfactory "vantric/internal/network/factory"
+	"vantric/internal/store"
 )
 
 // Network controllers are the same shape as every other backend here:

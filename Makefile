@@ -7,7 +7,7 @@
 .PHONY: help dev api ui check build up rebuild down logs clean
 
 help: ## Show this help
-	@echo "lab-cloud-manager"
+	@echo "vantric"
 	@echo
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
 		| awk -F':.*?## ' '{printf "  \033[1m%-8s\033[0m %s\n", $$1, $$2}'

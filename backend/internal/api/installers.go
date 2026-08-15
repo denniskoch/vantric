@@ -17,7 +17,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/store"
 )
 
 // Agent installers: files this console holds so a machine being set up

@@ -144,7 +144,7 @@ export default function IAMSignOnPage() {
         {provider && !provider.siteUrlSet && (
           <Typography sx={{ fontSize: 12, color: '#5f6368', mt: 1 }}>
             Worked out from this request. If the console sits behind a proxy or
-            a tunnel, set <code>LCM_SITE_URL</code> in <code>.env</code> to the
+            a tunnel, set <code>VANTRIC_SITE_URL</code> in <code>.env</code> to the
             address people actually use — otherwise this is the address the
             proxy dialled, and the provider will reject it.
           </Typography>

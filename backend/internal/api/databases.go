@@ -12,9 +12,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"lab-cloud-manager/internal/database"
-	dbfactory "lab-cloud-manager/internal/database/factory"
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/database"
+	dbfactory "vantric/internal/database/factory"
+	"vantric/internal/store"
 )
 
 // Database servers are existing servers this console connects to.

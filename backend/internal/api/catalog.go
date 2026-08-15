@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strings"
 
-	"lab-cloud-manager/internal/hypervisor"
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/hypervisor"
+	"vantric/internal/store"
 )
 
 // Catalog handlers list hypervisor-side inventory (zones, templates,

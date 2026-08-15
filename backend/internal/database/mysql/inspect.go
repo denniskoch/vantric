@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"lab-cloud-manager/internal/database"
+	"vantric/internal/database"
 )
 
 // Looking inside one database.

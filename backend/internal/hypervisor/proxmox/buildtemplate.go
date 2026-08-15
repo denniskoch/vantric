@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"lab-cloud-manager/internal/hypervisor"
+	"vantric/internal/hypervisor"
 )
 
 // CloudImages lists disk images in datastores' "import" content, which

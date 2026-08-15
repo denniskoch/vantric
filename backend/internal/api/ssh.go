@@ -18,8 +18,8 @@ import (
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/ssh"
 
-	"lab-cloud-manager/internal/hypervisor"
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/hypervisor"
+	"vantric/internal/store"
 )
 
 // Browser SSH: the console proxies a terminal rather than handing you
@@ -63,7 +63,15 @@ var sshUpgrader = websocket.Upgrader{
 
 // keyComment tags the line this console puts in authorized_keys, so a
 // rotated key replaces the old one instead of piling up beside it.
-const keyPrefix = "lab-cloud-manager"
+const keyPrefix = "vantric"
+
+// LegacyKeyPrefix is what that tag was before this app was renamed.
+// It has to outlive the rename: the provisioner finds the line to
+// replace by matching the tag, so dropping the old one would strand a
+// still-valid key in the authorized_keys of every guest provisioned
+// before today — rotation would quietly stop replacing it, and the
+// superseded key would keep working forever.
+const LegacyKeyPrefix = "lab-cloud-manager"
 
 func keyComment(email string) string { return keyPrefix + ":" + email }
 

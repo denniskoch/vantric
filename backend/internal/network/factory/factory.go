@@ -5,9 +5,9 @@ package factory
 import (
 	"fmt"
 
-	"lab-cloud-manager/internal/network"
-	"lab-cloud-manager/internal/network/unifi"
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/network"
+	"vantric/internal/network/unifi"
+	"vantric/internal/store"
 )
 
 // Types lists supported controller types, in display order.

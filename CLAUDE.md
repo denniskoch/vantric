@@ -1,4 +1,4 @@
-# lab-cloud-manager
+# vantric
 
 Home lab VM manager that replicates the Google Cloud Console experience
 (GCP-inspired, not a pixel clone). Compute Engine–style instance management
@@ -110,9 +110,14 @@ Surface the daily 90% here and link out for the rest.
   will take one (`PUT /ssh-key`, stored decrypted because the console
   must use it unattended, which the form says out loud) and will make
   one (`POST /ssh-key/rotate`), but never returns one. The
-  authorized_keys line is tagged `lab-cloud-manager:<email>`, and the
-  provisioner strips any line containing `lab-cloud-manager` before
-  adding the current one, so rotation replaces rather than piles up.
+  authorized_keys line is tagged `vantric:<email>`, and the
+  provisioner strips any line containing `vantric` OR the old
+  `lab-cloud-manager` before adding the current one, so rotation
+  replaces rather than piles up. BOTH TAGS ARE MATCHED FOREVER: the
+  app was renamed after guests had already been provisioned, and the
+  strip pattern is the only thing that removes a superseded key — drop
+  the old tag and every one of those guests keeps a still-valid key
+  that rotation will never replace again.
 - The console's account is PROVISIONED JUST IN TIME, the way a cloud
   console does it: a guest this app adopted has never seen the key, so
   the first Connect can only fail — and on that failure the console
@@ -125,9 +130,9 @@ Surface the daily 90% here and link out for the rest.
   auth log, so it is used once to manufacture an ordinary SSH account
   and never for the session itself. Everything after that is plain SSH
   with real auth, real sudo, real logging. The provisioning script is
-  POSIX sh, idempotent, and replaces any line tagged
-  `lab-cloud-manager` rather than appending — so key rotation
-  self-heals on the next failed connect. It SETS ITS OWN PATH: exec
+  POSIX sh, idempotent, and replaces any line tagged `vantric` (or the
+  pre-rename `lab-cloud-manager`) rather than appending — so key
+  rotation self-heals on the next failed connect. It SETS ITS OWN PATH: exec
   runs with whatever environment the agent's service carries, and on
   RHEL-family guests that arrives without /usr/sbin, where useradd
   lives — while Debian and Ubuntu pass a fuller one, which is what
@@ -863,12 +868,19 @@ Surface the daily 90% here and link out for the rest.
 ## Config
 
 ENVIRONMENT ONLY — there is no config file. `internal/config` reads
-eight `LCM_*` variables (listen, db driver/dsn, static dir, two ssh
+nine `VANTRIC_*` variables (listen, db driver/dsn, static dir, two ssh
 toggles, two bootstrap-account settings) and every one has a working
 default, so running with nothing set is supported. `.env.example`
 documents them; `.env` is gitignored and compose reads it through
 `env_file`, passed whole so a new setting can't be silently dropped by
-forgetting to list it. Container-specific values (`LCM_LISTEN`,
-`LCM_DB_DSN` in the dev service) stay in `environment:`, which wins.
+forgetting to list it. Container-specific values (`VANTRIC_LISTEN`,
+`VANTRIC_DB_DSN` in the dev service) stay in `environment:`, which wins.
+
+The pre-rename `LCM_*` names are STILL HONOURED, and warned about at
+startup (`config.Legacy`). Config being environment-only is exactly
+why: a deploy that renamed the variables without a fallback wouldn't
+fail, it would start on defaults — wrong address, wrong database —
+which is worse than not starting. The warning exists so the fallback
+is a transition rather than a second permanent spelling.
 Everything about the LAB rather than the app — hypervisors, DNS,
 databases, identity, network, SSO — is a DB record added in the UI.

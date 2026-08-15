@@ -7,29 +7,36 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
-	"lab-cloud-manager/internal/api"
-	"lab-cloud-manager/internal/config"
-	"lab-cloud-manager/internal/database"
-	dbfactory "lab-cloud-manager/internal/database/factory"
-	"lab-cloud-manager/internal/dns"
-	dnsfactory "lab-cloud-manager/internal/dns/factory"
-	"lab-cloud-manager/internal/hypervisor"
-	"lab-cloud-manager/internal/hypervisor/factory"
-	"lab-cloud-manager/internal/identity"
-	identityfactory "lab-cloud-manager/internal/identity/factory"
-	"lab-cloud-manager/internal/inventory"
-	inventoryfactory "lab-cloud-manager/internal/inventory/factory"
-	"lab-cloud-manager/internal/network"
-	networkfactory "lab-cloud-manager/internal/network/factory"
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/api"
+	"vantric/internal/config"
+	"vantric/internal/database"
+	dbfactory "vantric/internal/database/factory"
+	"vantric/internal/dns"
+	dnsfactory "vantric/internal/dns/factory"
+	"vantric/internal/hypervisor"
+	"vantric/internal/hypervisor/factory"
+	"vantric/internal/identity"
+	identityfactory "vantric/internal/identity/factory"
+	"vantric/internal/inventory"
+	inventoryfactory "vantric/internal/inventory/factory"
+	"vantric/internal/network"
+	networkfactory "vantric/internal/network/factory"
+	"vantric/internal/store"
 )
 
 func main() {
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	cfg := config.Load()
+	// Honoured, but said out loud: silently accepting the old names
+	// forever is how a rename never finishes.
+	if old := config.Legacy(); len(old) > 0 {
+		log.Warn("using LCM_* environment variables, which are deprecated — rename them to VANTRIC_*",
+			"variables", strings.Join(old, ", "))
+	}
 
 	st, err := store.Open(cfg.Database.Driver, cfg.Database.DSN)
 	if err != nil {
@@ -82,7 +89,7 @@ func main() {
 		_ = httpServer.Shutdown(shutdownCtx)
 	}()
 
-	log.Info("lab-cloud-manager listening", "addr", cfg.Listen, "db", cfg.Database.Driver)
+	log.Info("vantric listening", "addr", cfg.Listen, "db", cfg.Database.Driver)
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Error("server", "error", err)
 		os.Exit(1)

@@ -1,4 +1,4 @@
-module lab-cloud-manager
+module vantric
 
 go 1.26.5
 

@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"lab-cloud-manager/internal/inventory"
+	"vantric/internal/inventory"
 )
 
 type Config struct {

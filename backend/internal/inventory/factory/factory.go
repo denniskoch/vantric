@@ -7,9 +7,9 @@ package factory
 import (
 	"fmt"
 
-	"lab-cloud-manager/internal/inventory"
-	"lab-cloud-manager/internal/inventory/fleet"
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/inventory"
+	"vantric/internal/inventory/fleet"
+	"vantric/internal/store"
 )
 
 // Types lists supported provider types, in display order.

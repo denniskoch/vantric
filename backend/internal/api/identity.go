@@ -12,9 +12,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"lab-cloud-manager/internal/identity"
-	identityfactory "lab-cloud-manager/internal/identity/factory"
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/identity"
+	identityfactory "vantric/internal/identity/factory"
+	"vantric/internal/store"
 )
 
 // Identity providers are the lab's own identity service (authentik).

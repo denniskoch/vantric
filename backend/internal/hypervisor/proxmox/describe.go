@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"lab-cloud-manager/internal/hypervisor"
+	"vantric/internal/hypervisor"
 )
 
 var netKeyRe = regexp.MustCompile(`^net\d+$`)

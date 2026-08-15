@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"lab-cloud-manager/internal/hypervisor"
+	"vantric/internal/hypervisor"
 )
 
 // Cloud images are the disks templates are built from: fetched into a

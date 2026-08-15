@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"lab-cloud-manager/internal/hypervisor"
+	"vantric/internal/hypervisor"
 )
 
 // The Cloud Overview: what's wrong right now, and how much of

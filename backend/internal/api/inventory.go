@@ -13,10 +13,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"lab-cloud-manager/internal/inventory"
-	inventoryfactory "lab-cloud-manager/internal/inventory/factory"
-	"lab-cloud-manager/internal/nvd"
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/inventory"
+	inventoryfactory "vantric/internal/inventory/factory"
+	"vantric/internal/nvd"
+	"vantric/internal/store"
 )
 
 // Device inventory (FleetDM). Same shape as every other backend here: a

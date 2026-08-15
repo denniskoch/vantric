@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"strings"
 
-	"lab-cloud-manager/internal/hypervisor"
+	"vantric/internal/hypervisor"
 )
 
 // formatIPConfig renders an IPConfig as Proxmox's ipconfig syntax,

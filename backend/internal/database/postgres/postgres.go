@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"lab-cloud-manager/internal/database"
+	"vantric/internal/database"
 )
 
 type Config struct {
@@ -58,7 +58,7 @@ func New(cfg Config) (*Driver, error) {
 }
 
 func dsn(cfg Config) string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s&application_name=lab-cloud-manager",
+	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s&application_name=vantric",
 		urlEscape(cfg.Username), urlEscape(cfg.Password), cfg.Host, cfg.Port,
 		urlEscape(cfg.Database), cfg.SSLMode)
 }

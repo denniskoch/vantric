@@ -7,8 +7,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"lab-cloud-manager/internal/hypervisor"
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/hypervisor"
+	"vantric/internal/store"
 )
 
 // Reconciler keeps the store in sync with each server's hypervisor:

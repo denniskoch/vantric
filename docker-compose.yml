@@ -9,7 +9,7 @@ services:
   app:
     # Named, so it's the same container wherever this is checked out —
     # compose otherwise derives it from the directory, and this repo
-    # lives at ~/…/lab-cloud-manager on one machine and
+    # lives at ~/…/vantric on one machine and
     # /opt/cloud-console on another.
     container_name: cloud-console
     build: .

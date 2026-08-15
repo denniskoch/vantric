@@ -9,7 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/store"
 )
 
 // IAM & Admin: this console's own accounts and roles.
@@ -285,7 +285,7 @@ type oidcRequest struct {
 type oidcView struct {
 	*store.OIDCProvider
 	RedirectURI string `json:"redirectUri"`
-	// SiteURLSet says the address came from LCM_SITE_URL rather than
+	// SiteURLSet says the address came from VANTRIC_SITE_URL rather than
 	// being guessed from the request, which is what you want to see
 	// when the console sits behind something.
 	SiteURLSet bool `json:"siteUrlSet"`

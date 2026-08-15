@@ -14,7 +14,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"lab-cloud-manager/internal/hypervisor"
+	"vantric/internal/hypervisor"
 )
 
 type instance struct {

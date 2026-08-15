@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"lab-cloud-manager/internal/store"
+	"vantric/internal/store"
 )
 
 // Signing in through the lab's identity service.
@@ -453,7 +453,7 @@ func (s *Server) linkOIDCUser(
 // oidcRedirectURI is where the provider sends the browser back, and it
 // has to match what the provider has on file character for character.
 //
-// LCM_SITE_URL wins when set, because behind a tunnel the request
+// VANTRIC_SITE_URL wins when set, because behind a tunnel the request
 // arrives addressed to whatever the proxy dialled — an internal name
 // and port — and a redirect_uri built from that is one the provider has
 // never heard of. Falling back to the request is right when you reach
