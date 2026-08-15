@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"sync"
 	"time"
@@ -45,6 +46,14 @@ const (
 	// A miss is retried sooner — a CVE reserved but not yet published
 	// will fill in.
 	retryMissingAfter = 7 * 24 * time.Hour
+	// What to do when NVD says slower. Their window is 30 seconds, so
+	// this waits out a whole one and then some.
+	rateLimitBackoff = 60 * time.Second
+	// A pass that keeps failing is a pass doing damage, not progress.
+	// Ten in a row means something is wrong that waiting won't fix —
+	// a revoked key, no route to the internet — and hammering a public
+	// service for another five thousand attempts is not the answer.
+	maxConsecutiveFailures = 10
 )
 
 type enricher struct {
@@ -53,8 +62,23 @@ type enricher struct {
 	nvd       *nvd.Client
 	log       *slog.Logger
 
-	mu     sync.Mutex
-	status EnrichmentStatus
+	mu      sync.Mutex
+	status  EnrichmentStatus
+	enabled bool
+}
+
+// Enabled reports whether this console runs the background pass. See
+// nvdEnrichSetting for why a console might not.
+func (e *enricher) Enabled() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.enabled
+}
+
+func (e *enricher) SetEnabled(on bool) {
+	e.mu.Lock()
+	e.enabled = on
+	e.mu.Unlock()
 }
 
 // EnrichmentStatus is what the settings page shows: enough to tell
@@ -75,7 +99,9 @@ type EnrichmentStatus struct {
 }
 
 func newEnricher(st *store.Store, reg *inventory.Registry, client *nvd.Client, log *slog.Logger) *enricher {
-	return &enricher{store: st, inventory: reg, nvd: client, log: log}
+	// On unless somebody turned it off: a console that has an
+	// inventory service and no enrichment shows a list it can't sort.
+	return &enricher{store: st, inventory: reg, nvd: client, log: log, enabled: true}
 }
 
 func (e *enricher) Status(ctx context.Context) EnrichmentStatus {
@@ -108,6 +134,9 @@ func (e *enricher) Run(ctx context.Context) {
 
 // pass enriches everything currently outstanding, then returns.
 func (e *enricher) pass(ctx context.Context) {
+	if !e.Enabled() {
+		return
+	}
 	provider, ok := e.inventory.Any()
 	if !ok {
 		return
@@ -140,22 +169,48 @@ func (e *enricher) pass(ctx context.Context) {
 	if len(outstanding) == 0 {
 		return
 	}
-	interval := anonymousInterval
-	if e.nvd.HasAPIKey() {
-		interval = keyedInterval
-	}
 	e.log.Info("enricher: starting a pass", "cves", len(outstanding),
-		"interval", interval, "estimate", (time.Duration(len(outstanding)) * interval).Round(time.Minute))
+		"interval", e.interval(),
+		"estimate", (time.Duration(len(outstanding)) * e.interval()).Round(time.Minute))
 
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+	consecutive := 0
 	for _, cve := range outstanding {
+		// The pace is read every iteration rather than fixed for the pass:
+		// a key added or removed while this runs changes which limit
+		// applies, and the old code would have kept the old pace for
+		// another five thousand requests.
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
+		case <-time.After(e.interval()):
 		}
-		e.enrich(ctx, cve)
+		if !e.Enabled() {
+			e.log.Info("enricher: switched off mid-pass, stopping")
+			break
+		}
+		err := e.enrich(ctx, cve)
+		switch {
+		case err == nil:
+			consecutive = 0
+		case errors.Is(err, nvd.ErrRateLimited):
+			// Feedback, not a statistic. Wait out their window before
+			// asking again.
+			consecutive++
+			e.log.Warn("enricher: rate limited, backing off",
+				"wait", rateLimitBackoff, "hasApiKey", e.nvd.HasAPIKey())
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(rateLimitBackoff):
+			}
+		default:
+			consecutive++
+		}
+		if consecutive >= maxConsecutiveFailures {
+			e.log.Error("enricher: giving up on this pass",
+				"consecutiveFailures", consecutive, "lastError", e.status.LastError)
+			break
+		}
 	}
 
 	e.mu.Lock()
@@ -165,14 +220,23 @@ func (e *enricher) pass(ctx context.Context) {
 	e.log.Info("enricher: pass complete", "done", e.status.Done, "failed", e.status.Failed)
 }
 
-func (e *enricher) enrich(ctx context.Context, cve string) {
+// interval is the pace NVD allows right now, which depends on whether
+// a key is configured — an hour's work against most of a day.
+func (e *enricher) interval() time.Duration {
+	if e.nvd.HasAPIKey() {
+		return keyedInterval
+	}
+	return anonymousInterval
+}
+
+func (e *enricher) enrich(ctx context.Context, cve string) error {
 	record, err := e.nvd.Lookup(ctx, cve)
 	if err != nil {
 		e.mu.Lock()
 		e.status.Failed++
 		e.status.LastError = err.Error()
 		e.mu.Unlock()
-		return
+		return err
 	}
 	row := &store.CVE{ID: cve, Missing: record == nil}
 	if record != nil {
@@ -192,7 +256,7 @@ func (e *enricher) enrich(ctx context.Context, cve string) {
 	}
 	if err := e.store.UpsertCVE(ctx, row); err != nil {
 		e.log.Warn("enricher: storing failed", "cve", cve, "error", err)
-		return
+		return err
 	}
 	e.mu.Lock()
 	e.status.Done++
@@ -200,6 +264,7 @@ func (e *enricher) enrich(ctx context.Context, cve string) {
 		e.status.Queued--
 	}
 	e.mu.Unlock()
+	return nil
 }
 
 func encode(v any) string {

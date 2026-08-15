@@ -4,9 +4,11 @@ import {
   Alert,
   Box,
   Button,
+  FormControlLabel,
   LinearProgress,
   Link,
   Paper,
+  Switch,
   TextField,
   Typography,
 } from '@mui/material'
@@ -41,8 +43,14 @@ export default function DevicesEnrichmentPage() {
     refetchInterval: 5000,
   })
 
+  const toggle = useMutation({
+    mutationFn: (on: boolean) => api.setEnrichmentEnabled(on),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['enrichment'] }),
+    onError: (e: Error) => setError(e.message),
+  })
+
   const save = useMutation({
-    mutationFn: () => api.setNVDAPIKey(key.trim()),
+    mutationFn: (remove?: boolean) => api.setNVDAPIKey(remove ? '' : key.trim(), remove),
     onSuccess: () => {
       setKey('')
       setSaved(true)
@@ -72,6 +80,29 @@ export default function DevicesEnrichmentPage() {
           {error}
         </Alert>
       )}
+
+      {/* NVD meters per key, and per IP for anonymous callers, so two
+          consoles backfilling the same estate contend with each other.
+          One of them should do it. */}
+      <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+        <FormControlLabel
+          control={
+            <Switch
+              size="small"
+              checked={data?.enabled ?? false}
+              disabled={toggle.isPending}
+              onChange={(e) => toggle.mutate(e.target.checked)}
+            />
+          }
+          label="Enrich CVEs in the background on this console"
+        />
+        <Typography sx={{ fontSize: 12, color: '#5f6368' }}>
+          NVD counts requests per key, and per address for anonymous callers, so a
+          dev console and a production one sharing either will throttle each other.
+          Leave this on where the data should be collected and off everywhere else —
+          pages still fetch a CVE on demand either way.
+        </Typography>
+      </Paper>
 
       <Typography sx={{ fontSize: 16, color: '#202124', mb: 1.5 }}>Progress</Typography>
       <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
@@ -136,23 +167,22 @@ export default function DevicesEnrichmentPage() {
           helperText={
             saved
               ? 'Saved. The next pass uses the faster rate.'
-              : // Write-only, like every other credential here.
-                'Stored in the database and never shown again. Submit an empty field to remove it.'
+              : // Write-only, like every other credential here — which
+                // is why a blank save keeps what's stored rather than
+                // deleting it. Remove is a separate button on purpose.
+                'Stored in the database and never shown again. Leave blank to keep the current key.'
           }
         />
         <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
-          <Button variant="contained" disabled={save.isPending} onClick={() => save.mutate()}>
+          <Button
+            variant="contained"
+            disabled={save.isPending || key.trim() === ''}
+            onClick={() => save.mutate(false)}
+          >
             Save key
           </Button>
           {data?.hasApiKey && (
-            <Button
-              color="error"
-              disabled={save.isPending}
-              onClick={() => {
-                setKey('')
-                save.mutate()
-              }}
-            >
+            <Button color="error" disabled={save.isPending} onClick={() => save.mutate(true)}>
               Remove
             </Button>
           )}

@@ -467,6 +467,22 @@ Surface the daily 90% here and link out for the rest.
   every 30 minutes, re-reads a CVE after 30 days, and records the ones
   NVD doesn't publish so they aren't asked for again. A restart resumes,
   because the answers are rows.
+- ONE CONSOLE DOES THE BACKFILL. NVD meters per API key, and per
+  ADDRESS for anonymous callers, so a dev console and a production one
+  enriching the same estate throttle each other — and dropping the key
+  to stop it is the wrong lever, since that also slows the on-demand
+  lookups every page makes. `nvd.enrichment` is a per-console switch
+  (default on): leave it on where the data should be collected, off
+  everywhere else. A rate limit is FEEDBACK, not a statistic: 429 backs
+  the worker off for a minute rather than counting a failure and
+  carrying on, the pace is re-read every iteration so a key change
+  takes effect immediately, and ten consecutive failures end the pass
+  instead of firing five thousand more requests at a public service.
+- BLANK KEEPS, REMOVE DELETES. The key field is write-only, so it is
+  always empty when the page loads — which made "Save" with an
+  untouched form silently delete a working key. Blank now means "keep
+  what's stored", the same rule the provider forms already followed,
+  and removal is a separate button that says so.
 - THE NVD KEY IS A STORED SETTING, NOT CONFIG, for the same reason
   every other credential here is: it belongs to an outside service and
   should be changeable without a redeploy. `app_settings` holds it, the

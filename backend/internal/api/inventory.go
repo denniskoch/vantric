@@ -43,6 +43,7 @@ func (s *Server) inventoryRoutes(r chi.Router) {
 	r.Get("/inventory/vulnerabilities/{cve}", s.getInventoryVulnerability)
 	r.Get("/inventory/enrichment", s.getEnrichment)
 	r.Put("/inventory/enrichment/key", s.setNVDAPIKey)
+	r.Put("/inventory/enrichment/enabled", s.setEnrichmentEnabled)
 }
 
 type inventoryProviderView struct {
@@ -524,6 +525,16 @@ func (s *Server) getInventoryVulnerability(w http.ResponseWriter, r *http.Reques
 // in the database, changeable in the UI, never in config.
 const nvdAPIKeySetting = "nvd.apiKey"
 
+// nvdEnrichSetting turns the background pass off for this console.
+//
+// NVD meters per API key, and per IP for anonymous callers, so two
+// consoles sharing either will contend — a dev instance and a
+// production one backfilling the same five thousand CVEs is one of them
+// getting rate limited. The answer isn't to drop the key, which also
+// slows the on-demand lookups; it's to let one console do the backfill
+// and the other read what it needs.
+const nvdEnrichSetting = "nvd.enrichment"
+
 type enrichmentView struct {
 	EnrichmentStatus
 	// Cache is the durable side — what's been collected across every
@@ -532,10 +543,13 @@ type enrichmentView struct {
 	// Total is how many CVEs the inventory service reports, so the
 	// page can say 4,200 of 4,941 rather than a bare count.
 	Total int `json:"total"`
+	// Enabled is whether THIS console runs the background pass.
+	Enabled bool `json:"enabled"`
 }
 
 func (s *Server) getEnrichment(w http.ResponseWriter, r *http.Request) {
 	view := enrichmentView{EnrichmentStatus: s.enrich.Status(r.Context())}
+	view.Enabled = s.enrich.Enabled()
 	stats, err := s.store.CVECacheStats(r.Context())
 	if err != nil {
 		s.fail(w, err, "cve cache")
@@ -553,17 +567,48 @@ func (s *Server) getEnrichment(w http.ResponseWriter, r *http.Request) {
 func (s *Server) setNVDAPIKey(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Key string `json:"key"`
+		// Remove has to be asked for. A blank key means "keep the one
+		// you have" — the same rule the provider forms follow, and the
+		// reason is the same: the field is write-only, so it is ALWAYS
+		// blank when the page loads, and a save with an empty box
+		// silently deleted a working key.
+		Remove bool `json:"remove"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		s.err(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
 	key := strings.TrimSpace(req.Key)
+	if key == "" && !req.Remove {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	if err := s.store.SetSetting(r.Context(), nvdAPIKeySetting, key); err != nil {
 		s.fail(w, err, "saving the key")
 		return
 	}
 	s.nvd.SetAPIKey(key)
 	s.log.Info("nvd api key updated", "present", key != "")
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) setEnrichmentEnabled(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	value := "off"
+	if req.Enabled {
+		value = "on"
+	}
+	if err := s.store.SetSetting(r.Context(), nvdEnrichSetting, value); err != nil {
+		s.fail(w, err, "saving the setting")
+		return
+	}
+	s.enrich.SetEnabled(req.Enabled)
+	s.log.Info("cve enrichment toggled", "enabled", req.Enabled)
 	w.WriteHeader(http.StatusNoContent)
 }

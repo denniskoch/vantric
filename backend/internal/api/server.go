@@ -103,6 +103,9 @@ func New(
 	if key, err := st.GetSetting(context.Background(), nvdAPIKeySetting); err == nil {
 		client.SetAPIKey(key)
 	}
+	if value, err := st.GetSetting(context.Background(), nvdEnrichSetting); err == nil {
+		srv.enrich.SetEnabled(value != "off")
+	}
 	return srv
 }
 

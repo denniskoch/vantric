@@ -475,6 +475,8 @@ export interface EnrichmentStatus {
   /** Which NVD rate limit is in force — the difference between an hour
    *  and most of a day. */
   hasApiKey: boolean
+  /** Whether THIS console runs the background pass. */
+  enabled: boolean
   cache: {
     enriched: number
     missing: number
@@ -1282,10 +1284,16 @@ export const api = {
   inventoryVulnerability: (cve: string) =>
     request<VulnerabilityDetail>(`/inventory/vulnerabilities/${encodeURIComponent(cve)}`),
   enrichmentStatus: () => request<EnrichmentStatus>('/inventory/enrichment'),
-  setNVDAPIKey: (key: string) =>
+  /** Blank keeps the stored key; removal has to be asked for. */
+  setNVDAPIKey: (key: string, remove = false) =>
     request<void>('/inventory/enrichment/key', {
       method: 'PUT',
-      body: JSON.stringify({ key }),
+      body: JSON.stringify({ key, remove }),
+    }),
+  setEnrichmentEnabled: (enabled: boolean) =>
+    request<void>('/inventory/enrichment/enabled', {
+      method: 'PUT',
+      body: JSON.stringify({ enabled }),
     }),
   listInventoryProviderTypes: () => request<string[]>('/inventory/provider-types'),
   listInventoryProviders: () => request<InventoryProvider[]>('/inventory/providers'),

@@ -18,6 +18,7 @@ package nvd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -26,6 +27,12 @@ import (
 	"sync"
 	"time"
 )
+
+// ErrRateLimited is NVD saying "slower". It's a sentinel because the
+// right response is to back off, not to count it and carry on — which
+// is what a caller does with an ordinary error, and what turned one
+// missing API key into thousands of refused requests.
+var ErrRateLimited = errors.New("nvd: rate limited")
 
 const (
 	endpoint = "https://services.nvd.nist.gov/rest/json/cves/2.0"
@@ -168,10 +175,10 @@ func (c *Client) fetch(ctx context.Context, cve string) (*Record, error) {
 	case resp.StatusCode == http.StatusNotFound:
 		return nil, nil
 	case resp.StatusCode == http.StatusForbidden, resp.StatusCode == http.StatusTooManyRequests:
-		// NVD's answer to an anonymous caller asking too often. Worth
-		// naming, since the fix is patience or an API key rather than
-		// anything about this console.
-		return nil, fmt.Errorf("nvd: %s — rate limited (anonymous callers get a few requests a minute)", resp.Status)
+		// NVD's answer to a caller asking too often. Anonymous callers
+		// get a handful a minute; a key raises it to about fifty per
+		// thirty seconds.
+		return nil, fmt.Errorf("%w (%s)", ErrRateLimited, resp.Status)
 	case resp.StatusCode >= 300:
 		return nil, fmt.Errorf("nvd: %s", resp.Status)
 	}
