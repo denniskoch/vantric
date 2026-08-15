@@ -456,6 +456,28 @@ Surface the daily 90% here and link out for the rest.
   because Fleet reports the number and leaves the naming to whoever
   displays it, worst is sorted first, and "no fix published" is
   spelled out — the difference between patch this and wait.
+- ENRICHMENT IS A BACKGROUND PASS, NOT A PAGE VIEW. Fetching NVD when
+  somebody opens a CVE only helps that CVE: a list can't sort by
+  severity and the overview can't count what's critical if the score
+  arrives on click. So `internal/api/enricher.go` walks every CVE the
+  inventory service reports and caches it in `cve_cache`, and the rate
+  limit IS the design — 750ms between requests with an NVD API key,
+  7 seconds without, which is the difference between an hour and most
+  of a day for five thousand CVEs. It starts 30s after boot, rediscovers
+  every 30 minutes, re-reads a CVE after 30 days, and records the ones
+  NVD doesn't publish so they aren't asked for again. A restart resumes,
+  because the answers are rows.
+- THE NVD KEY IS A STORED SETTING, NOT CONFIG, for the same reason
+  every other credential here is: it belongs to an outside service and
+  should be changeable without a redeploy. `app_settings` holds it, the
+  UI writes it and never shows it back, and the client re-reads it at
+  request time so a change takes effect on the next fetch.
+- THE CACHE IS READ FIRST, EVERYWHERE. A CVE page prefers the cached
+  record to a live fetch, and the estate list joins cached scores onto
+  Fleet's summaries — but only where Fleet HAS no score of its own,
+  since a paid tier knows things NVD doesn't, like whether a flaw is
+  being exploited. That join is what makes Severity reappear in a list
+  whose columns only render when the data exists.
 - A CVE IS ENRICHED FROM NVD, which is a PUBLIC REFERENCE rather than
   a tool in the lab — no account, no credential, nothing to configure,
   so `internal/nvd` is a client and a cache rather than another

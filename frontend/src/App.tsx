@@ -67,6 +67,7 @@ import DevicesHostPage from './pages/DevicesHostPage'
 import DevicesVulnerabilitiesPage from './pages/DevicesVulnerabilitiesPage'
 import DevicesInstallersPage from './pages/DevicesInstallersPage'
 import DevicesVulnerabilityPage from './pages/DevicesVulnerabilityPage'
+import DevicesEnrichmentPage from './pages/DevicesEnrichmentPage'
 import InventoryProviderFormPage from './pages/InventoryProviderFormPage'
 import DisksPage from './pages/DisksPage'
 import SnapshotsPage from './pages/SnapshotsPage'
@@ -96,6 +97,7 @@ export default function App() {
         <Route path="/devices/vulnerabilities" element={<DevicesVulnerabilitiesPage />} />
         <Route path="/devices/vulnerabilities/:cve" element={<DevicesVulnerabilityPage />} />
         <Route path="/devices/installers" element={<DevicesInstallersPage />} />
+        <Route path="/devices/settings/enrichment" element={<DevicesEnrichmentPage />} />
         <Route path="/devices/settings/inventory" element={<InventoryProvidersPage />} />
         <Route path="/devices/settings/inventory/add" element={<InventoryProviderFormPage />} />
         <Route

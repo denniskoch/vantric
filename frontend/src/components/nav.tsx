@@ -209,6 +209,12 @@ export const sections: Section[] = [
             to: '/devices/settings/inventory',
             hint: 'The agent fleet this section reads (FleetDM)',
           },
+          {
+            label: 'Vulnerability data',
+            icon: BugReportIcon,
+            to: '/devices/settings/enrichment',
+            hint: 'Where CVE descriptions and scores come from, and how fast',
+          },
         ],
       },
     ],

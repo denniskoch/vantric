@@ -41,6 +41,8 @@ func (s *Server) inventoryRoutes(r chi.Router) {
 	r.Get("/inventory/hosts/{id}", s.getInventoryHost)
 	r.Get("/inventory/vulnerabilities", s.listInventoryVulnerabilities)
 	r.Get("/inventory/vulnerabilities/{cve}", s.getInventoryVulnerability)
+	r.Get("/inventory/enrichment", s.getEnrichment)
+	r.Put("/inventory/enrichment/key", s.setNVDAPIKey)
 }
 
 type inventoryProviderView struct {
@@ -366,6 +368,17 @@ func (s *Server) listInventoryVulnerabilities(w http.ResponseWriter, r *http.Req
 		s.json(w, http.StatusOK, out)
 		return
 	}
+	// Scores from the cache, where the worker has put them. Fleet's own
+	// are kept when it has them — a paid tier knows things NVD doesn't,
+	// like whether the flaw is being exploited.
+	if enriched, err := s.store.CVEScores(r.Context()); err == nil {
+		for i := range vulns {
+			if c, ok := enriched[vulns[i].CVE]; ok && vulns[i].CVSSScore == 0 {
+				vulns[i].CVSSScore = c.Score
+				vulns[i].Severity = c.Severity
+			}
+		}
+	}
 	out.Vulnerabilities = vulns
 	s.json(w, http.StatusOK, out)
 }
@@ -457,6 +470,13 @@ func (s *Server) getInventoryVulnerability(w http.ResponseWriter, r *http.Reques
 	}()
 	go func() {
 		defer wg.Done()
+		// The cache first: the worker has probably been here already,
+		// and a page shouldn't wait on a public API for something it
+		// already holds.
+		if cached, err := s.store.GetCVE(r.Context(), cve); err == nil {
+			record = enrichedRecord(cached)
+			return
+		}
 		record, lookupErr = s.nvd.Lookup(r.Context(), cve)
 	}()
 	wg.Wait()
@@ -497,4 +517,53 @@ func (s *Server) getInventoryVulnerability(w http.ResponseWriter, r *http.Reques
 		out.Hosts = append(out.Hosts, view)
 	}
 	s.json(w, http.StatusOK, out)
+}
+
+// nvdAPIKeySetting is where the key lives. A credential for an outside
+// service, so it follows the same rule as every other one here: a row
+// in the database, changeable in the UI, never in config.
+const nvdAPIKeySetting = "nvd.apiKey"
+
+type enrichmentView struct {
+	EnrichmentStatus
+	// Cache is the durable side — what's been collected across every
+	// run, as opposed to what this process has done since it started.
+	Cache *store.CVECacheStats `json:"cache"`
+	// Total is how many CVEs the inventory service reports, so the
+	// page can say 4,200 of 4,941 rather than a bare count.
+	Total int `json:"total"`
+}
+
+func (s *Server) getEnrichment(w http.ResponseWriter, r *http.Request) {
+	view := enrichmentView{EnrichmentStatus: s.enrich.Status(r.Context())}
+	stats, err := s.store.CVECacheStats(r.Context())
+	if err != nil {
+		s.fail(w, err, "cve cache")
+		return
+	}
+	view.Cache = stats
+	if provider, ok := s.inventoryRegistry.Any(); ok {
+		if summaries, err := provider.Vulnerabilities(r.Context()); err == nil {
+			view.Total = len(summaries)
+		}
+	}
+	s.json(w, http.StatusOK, view)
+}
+
+func (s *Server) setNVDAPIKey(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Key string `json:"key"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	key := strings.TrimSpace(req.Key)
+	if err := s.store.SetSetting(r.Context(), nvdAPIKeySetting, key); err != nil {
+		s.fail(w, err, "saving the key")
+		return
+	}
+	s.nvd.SetAPIKey(key)
+	s.log.Info("nvd api key updated", "present", key != "")
+	w.WriteHeader(http.StatusNoContent)
 }

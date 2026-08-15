@@ -71,6 +71,8 @@ func main() {
 		api.SSHOptions{Provision: cfg.SSH.Provision, Sudo: cfg.SSH.ProvisionSudo})
 	reconciler := api.NewReconciler(st, registry, log, 2*time.Second)
 	go reconciler.Run(ctx)
+	// Fills in what each CVE actually is, slowly, in NVD's own time.
+	go server.EnrichCVEs(ctx)
 
 	httpServer := &http.Server{Addr: cfg.Listen, Handler: server.Router()}
 	go func() {

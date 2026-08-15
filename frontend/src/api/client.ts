@@ -464,6 +464,26 @@ export interface InventoryVulnerabilities {
   error?: string
 }
 
+/** The background pass that fills in what each CVE is. */
+export interface EnrichmentStatus {
+  running: boolean
+  queued: number
+  done: number
+  failed: number
+  lastError?: string
+  lastRunAt: number
+  /** Which NVD rate limit is in force — the difference between an hour
+   *  and most of a day. */
+  hasApiKey: boolean
+  cache: {
+    enriched: number
+    missing: number
+    newestAt: number
+    withScore: number
+  } | null
+  total: number
+}
+
 export interface InventoryProvider {
   id: string
   name: string
@@ -1261,6 +1281,12 @@ export const api = {
   /** One CVE: who has it, and what to upgrade. */
   inventoryVulnerability: (cve: string) =>
     request<VulnerabilityDetail>(`/inventory/vulnerabilities/${encodeURIComponent(cve)}`),
+  enrichmentStatus: () => request<EnrichmentStatus>('/inventory/enrichment'),
+  setNVDAPIKey: (key: string) =>
+    request<void>('/inventory/enrichment/key', {
+      method: 'PUT',
+      body: JSON.stringify({ key }),
+    }),
   listInventoryProviderTypes: () => request<string[]>('/inventory/provider-types'),
   listInventoryProviders: () => request<InventoryProvider[]>('/inventory/providers'),
   createInventoryProvider: (body: InventoryProviderRequest) =>

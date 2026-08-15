@@ -80,6 +80,24 @@ type Client struct {
 	http  *http.Client
 	mu    sync.Mutex
 	cache map[string]entry
+	// apiKey raises NVD's rate limit from a handful a minute to about
+	// fifty per thirty seconds. Held here rather than in config because
+	// it's a credential for an outside service, and this console keeps
+	// those in the database where they can be changed without a
+	// redeploy.
+	apiKey string
+}
+
+func (c *Client) SetAPIKey(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.apiKey = key
+}
+
+func (c *Client) HasAPIKey() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.apiKey != ""
 }
 
 func New() *Client {
@@ -134,6 +152,12 @@ func (c *Client) fetch(ctx context.Context, cve string) (*Record, error) {
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/json")
+	c.mu.Lock()
+	key := c.apiKey
+	c.mu.Unlock()
+	if key != "" {
+		req.Header.Set("apiKey", key)
+	}
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("nvd: %w", err)

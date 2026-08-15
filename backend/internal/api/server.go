@@ -51,7 +51,9 @@ type Server struct {
 	inventoryRegistry *inventory.Registry
 	// nvd looks CVEs up in the public vulnerability database. No
 	// credential, cached, and never fatal — see internal/nvd.
-	nvd       *nvd.Client
+	nvd *nvd.Client
+	// enrich fills the CVE cache in the background — see enricher.go.
+	enrich    *enricher
 	log       *slog.Logger
 	staticDir string
 	// siteURL is the address the outside world reaches this console at,
@@ -86,15 +88,27 @@ func New(
 	siteURL string,
 	sshOpts SSHOptions,
 ) *Server {
-	return &Server{
+	client := nvd.New()
+	srv := &Server{
 		store: st, registry: registry, dnsRegistry: dnsRegistry, dbRegistry: dbRegistry,
 		identityRegistry: identityRegistry, networkRegistry: networkRegistry,
 		inventoryRegistry: inventoryRegistry,
-		nvd:               nvd.New(),
+		nvd:               client,
 		log:               log, staticDir: staticDir, dataDir: dataDir, siteURL: siteURL, ssh: sshOpts,
 		ops: newOpRegistry(),
 	}
+	srv.enrich = newEnricher(st, inventoryRegistry, client, log)
+	// The key is a stored setting rather than config, so it's loaded
+	// here and re-applied whenever it's changed through the API.
+	if key, err := st.GetSetting(context.Background(), nvdAPIKeySetting); err == nil {
+		client.SetAPIKey(key)
+	}
+	return srv
 }
+
+// EnrichCVEs runs the background pass that fills the CVE cache. Started
+// by main alongside the reconciler; returns when the context ends.
+func (s *Server) EnrichCVEs(ctx context.Context) { s.enrich.Run(ctx) }
 
 func (s *Server) Router() http.Handler {
 	r := chi.NewRouter()

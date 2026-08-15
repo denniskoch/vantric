@@ -113,6 +113,21 @@ var migrations = []string{
 		insecure_tls INTEGER NOT NULL DEFAULT 0,
 		created_at TEXT NOT NULL
 	)`,
+	// A public reference, cached. See internal/store/cves.go for why
+	// this one local copy is allowed where others aren't.
+	`CREATE TABLE IF NOT EXISTS cve_cache (
+		id TEXT PRIMARY KEY,
+		description TEXT NOT NULL DEFAULT '',
+		published INTEGER NOT NULL DEFAULT 0,
+		last_modified INTEGER NOT NULL DEFAULT 0,
+		score REAL NOT NULL DEFAULT 0,
+		severity TEXT NOT NULL DEFAULT '',
+		metrics TEXT NOT NULL DEFAULT '',
+		weaknesses TEXT NOT NULL DEFAULT '',
+		references_json TEXT NOT NULL DEFAULT '',
+		fetched_at INTEGER NOT NULL DEFAULT 0,
+		missing INTEGER NOT NULL DEFAULT 0
+	)`,
 	// The console's own settings, as opposed to a backend's credentials.
 	// One row per key so a new one needs no migration.
 	`CREATE TABLE IF NOT EXISTS app_settings (
