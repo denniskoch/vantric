@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"regexp"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -22,6 +24,15 @@ import (
 )
 
 var nameRe = regexp.MustCompile(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`)
+
+// How long to keep trying to boot a freshly created instance, and how
+// often. A full clone of a large template holds the VM lock for as long
+// as the copy takes, so this has to outlast a slow disk rather than a
+// slow API.
+const (
+	startRetryFor   = 10 * time.Minute
+	startRetryEvery = 5 * time.Second
+)
 
 type Server struct {
 	store       *store.Store
@@ -391,7 +402,7 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		step("Recording the instance")
-		return s.saveNewInstance(ctx, &store.Instance{
+		if err := s.saveNewInstance(ctx, &store.Instance{
 			ID:          uuid.NewString(),
 			Name:        req.Name,
 			ServerID:    req.ServerID,
@@ -406,9 +417,42 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 			VLANTag:     req.VLANTag,
 			Description: req.Description,
 			Protected:   req.Protected,
-		})
+		}); err != nil {
+			return err
+		}
+		step("Starting " + req.Name)
+		return s.startNewInstance(ctx, driver, driverID)
 	})
 	s.json(w, http.StatusAccepted, op)
+}
+
+// startNewInstance boots a VM the console has just created.
+//
+// A new instance powers on by itself — GCP's behaviour, and the one
+// people expect from a console — but the request can't simply be fired
+// once: a full clone leaves the VM locked for as long as the copy
+// takes, and a start issued into that lock fails. The old code fired it
+// from inside the driver and dropped the error, which turned a
+// transient lock into a VM that sat stopped for no stated reason. So it
+// retries while the lock clears, and if it never does, the operation
+// says so — the record is already written by then, so Start is one
+// click away.
+func (s *Server) startNewInstance(ctx context.Context, driver hypervisor.Driver, driverID string) error {
+	deadline := time.Now().Add(startRetryFor)
+	var err error
+	for {
+		if err = driver.Start(ctx, driverID); err == nil {
+			return nil
+		}
+		if time.Now().After(deadline) || ctx.Err() != nil {
+			return fmt.Errorf("the instance was created but wouldn't start: %w", err)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(startRetryEvery):
+		}
+	}
 }
 
 // saveNewInstance writes the record for a VM the driver has just built,

@@ -174,6 +174,18 @@ Surface the daily 90% here and link out for the rest.
   protection was actually asked for. `internal/store/instances_test.go`
   covers it; it's the one test in the repo because the race is
   otherwise only reproducible against a slow hypervisor.
+- A NEW INSTANCE POWERS ON BY ITSELF, the way it does in GCP — you
+  asked for a machine, not for a machine you then have to switch on.
+  The boot is a STEP OF THE CREATE OPERATION (`startNewInstance`), not
+  a fire-and-forget inside the driver, which is what it used to be:
+  Proxmox holds the clone lock for as long as a full copy takes, a
+  start issued into that lock fails, and the discarded error left a
+  freshly built VM sitting stopped with nothing saying why. So it
+  retries for ten minutes at five-second intervals — long enough to
+  outlast a slow disk rather than a slow API — and if it never takes,
+  the operation ends in an error that says the instance was created but
+  wouldn't start. The record is written before the boot is attempted,
+  so Start is one click away either way.
 - The reconciler also ADOPTS VMs found on a server that the app didn't
   create (they appear as instances with deletion protection enabled) and
   removes instances whose VM vanished out-of-band. Driver.List must be

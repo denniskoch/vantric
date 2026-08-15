@@ -204,7 +204,7 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 	d.nodeOf[nextID] = spec.Zone
 	d.mu.Unlock()
 
-	// Apply sizing and optional settings, then boot. Clone is async;
+	// Apply sizing and optional settings. Clone is async;
 	// Proxmox queues these behind the clone lock, so failures here are
 	// surfaced by Get.
 	cfg := url.Values{
@@ -226,8 +226,14 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 	if err := d.do(ctx, http.MethodPost, cfgPath, cfg, nil); err != nil {
 		return nextID, nil // instance exists; config can be fixed manually
 	}
-	startPath := fmt.Sprintf("/nodes/%s/qemu/%s/status/start", spec.Zone, nextID)
-	_ = d.do(ctx, http.MethodPost, startPath, url.Values{}, nil)
+	// Booting it is the console's job, not this method's. A new instance
+	// does start automatically — that's GCP's behaviour and the app's —
+	// but the start used to be fired here and its error discarded, which
+	// is a bad trade: right after a full clone Proxmox can still hold
+	// the clone lock, and the request fails. What you saw then was a
+	// freshly created VM sitting stopped with nothing saying why. So the
+	// create flow starts it as a step of its own, retries while the lock
+	// clears, and reports it if it never does.
 	return nextID, nil
 }
 
