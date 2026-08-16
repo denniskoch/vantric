@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Box, Button, IconButton, Menu, MenuItem, Typography } from '@mui/material'
+import { Box, Button, Divider, IconButton, Menu, MenuItem, Radio, Typography } from '@mui/material'
 import TerminalIcon from '@mui/icons-material/Terminal'
 import SettingsIcon from '@mui/icons-material/Settings'
-import CheckIcon from '@mui/icons-material/Check'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
@@ -17,6 +16,7 @@ import {
   saveThemeID,
   terminalThemes,
   themeFor,
+  fontSizes,
 } from '../terminalThemes'
 
 /**
@@ -158,78 +158,48 @@ export default function InstanceSSHPage() {
 
       {/* Applied to the running terminal rather than saved for next
           time: you pick a theme by looking at it. */}
-      <Menu anchorEl={settings} open={Boolean(settings)} onClose={() => setSettings(null)}>
-        <MenuItem disabled sx={{ fontSize: 11, opacity: 1, color: 'text.secondary' }}>
-          THEME
-        </MenuItem>
+      <Menu
+        anchorEl={settings}
+        open={Boolean(settings)}
+        onClose={() => setSettings(null)}
+        slotProps={{ paper: { sx: { minWidth: 200 } } }}
+      >
+        <Box sx={{ px: 2, pt: 0.5, fontSize: 11, color: 'text.secondary' }}>Theme</Box>
         {terminalThemes.map((option) => (
           <MenuItem
             key={option.id}
-            selected={option.id === themeID}
+            dense
+            sx={{ py: 0 }}
             onClick={() => {
               setThemeID(option.id)
               saveThemeID(option.id)
               if (termRef.current) termRef.current.options.theme = option.theme
             }}
           >
-            <Box sx={{ width: 22, display: 'flex', alignItems: 'center' }}>
-              {option.id === themeID && <CheckIcon sx={{ fontSize: 16 }} />}
-            </Box>
-            {/* A swatch, because the names mean nothing until you see
-                them side by side. */}
-            <Box
-              sx={{
-                width: 26,
-                height: 14,
-                mr: 1.5,
-                borderRadius: 0.5,
-                border: '1px solid',
-                borderColor: 'divider',
-                bgcolor: option.theme.background,
-                color: option.theme.foreground,
-                fontSize: 9,
-                lineHeight: '14px',
-                textAlign: 'center',
-              }}
-            >
-              Ab
-            </Box>
+            <Radio size="small" checked={option.id === themeID} sx={{ p: 0.5, mr: 1 }} />
             {option.label}
           </MenuItem>
         ))}
-        <MenuItem disabled sx={{ fontSize: 11, opacity: 1, color: 'text.secondary', mt: 1 }}>
-          FONT SIZE
-        </MenuItem>
-        <MenuItem>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {[11, 12, 13, 14, 16, 18].map((size) => (
-              <Box
-                key={size}
-                component="button"
-                onClick={() => {
-                  setFontSize(size)
-                  saveFontSize(size)
-                  if (termRef.current) {
-                    termRef.current.options.fontSize = size
-                    fitRef.current?.fit()
-                  }
-                }}
-                sx={{
-                  border: '1px solid',
-                  borderColor: size === fontSize ? 'primary.main' : 'divider',
-                  bgcolor: size === fontSize ? 'surface.infoTint' : 'transparent',
-                  borderRadius: 0.5,
-                  px: 1,
-                  py: 0.25,
-                  cursor: 'pointer',
-                  fontSize: 12,
-                }}
-              >
-                {size}
-              </Box>
-            ))}
-          </Box>
-        </MenuItem>
+        <Divider sx={{ my: 0.5 }} />
+        <Box sx={{ px: 2, fontSize: 11, color: 'text.secondary' }}>Font size</Box>
+        {fontSizes.map((size) => (
+          <MenuItem
+            key={size}
+            dense
+            sx={{ py: 0 }}
+            onClick={() => {
+              setFontSize(size)
+              saveFontSize(size)
+              if (termRef.current) {
+                termRef.current.options.fontSize = size
+                fitRef.current?.fit()
+              }
+            }}
+          >
+            <Radio size="small" checked={size === fontSize} sx={{ p: 0.5, mr: 1 }} />
+            {size}
+          </MenuItem>
+        ))}
       </Menu>
     </Box>
   )

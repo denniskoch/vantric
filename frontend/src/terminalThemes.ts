@@ -292,6 +292,9 @@ const fontKey = 'vantric.terminal.fontSize'
 
 export const defaultThemeID = 'dark'
 
+/** The sizes offered in the picker. */
+export const fontSizes = [11, 12, 13, 14, 16, 18]
+
 export function themeFor(id: string): TerminalTheme {
   return (
     terminalThemes.find((t) => t.id === id) ??
