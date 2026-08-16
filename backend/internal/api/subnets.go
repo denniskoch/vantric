@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/netip"
-	"slices"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -84,112 +83,13 @@ func (r *subnetRequest) validate() string {
 	return ""
 }
 
-// listSubnets returns one list: the ranges recorded here and the ones
-// the network controllers already know about, merged.
-//
-// Merged on the SERVER, in one response, rather than letting the page
-// draw its own rows and then append the controller's when they arrive.
-// Two renders would mean the table jumps, and worse, that the answer
-// depends on which request finished — a subnet is a subnet whoever
-// happens to know about it.
-//
-// A controller that doesn't answer is skipped and logged, not fatal:
-// the same rule catalog listings follow. Losing the manual rows
-// because a controller is down would be the wrong trade.
 func (s *Server) listSubnets(w http.ResponseWriter, r *http.Request) {
 	subnets, err := s.store.ListSubnets(r.Context())
 	if err != nil {
 		s.fail(w, err, "subnets")
 		return
 	}
-	subnets = append(subnets, s.discoveredSubnets(r)...)
-
-	// Ordered by address, so a manual record and a controller's view of
-	// the same range land next to each other and the duplication shows
-	// itself.
-	slices.SortFunc(subnets, func(a, b store.Subnet) int {
-		if n := compareRanges(a.IPv4Range, b.IPv4Range); n != 0 {
-			return n
-		}
-		return strings.Compare(a.Name, b.Name)
-	})
 	s.json(w, http.StatusOK, subnets)
-}
-
-// discoveredSubnets reads the LAN networks every configured controller
-// defines. WANs are deliberately left out — they have ranges, but the
-// Internet page is where an uplink belongs, and listing them here
-// would answer "what are my subnets" with somebody's ISP.
-func (s *Server) discoveredSubnets(r *http.Request) []store.Subnet {
-	records, err := s.store.ListNetworkProviders(r.Context())
-	if err != nil {
-		s.log.Error("listing network providers for subnets", "error", err)
-		return nil
-	}
-	var found []store.Subnet
-	for _, record := range records {
-		provider, ok := s.networkRegistry.Get(record.ID)
-		if !ok {
-			continue
-		}
-		networks, err := provider.Networks(r.Context(), "")
-		if err != nil {
-			s.log.Error("reading networks for subnets",
-				"controller", record.Name, "error", err)
-			continue
-		}
-		for _, n := range networks {
-			if n.Category != "lan" || n.Subnet == "" {
-				continue
-			}
-			subnet := store.Subnet{
-				// Stable without being a database row: the same
-				// network keeps the same id across reads, and it can
-				// never collide with a stored uuid.
-				ID:        "unifi:" + record.ID + ":" + n.ID,
-				Name:      n.Name,
-				Source:    record.Name,
-				StackType: "IPv4",
-				VLAN:      n.VLAN,
-			}
-			// UniFi states this as the GATEWAY with a prefix length
-			// — 192.168.80.1/24, not 192.168.80.0/24 — so one parse
-			// yields both fields, and taking it at face value would
-			// file every network under a range that doesn't exist.
-			if prefix, err := netip.ParsePrefix(n.Subnet); err == nil && prefix.Addr().Is4() {
-				subnet.IPv4Range = prefix.Masked().String()
-				if prefix.Addr() != prefix.Masked().Addr() {
-					subnet.IPv4Gateway = prefix.Addr().String()
-				}
-			} else {
-				subnet.IPv4Range = n.Subnet
-			}
-			if n.Site != "" {
-				subnet.Description = "site " + n.Site
-			}
-			found = append(found, subnet)
-		}
-	}
-	return found
-}
-
-// compareRanges orders CIDR strings by address. Anything unparseable
-// sorts last rather than throwing the order away.
-func compareRanges(a, b string) int {
-	pa, errA := netip.ParsePrefix(a)
-	pb, errB := netip.ParsePrefix(b)
-	switch {
-	case errA != nil && errB != nil:
-		return strings.Compare(a, b)
-	case errA != nil:
-		return 1
-	case errB != nil:
-		return -1
-	}
-	if n := pa.Addr().Compare(pb.Addr()); n != 0 {
-		return n
-	}
-	return pa.Bits() - pb.Bits()
 }
 
 func (s *Server) getSubnet(w http.ResponseWriter, r *http.Request) {
