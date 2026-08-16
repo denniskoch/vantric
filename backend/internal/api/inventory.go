@@ -541,8 +541,14 @@ type enrichmentView struct {
 	// run, as opposed to what this process has done since it started.
 	Cache *store.CVECacheStats `json:"cache"`
 	// Total is how many CVEs the inventory service reports, so the
-	// page can say 4,200 of 4,941 rather than a bare count.
+	// page can say 4,200 of 4,941 rather than a bare count. Cache is
+	// counted against this same set, or the two disagree.
 	Total int `json:"total"`
+	// CachedOverall is every CVE ever fetched, including the ones the
+	// estate no longer reports. Always >= Cache.enriched + missing,
+	// and reported separately rather than folded in, because that
+	// difference is what made the progress line impossible.
+	CachedOverall int `json:"cachedOverall"`
 	// Enabled is whether THIS console runs the background pass.
 	Enabled bool `json:"enabled"`
 }
@@ -556,9 +562,38 @@ func (s *Server) getEnrichment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	view.Cache = stats
+	view.CachedOverall = stats.Enriched + stats.Missing
+
+	// Progress is counted against the CVEs the estate reports NOW, not
+	// against the whole cache. The cache is cumulative — a CVE stays
+	// after its package is patched or its host is retired — so the two
+	// are different populations, and comparing them reported more
+	// enriched than existed ("5,237 of 4,711") once enough of the
+	// estate had moved on.
 	if provider, ok := s.inventoryRegistry.Any(); ok {
 		if summaries, err := provider.Vulnerabilities(r.Context()); err == nil {
 			view.Total = len(summaries)
+			index, err := s.store.CVECacheIndex(r.Context())
+			if err != nil {
+				s.fail(w, err, "cve cache")
+				return
+			}
+			current := store.CVECacheStats{NewestAt: stats.NewestAt}
+			for _, summary := range summaries {
+				entry, ok := index[summary.CVE]
+				switch {
+				case !ok:
+					continue
+				case entry.Missing:
+					current.Missing++
+				default:
+					current.Enriched++
+					if entry.HasScore {
+						current.WithScore++
+					}
+				}
+			}
+			view.Cache = &current
 		}
 	}
 	s.json(w, http.StatusOK, view)

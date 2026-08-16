@@ -137,6 +137,41 @@ type CVECacheStats struct {
 	WithScore int   `json:"withScore"`
 }
 
+// CVECacheEntry is what the cache knows about one CVE, without the
+// document. Enough to count progress against a work-list.
+type CVECacheEntry struct {
+	Missing  bool
+	HasScore bool
+}
+
+// CVECacheIndex reads the cache's shape for every CVE it holds.
+//
+// It exists so progress can be counted against the CVEs the inventory
+// service reports RIGHT NOW. The cache is cumulative — a CVE stays
+// once fetched, long after the package carrying it is patched or the
+// host reporting it is gone — so counting its rows against a current
+// estate compares two different populations, and eventually reports
+// more enriched than exist. A few thousand rows is nothing to hold.
+func (s *Store) CVECacheIndex(ctx context.Context) (map[string]CVECacheEntry, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, missing, score FROM cve_cache`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	index := make(map[string]CVECacheEntry)
+	for rows.Next() {
+		var id string
+		var missing int
+		var score float64
+		if err := rows.Scan(&id, &missing, &score); err != nil {
+			return nil, err
+		}
+		index[id] = CVECacheEntry{Missing: missing == 1, HasScore: score > 0}
+	}
+	return index, rows.Err()
+}
+
 func (s *Store) CVECacheStats(ctx context.Context) (*CVECacheStats, error) {
 	var stats CVECacheStats
 	err := s.db.QueryRowContext(ctx,

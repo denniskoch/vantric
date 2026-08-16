@@ -59,6 +59,10 @@ export default function DevicesEnrichmentPage() {
     onError: (e: Error) => setError(e.message),
   })
 
+  // These count the CVEs the estate reports NOW — the backend
+  // intersects the cache with that set. The cache itself is
+  // cumulative and outgrows the estate, which is what produced
+  // "5,237 of 4,711".
   const cache = data?.cache
   const total = data?.total ?? 0
   const done = cache?.enriched ?? 0
@@ -72,7 +76,7 @@ export default function DevicesEnrichmentPage() {
     <Box sx={{ p: 3, maxWidth: 900 }}>
       <PageHeader
         title="Vulnerability data"
-        description="Your inventory service reports which machines carry a CVE. What the CVE is — the description, the CVSS score, the weakness and the patch — comes from the National Vulnerability Database, fetched in the background for everything you have."
+        description="CVE descriptions and scores, fetched from the National Vulnerability Database in the background."
       />
 
       {error && (
@@ -119,6 +123,11 @@ export default function DevicesEnrichmentPage() {
             hint={missing ? 'reserved but unpublished' : undefined}
           />
           <Fact label="With a score" value={(cache?.withScore ?? 0).toLocaleString()} />
+          <Fact
+            label="Cached"
+            value={(data?.cachedOverall ?? 0).toLocaleString()}
+            hint="including CVEs the estate no longer reports"
+          />
           <Fact
             label="Status"
             value={data?.running ? 'Running' : remaining > 0 ? 'Waiting' : 'Up to date'}

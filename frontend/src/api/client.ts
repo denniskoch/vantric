@@ -486,6 +486,9 @@ export interface EnrichmentStatus {
     withScore: number
   } | null
   total: number
+  /** Every CVE ever fetched, including ones the estate no longer
+   *  reports. Always >= cache.enriched + cache.missing. */
+  cachedOverall: number
 }
 
 export interface InventoryProvider {
