@@ -21,7 +21,6 @@ import {
 import AddBoxIcon from '@mui/icons-material/AddBox'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import DeleteIcon from '@mui/icons-material/Delete'
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import PendingIcon from '@mui/icons-material/Pending'
 import { api } from '../api/client'
 import type { DNSZone } from '../api/client'
@@ -113,7 +112,6 @@ export default function DNSZonesPage() {
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Status</TableCell>
               <TableCell>Name</TableCell>
               <TableCell>Lookup</TableCell>
               <TableCell>Provider</TableCell>
@@ -125,15 +123,6 @@ export default function DNSZonesPage() {
             {zones.map((zone) => (
               <TableRow key={`${zone.providerId}/${zone.id}`} hover>
                 <TableCell>
-                  <Tooltip title={zone.paused ? 'paused' : zone.status}>
-                    {zone.status === 'active' && !zone.paused ? (
-                      <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} />
-                    ) : (
-                      <PendingIcon sx={{ color: 'warning.main', fontSize: 18 }} />
-                    )}
-                  </Tooltip>
-                </TableCell>
-                <TableCell>
                   <Link
                     component={RouterLink}
                     to={`/dns/zones/${zone.providerId}/${zone.id}`}
@@ -141,6 +130,25 @@ export default function DNSZonesPage() {
                   >
                     {zone.name}
                   </Link>
+                  {/* No status column: an authoritative server serves a
+                      zone the moment it exists, so a column of ticks
+                      confirms nothing over and over. A hosted provider
+                      does have states worth seeing — a zone stays
+                      pending until its nameservers are repointed — so
+                      the marker appears only when there IS something to
+                      say. */}
+                  {(zone.status !== 'active' || zone.paused) && (
+                    <Tooltip title={zone.paused ? 'paused' : zone.status}>
+                      <PendingIcon
+                        sx={{
+                          color: 'warning.main',
+                          fontSize: 16,
+                          ml: 0.75,
+                          verticalAlign: 'text-bottom',
+                        }}
+                      />
+                    </Tooltip>
+                  )}
                 </TableCell>
                 {/* What the zone fundamentally IS, so plain cell text
                     rather than a badge. */}
@@ -164,7 +172,7 @@ export default function DNSZonesPage() {
             ))}
             {zones.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No zones found at your providers.'}
                 </TableCell>
               </TableRow>
