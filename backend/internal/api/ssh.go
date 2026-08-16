@@ -12,6 +12,8 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -39,6 +41,18 @@ const (
 	// Provisioning is a few guest-agent round trips; longer than this
 	// and the terminal should stop pretending it's about to work.
 	sshProvisionTimeout = 45 * time.Second
+	// Nothing is written while a session sits quiet, so every hop in
+	// between is free to reap it: a tunnel drops an idle websocket in
+	// well under two minutes, and a stateful firewall does the same to
+	// the TCP connection behind it. These make the quiet visible.
+	sshPingInterval = 30 * time.Second
+	// How long a socket may go without a pong before it's dead. Twice
+	// the ping interval, so one lost ping isn't a disconnect.
+	sshPongWait = 70 * time.Second
+	// The guest end needs its own: x/crypto/ssh sends no keepalives on
+	// its own, and without them the console only learns the connection
+	// died when it next tries to write.
+	sshKeepaliveInterval = 30 * time.Second
 )
 
 var sshUpgrader = websocket.Upgrader{
@@ -156,10 +170,20 @@ func (s *Server) instanceSSH(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
+	// One writer at a time. gorilla/websocket panics on concurrent
+	// writes, and the ping ticker writes from a different goroutine
+	// than the pump carrying the guest's output.
+	var writeMu sync.Mutex
+	writeMessage := func(kind int, data []byte) error {
+		writeMu.Lock()
+		defer writeMu.Unlock()
+		return conn.WriteMessage(kind, data)
+	}
+
 	// Everything past the upgrade reports through the terminal itself:
 	// the browser can't read an HTTP status once the socket is open.
 	fail := func(format string, args ...any) {
-		_ = conn.WriteMessage(websocket.TextMessage,
+		_ = writeMessage(websocket.TextMessage,
 			[]byte("\r\n\x1b[31m"+fmt.Sprintf(format, args...)+"\x1b[0m\r\n"))
 	}
 
@@ -190,7 +214,7 @@ func (s *Server) instanceSSH(w http.ResponseWriter, r *http.Request) {
 		// key. If the hypervisor can reach inside it, put the account
 		// there and try once more; otherwise say what to install.
 		note := func(format string, args ...any) {
-			_ = conn.WriteMessage(websocket.TextMessage,
+			_ = writeMessage(websocket.TextMessage,
 				[]byte("\r\n\x1b[90m"+fmt.Sprintf(format, args...)+"\x1b[0m\r\n"))
 		}
 		if provErr := s.provisionConsoleUser(r.Context(), inst, auth.Username, publicKey, note); provErr != nil {
@@ -199,7 +223,7 @@ func (s *Server) instanceSSH(w http.ResponseWriter, r *http.Request) {
 				fail("%v", provErr)
 			}
 			fail("Add your key to %s@%s and try again:", auth.Username, inst.InternalIP)
-			_ = conn.WriteMessage(websocket.TextMessage, []byte("\r\n"+publicKey+"\r\n"))
+			_ = writeMessage(websocket.TextMessage, []byte("\r\n"+publicKey+"\r\n"))
 			return
 		}
 		// One retry, never a loop: if the account we just created still
@@ -254,6 +278,54 @@ func (s *Server) instanceSSH(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), sshMaxSession)
 	defer cancel()
 
+	// Two different clocks, deliberately. The read deadline asks "is
+	// this socket alive", and pongs answer it. Idleness asks "is
+	// anybody using this", and only real traffic answers that — which
+	// includes the GUEST's output, so watching a log tail is no longer
+	// mistaken for an abandoned session. Conflating them is what made
+	// a busy terminal close after thirty minutes.
+	lastActivity := &atomic.Int64{}
+	lastActivity.Store(time.Now().Unix())
+	_ = conn.SetReadDeadline(time.Now().Add(sshPongWait))
+	conn.SetPongHandler(func(string) error {
+		return conn.SetReadDeadline(time.Now().Add(sshPongWait))
+	})
+
+	go func() {
+		ping := time.NewTicker(sshPingInterval)
+		keepalive := time.NewTicker(sshKeepaliveInterval)
+		idle := time.NewTicker(time.Minute)
+		defer ping.Stop()
+		defer keepalive.Stop()
+		defer idle.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ping.C:
+				if err := writeMessage(websocket.PingMessage, nil); err != nil {
+					cancel()
+					return
+				}
+			case <-keepalive.C:
+				// The reply is ignored; that it came back at all is
+				// the signal. An error means the guest is gone.
+				if _, _, err := client.SendRequest("keepalive@openssh.com", true, nil); err != nil {
+					fail("Connection to the guest was lost.")
+					cancel()
+					return
+				}
+			case <-idle.C:
+				quiet := time.Since(time.Unix(lastActivity.Load(), 0))
+				if quiet >= sshIdleLimit {
+					fail("Closed after %s with no activity.", sshIdleLimit)
+					cancel()
+					return
+				}
+			}
+		}
+	}()
+
 	// Guest → browser.
 	go func() {
 		defer cancel()
@@ -261,7 +333,8 @@ func (s *Server) instanceSSH(w http.ResponseWriter, r *http.Request) {
 		for {
 			n, err := stdout.Read(buf)
 			if n > 0 {
-				if err := conn.WriteMessage(websocket.TextMessage, buf[:n]); err != nil {
+				lastActivity.Store(time.Now().Unix())
+				if err := writeMessage(websocket.TextMessage, buf[:n]); err != nil {
 					return
 				}
 			}
@@ -278,11 +351,11 @@ func (s *Server) instanceSSH(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		defer cancel()
 		for {
-			_ = conn.SetReadDeadline(time.Now().Add(sshIdleLimit))
 			_, raw, err := conn.ReadMessage()
 			if err != nil {
 				return
 			}
+			lastActivity.Store(time.Now().Unix())
 			var msg sshMessage
 			if err := json.Unmarshal(raw, &msg); err != nil {
 				continue
