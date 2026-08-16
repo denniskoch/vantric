@@ -73,24 +73,9 @@ export default function ZoneDetailPage() {
     enabled: Boolean(server && zone) && tab === 'observability',
   })
 
-  // Which guests this host is carrying. Both lists are already in the
-  // cache for every other Compute page, so this correlation is free.
-  const { data: instances = [] } = useQuery({
-    queryKey: ['instances'],
-    queryFn: api.listInstances,
-  })
-  const { data: containers = [] } = useQuery({
-    queryKey: ['containers'],
-    queryFn: api.listContainers,
-  })
-  const guests = [
-    ...instances
-      .filter((i) => i.serverId === server && i.zone === zone)
-      .map((i) => ({ kind: 'VM', name: i.name, status: i.status, to: `/compute/instances/${i.name}` })),
-    ...containers
-      .filter((c) => c.serverId === server && c.zone === zone)
-      .map((c) => ({ kind: 'Container', name: c.name, status: c.status, to: `/compute/containers/${c.name}` })),
-  ]
+  // No guest list here. VM instances and CT instances both carry a
+  // Zone column already, and forty-four rows of what this host is
+  // running would bury the six facts the page exists to show.
 
   const times = metrics.map((m) => m.time)
   const maxMemory = metrics.reduce((max, m) => Math.max(max, m.maxMemoryBytes), 0)
@@ -268,29 +253,6 @@ export default function ZoneDetailPage() {
               </Typography>
             </DetailSection>
 
-            <DetailSection title={`Guests (${guests.length})`}>
-              {guests.length === 0 ? (
-                <Paper variant="outlined" sx={{ p: 3, color: 'text.secondary' }}>
-                  No instances or containers are placed on this host.
-                </Paper>
-              ) : (
-                <DetailTable
-                  rows={guests.map((g) => ({
-                    label: g.kind,
-                    value: (
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Link component={RouterLink} to={g.to} underline="hover">
-                          {g.name}
-                        </Link>
-                        <Typography component="span" sx={{ color: 'text.secondary' }}>
-                          {g.status}
-                        </Typography>
-                      </Box>
-                    ),
-                  }))}
-                />
-              )}
-            </DetailSection>
           </>
         )}
 

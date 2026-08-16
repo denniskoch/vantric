@@ -13,12 +13,19 @@ export default function UsageBar({
   total,
   format = formatBytes,
   minWidth = 180,
+  showValues = true,
 }: {
   used: number
   total: number
   /** how the two numbers are spelled; bytes unless told otherwise */
   format?: (value: number) => string
   minWidth?: number
+  /**
+   * Whether to print the used/total pair beside the percentage. Off
+   * for a RATE — CPU is already a percentage, and spelling it out as
+   * "2.5% of 100%" invents an occupancy that doesn't exist.
+   */
+  showValues?: boolean
 }) {
   if (!total) return <>—</>
   const pct = Math.min(100, (used / total) * 100)
@@ -36,9 +43,11 @@ export default function UsageBar({
           mb: 0.25,
         }}
       >
-        <span>
-          {format(used)} / {format(total)}
-        </span>
+        {showValues && (
+          <span>
+            {format(used)} / {format(total)}
+          </span>
+        )}
         <span style={{ color: 'text.secondary' }}>{pct.toFixed(0)}%</span>
       </Box>
       <LinearProgress

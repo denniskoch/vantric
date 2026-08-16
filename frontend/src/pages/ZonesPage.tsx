@@ -17,7 +17,7 @@ import ErrorIcon from '@mui/icons-material/Error'
 import { api } from '../api/client'
 import PageHeader from '../components/PageHeader'
 import UsageBar from '../components/UsageBar'
-import { formatPercent, formatUptime } from '../format'
+import { formatUptime } from '../format'
 import { useServerNames } from '../useServerNames'
 
 /**
@@ -80,15 +80,10 @@ export default function ZonesPage() {
                 <TableCell>{serverName(zone.serverId)}</TableCell>
                 <TableCell align="right">{zone.cpus || '—'}</TableCell>
                 <TableCell>
-                  {/* CPU is a rate, not an occupancy, so it reads as a
-                      percentage of the host's cores rather than a
-                      used-of-total the way memory and disk do. */}
-                  <UsageBar
-                    used={zone.cpuPercent}
-                    total={100}
-                    minWidth={120}
-                    format={formatPercent}
-                  />
+                  {/* A rate, not an occupancy: the bar shows how hard
+                      the host is working, with no used-of-total pair
+                      the way memory and disk have. */}
+                  <UsageBar used={zone.cpuPercent} total={100} minWidth={110} showValues={false} />
                 </TableCell>
                 <TableCell>
                   <UsageBar used={zone.memoryUsedBytes} total={zone.memoryTotalBytes} />
