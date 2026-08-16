@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Box,
   Chip,
-  LinearProgress,
   Paper,
   Table,
   TableBody,
@@ -16,46 +15,8 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import { api } from '../api/client'
 import PageHeader from '../components/PageHeader'
-import { formatBytes } from '../format'
+import UsageBar from '../components/UsageBar'
 import { useServerNames } from '../useServerNames'
-
-function UsageBar({ used, total }: { used: number; total: number }) {
-  if (!total) return <>—</>
-  const pct = Math.min(100, (used / total) * 100)
-  return (
-    <Box sx={{ minWidth: 180 }}>
-      {/* Label and bar together have to fit the standard row, so the
-          line is tightened rather than letting this one page stand
-          taller than every other table. */}
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          fontSize: 12,
-          lineHeight: 1.2,
-          mb: 0.25,
-        }}
-      >
-        <span>
-          {formatBytes(used)} / {formatBytes(total)}
-        </span>
-        <span style={{ color: 'text.secondary' }}>{pct.toFixed(0)}%</span>
-      </Box>
-      <LinearProgress
-        variant="determinate"
-        value={pct}
-        sx={{
-          height: 4,
-          borderRadius: 2,
-          bgcolor: 'surface.faint',
-          '& .MuiLinearProgress-bar': {
-            bgcolor: pct > 90 ? '#d93025' : pct > 75 ? '#f29900' : '#1a73e8',
-          },
-        }}
-      />
-    </Box>
-  )
-}
 
 export default function DatastoresPage() {
   const serverName = useServerNames()

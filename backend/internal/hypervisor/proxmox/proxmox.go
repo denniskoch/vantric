@@ -98,17 +98,38 @@ func (d *Driver) do(ctx context.Context, method, path string, form url.Values, o
 }
 
 func (d *Driver) Zones(ctx context.Context) ([]hypervisor.Zone, error) {
+	// /nodes reports usage alongside the name, so the summary below is
+	// free — it is the same one request either way.
 	var nodes []struct {
-		Node   string `json:"node"`
-		Status string `json:"status"`
+		Node    string  `json:"node"`
+		Status  string  `json:"status"`
+		CPU     float64 `json:"cpu"` // fraction 0..1
+		MaxCPU  int     `json:"maxcpu"`
+		Mem     int64   `json:"mem"`
+		MaxMem  int64   `json:"maxmem"`
+		Disk    int64   `json:"disk"`
+		MaxDisk int64   `json:"maxdisk"`
+		Uptime  int64   `json:"uptime"`
 	}
 	if err := d.do(ctx, http.MethodGet, "/nodes", nil, &nodes); err != nil {
 		return nil, err
 	}
 	zones := make([]hypervisor.Zone, 0, len(nodes))
 	for _, n := range nodes {
-		zones = append(zones, hypervisor.Zone{ID: n.Node, Name: n.Node, Status: n.Status})
+		zones = append(zones, hypervisor.Zone{
+			ID:               n.Node,
+			Name:             n.Node,
+			Status:           n.Status,
+			CPUs:             n.MaxCPU,
+			CPUPercent:       n.CPU * 100,
+			MemoryUsedBytes:  n.Mem,
+			MemoryTotalBytes: n.MaxMem,
+			DiskUsedBytes:    n.Disk,
+			DiskTotalBytes:   n.MaxDisk,
+			UptimeSeconds:    n.Uptime,
+		})
 	}
+	sortByName(zones, func(z hypervisor.Zone) string { return z.Name })
 	return zones, nil
 }
 

@@ -99,11 +99,112 @@ func New() *Driver {
 
 func (d *Driver) Name() string { return "mock" }
 
+const gb = int64(1) << 30
+
+// The two mock hosts differ on purpose: node-b is short of memory and
+// has started swapping, which is the state the zone pages exist to
+// make visible and the one you can't produce on demand in a real lab.
+var mockNodes = []hypervisor.Zone{
+	{
+		ID: "lab-node-a", Name: "lab-node-a", Status: "online",
+		CPUs: 12, CPUPercent: 8.4,
+		MemoryUsedBytes: 21 * gb, MemoryTotalBytes: 64 * gb,
+		DiskUsedBytes: 19 * gb, DiskTotalBytes: 94 * gb,
+		UptimeSeconds: 41 * 24 * 3600,
+	},
+	{
+		ID: "lab-node-b", Name: "lab-node-b", Status: "online",
+		CPUs: 4, CPUPercent: 61.2,
+		MemoryUsedBytes: 30 * gb, MemoryTotalBytes: 32 * gb,
+		DiskUsedBytes: 78 * gb, DiskTotalBytes: 94 * gb,
+		UptimeSeconds: 6 * 3600,
+	},
+}
+
 func (d *Driver) Zones(ctx context.Context) ([]hypervisor.Zone, error) {
-	return []hypervisor.Zone{
-		{ID: "lab-node-a", Name: "lab-node-a", Status: "online"},
-		{ID: "lab-node-b", Name: "lab-node-b", Status: "online"},
-	}, nil
+	return append([]hypervisor.Zone{}, mockNodes...), nil
+}
+
+func (d *Driver) NodeStatus(ctx context.Context, zone string) (*hypervisor.NodeStatus, error) {
+	var z *hypervisor.Zone
+	for i := range mockNodes {
+		if mockNodes[i].ID == zone {
+			z = &mockNodes[i]
+		}
+	}
+	if z == nil {
+		return nil, hypervisor.ErrNotFound
+	}
+	status := &hypervisor.NodeStatus{
+		ID:               z.ID,
+		Name:             z.Name,
+		UptimeSeconds:    z.UptimeSeconds,
+		CPUSockets:       1,
+		CPUCores:         z.CPUs / 2,
+		CPUs:             z.CPUs,
+		CPUMHz:           "2100.000",
+		CPUPercent:       z.CPUPercent,
+		MemoryTotalBytes: z.MemoryTotalBytes,
+		MemoryUsedBytes:  z.MemoryUsedBytes,
+		SwapTotalBytes:   8 * gb,
+		RootTotalBytes:   z.DiskTotalBytes,
+		RootUsedBytes:    z.DiskUsedBytes,
+		KernelVersion:    "Linux 6.8.12-4-pve",
+		Version:          "mock/1.0.0",
+		BootMode:         "efi",
+	}
+	if z.ID == "lab-node-a" {
+		status.CPUModel = "Intel(R) Xeon(R) E-2288G CPU @ 3.70GHz"
+		status.LoadAverage = []string{"0.42", "0.51", "0.63"}
+		status.KSMSharedBytes = 2 * gb
+		status.IOWaitPercent = 0.3
+	} else {
+		status.CPUModel = "Intel(R) Core(TM) i5-8500T CPU @ 2.10GHz"
+		status.LoadAverage = []string{"5.90", "4.12", "3.77"}
+		status.SwapUsedBytes = 3 * gb
+		status.IOWaitPercent = 7.8
+	}
+	return status, nil
+}
+
+func (d *Driver) NodeMetrics(ctx context.Context, zone string, timeframe hypervisor.MetricTimeframe) ([]hypervisor.MetricPoint, error) {
+	status, err := d.NodeStatus(ctx, zone)
+	if err != nil {
+		return nil, err
+	}
+	maxMem := float64(status.MemoryTotalBytes)
+	step, count := sampleGrid(timeframe)
+	start := time.Now().Unix() - int64(count)*step
+	points := make([]hypervisor.MetricPoint, 0, count)
+	for i := range count {
+		phase := float64(i) / 8
+		// No disk fields: a real node's RRD carries root-filesystem
+		// usage rather than per-disk I/O, so leaving them zero here
+		// keeps the mock honest about which charts can be drawn.
+		points = append(points, hypervisor.MetricPoint{
+			Time:           start + int64(i)*step,
+			CPUPercent:     status.CPUPercent * (0.8 + 0.3*math.Sin(phase)) + rand.Float64()*3,
+			MemoryBytes:    float64(status.MemoryUsedBytes) * (0.97 + 0.02*math.Sin(phase/3)),
+			MaxMemoryBytes: maxMem,
+			NetInBytes:     140000 + 60000*math.Sin(phase/2) + rand.Float64()*20000,
+			NetOutBytes:    95000 + 40000*math.Cos(phase/2) + rand.Float64()*15000,
+		})
+	}
+	return points, nil
+}
+
+// sampleGrid is the step and sample count behind a timeframe, shared so
+// guest and host histories line up on the same x axis.
+func sampleGrid(timeframe hypervisor.MetricTimeframe) (step int64, count int) {
+	switch timeframe {
+	case hypervisor.TimeframeDay:
+		return 300, 288
+	case hypervisor.TimeframeWeek:
+		return 1800, 336
+	case hypervisor.TimeframeMonth:
+		return 7200, 360
+	}
+	return 60, 60
 }
 
 func (d *Driver) Images(ctx context.Context) ([]hypervisor.Image, error) {
@@ -349,15 +450,7 @@ func (d *Driver) Metrics(ctx context.Context, driverID string, timeframe hypervi
 	running := vm.state.Status == hypervisor.StatusRunning
 	d.mu.Unlock()
 
-	step, count := int64(60), 60
-	switch timeframe {
-	case hypervisor.TimeframeDay:
-		step, count = 300, 288
-	case hypervisor.TimeframeWeek:
-		step, count = 1800, 336
-	case hypervisor.TimeframeMonth:
-		step, count = 7200, 360
-	}
+	step, count := sampleGrid(timeframe)
 	start := time.Now().Unix() - int64(count)*step
 	points := make([]hypervisor.MetricPoint, 0, count)
 	for i := range count {

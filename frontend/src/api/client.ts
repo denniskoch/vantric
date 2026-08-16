@@ -618,9 +618,44 @@ export interface ServerRequest {
 }
 
 export interface Zone {
+  serverId: string
   id: string
   name: string
   status: string
+  cpus: number
+  cpuPercent: number
+  memoryUsedBytes: number
+  memoryTotalBytes: number
+  diskUsedBytes: number
+  diskTotalBytes: number
+  uptimeSeconds: number
+}
+
+/** A virtualization host's own description of itself. */
+export interface NodeStatus {
+  serverId: string
+  id: string
+  name: string
+  uptimeSeconds: number
+  cpuModel: string
+  cpuSockets: number
+  cpuCores: number
+  cpus: number
+  cpuMhz: string
+  cpuPercent: number
+  ioWaitPercent: number
+  loadAverage: string[] | null
+  memoryTotalBytes: number
+  memoryUsedBytes: number
+  swapTotalBytes: number
+  swapUsedBytes: number
+  ksmSharedBytes: number
+  rootTotalBytes: number
+  rootUsedBytes: number
+  kernelVersion: string
+  version: string
+  bootMode: string
+  secureBoot: boolean
 }
 
 export interface Image {
@@ -1301,7 +1336,15 @@ export const api = {
 
   // Catalog listings span every server; pass a server id to narrow
   // (the create flows do, since placement is per-server).
-  listZones: (serverId: string) => request<Zone[]>(`/zones?server=${serverId}`),
+  listZones: (serverId?: string) =>
+    request<Zone[]>(serverId ? `/zones?server=${serverId}` : '/zones'),
+  /** One host in detail — read on demand, never polled at list speed. */
+  getZone: (serverId: string, zone: string) =>
+    request<NodeStatus>(`/zones/${encodeURIComponent(zone)}?server=${serverId}`),
+  zoneMetrics: (serverId: string, zone: string, timeframe: MetricTimeframe) =>
+    request<MetricPoint[]>(
+      `/zones/${encodeURIComponent(zone)}/metrics?server=${serverId}&timeframe=${timeframe}`,
+    ),
   listBridges: () => request<Bridge[]>('/bridges'),
   listImages: (serverId?: string) =>
     request<Image[]>(serverId ? `/images?server=${serverId}` : '/images'),

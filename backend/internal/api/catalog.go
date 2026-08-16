@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+
 	"vantric/internal/hypervisor"
 	"vantric/internal/store"
 )
@@ -58,12 +60,53 @@ func (s *Server) listZones(w http.ResponseWriter, r *http.Request) {
 		func(ctx context.Context, d hypervisor.Driver) ([]hypervisor.Zone, error) {
 			return d.Zones(ctx)
 		},
-		func(*hypervisor.Zone, string) {}) // zones are per-server by nature
+		// Stamped like every other catalog listing. A zone name is only
+		// unique WITHIN a server — two hypervisors may each call their
+		// host "pve1" — so the pair is what addresses one.
+		func(z *hypervisor.Zone, id string) { z.ServerID = id })
 	if err != nil {
 		s.fail(w, err, "zones")
 		return
 	}
 	s.json(w, http.StatusOK, zones)
+}
+
+// zoneStatus and zoneMetrics describe one host, read on demand for the
+// zone detail view. They take ?server= like every other single-item
+// catalog read, since the name alone doesn't identify a host.
+
+func (s *Server) zoneStatus(w http.ResponseWriter, r *http.Request) {
+	driver := s.driverForServer(w, r)
+	if driver == nil {
+		return
+	}
+	status, err := driver.NodeStatus(r.Context(), chi.URLParam(r, "zone"))
+	if err != nil {
+		s.fail(w, err, "zone")
+		return
+	}
+	status.ServerID = r.URL.Query().Get("server")
+	s.json(w, http.StatusOK, status)
+}
+
+func (s *Server) zoneMetrics(w http.ResponseWriter, r *http.Request) {
+	driver := s.driverForServer(w, r)
+	if driver == nil {
+		return
+	}
+	timeframe, ok := s.readTimeframe(w, r)
+	if !ok {
+		return
+	}
+	points, err := driver.NodeMetrics(r.Context(), chi.URLParam(r, "zone"), timeframe)
+	if err != nil {
+		s.fail(w, err, "zone metrics")
+		return
+	}
+	if points == nil {
+		points = []hypervisor.MetricPoint{}
+	}
+	s.json(w, http.StatusOK, points)
 }
 
 func (s *Server) listBridges(w http.ResponseWriter, r *http.Request) {

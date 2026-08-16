@@ -102,6 +102,15 @@ export const sections: Section[] = [
       'Virtual machines and containers on your hypervisors, with the images, disks and templates behind them.',
     items: [
       { label: 'Overview', icon: DashboardIcon, to: '/compute/overview' },
+      {
+        // Not under Storage and not under Settings: a zone is neither
+        // a credential nor a thing guests are made of — it's the
+        // machine they run on.
+        label: 'Zones',
+        icon: DnsIcon,
+        to: '/compute/zones',
+        hint: 'The virtualization hosts your guests run on, and how loaded they are',
+      },
     ],
     groups: [
       {

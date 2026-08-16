@@ -5,7 +5,11 @@ export function formatBytesPerSec(bytes: number): string {
   return `${formatBytes(bytes)}/s`
 }
 
+// Guarded like formatBytes and formatUptime beside it. A number the
+// backend didn't send is a dash, not a blank page: this one threw on
+// undefined and took the whole route down with it.
 export function formatPercent(value: number): string {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '—'
   return `${value.toFixed(value >= 10 ? 0 : 1)}%`
 }
 

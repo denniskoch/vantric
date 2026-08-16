@@ -159,6 +159,8 @@ func (s *Server) protectedRoutes(r chi.Router) {
 
 		r.Get("/overview", s.overview)
 		r.Get("/zones", s.listZones)
+		r.Get("/zones/{zone}", s.zoneStatus)
+		r.Get("/zones/{zone}/metrics", s.zoneMetrics)
 		r.Get("/bridges", s.listBridges)
 		r.Get("/images", s.listImages)
 		r.Get("/disks", s.listDisks)
@@ -329,17 +331,28 @@ func (s *Server) describeInstance(w http.ResponseWriter, r *http.Request) {
 	s.json(w, http.StatusOK, detail)
 }
 
+// readTimeframe validates the ?timeframe= a metrics query carries.
+// Shared by guests and hosts: both read the same RRD resolutions, and
+// one of them silently accepting a fifth value would be a bug found
+// only by whoever typed it.
+func (s *Server) readTimeframe(w http.ResponseWriter, r *http.Request) (hypervisor.MetricTimeframe, bool) {
+	timeframe := hypervisor.MetricTimeframe(r.URL.Query().Get("timeframe"))
+	switch timeframe {
+	case "", hypervisor.TimeframeHour, hypervisor.TimeframeDay,
+		hypervisor.TimeframeWeek, hypervisor.TimeframeMonth:
+		return timeframe, true
+	}
+	s.err(w, http.StatusBadRequest, "timeframe must be hour, day, week or month")
+	return "", false
+}
+
 func (s *Server) instanceMetrics(w http.ResponseWriter, r *http.Request) {
 	inst, driver := s.instanceDriver(w, r)
 	if driver == nil {
 		return
 	}
-	timeframe := hypervisor.MetricTimeframe(r.URL.Query().Get("timeframe"))
-	switch timeframe {
-	case "", hypervisor.TimeframeHour, hypervisor.TimeframeDay,
-		hypervisor.TimeframeWeek, hypervisor.TimeframeMonth:
-	default:
-		s.err(w, http.StatusBadRequest, "timeframe must be hour, day, week or month")
+	timeframe, ok := s.readTimeframe(w, r)
+	if !ok {
 		return
 	}
 	points, err := driver.Metrics(r.Context(), inst.DriverID, timeframe)

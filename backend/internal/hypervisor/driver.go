@@ -22,11 +22,83 @@ const (
 // ErrNotFound is returned when a driver instance no longer exists.
 var ErrNotFound = errors.New("hypervisor: instance not found")
 
-// Zone is a placement target. On Proxmox this is a cluster node.
+// Zone is a placement target. On Proxmox this is a cluster node — a
+// real machine, which is why it carries usage as well as a name.
 type Zone struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
+	// ServerID is filled in by the API layer, not the driver.
+	ServerID string `json:"serverId"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Status   string `json:"status"`
+	// The usage below costs NOTHING EXTRA: a host listing reports it
+	// alongside the name we came for, and this app decoded only the
+	// name for as long as zones were nothing but a dropdown. Zero
+	// where the backend doesn't say.
+	CPUs             int     `json:"cpus"`
+	CPUPercent       float64 `json:"cpuPercent"`
+	MemoryUsedBytes  int64   `json:"memoryUsedBytes"`
+	MemoryTotalBytes int64   `json:"memoryTotalBytes"`
+	DiskUsedBytes    int64   `json:"diskUsedBytes"`
+	DiskTotalBytes   int64   `json:"diskTotalBytes"`
+	UptimeSeconds    int64   `json:"uptimeSeconds"`
+}
+
+// NodeStatus is a virtualization host's own description of itself,
+// read on demand for the zone detail view the way InstanceDetail is
+// for a guest. It is the one thing in this console that describes the
+// SUBSTRATE rather than something running on it: every other page can
+// show a full datastore and a healthy guest while the host underneath
+// is out of memory and swapping.
+//
+// Fields a driver can't supply stay zero, and a zero here means "not
+// reported" rather than "zero" — the UI says so rather than printing
+// a confident 0.
+type NodeStatus struct {
+	// ServerID is filled in by the API layer, not the driver.
+	ServerID      string `json:"serverId"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	UptimeSeconds int64  `json:"uptimeSeconds"`
+
+	// CPUModel is what GCP calls a CPU platform, spelled the way the
+	// silicon spells it: "Intel(R) Core(TM) i5-8500T CPU @ 2.10GHz".
+	CPUModel   string `json:"cpuModel"`
+	CPUSockets int    `json:"cpuSockets"`
+	CPUCores   int    `json:"cpuCores"`
+	CPUs       int    `json:"cpus"` // logical, i.e. threads
+	CPUMHz     string `json:"cpuMhz"`
+	CPUPercent float64 `json:"cpuPercent"`
+	// IOWaitPercent is time the host spent waiting on storage. It is
+	// reported separately from CPU because it's the number that
+	// explains a host which is busy without doing anything.
+	IOWaitPercent float64 `json:"ioWaitPercent"`
+	// LoadAverage is 1/5/15 minutes, kept as the strings the host
+	// reported rather than parsed: they are read, not computed with.
+	LoadAverage []string `json:"loadAverage"`
+
+	MemoryTotalBytes int64 `json:"memoryTotalBytes"`
+	MemoryUsedBytes  int64 `json:"memoryUsedBytes"`
+	SwapTotalBytes   int64 `json:"swapTotalBytes"`
+	// SwapUsedBytes is the number worth reading on a lab host: a
+	// hypervisor that has started swapping is one whose guests are
+	// about to feel it.
+	SwapUsedBytes int64 `json:"swapUsedBytes"`
+	// KSMSharedBytes is memory reclaimed by same-page merging, which
+	// is how a host can run guests whose memory adds up to more than
+	// it has.
+	KSMSharedBytes int64 `json:"ksmSharedBytes"`
+	// Root* is the host's OWN filesystem, not a datastore. Filling it
+	// is what stops a hypervisor working, and nothing else in this
+	// console looks at it.
+	RootTotalBytes int64 `json:"rootTotalBytes"`
+	RootUsedBytes  int64 `json:"rootUsedBytes"`
+
+	KernelVersion string `json:"kernelVersion"`
+	// Version is the hypervisor software's own version string.
+	Version string `json:"version"`
+	// BootMode is "efi" or "legacy-bios" where the backend reports it.
+	BootMode   string `json:"bootMode"`
+	SecureBoot bool   `json:"secureBoot"`
 }
 
 // Image is a bootable source for new instances. On Proxmox this is a
@@ -430,6 +502,14 @@ type Driver interface {
 	// Name identifies the driver, e.g. "proxmox" or "mock".
 	Name() string
 	Zones(ctx context.Context) ([]Zone, error)
+	// NodeStatus describes one host in detail. Like Describe it is read
+	// on demand for a detail view, not by the reconciler, so it may
+	// make several backend calls.
+	NodeStatus(ctx context.Context, zone string) (*NodeStatus, error)
+	// NodeMetrics returns the host's own resource-usage samples, in the
+	// same shape as an instance's — a host is a machine too, and the
+	// question "was this busy an hour ago" is the same question.
+	NodeMetrics(ctx context.Context, zone string, timeframe MetricTimeframe) ([]MetricPoint, error)
 	Images(ctx context.Context) ([]Image, error)
 	Disks(ctx context.Context) ([]Disk, error)
 	Snapshots(ctx context.Context) ([]Snapshot, error)
