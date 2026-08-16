@@ -340,7 +340,10 @@ func (s *Server) listDNSRecords(w http.ResponseWriter, r *http.Request) {
 // the provider. CAA, SRV and friends carry structured data, so they
 // list and delete fine but are left to the provider's own UI to edit
 // rather than silently mangled here.
-var editableRecordTypes = []string{"A", "AAAA", "CNAME", "MX", "NS", "TXT"}
+// PTR belongs here for the same reason CNAME does — its value is one
+// hostname — and a reverse zone is nothing but PTR records, so without
+// it those zones list and never edit.
+var editableRecordTypes = []string{"A", "AAAA", "CNAME", "MX", "NS", "PTR", "TXT"}
 
 type recordValue struct {
 	Content  string `json:"content"`

@@ -17,6 +17,7 @@ import {
   TableHead,
   TableRow,
   Tooltip,
+  Typography,
 } from '@mui/material'
 import AddBoxIcon from '@mui/icons-material/AddBox'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
@@ -26,6 +27,7 @@ import PendingIcon from '@mui/icons-material/Pending'
 import { api } from '../api/client'
 import type { DNSZone } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
+import { networkForReverseZone } from '../reverseDns'
 import PageHeader from '../components/PageHeader'
 import { usePermissions } from '../user'
 
@@ -139,6 +141,18 @@ export default function DNSZonesPage() {
                   >
                     {zone.name}
                   </Link>
+                  {/* A reverse zone's name is its network backwards.
+                      Nobody reads 80.168.192.in-addr.arpa and thinks
+                      "the LAN", so the network is spelled out beside
+                      it rather than left as an exercise. */}
+                  {networkForReverseZone(zone.name) && (
+                    <Typography
+                      component="span"
+                      sx={{ color: 'text.secondary', fontSize: 12, ml: 1 }}
+                    >
+                      {networkForReverseZone(zone.name)}
+                    </Typography>
+                  )}
                 </TableCell>
                 <TableCell>{providerName(zone.providerId)}</TableCell>
                 <TableCell>{zone.accountName || '—'}</TableCell>

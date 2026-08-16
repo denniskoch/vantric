@@ -12,6 +12,7 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { api } from '../api/client'
 import { domainError, domainRe } from '../validation'
+import { reverseZonesFor } from '../reverseDns'
 
 export default function CreateZonePage() {
   const navigate = useNavigate()
@@ -40,10 +41,17 @@ export default function CreateZonePage() {
   // provider that reports none keeps the "provider default" choice.
   if (!accountId && accounts.length > 0) setAccountId(accounts[0].id)
 
+  // A network typed here becomes the reverse zone that answers for it,
+  // rather than making somebody reverse the octets and hope.
+  const typed = name.trim().toLowerCase()
+  const reverse = typed.includes('/') ? reverseZonesFor(typed) : null
+  const derived = reverse?.zones.length === 1 ? reverse.zones[0] : null
+  const zoneName = derived ?? typed
+
   const create = useMutation({
     mutationFn: () =>
       api.createDNSZone(providerId, {
-        name: name.trim().toLowerCase(),
+        name: zoneName,
         accountId: accountId || undefined,
         type: zoneType,
       }),
@@ -54,8 +62,13 @@ export default function CreateZonePage() {
     onError: (e: Error) => setError(e.message),
   })
 
-  const nameError = domainError(name)
-  const valid = domainRe.test(name.trim().toLowerCase()) && Boolean(providerId)
+  const nameError = reverse
+    ? (reverse.error ??
+      (reverse.zones.length > 1
+        ? `A /${typed.split('/')[1]} spans ${reverse.count} reverse zones — create one at a time`
+        : null))
+    : domainError(name)
+  const valid = domainRe.test(zoneName) && Boolean(providerId) && !nameError
 
   return (
     <Box sx={{ p: 3, display: 'flex', flexDirection: 'column' }}>
@@ -106,15 +119,31 @@ export default function CreateZonePage() {
         </TextField>
 
         <TextField
-          label="Domain"
+          label="Domain or network"
           size="small"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="example.com"
           error={Boolean(nameError)}
-          helperText={nameError ?? 'The apex domain, without a scheme or trailing dot'}
+          helperText={
+            nameError ??
+            (derived
+              ? `Reverse zone ${derived}`
+              : 'An apex domain like example.com, or a network like 192.168.80.0/24 for a reverse zone')
+          }
           fullWidth
         />
+
+        {/* The zones a between-the-octets prefix needs, spelled out —
+            "16 zones" is a fact you can't act on without the names. */}
+        {reverse && reverse.zones.length > 1 && (
+          <Alert severity="info" sx={{ mt: -1 }}>
+            That network is answered by {reverse.count} zones:{' '}
+            <code>{reverse.zones.join(', ')}</code>
+            {reverse.truncated && `, … (${reverse.count} in total)`}. Enter one of them, or a
+            /24.
+          </Alert>
+        )}
 
         <TextField
           label="Account"

@@ -93,7 +93,10 @@ export function recordValueError(type: string, value: string): string | null {
       return isIPv6(content) ? null : 'Enter an IPv6 address, e.g. 2001:db8::1'
     case 'CNAME':
     case 'MX':
-    case 'NS': {
+    case 'NS':
+    // A PTR's value is the name the address answers as — the one type
+    // whose whole job is to point back at a hostname.
+    case 'PTR': {
       const host = content.replace(/\.$/, '').toLowerCase()
       if (/^https?:\/\//.test(host)) return 'Enter just the hostname, without http:// or https://'
       return domainRe.test(host) ? null : 'Enter a hostname, e.g. mail.example.com'

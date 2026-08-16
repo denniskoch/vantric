@@ -29,6 +29,12 @@ import {
 } from '../dnsRecords'
 import type { RecordSet } from '../dnsRecords'
 import { recordNameError, recordValueError, ttlError } from '../validation'
+import {
+  isReverseZone,
+  looksLikeIPv4,
+  networkForReverseZone,
+  relativePtrName,
+} from '../reverseDns'
 
 const ttlUnits: Record<string, number> = { seconds: 1, minutes: 60, hours: 3600 }
 
@@ -58,7 +64,9 @@ function RecordSetForm({
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [name, setName] = useState(editing ? relativeName(editing.name, zone.name) : '')
-  const [type, setType] = useState(editing?.type ?? 'A')
+  // A reverse zone is PTR records and almost nothing else, so that is
+  // the type it opens on.
+  const [type, setType] = useState(editing?.type ?? (isReverseZone(zone.name) ? 'PTR' : 'A'))
   const [values, setValues] = useState<FormValue[]>(
     editing
       ? editing.records.map((r) => ({ content: r.content, priority: String(r.priority) }))
@@ -72,8 +80,22 @@ function RecordSetForm({
   const [error, setError] = useState<string | null>(null)
 
   const zonePath = `/dns/zones/${zone.providerId}/${zone.id}`
+
+  // In a reverse zone the name is the address, backwards. Typing the
+  // address itself is what people mean, and it is also the one input
+  // that would otherwise fail SILENTLY: "192.168.80.7" is a valid label
+  // sequence, so without this it becomes the name
+  // 192.168.80.7.80.168.192.in-addr.arpa — accepted by everything,
+  // answering for nothing.
+  const reverse = isReverseZone(zone.name)
+  const typedAddress = reverse && looksLikeIPv4(name) ? name.trim() : ''
+  const addressName = typedAddress ? relativePtrName(typedAddress, zone.name) : null
+  const effectiveName = addressName ?? name
+
   const fullName =
-    name.trim() && name.trim() !== '@' ? `${name.trim().toLowerCase()}.${zone.name}` : zone.name
+    effectiveName.trim() && effectiveName.trim() !== '@'
+      ? `${effectiveName.trim().toLowerCase()}.${zone.name}`
+      : zone.name
   const proxyable = proxyableTypes.includes(type)
   // Cloudflare serves proxied records on its own TTL, so the field
   // would be a lie if it stayed editable.
@@ -88,7 +110,10 @@ function RecordSetForm({
     )
 
   const nameError =
-    recordNameError(name) ??
+    (typedAddress && !addressName
+      ? `${typedAddress} is outside this zone, which answers for ${networkForReverseZone(zone.name) ?? 'another network'}`
+      : null) ??
+    recordNameError(effectiveName) ??
     (collision
       ? 'A record set with this DNS name and type already exists. Edit it to add another value.'
       : cnameConflict
@@ -150,7 +175,14 @@ function RecordSetForm({
           onChange={(e) => setName(e.target.value)}
           disabled={Boolean(editing)}
           error={Boolean(nameError)}
-          helperText={nameError ?? 'Leave blank for the domain itself'}
+          helperText={
+            nameError ??
+            (addressName
+              ? `${typedAddress} → ${addressName}`
+              : reverse
+                ? 'An address in this zone, or the reversed labels'
+                : 'Leave blank for the domain itself')
+          }
           slotProps={{
             input: {
               endAdornment: (

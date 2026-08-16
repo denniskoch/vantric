@@ -16,7 +16,7 @@ export interface RecordSet {
 /** Types whose value is a plain string, so this app can edit them.
  *  CAA, SRV and friends carry structured data and are left to the
  *  provider's own UI rather than mangled here. */
-export const editableTypes = ['A', 'AAAA', 'CNAME', 'MX', 'NS', 'TXT']
+export const editableTypes = ['A', 'AAAA', 'CNAME', 'MX', 'NS', 'PTR', 'TXT']
 
 export const canEdit = (type: string) => editableTypes.includes(type)
 
@@ -30,6 +30,7 @@ export const valueLabels: Record<string, string> = {
   CNAME: 'Canonical name',
   MX: 'Mail server',
   NS: 'Name server',
+  PTR: 'Hostname',
   TXT: 'TXT data',
 }
 
@@ -39,6 +40,7 @@ export const valueExamples: Record<string, string> = {
   CNAME: 'server-1.example.com',
   MX: 'mail.example.com',
   NS: 'ns1.example.com',
+  PTR: 'server-1.example.com',
   TXT: 'v=spf1 include:example.com ~all',
 }
 
