@@ -181,8 +181,9 @@ var migrations = []string{
 	// controller carries that controller as its source and is read-only.
 	`CREATE TABLE IF NOT EXISTS subnets (
 		id TEXT PRIMARY KEY,
-		name TEXT NOT NULL UNIQUE,
+		name TEXT NOT NULL,
 		source TEXT NOT NULL DEFAULT 'manual',
+		source_id TEXT NOT NULL DEFAULT '',
 		stack_type TEXT NOT NULL DEFAULT 'IPv4',
 		vlan INTEGER NOT NULL DEFAULT 0,
 		ipv4_range TEXT NOT NULL DEFAULT '',
@@ -191,6 +192,12 @@ var migrations = []string{
 		created_at TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	)`,
+	// Names are NOT unique: a multi-site controller calls two different
+	// networks "Default", and a range is what identifies a subnet
+	// anyway. What must not repeat is the same upstream object imported
+	// twice, which is what makes re-importing safe to do at any time.
+	`CREATE UNIQUE INDEX IF NOT EXISTS subnets_source ON subnets (source, source_id)
+	 WHERE source_id != ''`,
 	// This console's own accounts — distinct from the identity provider
 	// it manages. password_hash is empty for an account that signs in
 	// some other way, which is what SSO will look like when it lands.

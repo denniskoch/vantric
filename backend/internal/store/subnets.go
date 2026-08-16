@@ -26,6 +26,10 @@ type Subnet struct {
 	// Source is "manual" today. Anything else names the system that
 	// reported the range, and marks it read-only in this console.
 	Source string `json:"source"`
+	// SourceID is the upstream object's own id, empty for a manual
+	// range. It is how a re-import recognises what it already created
+	// instead of making a second copy.
+	SourceID string `json:"sourceId"`
 	// StackType is "IPv4" for now. IPv6 is a second pair of fields
 	// rather than a second meaning, so this is the seam for it.
 	StackType string `json:"stackType"`
@@ -43,13 +47,13 @@ type Subnet struct {
 // SourceManual is a range somebody typed in here.
 const SourceManual = "manual"
 
-const subnetCols = `id, name, source, stack_type, vlan, ipv4_range, ipv4_gateway,
+const subnetCols = `id, name, source, source_id, stack_type, vlan, ipv4_range, ipv4_gateway,
 	description, created_at, updated_at`
 
 func scanSubnet(scan func(dest ...any) error) (*Subnet, error) {
 	var s Subnet
 	var created, updated string
-	if err := scan(&s.ID, &s.Name, &s.Source, &s.StackType, &s.VLAN, &s.IPv4Range,
+	if err := scan(&s.ID, &s.Name, &s.Source, &s.SourceID, &s.StackType, &s.VLAN, &s.IPv4Range,
 		&s.IPv4Gateway, &s.Description, &created, &updated); err != nil {
 		return nil, err
 	}
@@ -89,8 +93,8 @@ func (s *Store) GetSubnet(ctx context.Context, id string) (*Subnet, error) {
 func (s *Store) CreateSubnet(ctx context.Context, subnet *Subnet) error {
 	ts := now()
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO subnets (`+subnetCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		subnet.ID, subnet.Name, subnet.Source, subnet.StackType, subnet.VLAN, subnet.IPv4Range,
+		`INSERT INTO subnets (`+subnetCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		subnet.ID, subnet.Name, subnet.Source, subnet.SourceID, subnet.StackType, subnet.VLAN, subnet.IPv4Range,
 		subnet.IPv4Gateway, subnet.Description, ts, ts)
 	subnet.CreatedAt = parseTime(ts)
 	subnet.UpdatedAt = subnet.CreatedAt

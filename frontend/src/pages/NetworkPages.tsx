@@ -1,9 +1,11 @@
-import { Link as RouterLink } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { Link as RouterLink, useNavigate } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   Paper,
   Table,
@@ -18,6 +20,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import { api } from '../api/client'
 import PageHeader from '../components/PageHeader'
+import { usePermissions } from '../user'
 import { formatDuration } from '../format'
 
 /** The three read-only views over the network controller. They share a
@@ -77,6 +80,14 @@ const useConnected = () => {
 
 export function NetworkNetworksPage() {
   const enabled = useConnected()
+  // Offered only where the API would allow it; see rbac.go.
+  const { canEdit } = usePermissions()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [selected, setSelected] = useState<string[]>([])
+  const [notice, setNotice] = useState<string | null>(null)
+  const [failed, setFailed] = useState<string | null>(null)
+
   const {
     data: networks = [],
     isLoading,
@@ -88,16 +99,109 @@ export function NetworkNetworksPage() {
     retry: false,
   })
 
+  // A network with no range has nothing to record, so it can't be
+  // ticked — better than accepting it and failing on the way out.
+  const importable = networks.filter((n) => Boolean(n.subnet))
+
+  const push = useMutation({
+    mutationFn: () => api.importSubnets(selected),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['subnets'] })
+      setSelected([])
+      const created = result.created.length
+      setNotice(
+        [
+          created > 0 ? `${created} subnet${created === 1 ? '' : 's'} created` : '',
+          result.existing > 0 ? `${result.existing} already recorded` : '',
+        ]
+          .filter(Boolean)
+          .join(' · ') || 'Nothing to create',
+      )
+      setFailed(result.errors?.length ? result.errors.join('; ') : null)
+    },
+    onError: (e: Error) => setFailed(e.message),
+  })
+
+  const toggle = (id: string) =>
+    setSelected((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]))
+
   return (
     <NetworkPage
       title="Networks"
       description="The LANs and VLANs your controller defines, with the subnet and DHCP range each one serves."
       error={error as Error | null}
     >
+      {notice && (
+        <Alert
+          severity="success"
+          onClose={() => setNotice(null)}
+          sx={{ mb: 2 }}
+          action={
+            <Button size="small" onClick={() => navigate('/network/subnets')}>
+              View subnets
+            </Button>
+          }
+        >
+          {notice}
+        </Alert>
+      )}
+      {failed && (
+        <Alert severity="error" onClose={() => setFailed(null)} sx={{ mb: 2 }}>
+          {failed}
+        </Alert>
+      )}
+
+      {/* Selecting rows raises the actions that apply to them, the way
+          every other list here works. */}
+      {selected.length > 0 && (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            mb: 2,
+            px: 2,
+            py: 1,
+            bgcolor: 'surface.infoTint',
+            borderRadius: 1,
+          }}
+        >
+          <Box sx={{ fontSize: 13 }}>{selected.length} selected</Box>
+          <Button size="small" onClick={() => setSelected([])}>
+            Clear
+          </Button>
+          <Box sx={{ flex: 1 }} />
+          <Button
+            variant="contained"
+            size="small"
+            disabled={push.isPending}
+            onClick={() => push.mutate()}
+          >
+            Import to subnets
+          </Button>
+        </Box>
+      )}
+
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>
             <TableRow>
+              {canEdit && (
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    size="small"
+                    checked={
+                      importable.length > 0 && selected.length === importable.length
+                    }
+                    indeterminate={
+                      selected.length > 0 && selected.length < importable.length
+                    }
+                    onChange={(e) =>
+                      setSelected(e.target.checked ? importable.map((n) => n.id) : [])
+                    }
+                  />
+                </TableCell>
+              )}
               <TableCell>Site</TableCell>
               <TableCell>Name</TableCell>
               <TableCell align="right">VLAN</TableCell>
@@ -111,6 +215,16 @@ export function NetworkNetworksPage() {
           <TableBody>
             {networks.map((net) => (
               <TableRow key={`${net.site}/${net.id}`} hover>
+                {canEdit && (
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      size="small"
+                      disabled={!net.subnet}
+                      checked={selected.includes(net.id)}
+                      onChange={() => toggle(net.id)}
+                    />
+                  </TableCell>
+                )}
                 <TableCell>{net.site}</TableCell>
                 <TableCell>{net.name}</TableCell>
                 <TableCell align="right">{net.vlan || '—'}</TableCell>
@@ -131,7 +245,7 @@ export function NetworkNetworksPage() {
             ))}
             {networks.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                <TableCell colSpan={9} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No networks.'}
                 </TableCell>
               </TableRow>

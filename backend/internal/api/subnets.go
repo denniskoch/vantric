@@ -180,3 +180,124 @@ func (s *Server) deleteSubnet(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// importResult says what an import did, per subnet, so the page can
+// show what changed rather than "done".
+type importResult struct {
+	Created []store.Subnet `json:"created"`
+	// Existing is what was already here, matched on the upstream id.
+	Existing int `json:"existing"`
+	// Errors are controllers that couldn't be read. One failing does
+	// not fail the import — the others still have ranges to offer.
+	Errors []string `json:"errors,omitempty"`
+}
+
+// importSubnets creates a subnet row for each network the caller
+// selected on the Networks page.
+//
+// It CREATES ROWS rather than reading through to the controller,
+// because these records are what IP assignment will be built on: they
+// have to exist when the controller doesn't, and they have to be
+// editable afterwards without the next read overwriting the edit.
+// The controller is how they get created, not where they live.
+//
+// Re-importing is safe and additive. An existing row is left exactly
+// as it is, even when the controller has since changed the name or the
+// range, because a silent overwrite of a record something else depends
+// on is the wrong default. Showing that drift is worth doing, and is
+// its own piece of work.
+//
+// The caller names the networks. Importing everything a controller
+// knows about would fill the table with ranges nobody assigns from —
+// guest WiFi, a site you don't run — and picking them off afterwards
+// is worse than choosing up front.
+func (s *Server) importSubnets(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		NetworkIDs []string `json:"networkIds"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if len(req.NetworkIDs) == 0 {
+		s.err(w, http.StatusBadRequest, "select at least one network")
+		return
+	}
+	wanted := map[string]bool{}
+	for _, id := range req.NetworkIDs {
+		wanted[id] = true
+	}
+
+	existing, err := s.store.ListSubnets(r.Context())
+	if err != nil {
+		s.fail(w, err, "subnets")
+		return
+	}
+	seen := map[string]bool{}
+	for _, subnet := range existing {
+		if subnet.SourceID != "" {
+			seen[subnet.Source+"\x00"+subnet.SourceID] = true
+		}
+	}
+
+	records, err := s.store.ListNetworkProviders(r.Context())
+	if err != nil {
+		s.fail(w, err, "network providers")
+		return
+	}
+
+	result := importResult{Created: []store.Subnet{}}
+	for _, record := range records {
+		provider, ok := s.networkRegistry.Get(record.ID)
+		if !ok {
+			continue
+		}
+		networks, err := provider.Networks(r.Context(), "")
+		if err != nil {
+			result.Errors = append(result.Errors, record.Name+": "+err.Error())
+			continue
+		}
+		for _, n := range networks {
+			// Only what was ticked.
+			if !wanted[n.ID] || n.Subnet == "" || n.ID == "" {
+				continue
+			}
+			if seen[record.Name+"\x00"+n.ID] {
+				result.Existing++
+				continue
+			}
+			subnet := store.Subnet{
+				ID:        uuid.NewString(),
+				Name:      n.Name,
+				Source:    record.Name,
+				SourceID:  n.ID,
+				StackType: "IPv4",
+				VLAN:      n.VLAN,
+			}
+			// UniFi states this as the GATEWAY with a prefix length —
+			// 192.168.80.1/24, not 192.168.80.0/24 — so one parse fills
+			// both fields. Taking it at face value would record every
+			// network under a range that doesn't exist.
+			prefix, err := netip.ParsePrefix(n.Subnet)
+			if err != nil || !prefix.Addr().Is4() {
+				result.Errors = append(result.Errors,
+					n.Name+": can't read range "+n.Subnet)
+				continue
+			}
+			subnet.IPv4Range = prefix.Masked().String()
+			if prefix.Addr() != prefix.Masked().Addr() {
+				subnet.IPv4Gateway = prefix.Addr().String()
+			}
+			if n.Site != "" {
+				subnet.Description = "Imported from " + record.Name + ", site " + n.Site
+			}
+			if err := s.store.CreateSubnet(r.Context(), &subnet); err != nil {
+				result.Errors = append(result.Errors, n.Name+": "+err.Error())
+				continue
+			}
+			seen[record.Name+"\x00"+n.ID] = true
+			result.Created = append(result.Created, subnet)
+		}
+	}
+	s.json(w, http.StatusOK, result)
+}

@@ -1399,6 +1399,11 @@ export const api = {
     request<void>(`/servers/${id}`, { method: 'DELETE' }),
   listNetworkProviderTypes: () =>
     request<NetworkProviderType[]>('/network/provider-types'),
+  importSubnets: (networkIds: string[]) =>
+    request<{ created: Subnet[]; existing: number; errors?: string[] }>(
+      '/network/subnets/import',
+      { method: 'POST', body: JSON.stringify({ networkIds }) },
+    ),
   listSubnets: () => request<Subnet[]>('/network/subnets'),
   getSubnet: (id: string) => request<Subnet>(`/network/subnets/${id}`),
   createSubnet: (body: SubnetRequest) =>

@@ -31,6 +31,7 @@ func (s *Server) networkRoutes(r chi.Router) {
 	// they need no provider to be configured.
 	r.Get("/network/subnets", s.listSubnets)
 	r.Post("/network/subnets", s.createSubnet)
+	r.Post("/network/subnets/import", s.importSubnets)
 	r.Get("/network/subnets/{id}", s.getSubnet)
 	r.Put("/network/subnets/{id}", s.updateSubnet)
 	r.Delete("/network/subnets/{id}", s.deleteSubnet)
