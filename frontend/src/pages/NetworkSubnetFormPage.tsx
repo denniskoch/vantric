@@ -25,6 +25,8 @@ export default function NetworkSubnetFormPage() {
   const [vlan, setVLAN] = useState('')
   const [ipv4Range, setIPv4Range] = useState('')
   const [ipv4Gateway, setIPv4Gateway] = useState('')
+  const [dhcpStart, setDHCPStart] = useState('')
+  const [dhcpStop, setDHCPStop] = useState('')
   const [description, setDescription] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -41,12 +43,14 @@ export default function NetworkSubnetFormPage() {
     setVLAN(existing.vlan > 0 ? String(existing.vlan) : '')
     setIPv4Range(existing.ipv4Range)
     setIPv4Gateway(existing.ipv4Gateway)
+    setDHCPStart(existing.dhcpStart)
+    setDHCPStop(existing.dhcpStop)
     setDescription(existing.description)
   }, [existing])
 
   const save = useMutation({
     mutationFn: () => {
-      const body = { name, stackType, vlan: Number(vlan) || 0, ipv4Range, ipv4Gateway, description }
+      const body = { name, stackType, vlan: Number(vlan) || 0, ipv4Range, ipv4Gateway, dhcpStart, dhcpStop, description }
       return editing ? api.updateSubnet(id!, body) : api.createSubnet(body)
     },
     onSuccess: () => {
@@ -62,8 +66,12 @@ export default function NetworkSubnetFormPage() {
   const vlanError = vlanIDError(vlan)
   const rangeError = ipv4CIDRError(ipv4Range)
   const gatewayError = ipv4AddressError(ipv4Gateway, ipv4Range)
+  const dhcpStartError = ipv4AddressError(dhcpStart, ipv4Range)
+  const dhcpStopError =
+    ipv4AddressError(dhcpStop, ipv4Range) ??
+    (Boolean(dhcpStart) !== Boolean(dhcpStop) ? 'A pool needs both ends' : null)
   const complete = name.trim() !== '' && ipv4Range.trim() !== ''
-  const valid = complete && !vlanError && !rangeError && !gatewayError
+  const valid = complete && !vlanError && !rangeError && !gatewayError && !dhcpStartError && !dhcpStopError
 
   return (
     <Box sx={{ p: 3, maxWidth: 720 }}>
@@ -145,6 +153,26 @@ export default function NetworkSubnetFormPage() {
           error={Boolean(gatewayError)}
           helperText={gatewayError ?? 'Optional. Must sit inside the range.'}
         />
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <TextField
+            label="DHCP start"
+            size="small"
+            fullWidth
+            value={dhcpStart}
+            onChange={(e) => setDHCPStart(e.target.value)}
+            error={Boolean(dhcpStartError)}
+            helperText={dhcpStartError ?? 'Optional. Leave both blank for static-only.'}
+          />
+          <TextField
+            label="DHCP end"
+            size="small"
+            fullWidth
+            value={dhcpStop}
+            onChange={(e) => setDHCPStop(e.target.value)}
+            error={Boolean(dhcpStopError)}
+            helperText={dhcpStopError ?? ' '}
+          />
+        </Box>
       </Paper>
 
       <Box sx={{ display: 'flex', gap: 1, pt: 2, mt: 2, borderTop: '1px solid', borderColor: 'divider' }}>

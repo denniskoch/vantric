@@ -15,7 +15,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Tooltip,
 } from '@mui/material'
 import AddBoxIcon from '@mui/icons-material/AddBox'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
@@ -63,8 +62,6 @@ export default function NetworkSubnetsPage() {
     },
   })
 
-  const editable = (subnet: Subnet | null) => subnet?.source === 'manual'
-
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
@@ -100,6 +97,7 @@ export default function NetworkSubnetsPage() {
               <TableCell>Stack type</TableCell>
               <TableCell>IPv4 range</TableCell>
               <TableCell>IPv4 gateway</TableCell>
+              <TableCell>DHCP range</TableCell>
               <TableCell align="right" />
             </TableRow>
           </TableHead>
@@ -132,35 +130,37 @@ export default function NetworkSubnetsPage() {
                 <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
                   {subnet.ipv4Gateway || '—'}
                 </TableCell>
+                <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
+                  {/* No pool is an answer: every address here is
+                      yours to assign. */}
+                  {subnet.dhcpStart ? (
+                    `${subnet.dhcpStart} – ${subnet.dhcpStop}`
+                  ) : (
+                    <Box component="span" sx={{ color: 'text.secondary', fontFamily: 'Roboto' }}>
+                      No DHCP
+                    </Box>
+                  )}
+                </TableCell>
                 <TableCell align="right">
+                  {/* Imported rows are ours too — source says where a
+                      range came from, it doesn't lock the record. */}
                   {canEdit && (
-                    <Tooltip
-                      title={
-                        editable(subnet)
-                          ? ''
-                          : `Reported by ${subnet.source} — edit it there`
-                      }
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        setMenuAnchor(e.currentTarget)
+                        setMenuSubnet(subnet)
+                      }}
                     >
-                      <span>
-                        <IconButton
-                          size="small"
-                          disabled={!editable(subnet)}
-                          onClick={(e) => {
-                            setMenuAnchor(e.currentTarget)
-                            setMenuSubnet(subnet)
-                          }}
-                        >
-                          <MoreVertIcon fontSize="small" />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
                   )}
                 </TableCell>
               </TableRow>
             ))}
             {subnets.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No subnets recorded yet.'}
                 </TableCell>
               </TableRow>
@@ -194,7 +194,11 @@ export default function NetworkSubnetsPage() {
       <ConfirmDeleteDialog
         open={Boolean(confirming)}
         title={`Delete ${confirming?.name}?`}
-        body={`This removes the console's record of ${confirming?.ipv4Range}. Nothing on the network changes.`}
+        body={
+          confirming?.sourceId
+            ? `This removes the console's record of ${confirming?.ipv4Range}. The network stays on ${confirming?.source}, and importing it again brings the row back.`
+            : `This removes the console's record of ${confirming?.ipv4Range}. Nothing on the network changes.`
+        }
         pending={remove.isPending}
         onCancel={() => setConfirming(null)}
         onConfirm={() => confirming && remove.mutate(confirming)}

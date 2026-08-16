@@ -500,11 +500,16 @@ export interface Subnet {
   id: string
   name: string
   source: string
+  /** The upstream object's own id; empty for a manual range. */
+  sourceId: string
   stackType: string
   /** 802.1Q tag, or 0 for an untagged range. */
   vlan: number
   ipv4Range: string
   ipv4Gateway: string
+  /** The DHCP pool inside the range; empty means statically assigned. */
+  dhcpStart: string
+  dhcpStop: string
   description: string
   createdAt: string
   updatedAt: string
@@ -516,6 +521,9 @@ export interface SubnetRequest {
   vlan: number
   ipv4Range: string
   ipv4Gateway: string
+  /** The DHCP pool inside the range; empty means statically assigned. */
+  dhcpStart: string
+  dhcpStop: string
   description: string
 }
 

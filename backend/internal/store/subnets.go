@@ -36,9 +36,15 @@ type Subnet struct {
 	// VLAN is the 802.1Q tag, or 0 for an untagged range. Stored
 	// because a subnet and its VLAN are the same fact to everyone who
 	// has to configure one.
-	VLAN        int       `json:"vlan"`
-	IPv4Range   string    `json:"ipv4Range"`
-	IPv4Gateway string    `json:"ipv4Gateway"`
+	VLAN        int    `json:"vlan"`
+	IPv4Range   string `json:"ipv4Range"`
+	IPv4Gateway string `json:"ipv4Gateway"`
+	// The DHCP pool inside this range. Empty means the range is
+	// statically assigned, which is a real answer rather than a gap —
+	// and the addresses outside the pool are the ones IP assignment
+	// gets to hand out.
+	DHCPStart   string    `json:"dhcpStart"`
+	DHCPStop    string    `json:"dhcpStop"`
 	Description string    `json:"description"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
@@ -48,13 +54,13 @@ type Subnet struct {
 const SourceManual = "manual"
 
 const subnetCols = `id, name, source, source_id, stack_type, vlan, ipv4_range, ipv4_gateway,
-	description, created_at, updated_at`
+	dhcp_start, dhcp_stop, description, created_at, updated_at`
 
 func scanSubnet(scan func(dest ...any) error) (*Subnet, error) {
 	var s Subnet
 	var created, updated string
 	if err := scan(&s.ID, &s.Name, &s.Source, &s.SourceID, &s.StackType, &s.VLAN, &s.IPv4Range,
-		&s.IPv4Gateway, &s.Description, &created, &updated); err != nil {
+		&s.IPv4Gateway, &s.DHCPStart, &s.DHCPStop, &s.Description, &created, &updated); err != nil {
 		return nil, err
 	}
 	s.CreatedAt = parseTime(created)
@@ -93,9 +99,9 @@ func (s *Store) GetSubnet(ctx context.Context, id string) (*Subnet, error) {
 func (s *Store) CreateSubnet(ctx context.Context, subnet *Subnet) error {
 	ts := now()
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO subnets (`+subnetCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO subnets (`+subnetCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		subnet.ID, subnet.Name, subnet.Source, subnet.SourceID, subnet.StackType, subnet.VLAN, subnet.IPv4Range,
-		subnet.IPv4Gateway, subnet.Description, ts, ts)
+		subnet.IPv4Gateway, subnet.DHCPStart, subnet.DHCPStop, subnet.Description, ts, ts)
 	subnet.CreatedAt = parseTime(ts)
 	subnet.UpdatedAt = subnet.CreatedAt
 	return err
@@ -105,9 +111,10 @@ func (s *Store) UpdateSubnet(ctx context.Context, subnet *Subnet) error {
 	ts := now()
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE subnets SET name = ?, stack_type = ?, vlan = ?, ipv4_range = ?,
-		        ipv4_gateway = ?, description = ?, updated_at = ? WHERE id = ?`,
+		        ipv4_gateway = ?, dhcp_start = ?, dhcp_stop = ?, description = ?,
+		        updated_at = ? WHERE id = ?`,
 		subnet.Name, subnet.StackType, subnet.VLAN, subnet.IPv4Range, subnet.IPv4Gateway,
-		subnet.Description, ts, subnet.ID)
+		subnet.DHCPStart, subnet.DHCPStop, subnet.Description, ts, subnet.ID)
 	if err != nil {
 		return err
 	}

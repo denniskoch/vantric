@@ -16,9 +16,11 @@ import (
 // for — the IPAM half of "what's running vs what DNS publishes vs what
 // the addresses were meant to be".
 //
-// Only manual ranges are writable. A subnet whose source is a
-// controller belongs to that controller, and this API refuses to edit
-// it rather than letting two systems disagree about the same range.
+// Every row here is ours, including the imported ones. `source`
+// records where a range CAME FROM; it is provenance, not a lock. An
+// imported subnet can be corrected or removed like any other, because
+// the alternative is a table you can only add to — and deleting one
+// changes nothing on the controller, which still has the network.
 
 type subnetRequest struct {
 	Name        string `json:"name"`
@@ -26,6 +28,8 @@ type subnetRequest struct {
 	VLAN        int    `json:"vlan"`
 	IPv4Range   string `json:"ipv4Range"`
 	IPv4Gateway string `json:"ipv4Gateway"`
+	DHCPStart   string `json:"dhcpStart"`
+	DHCPStop    string `json:"dhcpStop"`
 	Description string `json:"description"`
 }
 
@@ -39,6 +43,8 @@ func (r *subnetRequest) validate() string {
 	r.Name = strings.TrimSpace(r.Name)
 	r.IPv4Range = strings.TrimSpace(r.IPv4Range)
 	r.IPv4Gateway = strings.TrimSpace(r.IPv4Gateway)
+	r.DHCPStart = strings.TrimSpace(r.DHCPStart)
+	r.DHCPStop = strings.TrimSpace(r.DHCPStop)
 	r.Description = strings.TrimSpace(r.Description)
 	if r.StackType == "" {
 		r.StackType = "IPv4"
@@ -117,6 +123,8 @@ func (s *Server) createSubnet(w http.ResponseWriter, r *http.Request) {
 		Source:      store.SourceManual,
 		StackType:   req.StackType,
 		VLAN:        req.VLAN,
+		DHCPStart:   req.DHCPStart,
+		DHCPStop:    req.DHCPStop,
 		IPv4Range:   req.IPv4Range,
 		IPv4Gateway: req.IPv4Gateway,
 		Description: req.Description,
@@ -134,13 +142,6 @@ func (s *Server) updateSubnet(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err, "subnet")
 		return
 	}
-	// Whoever reported it owns it; editing here would make the two
-	// disagree with no way to tell which is right.
-	if existing.Source != store.SourceManual {
-		s.err(w, http.StatusConflict,
-			"this subnet comes from "+existing.Source+" and is read-only here")
-		return
-	}
 	var req subnetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		s.err(w, http.StatusBadRequest, "invalid JSON body")
@@ -155,6 +156,8 @@ func (s *Server) updateSubnet(w http.ResponseWriter, r *http.Request) {
 	existing.VLAN = req.VLAN
 	existing.IPv4Range = req.IPv4Range
 	existing.IPv4Gateway = req.IPv4Gateway
+	existing.DHCPStart = req.DHCPStart
+	existing.DHCPStop = req.DHCPStop
 	existing.Description = req.Description
 	if err := s.store.UpdateSubnet(r.Context(), existing); err != nil {
 		s.fail(w, err, "saving subnet")
@@ -167,11 +170,6 @@ func (s *Server) deleteSubnet(w http.ResponseWriter, r *http.Request) {
 	existing, err := s.store.GetSubnet(r.Context(), chi.URLParam(r, "id"))
 	if err != nil {
 		s.fail(w, err, "subnet")
-		return
-	}
-	if existing.Source != store.SourceManual {
-		s.err(w, http.StatusConflict,
-			"this subnet comes from "+existing.Source+" and is read-only here")
 		return
 	}
 	if err := s.store.DeleteSubnet(r.Context(), existing.ID); err != nil {
@@ -287,6 +285,9 @@ func (s *Server) importSubnets(w http.ResponseWriter, r *http.Request) {
 			subnet.IPv4Range = prefix.Masked().String()
 			if prefix.Addr() != prefix.Masked().Addr() {
 				subnet.IPv4Gateway = prefix.Addr().String()
+			}
+			if n.DHCPEnabled {
+				subnet.DHCPStart, subnet.DHCPStop = n.DHCPStart, n.DHCPStop
 			}
 			if n.Site != "" {
 				subnet.Description = "Imported from " + record.Name + ", site " + n.Site

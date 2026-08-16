@@ -188,6 +188,8 @@ var migrations = []string{
 		vlan INTEGER NOT NULL DEFAULT 0,
 		ipv4_range TEXT NOT NULL DEFAULT '',
 		ipv4_gateway TEXT NOT NULL DEFAULT '',
+		dhcp_start TEXT NOT NULL DEFAULT '',
+		dhcp_stop TEXT NOT NULL DEFAULT '',
 		description TEXT NOT NULL DEFAULT '',
 		created_at TEXT NOT NULL,
 		updated_at TEXT NOT NULL
