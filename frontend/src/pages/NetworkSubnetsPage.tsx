@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
   Box,
   Button,
   IconButton,
+  Link,
   Menu,
   MenuItem,
   Paper,
@@ -105,7 +106,13 @@ export default function NetworkSubnetsPage() {
             {subnets.map((subnet) => (
               <TableRow key={subnet.id} hover>
                 <TableCell>
-                  {subnet.name}
+                  <Link
+                    component={RouterLink}
+                    to={`/network/subnets/${subnet.id}`}
+                    underline="hover"
+                  >
+                    {subnet.name}
+                  </Link>
                   {subnet.description && (
                     <Box sx={{ fontSize: 11, color: 'text.secondary' }}>
                       {subnet.description}

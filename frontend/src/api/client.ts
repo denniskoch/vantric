@@ -515,6 +515,34 @@ export interface Subnet {
   updatedAt: string
 }
 
+export interface IPRecord {
+  id: string
+  subnetId: string
+  address: string
+  hostname: string
+  mac: string
+  status: string
+  description: string
+}
+
+/** One address in a subnet. Roles come from the range, not the record. */
+export interface AddressView {
+  address: string
+  /** network | broadcast | gateway | dhcp | '' for a plain host */
+  role: string
+  usable: boolean
+  record?: IPRecord
+}
+
+export interface AddressPage {
+  addresses: AddressView[]
+  total: number
+  page: number
+  recorded: number
+  inDhcp: number
+  free: number
+}
+
 export interface SubnetRequest {
   name: string
   stackType: string
@@ -1412,6 +1440,15 @@ export const api = {
       '/network/subnets/import',
       { method: 'POST', body: JSON.stringify({ networkIds }) },
     ),
+  subnetAddresses: (id: string, page: number) =>
+    request<AddressPage>(`/network/subnets/${id}/addresses?page=${page}`),
+  saveSubnetAddress: (id: string, body: Partial<IPRecord> & { address: string }) =>
+    request<IPRecord>(`/network/subnets/${id}/addresses`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  deleteSubnetAddress: (id: string, address: string) =>
+    request<void>(`/network/subnets/${id}/addresses/${address}`, { method: 'DELETE' }),
   listSubnets: () => request<Subnet[]>('/network/subnets'),
   getSubnet: (id: string) => request<Subnet>(`/network/subnets/${id}`),
   createSubnet: (body: SubnetRequest) =>

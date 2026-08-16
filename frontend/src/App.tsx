@@ -46,6 +46,7 @@ import {
 import NetworkControllersPage from './pages/NetworkControllersPage'
 import NetworkSubnetsPage from './pages/NetworkSubnetsPage'
 import NetworkSubnetFormPage from './pages/NetworkSubnetFormPage'
+import NetworkSubnetDetailPage from './pages/NetworkSubnetDetailPage'
 import NetworkControllerFormPage from './pages/NetworkControllerFormPage'
 import {
   CreateDatabasePage,
@@ -136,6 +137,7 @@ export default function App() {
         <Route path="/network/devices" element={<NetworkDevicesPage />} />
         <Route path="/network/subnets" element={<NetworkSubnetsPage />} />
         <Route path="/network/subnets/create" element={<RequireRole><NetworkSubnetFormPage /></RequireRole>} />
+        <Route path="/network/subnets/:id" element={<NetworkSubnetDetailPage />} />
         <Route path="/network/subnets/:id/edit" element={<RequireRole><NetworkSubnetFormPage /></RequireRole>} />
         <Route path="/network/controllers" element={<RequireRole admin><NetworkControllersPage /></RequireRole>} />
         <Route path="/network/controllers/add" element={<RequireRole admin><NetworkControllerFormPage /></RequireRole>} />

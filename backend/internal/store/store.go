@@ -200,6 +200,25 @@ var migrations = []string{
 	// twice, which is what makes re-importing safe to do at any time.
 	`CREATE UNIQUE INDEX IF NOT EXISTS subnets_source ON subnets (source, source_id)
 	 WHERE source_id != ''`,
+	// What is known about individual addresses. Deliberately NOT a row
+	// per address: a /20 is 4096 of them and a /16 is 65k, nearly all
+	// with nothing to say. The address list is generated from the
+	// prefix; this table holds only the ones somebody has recorded
+	// something about. ON DELETE CASCADE is real here — the pragma is
+	// set in Open — so removing a subnet takes its records with it.
+	`CREATE TABLE IF NOT EXISTS ip_addresses (
+		id TEXT PRIMARY KEY,
+		subnet_id TEXT NOT NULL REFERENCES subnets(id) ON DELETE CASCADE,
+		address TEXT NOT NULL,
+		hostname TEXT NOT NULL DEFAULT '',
+		mac TEXT NOT NULL DEFAULT '',
+		status TEXT NOT NULL DEFAULT 'assigned',
+		description TEXT NOT NULL DEFAULT '',
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS ip_addresses_unique
+	 ON ip_addresses (subnet_id, address)`,
 	// This console's own accounts — distinct from the identity provider
 	// it manages. password_hash is empty for an account that signs in
 	// some other way, which is what SSO will look like when it lands.
