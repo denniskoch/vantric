@@ -26,13 +26,8 @@ import PersonIcon from '@mui/icons-material/Person'
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
 import GroupIcon from '@mui/icons-material/Group'
 import AppsIcon from '@mui/icons-material/Apps'
-import RouterIcon from '@mui/icons-material/Router'
 import DevicesIcon from '@mui/icons-material/Devices'
 import HubIcon from '@mui/icons-material/Hub'
-import PlaceIcon from '@mui/icons-material/Place'
-import WifiIcon from '@mui/icons-material/Wifi'
-import PublicOffIcon from '@mui/icons-material/Public'
-import VpnLockIcon from '@mui/icons-material/VpnLock'
 import HistoryIcon from '@mui/icons-material/History'
 import FactCheckIcon from '@mui/icons-material/FactCheck'
 import BugReportIcon from '@mui/icons-material/BugReport'
@@ -254,40 +249,10 @@ export const sections: Section[] = [
         label: 'UniFi Network',
         items: [
           {
-            label: 'Sites',
-            icon: PlaceIcon,
-            to: '/network/sites',
-            hint: 'Every site this controller manages, and what is on each',
-          },
-          {
-            label: 'WiFi',
-            icon: WifiIcon,
-            to: '/network/wifi',
-            hint: 'SSIDs, what secures them and who is on them',
-          },
-          {
             label: 'Networks',
             icon: HubIcon,
             to: '/network/networks',
             hint: 'LANs and VLANs, their subnets and DHCP ranges',
-          },
-          {
-            label: 'Internet',
-            icon: PublicOffIcon,
-            to: '/network/internet',
-            hint: 'WAN connections feeding each site',
-          },
-          {
-            label: 'VPN',
-            icon: VpnLockIcon,
-            to: '/network/vpn',
-            hint: 'Tunnels the controller terminates',
-          },
-          {
-            label: 'Devices',
-            icon: RouterIcon,
-            to: '/network/devices',
-            hint: 'Gateways, switches and access points',
           },
           {
             label: 'Clients',

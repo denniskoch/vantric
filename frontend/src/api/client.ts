@@ -1470,14 +1470,11 @@ export const api = {
     }),
   deleteNetworkProvider: (id: string) =>
     request<void>(`/network/providers/${id}`, { method: 'DELETE' }),
-  listNetworkSites: () => request<NetworkSite[]>('/network/sites'),
   listLabNetworks: (category?: string) =>
     request<LabNetwork[]>(
       `/network/networks${category ? `?category=${encodeURIComponent(category)}` : ''}`,
     ),
-  listNetworkWiFi: () => request<NetworkWiFi[]>('/network/wifi'),
   listNetworkClients: () => request<NetworkClient[]>('/network/clients'),
-  listNetworkDevices: () => request<NetworkDevice[]>('/network/devices'),
 
   listIdentityProviderTypes: () =>
     request<IdentityProviderType[]>('/identity/provider-types'),

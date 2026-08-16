@@ -42,11 +42,8 @@ func (s *Server) networkRoutes(r chi.Router) {
 	r.Post("/network/providers", s.createNetworkProvider)
 	r.Put("/network/providers/{id}", s.updateNetworkProvider)
 	r.Delete("/network/providers/{id}", s.deleteNetworkProvider)
-	r.Get("/network/sites", s.listNetworkSites)
 	r.Get("/network/networks", s.listNetworkNetworks)
-	r.Get("/network/wifi", s.listNetworkWiFi)
 	r.Get("/network/clients", s.listNetworkClients)
-	r.Get("/network/devices", s.listNetworkDevices)
 }
 
 type networkProviderView struct {
@@ -261,20 +258,6 @@ func (s *Server) networkProvider(w http.ResponseWriter, r *http.Request) network
 	return provider
 }
 
-func (s *Server) listNetworkSites(w http.ResponseWriter, r *http.Request) {
-	provider := s.networkProvider(w, r)
-	if provider == nil {
-		return
-	}
-	sites, err := provider.Sites(r.Context())
-	if err != nil {
-		s.fail(w, err, "sites")
-		return
-	}
-	slices.SortFunc(sites, func(a, b network.Site) int { return strings.Compare(a.Name, b.Name) })
-	s.json(w, http.StatusOK, sites)
-}
-
 func (s *Server) listNetworkNetworks(w http.ResponseWriter, r *http.Request) {
 	provider := s.networkProvider(w, r)
 	if provider == nil {
@@ -300,26 +283,6 @@ func (s *Server) listNetworkNetworks(w http.ResponseWriter, r *http.Request) {
 		return strings.Compare(a.Name, b.Name)
 	})
 	s.json(w, http.StatusOK, networks)
-}
-
-// listNetworkWiFi lists SSIDs across every site.
-func (s *Server) listNetworkWiFi(w http.ResponseWriter, r *http.Request) {
-	provider := s.networkProvider(w, r)
-	if provider == nil {
-		return
-	}
-	wifi, err := provider.WiFi(r.Context(), r.URL.Query().Get("site"))
-	if err != nil {
-		s.fail(w, err, "wifi")
-		return
-	}
-	slices.SortFunc(wifi, func(a, b network.WiFi) int {
-		if a.Site != b.Site {
-			return strings.Compare(a.Site, b.Site)
-		}
-		return strings.Compare(a.Name, b.Name)
-	})
-	s.json(w, http.StatusOK, wifi)
 }
 
 func (s *Server) listNetworkClients(w http.ResponseWriter, r *http.Request) {
@@ -380,26 +343,4 @@ func ipKey(ip string) (uint32, bool) {
 		key = key<<8 | octet
 	}
 	return key, true
-}
-
-func (s *Server) listNetworkDevices(w http.ResponseWriter, r *http.Request) {
-	provider := s.networkProvider(w, r)
-	if provider == nil {
-		return
-	}
-	devices, err := provider.Devices(r.Context(), r.URL.Query().Get("site"))
-	if err != nil {
-		s.fail(w, err, "devices")
-		return
-	}
-	slices.SortFunc(devices, func(a, b network.Device) int {
-		if a.Site != b.Site {
-			return strings.Compare(a.Site, b.Site)
-		}
-		if a.Kind != b.Kind {
-			return strings.Compare(a.Kind, b.Kind)
-		}
-		return strings.Compare(a.Name, b.Name)
-	})
-	s.json(w, http.StatusOK, devices)
 }
