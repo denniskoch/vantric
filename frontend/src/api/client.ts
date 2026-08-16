@@ -624,6 +624,21 @@ export interface Backup {
   protected: boolean
 }
 
+/**
+ * One guest's backups. The three empty cases are deliberately
+ * distinguishable: a hypervisor with no backup catalog, a catalog that
+ * couldn't be read, and a guest nobody has ever backed up — only the
+ * last of which is a finding about the guest.
+ */
+export interface InstanceBackups {
+  supported: boolean
+  backups: Backup[]
+  /** Newest archive older than the console's threshold. */
+  stale: boolean
+  staleAfterDays: number
+  error?: string
+}
+
 export interface TemplateBuildRequest {
   name: string
   zone: string
@@ -1552,6 +1567,8 @@ export const api = {
   instanceMetrics: (name: string, timeframe: MetricTimeframe) =>
     request<MetricPoint[]>(`/instances/${name}/metrics?timeframe=${timeframe}`),
   instanceOSInfo: (name: string) => request<OSInfo>(`/instances/${name}/os-info`),
+  instanceBackups: (name: string) =>
+    request<InstanceBackups>(`/instances/${name}/backups`),
   createInstance: (body: CreateInstanceRequest) =>
     request<Operation>('/instances', {
       method: 'POST',

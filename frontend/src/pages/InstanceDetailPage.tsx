@@ -7,6 +7,7 @@ import {
   Box,
   Button,
   Chip,
+  IconButton,
   Paper,
   Table,
   TableBody,
@@ -28,7 +29,7 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import DeleteIcon from '@mui/icons-material/Delete'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { api } from '../api/client'
-import type { MetricTimeframe } from '../api/client'
+import type { Backup, MetricTimeframe } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import StatusIcon from '../components/StatusIcon'
 import DetailTable, { DetailSection } from '../components/DetailTable'
@@ -38,8 +39,9 @@ import { formatBytes, formatBytesPerSec, formatPercent, formatUptime } from '../
 import { OSIcon } from '../components/OSName'
 import ConnectButton from '../components/ConnectButton'
 import GuestInventory from '../components/GuestInventory'
+import { usePermissions } from '../user'
 
-type TabID = 'details' | 'observability' | 'os' | 'console'
+type TabID = 'details' | 'observability' | 'os' | 'backups' | 'console'
 
 const mediaLabels: Record<string, string> = {
   cdrom: 'CD-ROM',
@@ -79,11 +81,14 @@ function proxmoxConsoleURL(
 
 export default function InstanceDetailPage() {
   const { name } = useParams<{ name: string }>()
+  // Offered only where the API would allow it; see rbac.go.
+  const { canEdit } = usePermissions()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [tab, setTab] = useState<TabID>('details')
+  const [deletingBackup, setDeletingBackup] = useState<Backup | null>(null)
   const [timeframe, setTimeframe] = useState<MetricTimeframe>('hour')
 
   const { data: inst } = useQuery({
@@ -111,6 +116,14 @@ export default function InstanceDetailPage() {
     refetchInterval: 60000,
   })
 
+  // Someone else's catalog, changed by their backup job rather than by
+  // this page — so it's read when the tab is opened and never polled.
+  const { data: backups, isLoading: backupsLoading } = useQuery({
+    queryKey: ['instanceBackups', name],
+    queryFn: () => api.instanceBackups(name!),
+    enabled: Boolean(name) && tab === 'backups',
+  })
+
   const { data: osInfo, isLoading: osLoading } = useQuery({
     queryKey: ['instanceOSInfo', name],
     queryFn: () => api.instanceOSInfo(name!),
@@ -135,6 +148,22 @@ export default function InstanceDetailPage() {
     onError: (e: Error) => {
       setDeleting(false)
       setError(e.message)
+    },
+  })
+
+  const removeBackup = useMutation({
+    mutationFn: (backup: Backup) =>
+      api.deleteBackup(backup.serverId, backup.zone, backup.id),
+    onSuccess: () => {
+      // The hypervisor deletes on a task, so the archive lingers for a
+      // moment; this tab is read on demand, so re-read it.
+      queryClient.invalidateQueries({ queryKey: ['instanceBackups', name] })
+      queryClient.invalidateQueries({ queryKey: ['backups'] })
+      setDeletingBackup(null)
+    },
+    onError: (e: Error) => {
+      setError(e.message)
+      setDeletingBackup(null)
     },
   })
 
@@ -283,6 +312,7 @@ export default function InstanceDetailPage() {
         <Tab label="Details" value="details" sx={{ textTransform: 'none', minHeight: 44 }} />
         <Tab label="Observability" value="observability" sx={{ textTransform: 'none', minHeight: 44 }} />
         <Tab label="OS Info" value="os" sx={{ textTransform: 'none', minHeight: 44 }} />
+        <Tab label="Backups" value="backups" sx={{ textTransform: 'none', minHeight: 44 }} />
         <Tab label="Console" value="console" sx={{ textTransform: 'none', minHeight: 44 }} />
       </Tabs>
 
@@ -717,6 +747,105 @@ export default function InstanceDetailPage() {
           </>
         )}
 
+        {tab === 'backups' && (
+          <>
+            {backupsLoading && (
+              <Typography color="text.secondary">Loading backups…</Typography>
+            )}
+            {backups?.error && (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                {backups.error}
+              </Alert>
+            )}
+            {backups && !backups.supported && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                This instance's hypervisor doesn't keep a backup catalog, so there's
+                nothing for this console to list.
+              </Alert>
+            )}
+            {/* Never backed up is a finding about the guest, not an
+                empty table — the hypervisor's job either covers this
+                one or it doesn't. */}
+            {backups?.supported && !backups.error && backups.backups.length === 0 && (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                No backups exist for this instance. Its hypervisor keeps a backup
+                catalog, so nothing here is scheduled to back it up.
+              </Alert>
+            )}
+            {backups && backups.stale && (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                The newest backup is more than {backups.staleAfterDays} days old.
+              </Alert>
+            )}
+            {backups && backups.backups.length > 0 && (
+              <DetailSection
+                title={`${backups.backups.length} backup${
+                  backups.backups.length === 1 ? '' : 's'
+                }`}
+              >
+                <TableContainer component={Paper} variant="outlined">
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Created</TableCell>
+                        <TableCell>Datastore</TableCell>
+                        <TableCell align="right">Size</TableCell>
+                        <TableCell>Format</TableCell>
+                        <TableCell>Archive</TableCell>
+                        <TableCell align="right" />
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {backups.backups.map((backup) => (
+                        <TableRow key={backup.id} hover>
+                          <TableCell>
+                            {backup.createdAt
+                              ? new Date(backup.createdAt * 1000).toLocaleString()
+                              : '—'}
+                          </TableCell>
+                          <TableCell>{backup.storage}</TableCell>
+                          <TableCell align="right">
+                            {formatBytes(backup.sizeBytes)}
+                          </TableCell>
+                          <TableCell sx={{ color: '#5f6368' }}>
+                            {backup.format || '—'}
+                          </TableCell>
+                          <TableCell
+                            sx={{ fontFamily: 'monospace', fontSize: 11, color: '#5f6368' }}
+                          >
+                            {backup.name}
+                          </TableCell>
+                          <TableCell align="right">
+                            {canEdit && (
+                              <Tooltip
+                                title={
+                                  backup.protected
+                                    ? 'Protected on the hypervisor'
+                                    : 'Delete this restore point'
+                                }
+                              >
+                                <span>
+                                  <IconButton
+                                    size="small"
+                                    disabled={backup.protected}
+                                    onClick={() => setDeletingBackup(backup)}
+                                  >
+                                    <DeleteIcon fontSize="small" />
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </DetailSection>
+            )}
+          </>
+        )}
+
         {tab === 'os' && (
           <>
             {osLoading && <Typography color="text.secondary">Loading OS info…</Typography>}
@@ -800,7 +929,8 @@ export default function InstanceDetailPage() {
         title={`Delete ${inst.name}?`}
         body={
           <>
-            This destroys the virtual machine and its disks. Snapshots and backups\n            taken of it are not removed, but nothing else brings it back.
+            This destroys the virtual machine and its disks. Snapshots and backups
+            taken of it are not removed, but nothing else brings it back.
           </>
         }
         confirmPhrase={inst.name}
@@ -808,6 +938,23 @@ export default function InstanceDetailPage() {
         pending={remove.isPending}
         onCancel={() => setDeleting(false)}
         onConfirm={() => remove.mutate()}
+      />
+
+      <ConfirmDeleteDialog
+        open={Boolean(deletingBackup)}
+        title={`Delete this backup of ${inst.name}?`}
+        body={`${deletingBackup?.name} — ${formatBytes(
+          deletingBackup?.sizeBytes ?? 0,
+        )} taken ${
+          deletingBackup?.createdAt
+            ? new Date(deletingBackup.createdAt * 1000).toLocaleString()
+            : 'at an unknown time'
+        }. Deleting the archive doesn't touch the guest, but this restore point is gone.`}
+        confirmPhrase="I UNDERSTAND"
+        confirmLabel="to delete this restore point"
+        pending={removeBackup.isPending}
+        onCancel={() => setDeletingBackup(null)}
+        onConfirm={() => deletingBackup && removeBackup.mutate(deletingBackup)}
       />
     </Box>
   )

@@ -214,6 +214,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 			r.Get("/metrics", s.instanceMetrics)
 			r.Get("/os-info", s.instanceOSInfo)
 			r.Get("/inventory", s.instanceInventory)
+			r.Get("/backups", s.instanceBackups)
 			r.Get("/ssh", s.instanceSSH)
 			r.Delete("/", s.deleteInstance)
 			r.Post("/start", s.instanceAction("start"))

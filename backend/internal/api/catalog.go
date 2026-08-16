@@ -4,7 +4,9 @@ import (
 	"context"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
+	"time"
 
 	"vantric/internal/hypervisor"
 	"vantric/internal/store"
@@ -174,6 +176,79 @@ func (s *Server) listBackups(w http.ResponseWriter, r *http.Request) {
 		return strings.Compare(a.Name, b.Name)
 	})
 	s.json(w, http.StatusOK, backups)
+}
+
+// instanceBackupsView answers three different questions with three
+// different shapes, because collapsing them loses the finding: a
+// backend with no backup catalog is not the same as a guest nobody has
+// ever backed up, and neither is an error reading the catalog.
+type instanceBackupsView struct {
+	// Supported is false when this instance's hypervisor keeps no
+	// backup catalog at all.
+	Supported bool                `json:"supported"`
+	Backups   []hypervisor.Backup `json:"backups"`
+	// Stale marks a newest backup older than the console's threshold,
+	// the same one the Cloud overview raises a problem for. Computed
+	// here so the two can't drift apart.
+	Stale          bool `json:"stale"`
+	StaleAfterDays int  `json:"staleAfterDays"`
+	// Error keeps a failed catalog read from blanking the tab.
+	Error string `json:"error,omitempty"`
+}
+
+// instanceBackups lists the archives that belong to one guest.
+//
+// It asks only that guest's OWN server, unlike the estate-wide listing:
+// a vmid is unique per hypervisor, not across them, so spanning servers
+// would attribute another guest's archives to this one. Read on demand
+// and never polled — it is the hypervisor's catalog, and it changes
+// when its backup job runs, not when this page is open.
+func (s *Server) instanceBackups(w http.ResponseWriter, r *http.Request) {
+	inst, driver := s.instanceDriver(w, r)
+	if driver == nil {
+		return
+	}
+	view := instanceBackupsView{
+		Backups:        []hypervisor.Backup{},
+		StaleAfterDays: int(backupStaleAfter / (24 * time.Hour)),
+	}
+	bd, ok := driver.(hypervisor.BackupDriver)
+	if !ok {
+		s.json(w, http.StatusOK, view)
+		return
+	}
+	view.Supported = true
+
+	all, err := bd.Backups(r.Context())
+	if err != nil {
+		view.Error = err.Error()
+		s.json(w, http.StatusOK, view)
+		return
+	}
+	vmid, err := strconv.Atoi(inst.DriverID)
+	if err != nil {
+		// Nothing to match on; say so rather than reporting "none",
+		// which would read as "this guest is not backed up".
+		view.Error = "this instance has no numeric hypervisor id to match backups against"
+		s.json(w, http.StatusOK, view)
+		return
+	}
+	for _, b := range all {
+		if b.VMID == vmid {
+			b.ServerID = inst.ServerID
+			view.Backups = append(view.Backups, b)
+		}
+	}
+	slices.SortFunc(view.Backups, func(a, b hypervisor.Backup) int {
+		if a.CreatedAt != b.CreatedAt {
+			return int(b.CreatedAt - a.CreatedAt)
+		}
+		return strings.Compare(a.Name, b.Name)
+	})
+	if len(view.Backups) > 0 {
+		view.Stale = view.Backups[0].CreatedAt < time.Now().Add(-backupStaleAfter).Unix()
+	}
+	s.json(w, http.StatusOK, view)
 }
 
 func (s *Server) listCTTemplates(w http.ResponseWriter, r *http.Request) {
