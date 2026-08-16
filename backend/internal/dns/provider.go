@@ -67,6 +67,39 @@ type RecordSpec struct {
 	Comment  string
 }
 
+// RecordSetValue is one value inside a record set.
+type RecordSetValue struct {
+	Content  string
+	Priority int
+}
+
+// RecordSetSpec is what a record set should contain AFTER the write —
+// the complete set, not a delta.
+type RecordSetSpec struct {
+	Name   string
+	Type   string
+	TTL    int
+	Values []RecordSetValue
+}
+
+// RecordSetWriter is an optional capability for providers whose native
+// unit is the record SET rather than the individual record. Check with
+// a type assertion, like ContainerDriver:
+//
+//	w, ok := provider.(dns.RecordSetWriter)
+//
+// It exists because the record-by-record path has to reach the same
+// end state through a SEQUENCE of writes, and a provider that validates
+// each one can reject a legal edit for the state it passes through.
+// PowerDNS refuses duplicate values within a set, so shrinking
+// {a, b} to {b} — which the diff performs as "update a to b, then
+// delete the spare b" — fails at the first step on a set that was never
+// meant to exist. A provider that can write the whole set at once has
+// no intermediate state to be wrong about, and does it in one request.
+type RecordSetWriter interface {
+	SaveRecordSet(ctx context.Context, zoneID string, spec RecordSetSpec) ([]Record, error)
+}
+
 // ZoneSpec describes a zone to create.
 type ZoneSpec struct {
 	Name      string

@@ -444,6 +444,33 @@ func (s *Server) saveDNSRecordSet(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// A provider whose own unit is the SET writes it in one go. That is
+	// not just fewer requests: the record-by-record path below reaches
+	// the end state through a sequence, and a provider that validates
+	// each step can refuse a legal edit for a state it only passes
+	// through — see dns.RecordSetWriter.
+	if writer, ok := provider.(dns.RecordSetWriter); ok {
+		values := make([]dns.RecordSetValue, 0, len(req.Values))
+		for _, value := range req.Values {
+			values = append(values, dns.RecordSetValue{
+				Content:  strings.TrimSpace(value.Content),
+				Priority: value.Priority,
+			})
+		}
+		saved, err := writer.SaveRecordSet(r.Context(), zoneID, dns.RecordSetSpec{
+			Name:   name,
+			Type:   req.Type,
+			TTL:    req.TTL,
+			Values: values,
+		})
+		if err != nil {
+			s.fail(w, err, "saving record set")
+			return
+		}
+		s.json(w, http.StatusOK, saved)
+		return
+	}
+
 	current := setRecords(existing, name, req.Type)
 	saved := []dns.Record{}
 	for i, value := range req.Values {

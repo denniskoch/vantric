@@ -9,11 +9,22 @@
 // a time, because Cloudflare does.
 //
 // So this driver bridges the two. Reads flatten rrsets into individual
-// records under a synthetic id; writes read the set, change the one
-// record, and PATCH the set back. Two consequences worth knowing:
-// editing a record's TTL changes it for every record sharing that name
-// and type, because PowerDNS has nowhere else to put it, and two
-// simultaneous edits to one set are last-writer-wins.
+// records under a synthetic id. Writes come in two flavours: the
+// per-record methods the interface demands read the set, change the one
+// record and PATCH it back, while SaveRecordSet — the dns.RecordSetWriter
+// capability, which is what the record-set editor actually calls —
+// writes the whole set in a single request and reads nothing first.
+//
+// The capability is not an optimisation. The per-record path reaches
+// its end state through a SEQUENCE of writes, and PowerDNS validates
+// each one: shrinking {a, b} to {b} is performed as "update a to b,
+// then delete the spare", and the first step is a set holding b twice,
+// which it rejects outright. Writing the set entire has no intermediate
+// state to be wrong about.
+//
+// Two things remain true however a write arrives: a record's TTL is the
+// SET's TTL, so editing one edits its siblings, and two simultaneous
+// edits to one set are last-writer-wins.
 package powerdns
 
 import (
@@ -278,6 +289,98 @@ func joinPriority(rtype, content string, priority int) string {
 	return strconv.Itoa(priority) + " " + content
 }
 
+// hostnameContent is the record types whose VALUE is a domain name.
+// PowerDNS stores those fully qualified and REFUSES a relative one —
+// "Not in expected format" — where Cloudflare takes either and every
+// other provider this app might grow will have its own opinion. So the
+// dot is added on the way out and removed on the way in, and the rest
+// of the app never sees it.
+//
+// TXT is deliberately absent: its value is free text that may end in a
+// dot meaning nothing at all.
+var hostnameContent = map[string]bool{
+	"CNAME": true, "NS": true, "PTR": true, "DNAME": true, "ALIAS": true,
+}
+
+// canonicalContent qualifies the hostname inside a value. MX and SRV
+// carry theirs after a priority (and, for SRV, a weight and port), so
+// the name is the last field rather than the whole string.
+func canonicalContent(rtype, content string) string {
+	if hostnameContent[rtype] {
+		return canonical(content)
+	}
+	fields := strings.Fields(content)
+	switch {
+	case rtype == "MX" && len(fields) == 2, rtype == "SRV" && len(fields) == 4:
+		fields[len(fields)-1] = canonical(fields[len(fields)-1])
+		return strings.Join(fields, " ")
+	}
+	return content
+}
+
+// displayContent is canonicalContent's inverse, so a value written here
+// reads back the way it was typed.
+//
+// It counts fields more loosely than canonicalContent does, because it
+// runs AFTER splitPriority has taken the priority off the front: an MX
+// arrives here as "mail.example." rather than "10 mail.example.". The
+// hostname is the last field either way, which is the only thing this
+// needs to be sure of.
+func displayContent(rtype, content string) string {
+	if hostnameContent[rtype] {
+		return trimDot(content)
+	}
+	if rtype == "MX" || rtype == "SRV" {
+		if fields := strings.Fields(content); len(fields) > 0 {
+			fields[len(fields)-1] = trimDot(fields[len(fields)-1])
+			return strings.Join(fields, " ")
+		}
+	}
+	return content
+}
+
+// SaveRecordSet writes a whole set in ONE request — the capability that
+// exists because PowerDNS's unit is the set. Nothing is read first: the
+// spec is the complete contents, so there is no merge to get wrong and
+// no intermediate state for the server to reject.
+func (d *Driver) SaveRecordSet(ctx context.Context, zoneID string, spec dns.RecordSetSpec) ([]dns.Record, error) {
+	set := pdnsRRset{
+		Name: canonical(spec.Name),
+		Type: spec.Type,
+		TTL:  ttlOrDefault(spec.TTL),
+	}
+	records := []dns.Record{}
+	seen := map[string]bool{}
+	for _, value := range spec.Values {
+		content := canonicalContent(spec.Type,
+			joinPriority(spec.Type, strings.TrimSpace(value.Content), value.Priority))
+		// PowerDNS rejects the whole PATCH over a repeated value, which
+		// would turn one duplicated row in the editor into an error
+		// about the set as a whole.
+		if seen[content] {
+			continue
+		}
+		seen[content] = true
+		set.Records = append(set.Records, pdnsRecord{Content: content})
+		priority, bare := splitPriority(spec.Type, content)
+		records = append(records, dns.Record{
+			ID:       recordID(set.Name, spec.Type, content),
+			Name:     trimDot(set.Name),
+			Type:     spec.Type,
+			Content:  displayContent(spec.Type, bare),
+			TTL:      set.TTL,
+			Priority: priority,
+		})
+	}
+	if len(set.Records) == 0 {
+		return nil, fmt.Errorf("powerdns: a record set needs at least one value")
+	}
+	if err := d.patch(ctx, zoneID, set, false); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
 func (d *Driver) Records(ctx context.Context, zoneID string) ([]dns.Record, error) {
 	var z pdnsZone
 	if err := d.do(ctx, http.MethodGet, d.zonePath(zoneID), nil, &z); err != nil {
@@ -291,7 +394,7 @@ func (d *Driver) Records(ctx context.Context, zoneID string) ([]dns.Record, erro
 				ID:       recordID(rr.Name, rr.Type, rec.Content),
 				Name:     trimDot(rr.Name),
 				Type:     rr.Type,
-				Content:  content,
+				Content:  displayContent(rr.Type, content),
 				TTL:      rr.TTL,
 				Priority: priority,
 			})
@@ -356,7 +459,7 @@ func ttlOrDefault(ttl int) int {
 }
 
 func (d *Driver) CreateRecord(ctx context.Context, zoneID string, spec dns.RecordSpec) (*dns.Record, error) {
-	content := joinPriority(spec.Type, spec.Content, spec.Priority)
+	content := canonicalContent(spec.Type, joinPriority(spec.Type, spec.Content, spec.Priority))
 	set, err := d.rrset(ctx, zoneID, spec.Name, spec.Type)
 	if err != nil {
 		return nil, err
@@ -410,7 +513,7 @@ func (d *Driver) UpdateRecord(ctx context.Context, zoneID, id string, spec dns.R
 	if set == nil {
 		return nil, dns.ErrNotFound
 	}
-	content := joinPriority(spec.Type, spec.Content, spec.Priority)
+	content := canonicalContent(spec.Type, joinPriority(spec.Type, spec.Content, spec.Priority))
 	replaced := false
 	for i, rec := range set.Records {
 		if rec.Content == oldContent {
