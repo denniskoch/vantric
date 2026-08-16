@@ -17,7 +17,6 @@ import {
   TableHead,
   TableRow,
   Tooltip,
-  Typography,
 } from '@mui/material'
 import AddBoxIcon from '@mui/icons-material/AddBox'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
@@ -27,7 +26,7 @@ import PendingIcon from '@mui/icons-material/Pending'
 import { api } from '../api/client'
 import type { DNSZone } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
-import { networkForReverseZone } from '../reverseDns'
+import { isReverseZone } from '../reverseDns'
 import PageHeader from '../components/PageHeader'
 import { usePermissions } from '../user'
 
@@ -116,6 +115,7 @@ export default function DNSZonesPage() {
             <TableRow>
               <TableCell>Status</TableCell>
               <TableCell>Name</TableCell>
+              <TableCell>Lookup</TableCell>
               <TableCell>Provider</TableCell>
               <TableCell>Account</TableCell>
               <TableCell align="right" />
@@ -141,19 +141,10 @@ export default function DNSZonesPage() {
                   >
                     {zone.name}
                   </Link>
-                  {/* A reverse zone's name is its network backwards.
-                      Nobody reads 80.168.192.in-addr.arpa and thinks
-                      "the LAN", so the network is spelled out beside
-                      it rather than left as an exercise. */}
-                  {networkForReverseZone(zone.name) && (
-                    <Typography
-                      component="span"
-                      sx={{ color: 'text.secondary', fontSize: 12, ml: 1 }}
-                    >
-                      {networkForReverseZone(zone.name)}
-                    </Typography>
-                  )}
                 </TableCell>
+                {/* What the zone fundamentally IS, so plain cell text
+                    rather than a badge. */}
+                <TableCell>{isReverseZone(zone.name) ? 'Reverse' : 'Forward'}</TableCell>
                 <TableCell>{providerName(zone.providerId)}</TableCell>
                 <TableCell>{zone.accountName || '—'}</TableCell>
                 <TableCell align="right">
@@ -173,7 +164,7 @@ export default function DNSZonesPage() {
             ))}
             {zones.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No zones found at your providers.'}
                 </TableCell>
               </TableRow>
