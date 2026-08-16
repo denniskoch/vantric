@@ -50,7 +50,6 @@ export default function InstanceSSHPage() {
   const username = sshUsername(user)
 
   const terminalRef = useRef<HTMLDivElement>(null)
-  const socketRef = useRef<WebSocket | null>(null)
 
   const { data: instance } = useQuery({
     queryKey: ['instance', name],
@@ -135,7 +134,6 @@ export default function InstanceSSHPage() {
     const socket = new WebSocket(
       `${proto}//${window.location.host}/api/v1/instances/${encodeURIComponent(name)}/ssh`,
     )
-    socketRef.current = socket
 
     socket.onopen = () => {
       setConnected(true)
@@ -229,16 +227,6 @@ export default function InstanceSSHPage() {
         >
           <SettingsIcon fontSize="small" />
         </IconButton>
-        <Button
-          size="small"
-          sx={{ color: '#8ab4f8' }}
-          onClick={() => {
-            socketRef.current?.close()
-            window.close()
-          }}
-        >
-          Disconnect
-        </Button>
       </Box>
       {/* The terminal's own background, carried to the window edge.
           The padding used to show the console's dark surface instead,
