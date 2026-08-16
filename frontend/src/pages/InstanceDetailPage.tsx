@@ -759,8 +759,7 @@ export default function InstanceDetailPage() {
             )}
             {backups && !backups.supported && (
               <Alert severity="info" sx={{ mb: 2 }}>
-                This instance's hypervisor doesn't keep a backup catalog, so there's
-                nothing for this console to list.
+                This hypervisor keeps no backup catalog.
               </Alert>
             )}
             {/* Never backed up is a finding about the guest, not an
@@ -768,8 +767,7 @@ export default function InstanceDetailPage() {
                 one or it doesn't. */}
             {backups?.supported && !backups.error && backups.backups.length === 0 && (
               <Alert severity="warning" sx={{ mb: 2 }}>
-                No backups exist for this instance. Its hypervisor keeps a backup
-                catalog, so nothing here is scheduled to back it up.
+                No backups exist for this instance.
               </Alert>
             )}
             {backups && backups.stale && (

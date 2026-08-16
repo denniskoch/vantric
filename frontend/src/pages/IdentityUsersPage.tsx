@@ -92,9 +92,7 @@ export default function IdentityUsersPage() {
         }
         description={
           <>
-                Accounts in your identity provider's directory. Names and details are
-            edited in the provider; this is for creating an account and the changes
-            you make in a hurry.
+                Accounts in your identity provider's directory.
           </>
         }
       />

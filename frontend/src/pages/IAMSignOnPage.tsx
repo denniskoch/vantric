@@ -100,7 +100,7 @@ export default function IAMSignOnPage() {
     <Box sx={{ p: 3, maxWidth: 720 }}>
       <PageHeader
         title="Single sign-on"
-        description="Let people sign in through the lab's identity provider. Local accounts keep working — they're the way in when the identity provider is the thing that's broken."
+        description="Let people sign in through the lab's identity provider. Local accounts keep working."
       />
 
       {error && (

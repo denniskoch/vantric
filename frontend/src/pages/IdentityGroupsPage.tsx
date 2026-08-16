@@ -38,8 +38,7 @@ export default function IdentityGroupsPage() {
         title="Groups"
         description={
           <>
-                Membership is usually what grants access to an application, and a
-            superuser group is what makes someone an administrator.
+                Groups in your provider's directory, and who belongs to them.
           </>
         }
       />

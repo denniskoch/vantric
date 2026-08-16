@@ -105,8 +105,7 @@ export default function IAMUsersPage() {
         }
         description={
           <>
-                Accounts that can sign in to this console. Roles are recorded and
-            shown here; enforcing what each one may do is still to come.
+            Accounts that can sign in to this console, and the role each one holds.
           </>
         }
       />

@@ -537,7 +537,7 @@ export function NetworkWiFiPage() {
   return (
     <NetworkPage
       title="WiFi"
-      description="The SSIDs your access points broadcast. Passphrases are deliberately not read — this console has no business holding them."
+      description="The SSIDs your access points broadcast."
       error={error as Error | null}
     >
       <TableContainer component={Paper} variant="outlined">

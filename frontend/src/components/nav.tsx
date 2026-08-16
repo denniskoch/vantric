@@ -174,7 +174,7 @@ export const sections: Section[] = [
     prefix: '/devices',
     home: '/devices/overview',
     description:
-      'Machines your inventory service tracks — physical and virtual — with what they run and the vulnerabilities they carry.',
+      'Machines your inventory service tracks, physical and virtual.',
     items: [{ label: 'Overview', icon: DashboardIcon, to: '/devices/overview' }],
     groups: [
       {
@@ -377,7 +377,7 @@ export const sections: Section[] = [
       },
     ],
     description:
-      'Who can use this console and what they can do — roles, permissions and audit for Lab Cloud itself.',
+      'Who can use this console and what they can do.',
   },
   {
     id: 'identity',
@@ -434,7 +434,7 @@ export const sections: Section[] = [
       },
     ],
     description:
-      'The identity provider your lab services sign in through — users, groups, applications and login events, read from its own API.',
+      'The identity provider your lab services sign in through — users, groups, applications and login events.',
   },
   {
     id: 'dns',

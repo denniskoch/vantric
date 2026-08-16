@@ -64,13 +64,7 @@ export default function BackupsPage() {
     <Box sx={{ p: 3 }}>
       <PageHeader
         title="Backups"
-        description={
-          <>
-                Guest backup archives on your datastores, newest first. Taken by the
-            hypervisor's own backup jobs — this console lists them, and deletes
-            the ones you no longer want.
-          </>
-        }
+        description="Guest backup archives on your datastores, newest first."
       />
 
       {error && (

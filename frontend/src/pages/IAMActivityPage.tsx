@@ -58,7 +58,7 @@ export default function IAMActivityPage() {
     <Box sx={{ p: 3 }}>
       <PageHeader
         title="Activity"
-        description="Every change made through this console, and the account that made it. Reads aren't recorded — a poll of the instance list every three seconds would bury the line that matters."
+        description="Every change made through this console, and the account that made it."
       />
 
       <TextField

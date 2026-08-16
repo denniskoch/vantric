@@ -71,8 +71,7 @@ export default function IdentityProvidersPage() {
         }
         description={
           <>
-                The identity service your lab signs in through. It owns the directory —
-            this console reads it and performs the everyday changes.
+                The identity service your lab signs in through.
           </>
         }
       />

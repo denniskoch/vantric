@@ -43,7 +43,7 @@ export default function DevicesHostsPage() {
     <Box sx={{ p: 3 }}>
       <PageHeader
         title="Hosts"
-        description="Machines your inventory service is tracking. Guests this console runs are matched to them by system UUID; everything else is physical, or somebody else's."
+        description="Machines your inventory service is tracking, matched to instances by system UUID."
       />
 
       {data && !data.configured && (

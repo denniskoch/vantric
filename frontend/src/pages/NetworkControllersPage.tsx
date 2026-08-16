@@ -68,8 +68,7 @@ export default function NetworkControllersPage() {
         }
         description={
           <>
-                The controller that runs your network. It owns the configuration — this
-            console reads it, and correlates it with what the hypervisors and DNS say.
+                The controller that runs your network.
           </>
         }
       />

@@ -109,7 +109,7 @@ export default function DevicesInstallersPage() {
     <Box sx={{ p: 3 }}>
       <PageHeader
         title="Installers"
-        description="Agent packages this console holds, so a machine being enrolled can fetch one with a single command. The download link carries a token — a fleetd package contains your enrollment secret, so it isn't left open."
+        description="Agent packages a machine can fetch with one command. Download links carry a token."
         actions={
           <>
             {canEdit && (

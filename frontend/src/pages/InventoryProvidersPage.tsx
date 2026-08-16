@@ -65,7 +65,7 @@ export default function InventoryProvidersPage() {
     <Box sx={{ p: 3 }}>
       <PageHeader
         title="Inventory"
-        description="A device inventory service reports what's installed inside your guests, and which vulnerabilities those versions carry. This console reads it and shows it on each instance's OS Info tab — matching guests to hosts by their system UUID."
+        description="The device inventory service this console reads, matched to instances by system UUID."
         actions={
           <Button
             variant="contained"

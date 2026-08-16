@@ -112,8 +112,7 @@ export default function ServersPage() {
         }
         description={
           <>
-                Virtualization hosts that back your instances. Each one provides
-            zones (its nodes) and images (its templates).
+            Virtualization hosts that back your instances.
           </>
         }
       />

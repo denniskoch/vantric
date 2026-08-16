@@ -110,8 +110,7 @@ export default function DatabaseInstancesPage() {
         }
         description={
           <>
-                Database servers already running in your lab. This console connects to
-            them — it doesn't provision the servers themselves.
+                Database servers running in your lab.
           </>
         }
       />

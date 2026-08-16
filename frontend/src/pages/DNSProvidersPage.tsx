@@ -93,8 +93,7 @@ export default function DNSProvidersPage() {
         }
         description={
           <>
-                DNS accounts this console manages zones through. Credentials stay on the
-            server and are never sent back to the browser.
+                DNS accounts this console manages zones through.
           </>
         }
       />
