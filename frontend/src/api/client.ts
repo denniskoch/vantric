@@ -1170,8 +1170,11 @@ export interface CreateInstanceRequest {
 export class UnauthorizedError extends Error {}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // FormData sets its own Content-Type, boundary and all. Forcing JSON
+  // over it produces a body the server can't parse.
+  const multipart = init?.body instanceof FormData
   const res = await fetch(`/api/v1${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: multipart ? undefined : { 'Content-Type': 'application/json' },
     // The session is an HttpOnly cookie; without this it isn't sent.
     credentials: 'same-origin',
     ...init,
@@ -1653,6 +1656,18 @@ export const api = {
   instanceMetrics: (name: string, timeframe: MetricTimeframe) =>
     request<MetricPoint[]>(`/instances/${name}/metrics?timeframe=${timeframe}`),
   instanceOSInfo: (name: string) => request<OSInfo>(`/instances/${name}/os-info`),
+  uploadToInstance: (name: string, file: File, dest: string) => {
+    const body = new FormData()
+    body.append('file', file)
+    if (dest) body.append('path', dest)
+    return request<{ path: string; bytes: number }>(
+      `/instances/${name}/sftp/upload`,
+      { method: 'POST', body },
+    )
+  },
+  /** The browser fetches this directly so the file streams to disk. */
+  downloadFromInstanceURL: (name: string, path: string) =>
+    `/api/v1/instances/${encodeURIComponent(name)}/sftp/download?path=${encodeURIComponent(path)}`,
   instanceBackups: (name: string) =>
     request<InstanceBackups>(`/instances/${name}/backups`),
   createInstance: (body: CreateInstanceRequest) =>

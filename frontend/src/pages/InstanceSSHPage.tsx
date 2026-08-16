@@ -1,9 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Box, Button, IconButton, Menu, MenuItem, Radio, Typography } from '@mui/material'
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Menu,
+  MenuItem,
+  Radio,
+  TextField,
+  Typography,
+} from '@mui/material'
 import TerminalIcon from '@mui/icons-material/Terminal'
 import SettingsIcon from '@mui/icons-material/Settings'
+import UploadIcon from '@mui/icons-material/Upload'
+import DownloadIcon from '@mui/icons-material/Download'
 import ArrowRightIcon from '@mui/icons-material/ArrowRight'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
@@ -53,6 +68,39 @@ export default function InstanceSSHPage() {
   const [settings, setSettings] = useState<null | HTMLElement>(null)
   const [themeMenu, setThemeMenu] = useState<null | HTMLElement>(null)
   const [fontMenu, setFontMenu] = useState<null | HTMLElement>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
+  const [downloadOpen, setDownloadOpen] = useState(false)
+  const [downloadPath, setDownloadPath] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  // Transfers report into the terminal rather than into a toast: it is
+  // the thing you are already looking at, and it scrolls back.
+  const say = (text: string, colour = '90') =>
+    termRef.current?.writeln(`\r\n\x1b[${colour}m${text}\x1b[0m`)
+
+  // Handed to the browser rather than fetched here: it streams to
+  // disk, which a 2 GiB response held in memory would not.
+  const startDownload = () => {
+    const path = downloadPath.trim()
+    setDownloadOpen(false)
+    setDownloadPath('')
+    say(`Downloading ${path}…`)
+    window.location.href = api.downloadFromInstanceURL(name, path)
+  }
+
+  const upload = async (file: File) => {
+    setBusy(true)
+    say(`Uploading ${file.name}…`)
+    try {
+      const result = await api.uploadToInstance(name, file, '')
+      say(`Uploaded ${file.name} → ${result.path} (${result.bytes} bytes)`, '32')
+    } catch (e) {
+      say(`Upload failed: ${(e as Error).message}`, '31')
+    } finally {
+      setBusy(false)
+      termRef.current?.focus()
+    }
+  }
   // Picking from a flyout closes the whole stack, not just the flyout.
   const closeSettings = () => {
     setThemeMenu(null)
@@ -143,6 +191,25 @@ export default function InstanceSSHPage() {
         <Box sx={{ flex: 1 }} />
         <IconButton
           size="small"
+          disabled={busy}
+          sx={{ color: '#9aa0a6' }}
+          aria-label="Upload file"
+          title="Upload file"
+          onClick={() => fileInput.current?.click()}
+        >
+          <UploadIcon fontSize="small" />
+        </IconButton>
+        <IconButton
+          size="small"
+          sx={{ color: '#9aa0a6' }}
+          aria-label="Download file"
+          title="Download file"
+          onClick={() => setDownloadOpen(true)}
+        >
+          <DownloadIcon fontSize="small" />
+        </IconButton>
+        <IconButton
+          size="small"
           sx={{ color: '#9aa0a6' }}
           aria-label="Terminal settings"
           onClick={(e) => setSettings(e.currentTarget)}
@@ -174,6 +241,46 @@ export default function InstanceSSHPage() {
           '& .xterm': { height: '100%' },
         }}
       />
+
+      <input
+        ref={fileInput}
+        type="file"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file) void upload(file)
+          e.target.value = ''
+        }}
+      />
+
+      {/* A dialog, which the house rule reserves for confirmation —
+          and this is the exception that proves it. The terminal is a
+          live session in its own window; sending someone to a form
+          page would drop the connection they wanted the file for. */}
+      <Dialog open={downloadOpen} onClose={() => setDownloadOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontSize: 16 }}>Download file</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            label="Path"
+            placeholder="/home/you/notes.txt"
+            value={downloadPath}
+            onChange={(e) => setDownloadPath(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && downloadPath.trim()) startDownload()
+            }}
+            helperText="Absolute path on the guest, or relative to your home directory."
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDownloadOpen(false)}>Cancel</Button>
+          <Button variant="contained" disabled={!downloadPath.trim()} onClick={startDownload}>
+            Download
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Two levels, the way a terminal's settings menu is shaped:
           the top level is what you can change, the flyout is what you
