@@ -31,6 +31,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import PendingIcon from '@mui/icons-material/Pending'
 import CloudIcon from '@mui/icons-material/Cloud'
 import { api } from '../api/client'
+import { networkForReverseZone } from '../reverseDns'
 import DetailTable from '../components/DetailTable'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import { canEdit, formatTTL, recordData, toRecordSets } from '../dnsRecords'
@@ -169,15 +170,27 @@ export default function DNSZoneDetailPage() {
         <DetailTable
           rows={[
             { label: 'DNS name', value: `${zone.name}.` },
+            // A reverse zone's name is its network backwards, so the
+            // network it answers for is stated rather than decoded.
+            ...(networkForReverseZone(zone.name)
+              ? [{ label: 'Network', value: networkForReverseZone(zone.name)! }]
+              : []),
             { label: 'Provider', value: provider?.name ?? '—' },
             { label: 'Account', value: zone.accountName || '—' },
-            {
-              label: 'Setup',
-              value:
-                zone.type === 'partial'
-                  ? 'Partial — the domain keeps its own nameservers; only records you point here are served'
-                  : 'Full — the nameservers below answer for the whole domain',
-            },
+            // Only providers that HAVE zone modes get the row. A server
+            // you run is authoritative or it isn't, and printing
+            // "Full" there describes a setting it doesn't have.
+            ...(zone.type
+              ? [
+                  {
+                    label: 'Setup',
+                    value:
+                      zone.type === 'partial'
+                        ? 'Partial — the domain keeps its own nameservers; only records you point here are served'
+                        : 'Full — the nameservers below answer for the whole domain',
+                  },
+                ]
+              : []),
             { label: 'Status', value: zone.paused ? 'paused' : zone.status },
             {
               label: 'Nameservers',

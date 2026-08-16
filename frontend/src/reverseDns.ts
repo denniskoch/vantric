@@ -1,20 +1,25 @@
 // Reverse DNS naming.
 //
-// A reverse zone is spelled backwards and nobody thinks in it: the
-// network 192.168.80.0/24 is the zone 80.168.192.in-addr.arpa, and the
-// address 192.168.80.7 is the name 7.80.168.192.in-addr.arpa. Reversing
-// octets by hand is exactly the kind of clerical step that produces a
-// zone which looks right and answers for nothing, so it's derived here
-// and the derivation is shown before anything is created.
+// A reverse zone is spelled backwards: the network 192.168.80.0/24 is
+// the zone 80.168.192.in-addr.arpa, and the address 192.168.80.7 is the
+// name 7.80.168.192.in-addr.arpa.
 //
-// IPv4 only. IPv6 reverse zones are nibble-reversed under ip6.arpa, and
-// deriving them means fully expanding an address — worth writing when
-// there's an IPv6 network in the lab to check it against. Until then a
-// typed ip6.arpa name is recognised and passed through, which is honest
-// where an untested conversion wouldn't be.
+// What lives here is READING that back and placing a record inside it —
+// not deciding what zone a prefix deserves. Anyone creating a reverse
+// zone knows which one they want; asking for a mask and computing the
+// zone from it turns a one-line answer into a form that has opinions
+// about RFC 2317 and classless delegation, which is a conversation with
+// whoever holds the delegation rather than anything a create button
+// settles.
 
 const IN_ADDR = 'in-addr.arpa'
 const IP6 = 'ip6.arpa'
+
+/** The two reverse trees, offered as a suffix rather than derived. */
+export const reverseSuffixes = [
+  { value: IN_ADDR, label: `.${IN_ADDR}`, hint: 'IPv4 — the network octets, most significant last: 80.168.192' },
+  { value: IP6, label: `.${IP6}`, hint: 'IPv6 — the address nibbles, most significant last' },
+]
 
 export function isReverseZone(zone: string): boolean {
   const name = zone.trim().toLowerCase().replace(/\.$/, '')
@@ -26,56 +31,6 @@ function octets(address: string): number[] | null {
   if (parts.length !== 4) return null
   const values = parts.map((p) => (/^\d{1,3}$/.test(p) ? Number(p) : NaN))
   return values.every((v) => Number.isInteger(v) && v >= 0 && v <= 255) ? values : null
-}
-
-export interface ReverseZones {
-  /** The zones this network needs, longest-prefix first. */
-  zones: string[]
-  /** True when there were more than `zones` lists. */
-  truncated: boolean
-  /** How many zones the network actually spans. */
-  count: number
-  error?: string
-}
-
-const failure = (error: string): ReverseZones => ({ zones: [], truncated: false, count: 0, error })
-
-/**
- * The reverse zone(s) covering a network.
- *
- * An octet-aligned prefix is one zone. Anything longer than /24 is a
- * slice of somebody else's zone — RFC 2317 delegation, which is a
- * conversation with whoever holds the /24 rather than a zone you create
- * — and anything between the octets spans several, which is reported
- * rather than guessed at.
- */
-export function reverseZonesFor(cidr: string): ReverseZones {
-  const [address, length] = cidr.trim().split('/')
-  const parts = octets(address ?? '')
-  if (!parts) return failure('Enter a network like 192.168.80.0/24')
-  const bits = Number(length)
-  if (!length || !Number.isInteger(bits) || bits < 8 || bits > 32) {
-    return failure('Enter a prefix length between /8 and /32')
-  }
-  if (bits > 24) {
-    return failure(
-      `A /${bits} is part of a ${parts[0]}.${parts[1]}.${parts[2]}.0/24, not a zone of its own — ` +
-        'whoever holds that /24 delegates it (RFC 2317).',
-    )
-  }
-  const label = (count: number) => parts.slice(0, count).reverse().join('.') + '.' + IN_ADDR
-  if (bits % 8 === 0) {
-    return { zones: [label(bits / 8)], truncated: false, count: 1 }
-  }
-  // Between the octets: the network spans a run of whole /24s, one per
-  // value of the third octet inside the mask.
-  const count = 2 ** (24 - bits)
-  const first = parts[2] & (0xff << (24 - bits))
-  const zones: string[] = []
-  for (let i = 0; i < Math.min(count, 16); i++) {
-    zones.push(`${first + i}.${parts[1]}.${parts[0]}.${IN_ADDR}`)
-  }
-  return { zones, truncated: count > zones.length, count }
 }
 
 /** The network a reverse zone covers, for reading a name nobody can. */

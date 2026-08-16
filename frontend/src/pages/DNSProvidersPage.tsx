@@ -25,13 +25,9 @@ import { api } from '../api/client'
 import { BrandLabel } from '../components/BrandIcon'
 import PageHeader from '../components/PageHeader'
 import { dnsBrand } from '../brands'
-import type { DNSProvider, DNSProviderType } from '../api/client'
+import { providerLabel } from '../dnsProviders'
+import type { DNSProvider } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
-
-const typeLabels: Record<DNSProviderType, string> = {
-  cloudflare: 'Cloudflare',
-  powerdns: 'PowerDNS',
-}
 
 function StatusGlyph({ provider }: { provider: DNSProvider }) {
   const icon =
@@ -129,7 +125,7 @@ export default function DNSProvidersPage() {
                 <TableCell>
                   <BrandLabel
                     icon={dnsBrand(provider.type)}
-                    label={typeLabels[provider.type] ?? provider.type}
+                    label={providerLabel(provider.type)}
                   />
                 </TableCell>
                 <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>

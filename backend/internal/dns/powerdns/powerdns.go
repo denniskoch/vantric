@@ -197,8 +197,12 @@ func (d *Driver) convertZone(z pdnsZone) dns.Zone {
 		// A PowerDNS zone is served the moment it exists — there is no
 		// pending state to wait through the way a hosted provider has,
 		// so "active" is not a guess.
-		Status:      "active",
-		Type:        "full",
+		Status: "active",
+		// Type is left EMPTY rather than "full". Full-versus-partial is
+		// a hosted-DNS product's answer to "who is authoritative for
+		// this domain" — an authoritative server has no such setting,
+		// and stamping one here would render as a confident statement
+		// about a mode that does not exist.
 		AccountName: z.Account,
 	}
 	for _, rr := range z.RRsets {
