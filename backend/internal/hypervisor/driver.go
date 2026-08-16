@@ -485,6 +485,10 @@ type Driver interface {
 	// field, so notes written here are not a private copy that drifts.
 	// Templates are VMs, so this addresses them too.
 	SetDescription(ctx context.Context, driverID, description string) error
+	// SetName renames the guest ON THE HYPERVISOR. It is a label
+	// there and nothing more: the OS inside never sees it, so this
+	// changes no hostname and touches nothing in the guest.
+	SetName(ctx context.Context, driverID, name string) error
 }
 
 // BackupDriver is an optional capability for backends that keep a

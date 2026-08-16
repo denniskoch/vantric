@@ -233,3 +233,20 @@ export function vlanIDError(value: string): string | null {
   if (id < 1 || id > 4094) return 'VLAN must be between 1 and 4094'
   return null
 }
+
+/**
+ * A VM name, as the hypervisor accepts it: a DNS label.
+ *
+ * Proxmox is stricter than it looks — an underscore or a leading
+ * hyphen is refused at the API, and finding that out after the form
+ * submits is worse than being told here.
+ */
+export function instanceNameError(value: string): string | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (trimmed.length > 63) return 'Too long — 63 characters at most'
+  if (!/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/.test(trimmed)) {
+    return 'Letters, digits and hyphens only, starting and ending with one'
+  }
+  return null
+}

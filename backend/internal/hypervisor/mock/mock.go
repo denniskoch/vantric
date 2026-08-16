@@ -398,6 +398,16 @@ func (d *Driver) OSInfo(ctx context.Context, driverID string) (*hypervisor.OSInf
 
 // SetDescription records notes for a guest, or for a template — the
 // mock keeps templates in the same map the real driver does.
+func (d *Driver) SetName(ctx context.Context, driverID, name string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if vm, ok := d.vms[driverID]; ok {
+		vm.state.Name = name
+		return nil
+	}
+	return hypervisor.ErrNotFound
+}
+
 func (d *Driver) SetDescription(ctx context.Context, driverID, description string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()

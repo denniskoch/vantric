@@ -224,6 +224,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 			r.Post("/reset", s.instanceAction("reset"))
 			r.Post("/protection", s.setInstanceProtection)
 			r.Post("/description", s.setInstanceDescription)
+			r.Post("/rename", s.renameInstance)
 		})
 	}
 }
@@ -624,6 +625,66 @@ func (s *Server) setInstanceDescription(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	inst.Description = description
+	s.json(w, http.StatusOK, inst)
+}
+
+// instanceNameRe is what Proxmox accepts as a VM name: a DNS label.
+var instanceNameRe = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$`)
+
+// renameInstance changes the guest's name on the HYPERVISOR and then
+// here, in that order — the hypervisor is the source of truth for the
+// shape of a guest, and the reconciler syncs names back from it every
+// sweep. Writing our copy first would mean a failed hypervisor call
+// leaves a name that gets silently reverted seconds later.
+//
+// A rename is a LABEL on the hypervisor. The guest never sees it: no
+// hostname changes, nothing inside the machine is touched. Renaming
+// the operating system's own hostname is a separate act, done in the
+// guest.
+//
+// The cost is that the name is this console's key — every route is
+// /instances/{name} — so the caller has to follow the guest to its new
+// URL, and an open SSH window is addressed by the old one.
+func (s *Server) renameInstance(w http.ResponseWriter, r *http.Request) {
+	inst, driver := s.instanceDriver(w, r)
+	if inst == nil {
+		return
+	}
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	name := strings.TrimSpace(req.Name)
+	switch {
+	case name == inst.Name:
+		s.json(w, http.StatusOK, inst) // nothing to do
+		return
+	case !instanceNameRe.MatchString(name):
+		s.err(w, http.StatusBadRequest,
+			"name must be letters, digits and hyphens, starting and ending with one")
+		return
+	}
+	// Names are unique here even though a hypervisor may allow
+	// duplicates, because this console addresses guests by name.
+	if existing, err := s.store.GetInstance(r.Context(), name); err == nil && existing != nil {
+		s.err(w, http.StatusConflict, "an instance called "+name+" already exists")
+		return
+	}
+	if err := driver.SetName(r.Context(), inst.DriverID, name); err != nil {
+		s.fail(w, err, "renaming on the hypervisor")
+		return
+	}
+	if err := s.store.RenameInstance(r.Context(), inst.ID, name); err != nil {
+		// The hypervisor already took it, and the reconciler will
+		// bring our copy in line on its next sweep, so this is worth
+		// logging rather than failing the rename.
+		s.log.Error("renamed on the hypervisor but not here",
+			"instance", inst.Name, "to", name, "error", err)
+	}
+	inst.Name = name
 	s.json(w, http.StatusOK, inst)
 }
 

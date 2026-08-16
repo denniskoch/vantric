@@ -1678,6 +1678,11 @@ export const api = {
   instanceAction: (name: string, action: 'start' | 'stop' | 'reset') =>
     request<Instance>(`/instances/${name}/${action}`, { method: 'POST' }),
   /** Writes notes to the hypervisor's own description field. */
+  renameInstance: (name: string, newName: string) =>
+    request<Instance>(`/instances/${name}/rename`, {
+      method: 'POST',
+      body: JSON.stringify({ name: newName }),
+    }),
   setInstanceDescription: (name: string, description: string) =>
     request<Instance>(`/instances/${name}/description`, {
       method: 'POST',

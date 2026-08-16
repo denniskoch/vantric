@@ -340,7 +340,23 @@ export default function InstanceDetailPage() {
             <DetailSection title="Basic information">
               <DetailTable
                 rows={[
-                  { label: 'Name', value: inst.name },
+                  {
+                    label: 'Name',
+                    // Beside the value it changes, like Description.
+                    value: (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {inst.name}
+                        {canEdit && (
+                          <Button
+                            size="small"
+                            onClick={() => navigate(`/compute/instances/${inst.name}/rename`)}
+                          >
+                            Rename
+                          </Button>
+                        )}
+                      </Box>
+                    ),
+                  },
                   { label: 'Instance ID', value: inst.driverId || '—' },
                   {
                     label: 'Description',

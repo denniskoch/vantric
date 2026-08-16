@@ -167,6 +167,21 @@ func (s *Store) GetInstanceByDriverID(ctx context.Context, serverID, driverID st
 // Everything the create flow knows and adoption couldn't is written on
 // top: the image it came from, the network, the description, and
 // whether deletion protection was actually asked for.
+// RenameInstance changes the name this console knows a guest by. The
+// name is UNIQUE, so a clash comes back as an error rather than
+// silently pointing two records at one guest.
+func (s *Store) RenameInstance(ctx context.Context, id, name string) error {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE instances SET name = ?, updated_at = ? WHERE id = ?`, name, now(), id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (s *Store) ClaimInstance(ctx context.Context, i *Instance) error {
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE instances SET name = ?, driver_id = ?, zone = ?, cpus = ?, memory_mb = ?,

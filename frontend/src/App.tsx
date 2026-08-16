@@ -19,6 +19,7 @@ import BuildTemplatePage from './pages/BuildTemplatePage'
 import CTTemplatesPage from './pages/CTTemplatesPage'
 import OverviewPage from './pages/OverviewPage'
 import CloudOverviewPage from './pages/CloudOverviewPage'
+import RenameInstancePage from './pages/RenameInstancePage'
 import EditDescriptionPage, {
   instanceDescription,
   templateDescription,
@@ -103,6 +104,14 @@ export default function App() {
         <Route
           path="/devices/settings/inventory/:id/edit"
           element={<RequireRole admin><InventoryProviderFormPage /></RequireRole>}
+        />
+        <Route
+          path="/compute/instances/:name/rename"
+          element={
+            <RequireRole>
+              <RenameInstancePage />
+            </RequireRole>
+          }
         />
         <Route
           path="/compute/instances/:name/description"
