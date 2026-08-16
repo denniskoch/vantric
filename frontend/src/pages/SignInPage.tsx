@@ -4,7 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { Alert, Box, Button, Divider, Paper, TextField, Typography } from '@mui/material'
 import { api } from '../api/client'
 import { useRefreshSession } from '../user'
-import logoLight from '../assets/brand/kochlabs-logo-light.svg'
+import { brand } from '../branding'
 
 /**
  * Local sign-in — the console's own account table.
@@ -68,12 +68,18 @@ export default function SignInPage() {
         onSubmit={submit}
         sx={{ p: 4, width: '100%', maxWidth: 400 }}
       >
-        <Box component="img" src={logoLight} alt="" sx={{ height: 24, mb: 3 }} />
+        {brand.logo ? (
+          <Box component="img" src={brand.logo} alt="" sx={{ height: 24, mb: 3 }} />
+        ) : (
+          <Typography variant="h5" sx={{ mb: 3 }}>
+            {brand.name}
+          </Typography>
+        )}
         <Typography variant="h6" sx={{ mb: 0.5 }}>
           Sign in
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Use your Lab Cloud account.
+          Use your {brand.name} account.
         </Typography>
 
         {(error || redirectError) && (

@@ -4,7 +4,12 @@ import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CssBaseline, ThemeProvider } from '@mui/material'
 import { theme } from './theme'
+import { documentTitle } from './branding'
 import App from './App'
+
+// index.html carries the project's own name so a fork's tab is right
+// before any JavaScript runs; a rebranded build corrects it here.
+document.title = documentTitle
 
 const queryClient = new QueryClient({
   defaultOptions: {

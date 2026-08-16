@@ -21,7 +21,7 @@ import {
 } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import SearchIcon from '@mui/icons-material/Search'
-import logoLight from '../assets/brand/kochlabs-logo-light.svg'
+import { brand } from '../branding'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { sections, sectionFor } from './nav'
@@ -94,15 +94,23 @@ export default function Shell() {
           >
             <MenuIcon />
           </IconButton>
-          <Box
-            component="img"
-            src={logoLight}
-            alt="KochLabs"
-            sx={{ height: 18, display: 'block' }}
-          />
-          <Typography variant="h6" sx={{ color: '#5f6368', fontWeight: 400, mr: 1 }}>
-            Cloud
-          </Typography>
+          {brand.logo ? (
+            <Box
+              component="img"
+              src={brand.logo}
+              alt={brand.name}
+              sx={{ height: 18, display: 'block' }}
+            />
+          ) : (
+            <Typography variant="h6" sx={{ color: '#202124', fontWeight: 500 }}>
+              {brand.name}
+            </Typography>
+          )}
+          {brand.suffix && (
+            <Typography variant="h6" sx={{ color: '#5f6368', fontWeight: 400, mr: 1 }}>
+              {brand.suffix}
+            </Typography>
+          )}
           <Box
             sx={{
               flex: 1,
@@ -199,7 +207,7 @@ export default function Shell() {
         </Toolbar>
       </AppBar>
 
-      {/* Global navigation: how you move between Lab Cloud sections. */}
+      {/* Global navigation: how you move between sections. */}
       <Drawer
         variant="temporary"
         open={globalNavOpen}

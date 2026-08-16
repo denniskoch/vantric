@@ -12,7 +12,14 @@ services:
     # lives at ~/…/vantric on one machine and
     # /opt/cloud-console on another.
     container_name: cloud-console
-    build: .
+    build:
+      context: .
+      # Branding is baked in at build time — a logo is an asset the
+      # bundler has to see. Unset in .env builds as Vantric.
+      args:
+        VITE_BRAND_NAME: ${VITE_BRAND_NAME:-}
+        VITE_BRAND_SUFFIX: ${VITE_BRAND_SUFFIX:-}
+        VITE_BRAND_LOGO: ${VITE_BRAND_LOGO:-}
     # Passed whole, so a new setting works without also being listed
     # here. A missing .env is fine: every setting has a default.
     env_file:
