@@ -160,9 +160,19 @@ export default function InstanceSSHPage() {
           Disconnect
         </Button>
       </Box>
+      {/* The terminal's own background, carried to the window edge.
+          The padding used to show the console's dark surface instead,
+          which framed the terminal in a black border — obvious the
+          moment you picked a light theme. */}
       <Box
         ref={terminalRef}
-        sx={{ flex: 1, minHeight: 0, p: 1, '& .xterm': { height: '100%' } }}
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          p: 1,
+          bgcolor: themeFor(themeID).theme.background,
+          '& .xterm': { height: '100%' },
+        }}
       />
 
       {/* Two levels, the way a terminal's settings menu is shaped:
