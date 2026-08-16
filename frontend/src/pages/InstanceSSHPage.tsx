@@ -72,6 +72,11 @@ export default function InstanceSSHPage() {
   const [downloadOpen, setDownloadOpen] = useState(false)
   const [downloadPath, setDownloadPath] = useState('')
   const [busy, setBusy] = useState(false)
+  // Transfers open their own SSH connection, so they don't NEED the
+  // terminal — but they live in its toolbar, and offering them while
+  // the session is down promises something that would fail the same
+  // way the session just did.
+  const [connected, setConnected] = useState(false)
 
   // Transfers report into the terminal rather than into a toast: it is
   // the thing you are already looking at, and it scrolls back.
@@ -133,12 +138,19 @@ export default function InstanceSSHPage() {
     socketRef.current = socket
 
     socket.onopen = () => {
+      setConnected(true)
       socket.send(JSON.stringify({ username, cols: term.cols, rows: term.rows }))
       term.focus()
     }
     socket.onmessage = (event) => term.write(event.data)
-    socket.onerror = () => term.write('\r\n\x1b[31mConnection failed.\x1b[0m\r\n')
-    socket.onclose = () => term.write('\r\n\x1b[90mSession closed.\x1b[0m\r\n')
+    socket.onerror = () => {
+      setConnected(false)
+      term.write('\r\n\x1b[31mConnection failed.\x1b[0m\r\n')
+    }
+    socket.onclose = () => {
+      setConnected(false)
+      term.write('\r\n\x1b[90mSession closed.\x1b[0m\r\n')
+    }
 
     term.onData((data) => {
       if (socket.readyState === WebSocket.OPEN) {
@@ -191,19 +203,20 @@ export default function InstanceSSHPage() {
         <Box sx={{ flex: 1 }} />
         <IconButton
           size="small"
-          disabled={busy}
+          disabled={busy || !connected}
           sx={{ color: '#9aa0a6' }}
           aria-label="Upload file"
-          title="Upload file"
+          title={connected ? 'Upload file' : 'Not connected'}
           onClick={() => fileInput.current?.click()}
         >
           <UploadIcon fontSize="small" />
         </IconButton>
         <IconButton
           size="small"
+          disabled={!connected}
           sx={{ color: '#9aa0a6' }}
           aria-label="Download file"
-          title="Download file"
+          title={connected ? 'Download file' : 'Not connected'}
           onClick={() => setDownloadOpen(true)}
         >
           <DownloadIcon fontSize="small" />
