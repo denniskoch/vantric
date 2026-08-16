@@ -218,3 +218,18 @@ function ipv4Octets(value: string): number[] | null {
   )
   return octets.every((n) => n >= 0 && n <= 255) ? octets : null
 }
+
+/**
+ * An 802.1Q VLAN ID. Blank means untagged, which is a real answer.
+ *
+ * 4095 is reserved and 4096 doesn't fit the 12-bit tag — the number
+ * people reach for when they assume it goes to 4096.
+ */
+export function vlanIDError(value: string): string | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (!/^\d{1,4}$/.test(trimmed)) return 'VLAN must be a number'
+  const id = Number(trimmed)
+  if (id < 1 || id > 4094) return 'VLAN must be between 1 and 4094'
+  return null
+}

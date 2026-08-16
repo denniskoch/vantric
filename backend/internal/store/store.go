@@ -184,6 +184,7 @@ var migrations = []string{
 		name TEXT NOT NULL UNIQUE,
 		source TEXT NOT NULL DEFAULT 'manual',
 		stack_type TEXT NOT NULL DEFAULT 'IPv4',
+		vlan INTEGER NOT NULL DEFAULT 0,
 		ipv4_range TEXT NOT NULL DEFAULT '',
 		ipv4_gateway TEXT NOT NULL DEFAULT '',
 		description TEXT NOT NULL DEFAULT '',
@@ -258,6 +259,9 @@ func (s *Store) migrate() error {
 // databases drop the column and the catalog; fresh ones never make
 // them, so both of these are "already done" on most boots.
 var columnMigrations = []string{
+	// VLAN arrived a commit after the subnets table did; a database
+	// created in between has the table without it.
+	`ALTER TABLE subnets ADD COLUMN vlan INTEGER NOT NULL DEFAULT 0`,
 	`ALTER TABLE instances DROP COLUMN machine_type`,
 	`DROP TABLE IF EXISTS machine_types`,
 	`ALTER TABLE instances ADD COLUMN os_type TEXT NOT NULL DEFAULT ''`,

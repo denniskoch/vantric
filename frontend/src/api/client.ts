@@ -501,6 +501,8 @@ export interface Subnet {
   name: string
   source: string
   stackType: string
+  /** 802.1Q tag, or 0 for an untagged range. */
+  vlan: number
   ipv4Range: string
   ipv4Gateway: string
   description: string
@@ -511,6 +513,7 @@ export interface Subnet {
 export interface SubnetRequest {
   name: string
   stackType: string
+  vlan: number
   ipv4Range: string
   ipv4Gateway: string
   description: string

@@ -5,7 +5,7 @@ import { Alert, Box, Button, MenuItem, Paper, TextField, Typography } from '@mui
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { api } from '../api/client'
 import PageHeader from '../components/PageHeader'
-import { ipv4AddressError, ipv4CIDRError } from '../validation'
+import { ipv4AddressError, ipv4CIDRError, vlanIDError } from '../validation'
 
 /**
  * Recording an address range, or correcting one.
@@ -22,6 +22,7 @@ export default function NetworkSubnetFormPage() {
 
   const [name, setName] = useState('')
   const [stackType, setStackType] = useState('IPv4')
+  const [vlan, setVLAN] = useState('')
   const [ipv4Range, setIPv4Range] = useState('')
   const [ipv4Gateway, setIPv4Gateway] = useState('')
   const [description, setDescription] = useState('')
@@ -37,6 +38,7 @@ export default function NetworkSubnetFormPage() {
     if (!existing) return
     setName(existing.name)
     setStackType(existing.stackType)
+    setVLAN(existing.vlan > 0 ? String(existing.vlan) : '')
     setIPv4Range(existing.ipv4Range)
     setIPv4Gateway(existing.ipv4Gateway)
     setDescription(existing.description)
@@ -44,7 +46,7 @@ export default function NetworkSubnetFormPage() {
 
   const save = useMutation({
     mutationFn: () => {
-      const body = { name, stackType, ipv4Range, ipv4Gateway, description }
+      const body = { name, stackType, vlan: Number(vlan) || 0, ipv4Range, ipv4Gateway, description }
       return editing ? api.updateSubnet(id!, body) : api.createSubnet(body)
     },
     onSuccess: () => {
@@ -57,10 +59,11 @@ export default function NetworkSubnetFormPage() {
 
   // Shown as soon as a field is wrong, not held back until submit —
   // a disabled button on its own never says why.
+  const vlanError = vlanIDError(vlan)
   const rangeError = ipv4CIDRError(ipv4Range)
   const gatewayError = ipv4AddressError(ipv4Gateway, ipv4Range)
   const complete = name.trim() !== '' && ipv4Range.trim() !== ''
-  const valid = complete && !rangeError && !gatewayError
+  const valid = complete && !vlanError && !rangeError && !gatewayError
 
   return (
     <Box sx={{ p: 3, maxWidth: 720 }}>
@@ -115,6 +118,15 @@ export default function NetworkSubnetFormPage() {
         >
           <MenuItem value="IPv4">IPv4 (single-stack)</MenuItem>
         </TextField>
+        <TextField
+          label="VLAN"
+          size="small"
+          fullWidth
+          value={vlan}
+          onChange={(e) => setVLAN(e.target.value)}
+          error={Boolean(vlanError)}
+          helperText={vlanError ?? 'Optional. 1–4094; leave blank for untagged.'}
+        />
         <TextField
           label="IPv4 range"
           size="small"

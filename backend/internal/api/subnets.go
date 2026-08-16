@@ -23,6 +23,7 @@ import (
 type subnetRequest struct {
 	Name        string `json:"name"`
 	StackType   string `json:"stackType"`
+	VLAN        int    `json:"vlan"`
 	IPv4Range   string `json:"ipv4Range"`
 	IPv4Gateway string `json:"ipv4Gateway"`
 	Description string `json:"description"`
@@ -50,6 +51,10 @@ func (r *subnetRequest) validate() string {
 		return "stack type must be IPv4"
 	case r.IPv4Range == "":
 		return "an IPv4 range is required"
+	// 0 means untagged. 4095 is reserved and 4096 doesn't fit the
+	// 12-bit tag, which is the mistake people actually make.
+	case r.VLAN < 0 || r.VLAN > 4094:
+		return "VLAN must be between 1 and 4094, or 0 for untagged"
 	}
 
 	prefix, err := netip.ParsePrefix(r.IPv4Range)
@@ -111,6 +116,7 @@ func (s *Server) createSubnet(w http.ResponseWriter, r *http.Request) {
 		Name:        req.Name,
 		Source:      store.SourceManual,
 		StackType:   req.StackType,
+		VLAN:        req.VLAN,
 		IPv4Range:   req.IPv4Range,
 		IPv4Gateway: req.IPv4Gateway,
 		Description: req.Description,
@@ -146,6 +152,7 @@ func (s *Server) updateSubnet(w http.ResponseWriter, r *http.Request) {
 	}
 	existing.Name = req.Name
 	existing.StackType = req.StackType
+	existing.VLAN = req.VLAN
 	existing.IPv4Range = req.IPv4Range
 	existing.IPv4Gateway = req.IPv4Gateway
 	existing.Description = req.Description

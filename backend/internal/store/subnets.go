@@ -28,7 +28,11 @@ type Subnet struct {
 	Source string `json:"source"`
 	// StackType is "IPv4" for now. IPv6 is a second pair of fields
 	// rather than a second meaning, so this is the seam for it.
-	StackType   string    `json:"stackType"`
+	StackType string `json:"stackType"`
+	// VLAN is the 802.1Q tag, or 0 for an untagged range. Stored
+	// because a subnet and its VLAN are the same fact to everyone who
+	// has to configure one.
+	VLAN        int       `json:"vlan"`
 	IPv4Range   string    `json:"ipv4Range"`
 	IPv4Gateway string    `json:"ipv4Gateway"`
 	Description string    `json:"description"`
@@ -39,13 +43,13 @@ type Subnet struct {
 // SourceManual is a range somebody typed in here.
 const SourceManual = "manual"
 
-const subnetCols = `id, name, source, stack_type, ipv4_range, ipv4_gateway,
+const subnetCols = `id, name, source, stack_type, vlan, ipv4_range, ipv4_gateway,
 	description, created_at, updated_at`
 
 func scanSubnet(scan func(dest ...any) error) (*Subnet, error) {
 	var s Subnet
 	var created, updated string
-	if err := scan(&s.ID, &s.Name, &s.Source, &s.StackType, &s.IPv4Range,
+	if err := scan(&s.ID, &s.Name, &s.Source, &s.StackType, &s.VLAN, &s.IPv4Range,
 		&s.IPv4Gateway, &s.Description, &created, &updated); err != nil {
 		return nil, err
 	}
@@ -85,8 +89,8 @@ func (s *Store) GetSubnet(ctx context.Context, id string) (*Subnet, error) {
 func (s *Store) CreateSubnet(ctx context.Context, subnet *Subnet) error {
 	ts := now()
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO subnets (`+subnetCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		subnet.ID, subnet.Name, subnet.Source, subnet.StackType, subnet.IPv4Range,
+		`INSERT INTO subnets (`+subnetCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		subnet.ID, subnet.Name, subnet.Source, subnet.StackType, subnet.VLAN, subnet.IPv4Range,
 		subnet.IPv4Gateway, subnet.Description, ts, ts)
 	subnet.CreatedAt = parseTime(ts)
 	subnet.UpdatedAt = subnet.CreatedAt
@@ -96,9 +100,9 @@ func (s *Store) CreateSubnet(ctx context.Context, subnet *Subnet) error {
 func (s *Store) UpdateSubnet(ctx context.Context, subnet *Subnet) error {
 	ts := now()
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE subnets SET name = ?, stack_type = ?, ipv4_range = ?,
+		`UPDATE subnets SET name = ?, stack_type = ?, vlan = ?, ipv4_range = ?,
 		        ipv4_gateway = ?, description = ?, updated_at = ? WHERE id = ?`,
-		subnet.Name, subnet.StackType, subnet.IPv4Range, subnet.IPv4Gateway,
+		subnet.Name, subnet.StackType, subnet.VLAN, subnet.IPv4Range, subnet.IPv4Gateway,
 		subnet.Description, ts, subnet.ID)
 	if err != nil {
 		return err

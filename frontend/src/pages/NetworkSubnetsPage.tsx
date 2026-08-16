@@ -96,6 +96,7 @@ export default function NetworkSubnetsPage() {
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>Source</TableCell>
+              <TableCell align="right">VLAN</TableCell>
               <TableCell>Stack type</TableCell>
               <TableCell>IPv4 range</TableCell>
               <TableCell>IPv4 gateway</TableCell>
@@ -114,6 +115,16 @@ export default function NetworkSubnetsPage() {
                   )}
                 </TableCell>
                 <TableCell sx={{ color: 'text.secondary' }}>{subnet.source}</TableCell>
+                <TableCell align="right">
+                  {/* Untagged is a real answer, not a missing one. */}
+                  {subnet.vlan > 0 ? (
+                    subnet.vlan
+                  ) : (
+                    <Box component="span" sx={{ color: 'text.secondary' }}>
+                      untagged
+                    </Box>
+                  )}
+                </TableCell>
                 <TableCell>{subnet.stackType}</TableCell>
                 <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
                   {subnet.ipv4Range}
@@ -149,7 +160,7 @@ export default function NetworkSubnetsPage() {
             ))}
             {subnets.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No subnets recorded yet.'}
                 </TableCell>
               </TableRow>
