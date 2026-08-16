@@ -175,6 +175,21 @@ var migrations = []string{
 		insecure_tls INTEGER NOT NULL DEFAULT 0,
 		created_at TEXT NOT NULL
 	)`,
+	// Address ranges and what they're for. The console owns the ones
+	// typed in here (source 'manual') because a lab without an IPAM has
+	// nowhere else to write them down; a range discovered from a
+	// controller carries that controller as its source and is read-only.
+	`CREATE TABLE IF NOT EXISTS subnets (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL UNIQUE,
+		source TEXT NOT NULL DEFAULT 'manual',
+		stack_type TEXT NOT NULL DEFAULT 'IPv4',
+		ipv4_range TEXT NOT NULL DEFAULT '',
+		ipv4_gateway TEXT NOT NULL DEFAULT '',
+		description TEXT NOT NULL DEFAULT '',
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	)`,
 	// This console's own accounts — distinct from the identity provider
 	// it manages. password_hash is empty for an account that signs in
 	// some other way, which is what SSO will look like when it lands.

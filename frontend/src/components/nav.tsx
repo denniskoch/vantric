@@ -235,7 +235,18 @@ export const sections: Section[] = [
     icon: LanIcon,
     prefix: '/network',
     home: '/network/overview',
-    items: [{ label: 'Overview', icon: DashboardIcon, to: '/network/overview' }],
+    items: [
+      { label: 'Overview', icon: DashboardIcon, to: '/network/overview' },
+      {
+        // Deliberately outside the UniFi group: these are this
+        // console's own records, and one of them may eventually come
+        // from somewhere that isn't the controller.
+        label: 'Subnets',
+        icon: LanIcon,
+        to: '/network/subnets',
+        hint: 'Address ranges and what each one is for',
+      },
+    ],
     groups: [
       {
         // The controller's own vocabulary, so the two consoles read

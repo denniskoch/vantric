@@ -491,6 +491,31 @@ export interface EnrichmentStatus {
   cachedOverall: number
 }
 
+/**
+ * An address range and what it's for. `source` records where it came
+ * from: "manual" is this console's own record, anything else names the
+ * system that reported it and is read-only here.
+ */
+export interface Subnet {
+  id: string
+  name: string
+  source: string
+  stackType: string
+  ipv4Range: string
+  ipv4Gateway: string
+  description: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SubnetRequest {
+  name: string
+  stackType: string
+  ipv4Range: string
+  ipv4Gateway: string
+  description: string
+}
+
 export interface InventoryProvider {
   id: string
   name: string
@@ -1371,6 +1396,14 @@ export const api = {
     request<void>(`/servers/${id}`, { method: 'DELETE' }),
   listNetworkProviderTypes: () =>
     request<NetworkProviderType[]>('/network/provider-types'),
+  listSubnets: () => request<Subnet[]>('/network/subnets'),
+  getSubnet: (id: string) => request<Subnet>(`/network/subnets/${id}`),
+  createSubnet: (body: SubnetRequest) =>
+    request<Subnet>('/network/subnets', { method: 'POST', body: JSON.stringify(body) }),
+  updateSubnet: (id: string, body: SubnetRequest) =>
+    request<Subnet>(`/network/subnets/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteSubnet: (id: string) =>
+    request<void>(`/network/subnets/${id}`, { method: 'DELETE' }),
   listNetworkProviders: () => request<NetworkProvider[]>('/network/providers'),
   createNetworkProvider: (body: NetworkProviderRequest) =>
     request<NetworkProvider>('/network/providers', {

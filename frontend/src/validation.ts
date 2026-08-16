@@ -159,3 +159,62 @@ export function filenameError(value: string, extensions: RegExp, hint: string): 
   if (!extensions.test(name)) return `Must end in ${hint}`
   return null
 }
+
+/**
+ * An IPv4 network in CIDR form.
+ *
+ * Host bits are rejected rather than quietly masked: 192.168.80.7/24
+ * is somebody typing a host where a network goes, and accepting it
+ * would make every later "is this address inside that range" wrong.
+ * The message says what they probably meant.
+ */
+export function ipv4CIDRError(value: string): string | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const [address, bits, ...rest] = trimmed.split('/')
+  if (rest.length || bits === undefined) {
+    return 'Use CIDR, for example 192.168.80.0/24'
+  }
+  const octets = ipv4Octets(address)
+  if (!octets) return 'Not an IPv4 address'
+  const prefix = Number(bits)
+  if (!/^\d{1,2}$/.test(bits) || prefix > 32) return 'Prefix length must be 0–32'
+
+  const value32 = octets.reduce((n, octet) => n * 256 + octet, 0)
+  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0
+  const network = (value32 & mask) >>> 0
+  if (network !== value32) {
+    const masked = [24, 16, 8, 0].map((shift) => (network >>> shift) & 255).join('.')
+    return `Host bits set — did you mean ${masked}/${prefix}?`
+  }
+  return null
+}
+
+/** An IPv4 address, and optionally whether it sits inside a range. */
+export function ipv4AddressError(value: string, withinCIDR?: string): string | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const octets = ipv4Octets(trimmed)
+  if (!octets) return 'Not an IPv4 address'
+  if (!withinCIDR || ipv4CIDRError(withinCIDR)) return null
+
+  const [network, bits] = withinCIDR.trim().split('/')
+  const netOctets = ipv4Octets(network)
+  if (!netOctets) return null
+  const prefix = Number(bits)
+  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0
+  const toInt = (parts: number[]) => parts.reduce((n, octet) => n * 256 + octet, 0)
+  if (((toInt(octets) & mask) >>> 0) !== ((toInt(netOctets) & mask) >>> 0)) {
+    return `Not inside ${withinCIDR.trim()}`
+  }
+  return null
+}
+
+function ipv4Octets(value: string): number[] | null {
+  const parts = value.split('.')
+  if (parts.length !== 4) return null
+  const octets = parts.map((part) =>
+    /^\d{1,3}$/.test(part) ? Number(part) : NaN,
+  )
+  return octets.every((n) => n >= 0 && n <= 255) ? octets : null
+}

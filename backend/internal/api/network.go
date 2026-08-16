@@ -27,6 +27,13 @@ func (s *Server) networkRoutes(r chi.Router) {
 	r.Get("/network/provider-types", func(w http.ResponseWriter, r *http.Request) {
 		s.json(w, http.StatusOK, networkfactory.Types)
 	})
+	// Subnets are this console's own records, not the controller's, so
+	// they need no provider to be configured.
+	r.Get("/network/subnets", s.listSubnets)
+	r.Post("/network/subnets", s.createSubnet)
+	r.Get("/network/subnets/{id}", s.getSubnet)
+	r.Put("/network/subnets/{id}", s.updateSubnet)
+	r.Delete("/network/subnets/{id}", s.deleteSubnet)
 	r.Get("/network/providers", s.listNetworkProviders)
 	r.Post("/network/providers", s.createNetworkProvider)
 	r.Put("/network/providers/{id}", s.updateNetworkProvider)
