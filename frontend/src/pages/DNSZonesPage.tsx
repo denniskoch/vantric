@@ -112,10 +112,9 @@ export default function DNSZonesPage() {
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Name</TableCell>
+              <TableCell>DNS name</TableCell>
               <TableCell>Lookup</TableCell>
               <TableCell>Provider</TableCell>
-              <TableCell>Account</TableCell>
               <TableCell align="right" />
             </TableRow>
           </TableHead>
@@ -154,7 +153,6 @@ export default function DNSZonesPage() {
                     rather than a badge. */}
                 <TableCell>{isReverseZone(zone.name) ? 'Reverse' : 'Forward'}</TableCell>
                 <TableCell>{providerName(zone.providerId)}</TableCell>
-                <TableCell>{zone.accountName || '—'}</TableCell>
                 <TableCell align="right">
                   {canEdit && (
                     <IconButton
@@ -172,7 +170,7 @@ export default function DNSZonesPage() {
             ))}
             {zones.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                <TableCell colSpan={4} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No zones found at your providers.'}
                 </TableCell>
               </TableRow>
