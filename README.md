@@ -371,13 +371,16 @@ credential than the scoped API token this app uses.
 
 ## Ideas for later
 
-- **Observability over Zabbix**: the console can't yet answer "what's
-  broken right now", which is the first question anyone brings to a
-  console. Zabbix already knows — read its API for current problems,
-  host availability and recent triggers rather than drawing new graphs
-  next to its old ones. This is also what makes a global home page
-  worth having: problems and recent activity as cards, the way GCP's
-  console home works.
+New sections, each one a tool the lab already runs. Work on what's
+already here — gaps, correlations and the road to publishing — is in
+[ROADMAP.md](ROADMAP.md).
+
+- **Observability over Zabbix**: the Cloud overview answers "what's
+  broken right now" from the backends already connected, but only for
+  what this console can see itself — reachability, disk pressure,
+  missing agents, stale backups. Zabbix knows the rest: read its API
+  for current problems, host availability and recent triggers rather
+  than drawing new graphs next to its old ones.
 - **CI/CD over Woodpecker**: pipelines are console-shaped — a table of
   recent runs, red or green, with a link out to the failing step.
   Woodpecker has a REST API and an API token per user; Forgejo
