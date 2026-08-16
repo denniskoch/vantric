@@ -28,7 +28,10 @@ import { dnsBrand } from '../brands'
 import type { DNSProvider, DNSProviderType } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 
-const typeLabels: Record<DNSProviderType, string> = { cloudflare: 'Cloudflare' }
+const typeLabels: Record<DNSProviderType, string> = {
+  cloudflare: 'Cloudflare',
+  powerdns: 'PowerDNS',
+}
 
 function StatusGlyph({ provider }: { provider: DNSProvider }) {
   const icon =

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
 	"slices"
 	"strings"
@@ -95,6 +96,7 @@ type dnsProviderRequest struct {
 	Type      string `json:"type"`
 	Token     string `json:"token"`
 	AccountID string `json:"accountId"`
+	BaseURL   string `json:"baseUrl"`
 }
 
 func (s *Server) validateDNSProvider(w http.ResponseWriter, req *dnsProviderRequest) bool {
@@ -105,6 +107,23 @@ func (s *Server) validateDNSProvider(w http.ResponseWriter, req *dnsProviderRequ
 	if !slices.Contains(dnsfactory.Types, req.Type) {
 		s.err(w, http.StatusBadRequest, "unsupported DNS provider type")
 		return false
+	}
+	// A self-hosted provider has to be told where it is; a hosted one
+	// has no address to give, so accepting one would be accepting a
+	// setting that does nothing.
+	req.BaseURL = strings.TrimSpace(req.BaseURL)
+	if dnsfactory.SelfHosted(req.Type) {
+		if req.BaseURL == "" {
+			s.err(w, http.StatusBadRequest, "an API URL is required, e.g. http://192.168.1.10:8081")
+			return false
+		}
+		u, err := url.Parse(req.BaseURL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			s.err(w, http.StatusBadRequest, "the API URL must be a full http:// or https:// address")
+			return false
+		}
+	} else {
+		req.BaseURL = ""
 	}
 	return true
 }
@@ -132,6 +151,7 @@ func (s *Server) createDNSProvider(w http.ResponseWriter, r *http.Request) {
 		Type:      req.Type,
 		Token:     strings.TrimSpace(req.Token),
 		AccountID: req.AccountID,
+		BaseURL:   req.BaseURL,
 	}
 	provider, err := dnsfactory.Build(p)
 	if err != nil {
@@ -176,6 +196,7 @@ func (s *Server) updateDNSProvider(w http.ResponseWriter, r *http.Request) {
 	p.Name = req.Name
 	p.Type = req.Type
 	p.AccountID = req.AccountID
+	p.BaseURL = req.BaseURL
 	if strings.TrimSpace(req.Token) != "" { // blank means "keep existing"
 		p.Token = strings.TrimSpace(req.Token)
 	}

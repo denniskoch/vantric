@@ -815,13 +815,15 @@ export interface ISODownloadRequest {
   verifyCertificates: boolean
 }
 
-export type DNSProviderType = 'cloudflare'
+export type DNSProviderType = 'cloudflare' | 'powerdns'
 
 export interface DNSProvider {
   id: string
   name: string
   type: DNSProviderType
   accountId: string
+  /** API endpoint for a self-hosted provider; empty for a hosted one. */
+  baseUrl: string
   hasToken: boolean
   status: 'connected' | 'unreachable' | 'unknown'
   zones: number
@@ -834,6 +836,7 @@ export interface DNSProviderRequest {
   type: DNSProviderType
   token: string
   accountId: string
+  baseUrl: string
 }
 
 export interface DNSAccount {

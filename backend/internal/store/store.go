@@ -90,6 +90,7 @@ var migrations = []string{
 		type TEXT NOT NULL,
 		token TEXT NOT NULL DEFAULT '',
 		account_id TEXT NOT NULL DEFAULT '',
+		base_url TEXT NOT NULL DEFAULT '',
 		created_at TEXT NOT NULL
 	)`,
 	`CREATE TABLE IF NOT EXISTS database_servers (
@@ -305,4 +306,8 @@ var columnMigrations = []string{
 	`ALTER TABLE iam_users ADD COLUMN ssh_private_key TEXT NOT NULL DEFAULT ''`,
 	`ALTER TABLE iam_users ADD COLUMN ssh_public_key TEXT NOT NULL DEFAULT ''`,
 	`ALTER TABLE iam_users ADD COLUMN ssh_key_imported INTEGER NOT NULL DEFAULT 0`,
+	// A self-hosted DNS provider has an address; a hosted one's is a
+	// constant in its own implementation. Empty for Cloudflare rows
+	// that predate this.
+	`ALTER TABLE dns_providers ADD COLUMN base_url TEXT NOT NULL DEFAULT ''`,
 }

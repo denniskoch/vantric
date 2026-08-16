@@ -10,20 +10,23 @@ import (
 // DNSProvider is a configured DNS account (Cloudflare, …). Token is
 // never serialized; the API exposes hasToken instead.
 type DNSProvider struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Type      string    `json:"type"`
-	Token     string    `json:"-"`
-	AccountID string    `json:"accountId"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Type      string `json:"type"`
+	Token     string `json:"-"`
+	AccountID string `json:"accountId"`
+	// BaseURL is the API endpoint for a SELF-HOSTED provider. Empty for
+	// a hosted one, whose address is a constant in its implementation.
+	BaseURL   string    `json:"baseUrl"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-const dnsProviderCols = `id, name, type, token, account_id, created_at`
+const dnsProviderCols = `id, name, type, token, account_id, base_url, created_at`
 
 func scanDNSProvider(scan func(dest ...any) error) (*DNSProvider, error) {
 	var p DNSProvider
 	var created string
-	if err := scan(&p.ID, &p.Name, &p.Type, &p.Token, &p.AccountID, &created); err != nil {
+	if err := scan(&p.ID, &p.Name, &p.Type, &p.Token, &p.AccountID, &p.BaseURL, &created); err != nil {
 		return nil, err
 	}
 	p.CreatedAt = parseTime(created)
@@ -68,16 +71,16 @@ func (s *Store) GetDNSProviderByName(ctx context.Context, name string) (*DNSProv
 func (s *Store) CreateDNSProvider(ctx context.Context, p *DNSProvider) error {
 	ts := now()
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO dns_providers (`+dnsProviderCols+`) VALUES (?, ?, ?, ?, ?, ?)`,
-		p.ID, p.Name, p.Type, p.Token, p.AccountID, ts)
+		`INSERT INTO dns_providers (`+dnsProviderCols+`) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		p.ID, p.Name, p.Type, p.Token, p.AccountID, p.BaseURL, ts)
 	p.CreatedAt = parseTime(ts)
 	return err
 }
 
 func (s *Store) UpdateDNSProvider(ctx context.Context, p *DNSProvider) error {
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE dns_providers SET name = ?, type = ?, token = ?, account_id = ? WHERE id = ?`,
-		p.Name, p.Type, p.Token, p.AccountID, p.ID)
+		`UPDATE dns_providers SET name = ?, type = ?, token = ?, account_id = ?, base_url = ? WHERE id = ?`,
+		p.Name, p.Type, p.Token, p.AccountID, p.BaseURL, p.ID)
 	if err != nil {
 		return err
 	}
