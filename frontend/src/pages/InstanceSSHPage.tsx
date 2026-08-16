@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Box, Button, Divider, IconButton, Menu, MenuItem, Radio, Typography } from '@mui/material'
+import { Box, Button, IconButton, Menu, MenuItem, Radio, Typography } from '@mui/material'
 import TerminalIcon from '@mui/icons-material/Terminal'
 import SettingsIcon from '@mui/icons-material/Settings'
+import ArrowRightIcon from '@mui/icons-material/ArrowRight'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
@@ -50,6 +51,14 @@ export default function InstanceSSHPage() {
   const [themeID, setThemeID] = useState(savedThemeID)
   const [fontSize, setFontSize] = useState(savedFontSize)
   const [settings, setSettings] = useState<null | HTMLElement>(null)
+  const [themeMenu, setThemeMenu] = useState<null | HTMLElement>(null)
+  const [fontMenu, setFontMenu] = useState<null | HTMLElement>(null)
+  // Picking from a flyout closes the whole stack, not just the flyout.
+  const closeSettings = () => {
+    setThemeMenu(null)
+    setFontMenu(null)
+    setSettings(null)
+  }
 
   useEffect(() => {
     if (!terminalRef.current) return
@@ -156,15 +165,36 @@ export default function InstanceSSHPage() {
         sx={{ flex: 1, minHeight: 0, p: 1, '& .xterm': { height: '100%' } }}
       />
 
-      {/* Applied to the running terminal rather than saved for next
-          time: you pick a theme by looking at it. */}
+      {/* Two levels, the way a terminal's settings menu is shaped:
+          the top level is what you can change, the flyout is what you
+          can change it to. Ten themes and six sizes in one list is a
+          wall to read every time you want one of them. */}
       <Menu
         anchorEl={settings}
         open={Boolean(settings)}
-        onClose={() => setSettings(null)}
-        slotProps={{ paper: { sx: { minWidth: 200 } } }}
+        onClose={closeSettings}
+        slotProps={{ paper: { sx: { minWidth: 180 } } }}
       >
-        <Box sx={{ px: 2, pt: 0.5, fontSize: 11, color: 'text.secondary' }}>Theme</Box>
+        <MenuItem dense onClick={(e) => setThemeMenu(e.currentTarget)}>
+          Theme
+          <Box sx={{ flex: 1 }} />
+          <ArrowRightIcon fontSize="small" sx={{ ml: 2, color: 'text.secondary' }} />
+        </MenuItem>
+        <MenuItem dense onClick={(e) => setFontMenu(e.currentTarget)}>
+          Font size
+          <Box sx={{ flex: 1 }} />
+          <ArrowRightIcon fontSize="small" sx={{ ml: 2, color: 'text.secondary' }} />
+        </MenuItem>
+      </Menu>
+
+      {/* Flyouts open to the left: the gear sits at the right edge. */}
+      <Menu
+        anchorEl={themeMenu}
+        open={Boolean(themeMenu)}
+        onClose={() => setThemeMenu(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
         {terminalThemes.map((option) => (
           <MenuItem
             key={option.id}
@@ -174,14 +204,22 @@ export default function InstanceSSHPage() {
               setThemeID(option.id)
               saveThemeID(option.id)
               if (termRef.current) termRef.current.options.theme = option.theme
+              closeSettings()
             }}
           >
             <Radio size="small" checked={option.id === themeID} sx={{ p: 0.5, mr: 1 }} />
             {option.label}
           </MenuItem>
         ))}
-        <Divider sx={{ my: 0.5 }} />
-        <Box sx={{ px: 2, fontSize: 11, color: 'text.secondary' }}>Font size</Box>
+      </Menu>
+
+      <Menu
+        anchorEl={fontMenu}
+        open={Boolean(fontMenu)}
+        onClose={() => setFontMenu(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
         {fontSizes.map((size) => (
           <MenuItem
             key={size}
@@ -194,6 +232,7 @@ export default function InstanceSSHPage() {
                 termRef.current.options.fontSize = size
                 fitRef.current?.fit()
               }
+              closeSettings()
             }}
           >
             <Radio size="small" checked={size === fontSize} sx={{ p: 0.5, mr: 1 }} />
