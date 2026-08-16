@@ -27,6 +27,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
 import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import DeleteIcon from '@mui/icons-material/Delete'
+import EditIcon from '@mui/icons-material/Edit'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { api } from '../api/client'
 import type { Backup, MetricTimeframe } from '../api/client'
@@ -347,12 +348,14 @@ export default function InstanceDetailPage() {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         {inst.name}
                         {canEdit && (
-                          <Button
-                            size="small"
-                            onClick={() => navigate(`/compute/instances/${inst.name}/rename`)}
-                          >
-                            Rename
-                          </Button>
+                          <Tooltip title="Rename">
+                            <IconButton
+                              size="small"
+                              onClick={() => navigate(`/compute/instances/${inst.name}/rename`)}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
                         )}
                       </Box>
                     ),
@@ -360,20 +363,26 @@ export default function InstanceDetailPage() {
                   { label: 'Instance ID', value: inst.driverId || '—' },
                   {
                     label: 'Description',
-                    // Inline Edit, the same shape as deletion protection
-                    // below: the action belongs beside the value it
-                    // changes, and the form itself gets its own page.
+                    // Inline pencil, the same shape as the name above:
+                    // the action belongs beside the value it changes,
+                    // and the form itself gets its own page.
                     value: (
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Box component="span" sx={{ whiteSpace: 'pre-wrap' }}>
                           {detail?.description || inst.description || 'None'}
                         </Box>
-                        <Button
-                          size="small"
-                          onClick={() => navigate(`/compute/instances/${inst.name}/description`)}
-                        >
-                          Edit
-                        </Button>
+                        {canEdit && (
+                          <Tooltip title="Edit description">
+                            <IconButton
+                              size="small"
+                              onClick={() =>
+                                navigate(`/compute/instances/${inst.name}/description`)
+                              }
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                       </Box>
                     ),
                   },
