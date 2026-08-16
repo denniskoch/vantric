@@ -64,7 +64,7 @@ export default function ConfirmDeleteDialog({
         <DialogContentText sx={{ fontSize: 13 }}>{body}</DialogContentText>
         {confirmPhrase && (
           <>
-            <Typography sx={{ fontSize: 13, mt: 2, mb: 1, color: '#202124' }}>
+            <Typography sx={{ fontSize: 13, mt: 2, mb: 1, color: 'text.primary' }}>
               Type <strong>{confirmPhrase}</strong> {confirmLabel}:
             </Typography>
             <TextField

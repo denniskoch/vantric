@@ -158,9 +158,9 @@ export default function DNSZoneDetailPage() {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
           <Tooltip title={zone.paused ? 'paused' : zone.status}>
             {active ? (
-              <CheckCircleIcon sx={{ color: '#188038', fontSize: 20 }} />
+              <CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} />
             ) : (
-              <PendingIcon sx={{ color: '#f29900', fontSize: 20 }} />
+              <PendingIcon sx={{ color: 'warning.main', fontSize: 20 }} />
             )}
           </Tooltip>
           <Typography variant="h5">{zone.name}</Typography>
@@ -258,7 +258,7 @@ export default function DNSZoneDetailPage() {
                                   fontSize: 10,
                                   height: 18,
                                   color: '#e8710a',
-                                  bgcolor: '#fef7e0',
+                                  bgcolor: 'surface.warningTint',
                                   '& .MuiChip-icon': { color: 'inherit' },
                                 }}
                               />
@@ -283,7 +283,7 @@ export default function DNSZoneDetailPage() {
               ))}
               {sets.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                  <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                     {recordsLoading ? 'Loading…' : 'This zone has no records.'}
                   </TableCell>
                 </TableRow>
@@ -312,12 +312,12 @@ export default function DNSZoneDetailPage() {
             setDeletingSet(menuSet)
             setMenuAnchor(null)
           }}
-          sx={{ color: '#d93025' }}
+          sx={{ color: 'error.main' }}
         >
           <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Delete
         </MenuItem>
         {menuSet && !canEdit(menuSet.type) && (
-          <Typography sx={{ fontSize: 12, color: '#5f6368', px: 2, py: 1, maxWidth: 260 }}>
+          <Typography sx={{ fontSize: 12, color: 'text.secondary', px: 2, py: 1, maxWidth: 260 }}>
             {menuSet.type} records carry structured data — edit them at the provider.
           </Typography>
         )}

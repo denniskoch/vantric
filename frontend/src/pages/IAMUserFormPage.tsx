@@ -121,7 +121,7 @@ export default function IAMUserFormPage() {
           <MenuItem key={r.id} value={r.id}>
             <Box>
               <Typography sx={{ fontSize: 14 }}>{r.title}</Typography>
-              <Typography sx={{ fontSize: 12, color: '#5f6368' }}>{r.description}</Typography>
+              <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{r.description}</Typography>
             </Box>
           </MenuItem>
         ))}
@@ -155,7 +155,7 @@ export default function IAMUserFormPage() {
         label={
           <Box>
             <Typography sx={{ fontSize: 14 }}>Active</Typography>
-            <Typography sx={{ fontSize: 12, color: '#5f6368' }}>
+            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
               {editingSelf
                 ? "You can't disable the account you're signed in as"
                 : 'Disabling ends their sessions immediately'}

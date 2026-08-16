@@ -155,9 +155,9 @@ export default function DatabaseInstanceDetailPage() {
         </Button>
         <Tooltip title={server.error || server.status}>
           {connected ? (
-            <CheckCircleIcon sx={{ color: '#188038', fontSize: 20 }} />
+            <CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} />
           ) : (
-            <ErrorIcon sx={{ color: '#d93025', fontSize: 20 }} />
+            <ErrorIcon sx={{ color: 'error.main', fontSize: 20 }} />
           )}
         </Tooltip>
         {brand && <BrandIcon icon={brand} size={22} />}
@@ -309,7 +309,7 @@ export default function DatabaseInstanceDetailPage() {
                       <TableCell
                         colSpan={hasOwners ? 8 : 7}
                         align="center"
-                        sx={{ py: 6, color: '#5f6368' }}
+                        sx={{ py: 6, color: 'text.secondary' }}
                       >
                         {databasesLoading ? 'Loading…' : 'No databases.'}
                       </TableCell>
@@ -353,13 +353,13 @@ export default function DatabaseInstanceDetailPage() {
                     <TableRow key={`${user.name}@${user.host}`} hover>
                       <TableCell>
                         {user.name}
-                        {user.host && <Box component="span" sx={{ color: '#5f6368' }}>@{user.host}</Box>}
+                        {user.host && <Box component="span" sx={{ color: 'text.secondary' }}>@{user.host}</Box>}
                       </TableCell>
                       <TableCell>{user.system ? 'System' : 'User'}</TableCell>
                       <TableCell>{yesNo(user.canLogin)}</TableCell>
                       <TableCell>{yesNo(user.superuser)}</TableCell>
                       <TableCell>{yesNo(user.createDb)}</TableCell>
-                      <TableCell sx={{ color: '#5f6368' }}>
+                      <TableCell sx={{ color: 'text.secondary' }}>
                         {user.memberOf?.join(', ') || '—'}
                       </TableCell>
                       <TableCell align="right">
@@ -377,7 +377,7 @@ export default function DatabaseInstanceDetailPage() {
                   ))}
                   {users.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                      <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                         {usersLoading ? 'Loading…' : 'No users.'}
                       </TableCell>
                     </TableRow>
@@ -431,7 +431,7 @@ export default function DatabaseInstanceDetailPage() {
                 ))}
                 {connections.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                    <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                       {connectionsLoading ? 'Loading…' : 'No client connections right now.'}
                     </TableCell>
                   </TableRow>
@@ -464,12 +464,12 @@ export default function DatabaseInstanceDetailPage() {
             setDroppingUser(userMenu?.user ?? null)
             setUserMenu(null)
           }}
-          sx={{ color: '#d93025' }}
+          sx={{ color: 'error.main' }}
         >
           <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Drop user
         </MenuItem>
         {userMenu?.user.system && (
-          <Typography sx={{ fontSize: 12, color: '#5f6368', px: 2, py: 1, maxWidth: 260 }}>
+          <Typography sx={{ fontSize: 12, color: 'text.secondary', px: 2, py: 1, maxWidth: 260 }}>
             The server ships with this account and uses it internally.
           </Typography>
         )}

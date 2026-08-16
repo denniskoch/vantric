@@ -114,7 +114,7 @@ export default function DevicesHostsPage() {
                 </TableCell>
                 <TableCell align="right">
                   {host.issuesFailing > 0 ? (
-                    <Box component="span" sx={{ color: '#d93025' }}>
+                    <Box component="span" sx={{ color: 'error.main' }}>
                       {host.issuesFailing}
                     </Box>
                   ) : (
@@ -123,12 +123,12 @@ export default function DevicesHostsPage() {
                 </TableCell>
                 {/* Coarse on purpose: minutes or days is the answer;
                     the clock time is arithmetic for the reader. */}
-                <TableCell sx={{ color: '#5f6368' }}>{timeAgo(host.seenAt)}</TableCell>
+                <TableCell sx={{ color: 'text.secondary' }}>{timeAgo(host.seenAt)}</TableCell>
               </TableRow>
             ))}
             {hosts.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading
                     ? 'Loading…'
                     : data?.configured
@@ -142,7 +142,7 @@ export default function DevicesHostsPage() {
       </TableContainer>
 
       {hosts.length > 0 && (
-        <Typography sx={{ fontSize: 12, color: '#5f6368', mt: 1 }}>
+        <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 1 }}>
           {hosts.filter((h) => h.managed).length} of {hosts.length} are guests this console
           runs.
         </Typography>

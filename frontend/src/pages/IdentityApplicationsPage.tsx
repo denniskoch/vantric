@@ -68,7 +68,7 @@ export default function IdentityApplicationsPage() {
                 <TableCell>
                   <BrandLabel icon={appBrand(app.name)} label={app.name} />
                 </TableCell>
-                <TableCell sx={{ color: '#5f6368' }}>{app.slug}</TableCell>
+                <TableCell sx={{ color: 'text.secondary' }}>{app.slug}</TableCell>
                 <TableCell>{app.provider || '—'}</TableCell>
                 <TableCell>{app.providerType || '—'}</TableCell>
                 <TableCell>
@@ -91,7 +91,7 @@ export default function IdentityApplicationsPage() {
             ))}
             {apps.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No applications.'}
                 </TableCell>
               </TableRow>

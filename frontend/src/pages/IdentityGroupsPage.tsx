@@ -84,7 +84,7 @@ export default function IdentityGroupsPage() {
             ))}
             {groups.length === 0 && (
               <TableRow>
-                <TableCell colSpan={3} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={3} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No groups.'}
                 </TableCell>
               </TableRow>

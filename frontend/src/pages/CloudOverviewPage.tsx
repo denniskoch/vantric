@@ -45,7 +45,7 @@ export default function CloudOverviewPage() {
         </Alert>
       )}
 
-      <Typography sx={{ fontSize: 16, color: '#202124', mb: 1.5 }}>
+      <Typography sx={{ fontSize: 16, color: 'text.primary', mb: 1.5 }}>
         Status
       </Typography>
       <Paper variant="outlined" sx={{ mb: 3 }}>
@@ -56,12 +56,12 @@ export default function CloudOverviewPage() {
           </Box>
         ) : problems.length === 0 ? (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 2 }}>
-            <CheckCircleIcon sx={{ color: '#188038', fontSize: 20 }} />
+            <CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} />
             <Box>
-              <Typography sx={{ fontSize: 14, color: '#202124' }}>
+              <Typography sx={{ fontSize: 14, color: 'text.primary' }}>
                 Everything is reachable and nothing is running low
               </Typography>
-              <Typography sx={{ fontSize: 12, color: '#5f6368' }}>
+              <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
                 Every hypervisor, database server and provider answered, no datastore is
                 near full, and every guest is backed up and reporting an address.
               </Typography>
@@ -77,7 +77,7 @@ export default function CloudOverviewPage() {
         )}
       </Paper>
 
-      <Typography sx={{ fontSize: 16, color: '#202124', mb: 1.5 }}>
+      <Typography sx={{ fontSize: 16, color: 'text.primary', mb: 1.5 }}>
         Resources
       </Typography>
       <Box
@@ -142,7 +142,7 @@ export default function CloudOverviewPage() {
 
       {data && data.datastores.length > 0 && (
         <>
-          <Typography sx={{ fontSize: 16, color: '#202124', mb: 1.5 }}>
+          <Typography sx={{ fontSize: 16, color: 'text.primary', mb: 1.5 }}>
             Storage
           </Typography>
           <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
@@ -170,19 +170,19 @@ function ProblemRow({ problem }: { problem: OverviewProblem }) {
         p: 2,
         textDecoration: 'none',
         color: 'inherit',
-        '&:hover': { bgcolor: '#f8f9fa' },
+        '&:hover': { bgcolor: 'surface.subtle' },
       }}
     >
       <Icon sx={{ color: error ? '#d93025' : '#e37400', fontSize: 20 }} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: 14, color: '#202124' }}>{problem.title}</Typography>
+        <Typography sx={{ fontSize: 14, color: 'text.primary' }}>{problem.title}</Typography>
         {problem.detail && (
-          <Typography sx={{ fontSize: 12, color: '#5f6368', mt: 0.3 }}>
+          <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 0.3 }}>
             {problem.detail}
           </Typography>
         )}
       </Box>
-      <ChevronRightIcon sx={{ color: '#5f6368', fontSize: 18 }} />
+      <ChevronRightIcon sx={{ color: 'text.secondary', fontSize: 18 }} />
     </Box>
   )
 }
@@ -210,14 +210,14 @@ function Stat({
         display: 'block',
         textDecoration: 'none',
         color: 'inherit',
-        '&:hover': { bgcolor: '#f8f9fa', borderColor: '#1a73e8' },
+        '&:hover': { bgcolor: 'surface.subtle', borderColor: 'primary.main' },
       }}
     >
-      <Typography sx={{ fontSize: 12, color: '#5f6368' }}>{label}</Typography>
-      <Typography sx={{ fontSize: 28, fontWeight: 400, color: '#202124', lineHeight: 1.3 }}>
+      <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{label}</Typography>
+      <Typography sx={{ fontSize: 28, fontWeight: 400, color: 'text.primary', lineHeight: 1.3 }}>
         {loading ? <Skeleton width={48} /> : (value ?? 0)}
       </Typography>
-      <Typography sx={{ fontSize: 12, color: '#5f6368' }}>
+      <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
         {loading ? '' : (hint ?? ' ')}
       </Typography>
     </Paper>
@@ -230,10 +230,10 @@ function DatastoreBar({ datastore }: { datastore: OverviewDatastore }) {
   return (
     <Box sx={{ mb: 1.5, '&:last-of-type': { mb: 0 } }}>
       <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-        <Typography sx={{ fontSize: 13, color: '#202124' }}>{datastore.name}</Typography>
-        <Typography sx={{ fontSize: 12, color: '#5f6368' }}>{datastore.zone}</Typography>
+        <Typography sx={{ fontSize: 13, color: 'text.primary' }}>{datastore.name}</Typography>
+        <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{datastore.zone}</Typography>
         <Box sx={{ flex: 1 }} />
-        <Typography sx={{ fontSize: 12, color: '#5f6368' }}>
+        <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
           {formatBytes(datastore.usedBytes)} of {formatBytes(datastore.totalBytes)} ·{' '}
           {pct.toFixed(0)}%
         </Typography>
@@ -245,7 +245,7 @@ function DatastoreBar({ datastore }: { datastore: OverviewDatastore }) {
           mt: 0.5,
           height: 6,
           borderRadius: 1,
-          bgcolor: '#f1f3f4',
+          bgcolor: 'surface.muted',
           '& .MuiLinearProgress-bar': { bgcolor: colour },
         }}
       />

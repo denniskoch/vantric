@@ -230,9 +230,9 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
                 }}
               >
                 {sec.invalid ? (
-                  <ErrorIcon sx={{ fontSize: 14, color: '#d93025', mr: 1.5 }} />
+                  <ErrorIcon sx={{ fontSize: 14, color: 'error.main', mr: 1.5 }} />
                 ) : (
-                  <CircleIcon sx={{ fontSize: 8, color: '#5f6368', mr: 2.2, ml: 0.4 }} />
+                  <CircleIcon sx={{ fontSize: 8, color: 'text.secondary', mr: 2.2, ml: 0.4 }} />
                 )}
                 <ListItemText
                   primary={sec.label}

@@ -106,7 +106,7 @@ export default function InventoryProvidersPage() {
                 </TableCell>
                 <TableCell>{p.name}</TableCell>
                 <TableCell>{p.type}</TableCell>
-                <TableCell sx={{ color: '#5f6368' }}>{p.baseUrl}</TableCell>
+                <TableCell sx={{ color: 'text.secondary' }}>{p.baseUrl}</TableCell>
                 <TableCell>{p.info?.version || (p.error ? '—' : '')}</TableCell>
                 <TableCell align="right">{p.info?.hosts ?? '—'}</TableCell>
                 <TableCell align="right">
@@ -124,14 +124,14 @@ export default function InventoryProvidersPage() {
             ))}
             {providers.some((p) => p.error) && (
               <TableRow>
-                <TableCell colSpan={7} sx={{ color: '#d93025', fontSize: 12 }}>
+                <TableCell colSpan={7} sx={{ color: 'error.main', fontSize: 12 }}>
                   {providers.find((p) => p.error)?.error}
                 </TableCell>
               </TableRow>
             )}
             {providers.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading
                     ? 'Loading…'
                     : 'No inventory service connected. FleetDM runs osquery on your machines and reports their packages and CVEs.'}
@@ -156,7 +156,7 @@ export default function InventoryProvidersPage() {
             setDeleting(selected)
             setMenuAnchor(null)
           }}
-          sx={{ color: '#d93025' }}
+          sx={{ color: 'error.main' }}
         >
           <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Disconnect
         </MenuItem>

@@ -114,8 +114,8 @@ export default function IAMSignOnPage() {
         </Alert>
       )}
 
-      <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: '#f8f9fa' }}>
-        <Typography sx={{ fontSize: 13, color: '#5f6368', mb: 1 }}>
+      <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: 'surface.subtle' }}>
+        <Typography sx={{ fontSize: 13, color: 'text.secondary', mb: 1 }}>
           Give your provider this redirect URI, exactly:
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -142,7 +142,7 @@ export default function IAMSignOnPage() {
           </Button>
         </Box>
         {provider && !provider.siteUrlSet && (
-          <Typography sx={{ fontSize: 12, color: '#5f6368', mt: 1 }}>
+          <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 1 }}>
             Worked out from this request. If the console sits behind a proxy or
             a tunnel, set <code>VANTRIC_SITE_URL</code> in <code>.env</code> to the
             address people actually use — otherwise this is the address the
@@ -210,7 +210,7 @@ export default function IAMSignOnPage() {
           label={
             <Box>
               <Typography sx={{ fontSize: 14 }}>Enabled</Typography>
-              <Typography sx={{ fontSize: 12, color: '#5f6368' }}>
+              <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
                 Shows the button on the sign-in page
               </Typography>
             </Box>
@@ -224,7 +224,7 @@ export default function IAMSignOnPage() {
           label={
             <Box>
               <Typography sx={{ fontSize: 14 }}>Create accounts automatically</Typography>
-              <Typography sx={{ fontSize: 12, color: '#5f6368' }}>
+              <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
                 Off means someone must already have an account here, matched by
                 email — being in the directory isn't by itself a way into the
                 console that runs the lab. On means anyone the provider vouches
@@ -247,7 +247,7 @@ export default function IAMSignOnPage() {
               <MenuItem key={r.id} value={r.id}>
                 <Box>
                   <Typography sx={{ fontSize: 14 }}>{r.title}</Typography>
-                  <Typography sx={{ fontSize: 12, color: '#5f6368' }}>
+                  <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
                     {r.description}
                   </Typography>
                 </Box>

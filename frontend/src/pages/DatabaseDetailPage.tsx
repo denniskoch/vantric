@@ -198,7 +198,7 @@ export default function DatabaseDetailPage() {
                               isn't worth the width, so it sits under the
                               name where it exists. */}
                           {t.comment && (
-                            <Typography sx={{ fontSize: 12, color: '#5f6368' }}>
+                            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
                               {t.comment}
                             </Typography>
                           )}
@@ -215,7 +215,7 @@ export default function DatabaseDetailPage() {
                     ))}
                     {tables.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                        <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                           {tablesLoading ? 'Loading…' : 'No tables in this database.'}
                         </TableCell>
                       </TableRow>
@@ -269,7 +269,7 @@ export default function DatabaseDetailPage() {
                         <TableCell sx={{ color: g.scope ? '#202124' : '#5f6368' }}>
                           {g.scope || 'the database'}
                         </TableCell>
-                        <TableCell sx={{ color: '#5f6368' }}>
+                        <TableCell sx={{ color: 'text.secondary' }}>
                           {g.privileges.join(', ')}
                         </TableCell>
                         <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
@@ -301,7 +301,7 @@ export default function DatabaseDetailPage() {
                     ))}
                     {grants.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={4} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                        <TableCell colSpan={4} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                           {grantsLoading
                             ? 'Loading…'
                             : 'No explicit grants — only the owner and superusers can reach this.'}

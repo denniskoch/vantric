@@ -1,5 +1,35 @@
 import { createTheme } from '@mui/material/styles'
 
+/**
+ * Surfaces the standard palette has no name for: the tints GCP uses
+ * behind rows, chips and alert strips.
+ *
+ * They live under `palette` rather than beside it so `sx` resolves
+ * them the same way it resolves `text.secondary` — a token you can
+ * only reach through `useTheme` is a token people will keep typing
+ * the hex for instead.
+ */
+declare module '@mui/material/styles' {
+  interface Palette {
+    surface: SurfacePalette
+  }
+  interface PaletteOptions {
+    surface?: SurfacePalette
+  }
+}
+
+interface SurfacePalette {
+  /** Row hover, and the canvas behind an empty shell. */
+  subtle: string
+  /** Chip and search-field fill. */
+  muted: string
+  /** Hairlines lighter than a divider — chart grid, inner rules. */
+  faint: string
+  errorTint: string
+  warningTint: string
+  infoTint: string
+}
+
 // GCP-inspired: Google blue primary, white surfaces, subtle gray borders,
 // dense tables.
 export const theme = createTheme({
@@ -7,11 +37,19 @@ export const theme = createTheme({
     primary: { main: '#1a73e8' },
     secondary: { main: '#5f6368' },
     background: { default: '#ffffff', paper: '#ffffff' },
-    text: { primary: '#202124', secondary: '#5f6368' },
+    text: { primary: '#202124', secondary: '#5f6368', disabled: '#80868b' },
     divider: '#dadce0',
     success: { main: '#188038' },
     error: { main: '#d93025' },
-    warning: { main: '#f29900' },
+    warning: { main: '#f29900', dark: '#e37400' },
+    surface: {
+      subtle: '#f8f9fa',
+      muted: '#f1f3f4',
+      faint: '#e8eaed',
+      errorTint: '#fce8e6',
+      warningTint: '#fef7e0',
+      infoTint: '#e8f0fe',
+    },
   },
   typography: {
     fontFamily: `'Roboto', 'Helvetica Neue', Arial, sans-serif`,

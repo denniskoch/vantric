@@ -123,7 +123,7 @@ export default function CloudImagesPage() {
             ))}
             {images.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No cloud images found. Add one to build VM templates from.'}
                 </TableCell>
               </TableRow>
@@ -138,7 +138,7 @@ export default function CloudImagesPage() {
             setConfirming(menuImage)
             setMenuAnchor(null)
           }}
-          sx={{ color: '#d93025' }}
+          sx={{ color: 'error.main' }}
         >
           <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Delete
         </MenuItem>

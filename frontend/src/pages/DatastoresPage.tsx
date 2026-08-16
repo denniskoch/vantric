@@ -39,7 +39,7 @@ function UsageBar({ used, total }: { used: number; total: number }) {
         <span>
           {formatBytes(used)} / {formatBytes(total)}
         </span>
-        <span style={{ color: '#5f6368' }}>{pct.toFixed(0)}%</span>
+        <span style={{ color: 'text.secondary' }}>{pct.toFixed(0)}%</span>
       </Box>
       <LinearProgress
         variant="determinate"
@@ -47,7 +47,7 @@ function UsageBar({ used, total }: { used: number; total: number }) {
         sx={{
           height: 4,
           borderRadius: 2,
-          bgcolor: '#e8eaed',
+          bgcolor: 'surface.faint',
           '& .MuiLinearProgress-bar': {
             bgcolor: pct > 90 ? '#d93025' : pct > 75 ? '#f29900' : '#1a73e8',
           },
@@ -88,9 +88,9 @@ export default function DatastoresPage() {
                 <TableCell>
                   <Tooltip title={ds.active ? 'available' : 'unavailable'}>
                     {ds.active ? (
-                      <CheckCircleIcon sx={{ color: '#188038', fontSize: 18 }} />
+                      <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} />
                     ) : (
-                      <ErrorIcon sx={{ color: '#d93025', fontSize: 18 }} />
+                      <ErrorIcon sx={{ color: 'error.main', fontSize: 18 }} />
                     )}
                   </Tooltip>
                 </TableCell>
@@ -98,7 +98,7 @@ export default function DatastoresPage() {
                 <TableCell>{serverName(ds.serverId)}</TableCell>
                 <TableCell>{ds.zone}</TableCell>
                 <TableCell>{ds.type}</TableCell>
-                <TableCell sx={{ color: '#5f6368', fontSize: 12 }}>{ds.content}</TableCell>
+                <TableCell sx={{ color: 'text.secondary', fontSize: 12 }}>{ds.content}</TableCell>
                 <TableCell>
                   <UsageBar used={ds.usedBytes} total={ds.totalBytes} />
                 </TableCell>
@@ -111,7 +111,7 @@ export default function DatastoresPage() {
             ))}
             {datastores.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No datastores found on your servers.'}
                 </TableCell>
               </TableRow>

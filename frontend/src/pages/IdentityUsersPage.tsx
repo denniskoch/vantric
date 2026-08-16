@@ -162,7 +162,7 @@ export default function IdentityUsersPage() {
                 </TableCell>
                 <TableCell
                   sx={{
-                    color: '#5f6368',
+                    color: 'text.secondary',
                     maxWidth: 240,
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
@@ -190,7 +190,7 @@ export default function IdentityUsersPage() {
             ))}
             {users.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No users.'}
                 </TableCell>
               </TableRow>

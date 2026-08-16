@@ -189,9 +189,9 @@ export default function DevicesInstallersPage() {
                     {item.name}
                   </Box>
                 </TableCell>
-                <TableCell sx={{ color: '#5f6368' }}>{item.platform}</TableCell>
+                <TableCell sx={{ color: 'text.secondary' }}>{item.platform}</TableCell>
                 <TableCell align="right">{formatBytes(item.size)}</TableCell>
-                <TableCell sx={{ color: '#5f6368' }}>{timeAgo(item.uploadedAt)}</TableCell>
+                <TableCell sx={{ color: 'text.secondary' }}>{timeAgo(item.uploadedAt)}</TableCell>
                 <TableCell>
                   {/* One button per shell, because the difference
                       between them is exactly the thing you don't want
@@ -228,7 +228,7 @@ export default function DevicesInstallersPage() {
             ))}
             {installers.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading
                     ? 'Loading…'
                     : 'No installers yet. Upload the fleetd packages you build in Fleet, one per platform.'}
@@ -255,7 +255,7 @@ export default function DevicesInstallersPage() {
               setDeleting(selected)
               setMenuAnchor(null)
             }}
-            sx={{ color: '#d93025' }}
+            sx={{ color: 'error.main' }}
           >
             <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Delete
           </MenuItem>

@@ -125,9 +125,9 @@ export default function DNSZonesPage() {
                 <TableCell>
                   <Tooltip title={zone.paused ? 'paused' : zone.status}>
                     {zone.status === 'active' && !zone.paused ? (
-                      <CheckCircleIcon sx={{ color: '#188038', fontSize: 18 }} />
+                      <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} />
                     ) : (
-                      <PendingIcon sx={{ color: '#f29900', fontSize: 18 }} />
+                      <PendingIcon sx={{ color: 'warning.main', fontSize: 18 }} />
                     )}
                   </Tooltip>
                 </TableCell>
@@ -159,7 +159,7 @@ export default function DNSZonesPage() {
             ))}
             {zones.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No zones found at your providers.'}
                 </TableCell>
               </TableRow>
@@ -174,7 +174,7 @@ export default function DNSZonesPage() {
             setConfirming(menuZone)
             setMenuAnchor(null)
           }}
-          sx={{ color: '#d93025' }}
+          sx={{ color: 'error.main' }}
         >
           <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Delete
         </MenuItem>

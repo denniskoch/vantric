@@ -19,7 +19,7 @@ export function DetailSection({
   return (
     <Box sx={{ mb: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-        <Typography sx={{ fontSize: 16, color: '#202124' }}>{title}</Typography>
+        <Typography sx={{ fontSize: 16, color: 'text.primary' }}>{title}</Typography>
         {action}
       </Box>
       {children}
@@ -34,17 +34,17 @@ export default function DetailTable({ rows }: { rows: DetailRow[] }) {
       size="small"
       sx={{
         border: '1px solid #e8eaed',
-        '& tr:nth-of-type(odd)': { bgcolor: '#f8f9fa' },
+        '& tr:nth-of-type(odd)': { bgcolor: 'surface.subtle' },
         '& td': { border: 0, py: 0.75 },
       }}
     >
       <TableBody>
         {rows.map((row, i) => (
           <TableRow key={`${row.label}-${i}`}>
-            <TableCell sx={{ color: '#5f6368', width: 280, verticalAlign: 'top' }}>
+            <TableCell sx={{ color: 'text.secondary', width: 280, verticalAlign: 'top' }}>
               {row.label}
             </TableCell>
-            <TableCell sx={{ color: '#202124' }}>{row.value}</TableCell>
+            <TableCell sx={{ color: 'text.primary' }}>{row.value}</TableCell>
           </TableRow>
         ))}
       </TableBody>

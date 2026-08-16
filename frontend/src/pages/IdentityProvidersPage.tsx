@@ -104,11 +104,11 @@ export default function IdentityProvidersPage() {
                   <Tooltip title={provider.error || provider.status}>
                     <span style={{ display: 'inline-flex', verticalAlign: 'middle' }}>
                       {provider.status === 'connected' ? (
-                        <CheckCircleIcon sx={{ color: '#188038', fontSize: 18 }} />
+                        <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} />
                       ) : provider.status === 'unreachable' ? (
-                        <ErrorIcon sx={{ color: '#d93025', fontSize: 18 }} />
+                        <ErrorIcon sx={{ color: 'error.main', fontSize: 18 }} />
                       ) : (
-                        <HelpIcon sx={{ color: '#5f6368', fontSize: 18 }} />
+                        <HelpIcon sx={{ color: 'text.secondary', fontSize: 18 }} />
                       )}
                     </span>
                   </Tooltip>
@@ -125,7 +125,7 @@ export default function IdentityProvidersPage() {
                   {provider.info?.version ?? '—'}
                   {provider.info?.outdated && provider.info.latestVersion && (
                     <Tooltip title={`${provider.info.latestVersion} is available`}>
-                      <Box component="span" sx={{ color: '#f29900', ml: 1 }}>
+                      <Box component="span" sx={{ color: 'warning.main', ml: 1 }}>
                         update available
                       </Box>
                     </Tooltip>
@@ -149,7 +149,7 @@ export default function IdentityProvidersPage() {
             ))}
             {providers.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={9} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading
                     ? 'Loading…'
                     : 'No identity provider connected. Click "Add provider" to connect one.'}

@@ -38,11 +38,11 @@ import { formatBytes } from '../format'
 function StatusGlyph({ server }: { server: DatabaseServer }) {
   const icon =
     server.status === 'connected' ? (
-      <CheckCircleIcon sx={{ color: '#188038', fontSize: 18 }} />
+      <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} />
     ) : server.status === 'unreachable' ? (
-      <ErrorIcon sx={{ color: '#d93025', fontSize: 18 }} />
+      <ErrorIcon sx={{ color: 'error.main', fontSize: 18 }} />
     ) : (
-      <HelpIcon sx={{ color: '#5f6368', fontSize: 18 }} />
+      <HelpIcon sx={{ color: 'text.secondary', fontSize: 18 }} />
     )
   return (
     <Tooltip title={server.error ? `${server.status}: ${server.error}` : server.status}>
@@ -184,7 +184,7 @@ export default function DatabaseInstancesPage() {
             ))}
             {servers.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={9} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading
                     ? 'Loading…'
                     : 'No database servers connected. Click "Add instance" to connect one.'}
@@ -209,7 +209,7 @@ export default function DatabaseInstancesPage() {
             setConfirming(menuServer)
             setMenuAnchor(null)
           }}
-          sx={{ color: '#d93025' }}
+          sx={{ color: 'error.main' }}
         >
           <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Remove
         </MenuItem>

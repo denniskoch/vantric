@@ -87,12 +87,12 @@ function Panel({
 }) {
   return (
     <Box sx={{ mt: 3 }}>
-      <Typography sx={{ fontSize: 16, color: "#202124", mb: 1.5 }}>
+      <Typography sx={{ fontSize: 16, color: "text.primary", mb: 1.5 }}>
         {title}
       </Typography>
       <Paper variant="outlined">
         {rows === 0 ? (
-          <Typography sx={{ p: 2, fontSize: 13, color: "#5f6368" }}>
+          <Typography sx={{ p: 2, fontSize: 13, color: "text.secondary" }}>
             {empty}
           </Typography>
         ) : (
@@ -102,7 +102,7 @@ function Panel({
       {/* The agent's clock, not ours: a package list is only as true as
           the last time the machine was asked. */}
       <Typography
-        sx={{ fontSize: 11, color: "#80868b", mt: 0.5, textAlign: "right" }}
+        sx={{ fontSize: 11, color: "text.disabled", mt: 0.5, textAlign: "right" }}
       >
         Last collected: {collected}
       </Typography>
@@ -229,8 +229,8 @@ function VulnerabilityTable({
                           sx={{
                             fontSize: 10,
                             height: 18,
-                            bgcolor: "#fce8e6",
-                            color: "#d93025",
+                            bgcolor: "surface.errorTint",
+                            color: "error.main",
                           }}
                         />
                       )}
@@ -244,7 +244,7 @@ function VulnerabilityTable({
                   {/* The difference between "patch this" and "wait". */}
                   <TableCell>
                     {row.fixes.length === 0 ? (
-                      <Box component="span" sx={{ color: "#5f6368" }}>
+                      <Box component="span" sx={{ color: "text.secondary" }}>
                         No fix published
                       </Box>
                     ) : row.fixes.length === 1 && !row.unfixed ? (
@@ -270,7 +270,7 @@ function VulnerabilityTable({
                 </TableRow>
                 {open === row.cve && (
                   <TableRow>
-                    <TableCell colSpan={6} sx={{ bgcolor: "#f8f9fa", py: 1 }}>
+                    <TableCell colSpan={6} sx={{ bgcolor: "surface.subtle", py: 1 }}>
                       <Table size="small">
                         <TableHead>
                           <TableRow>
@@ -286,7 +286,7 @@ function VulnerabilityTable({
                               <TableCell>{e.installedVersion || "—"}</TableCell>
                               <TableCell>
                                 {e.resolvedInVersion || (
-                                  <Box component="span" sx={{ color: "#5f6368" }}>
+                                  <Box component="span" sx={{ color: "text.secondary" }}>
                                     No fix published
                                   </Box>
                                 )}
@@ -350,12 +350,12 @@ function PackageTable({
               <TableRow key={`${p.source}/${p.name}/${p.version}`} hover>
                 <TableCell>{p.name}</TableCell>
                 <TableCell>{p.version}</TableCell>
-                <TableCell sx={{ color: "#5f6368" }}>
+                <TableCell sx={{ color: "text.secondary" }}>
                   {sourceLabel(p.source)}
                 </TableCell>
                 <TableCell align="right">
                   {p.vulnerabilities.length > 0 ? (
-                    <Box component="span" sx={{ color: "#d93025" }}>
+                    <Box component="span" sx={{ color: "error.main" }}>
                       {p.vulnerabilities.length}
                     </Box>
                   ) : (

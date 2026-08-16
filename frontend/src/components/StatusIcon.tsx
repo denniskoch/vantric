@@ -9,10 +9,10 @@ export default function StatusIcon({ status }: { status: InstanceStatus }) {
   let icon
   switch (status) {
     case 'RUNNING':
-      icon = <CheckCircleIcon sx={{ color: '#188038', fontSize: 18 }} />
+      icon = <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} />
       break
     case 'TERMINATED':
-      icon = <StopCircleIcon sx={{ color: '#5f6368', fontSize: 18 }} />
+      icon = <StopCircleIcon sx={{ color: 'text.secondary', fontSize: 18 }} />
       break
     default:
       icon = <CircularProgress size={14} thickness={5} />

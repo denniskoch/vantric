@@ -114,11 +114,11 @@ export default function BackupsPage() {
                 </TableCell>
                 <TableCell>
                   {backup.guestName || (
-                    <Box component="span" sx={{ color: '#5f6368' }}>
+                    <Box component="span" sx={{ color: 'text.secondary' }}>
                       deleted guest
                     </Box>
                   )}
-                  <Box component="span" sx={{ color: '#5f6368' }}> · {backup.vmid}</Box>
+                  <Box component="span" sx={{ color: 'text.secondary' }}> · {backup.vmid}</Box>
                   {backup.protected && (
                     <Chip
                       label="protected"
@@ -133,7 +133,7 @@ export default function BackupsPage() {
                 <TableCell>{backup.zone}</TableCell>
                 <TableCell>{backup.storage}</TableCell>
                 <TableCell align="right">{formatBytes(backup.sizeBytes)}</TableCell>
-                <TableCell sx={{ color: '#5f6368' }}>{backup.format || '—'}</TableCell>
+                <TableCell sx={{ color: 'text.secondary' }}>{backup.format || '—'}</TableCell>
                 <TableCell align="right">
                   <Tooltip
                     title={
@@ -157,7 +157,7 @@ export default function BackupsPage() {
             ))}
             {shown.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={9} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No backups on any datastore.'}
                 </TableCell>
               </TableRow>

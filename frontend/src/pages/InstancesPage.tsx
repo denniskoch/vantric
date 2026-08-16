@@ -162,14 +162,14 @@ export default function InstancesPage() {
             display: 'flex',
             alignItems: 'center',
             gap: 0.5,
-            bgcolor: '#e8f0fe',
+            bgcolor: 'surface.infoTint',
             borderColor: '#d2e3fc',
           }}
         >
           <IconButton size="small" aria-label="Clear selection" onClick={() => setPicked(new Set())}>
             <CloseIcon fontSize="small" />
           </IconButton>
-          <Typography sx={{ fontSize: 13, color: '#202124', mx: 1 }}>{selected.length}</Typography>
+          <Typography sx={{ fontSize: 13, color: 'text.primary', mx: 1 }}>{selected.length}</Typography>
           <Button
             size="small"
             startIcon={<PlayArrowIcon />}
@@ -281,7 +281,7 @@ export default function InstancesPage() {
             ))}
             {instances.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={9} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading
                     ? 'Loading…'
                     : 'No VM instances yet. Click "Create instance" to get started.'}
@@ -317,7 +317,7 @@ export default function InstancesPage() {
             closeMenu()
           }}
           disabled={menuInstance?.protected || isPoweredOn(menuInstance)}
-          sx={{ color: '#d93025' }}
+          sx={{ color: 'error.main' }}
         >
           <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
           {menuInstance?.protected

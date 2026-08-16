@@ -68,7 +68,7 @@ export default function SnapshotsPage() {
             ))}
             {snapshots.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No snapshots found on your servers.'}
                 </TableCell>
               </TableRow>

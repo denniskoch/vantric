@@ -154,7 +154,7 @@ function RecordSetForm({
           slotProps={{
             input: {
               endAdornment: (
-                <InputAdornment position="end" sx={{ color: '#5f6368' }}>
+                <InputAdornment position="end" sx={{ color: 'text.secondary' }}>
                   .{zone.name}.
                 </InputAdornment>
               ),
@@ -240,7 +240,7 @@ function RecordSetForm({
         </Box>
 
         <Box>
-          <Typography sx={{ fontSize: 16, color: '#202124', mb: 1.5 }}>{label}</Typography>
+          <Typography sx={{ fontSize: 16, color: 'text.primary', mb: 1.5 }}>{label}</Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {values.map((value, i) => (
               <Box key={i} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
@@ -286,7 +286,7 @@ function RecordSetForm({
             Add item
           </Button>
           {type === 'CNAME' && (
-            <Typography sx={{ fontSize: 12, color: '#5f6368', mt: 1 }}>
+            <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 1 }}>
               A CNAME record set holds a single value.
             </Typography>
           )}

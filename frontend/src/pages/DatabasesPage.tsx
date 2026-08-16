@@ -98,7 +98,7 @@ export default function DatabasesPage() {
             ))}
             {databases.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No databases — connect an instance first.'}
                 </TableCell>
               </TableRow>

@@ -139,7 +139,7 @@ export default function NotificationBell() {
         slotProps={{ paper: { sx: { width: 400, maxHeight: 460 } } }}
       >
         <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center' }}>
-          <Typography sx={{ fontSize: 14, color: '#202124' }}>Notifications</Typography>
+          <Typography sx={{ fontSize: 14, color: 'text.primary' }}>Notifications</Typography>
           <Box sx={{ flex: 1 }} />
           {operations.some((op) => op.status !== 'RUNNING') && (
             <Button size="small" onClick={() => clear.mutate()}>
@@ -150,7 +150,7 @@ export default function NotificationBell() {
         <Divider />
         {operations.length === 0 ? (
           <Box sx={{ px: 2, py: 3 }}>
-            <Typography sx={{ fontSize: 13, color: '#5f6368' }}>
+            <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
               Nothing running. Long jobs — creating an instance, building a template,
               downloading an image — report here.
             </Typography>
@@ -195,20 +195,20 @@ function OperationRow({
         px: 2,
         py: 1.25,
         cursor: operation.to ? 'pointer' : 'default',
-        '&:hover': { bgcolor: '#f8f9fa' },
+        '&:hover': { bgcolor: 'surface.subtle' },
       }}
     >
       <Box sx={{ mt: 0.3, width: 18, display: 'flex', justifyContent: 'center' }}>
         {running ? (
           <CircularProgress size={14} thickness={5} />
         ) : failed ? (
-          <ErrorIcon sx={{ fontSize: 18, color: '#d93025' }} />
+          <ErrorIcon sx={{ fontSize: 18, color: 'error.main' }} />
         ) : (
-          <CheckCircleIcon sx={{ fontSize: 18, color: '#188038' }} />
+          <CheckCircleIcon sx={{ fontSize: 18, color: 'success.main' }} />
         )}
       </Box>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: 13, color: '#202124' }}>{operation.title}</Typography>
+        <Typography sx={{ fontSize: 13, color: 'text.primary' }}>{operation.title}</Typography>
         <Typography
           sx={{
             fontSize: 12,
@@ -218,7 +218,7 @@ function OperationRow({
         >
           {operation.error || operation.step || (running ? 'Starting…' : 'Finished')}
         </Typography>
-        <Typography sx={{ fontSize: 11, color: '#80868b', mt: 0.25 }}>
+        <Typography sx={{ fontSize: 11, color: 'text.disabled', mt: 0.25 }}>
           {elapsed(operation)}
         </Typography>
       </Box>

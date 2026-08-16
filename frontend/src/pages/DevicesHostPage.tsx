@@ -110,7 +110,7 @@ export default function DevicesHostPage() {
                   `${data.instance} — a VM in this console`
                 ) : (
                   // Not a gap: this is what a laptop looks like.
-                  <Box component="span" sx={{ color: '#5f6368' }}>
+                  <Box component="span" sx={{ color: 'text.secondary' }}>
                     External — not a guest this console runs
                   </Box>
                 ),
@@ -137,7 +137,7 @@ export default function DevicesHostPage() {
                 label: 'Failing policies',
                 value:
                   host.issuesFailing > 0 ? (
-                    <Box component="span" sx={{ color: '#d93025' }}>
+                    <Box component="span" sx={{ color: 'error.main' }}>
                       {host.issuesFailing}
                     </Box>
                   ) : (

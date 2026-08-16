@@ -56,7 +56,7 @@ const mediaLabel = (media: string) => mediaLabels[media] ?? 'Disk'
 // fallback ("image default") states a fact about the guest; this
 // states what was read, which is nothing.
 const unset = (text: string) => (
-  <Box component="span" sx={{ color: '#5f6368' }}>
+  <Box component="span" sx={{ color: 'text.secondary' }}>
     {text}
   </Box>
 )
@@ -436,7 +436,7 @@ export default function InstanceDetailPage() {
                         {inst.serial || detail?.serial}
                       </Box>
                     ) : (
-                      <Box component="span" sx={{ color: '#5f6368' }}>
+                      <Box component="span" sx={{ color: 'text.secondary' }}>
                         Not set on the hypervisor
                       </Box>
                     ),
@@ -497,7 +497,7 @@ export default function InstanceDetailPage() {
                 ]}
               />
               <Box sx={{ mt: 2 }}>
-                <Typography variant="body2" sx={{ color: '#5f6368', mb: 1 }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
                   Network interfaces
                 </Typography>
                 <TableContainer component={Paper} variant="outlined">
@@ -529,7 +529,7 @@ export default function InstanceDetailPage() {
                       ))}
                       {!detail?.nics?.length && (
                         <TableRow>
-                          <TableCell colSpan={7} align="center" sx={{ py: 4, color: '#5f6368' }}>
+                          <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                             No network interfaces reported.
                           </TableCell>
                         </TableRow>
@@ -561,7 +561,7 @@ export default function InstanceDetailPage() {
                         <TableCell>{disk.storage || '—'}</TableCell>
                         <TableCell align="right">{formatBytes(disk.sizeBytes)}</TableCell>
                         <TableCell>{mediaLabel(disk.media)}</TableCell>
-                        <TableCell sx={{ color: '#5f6368', fontSize: 12 }}>
+                        <TableCell sx={{ color: 'text.secondary', fontSize: 12 }}>
                           {[disk.ssd && 'SSD emulation', disk.discard && 'discard']
                             .filter(Boolean)
                             .join(', ') || '—'}
@@ -570,7 +570,7 @@ export default function InstanceDetailPage() {
                     ))}
                     {!detail?.disks?.length && (
                       <TableRow>
-                        <TableCell colSpan={6} align="center" sx={{ py: 4, color: '#5f6368' }}>
+                        <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                           No disks reported.
                         </TableCell>
                       </TableRow>
@@ -640,7 +640,7 @@ export default function InstanceDetailPage() {
                             sx={{
                               fontFamily: 'monospace',
                               fontSize: 11,
-                              color: '#5f6368',
+                              color: 'text.secondary',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap',
@@ -695,7 +695,7 @@ export default function InstanceDetailPage() {
             </Box>
 
             {metrics.length === 0 ? (
-              <Paper variant="outlined" sx={{ p: 6, textAlign: 'center', color: '#5f6368' }}>
+              <Paper variant="outlined" sx={{ p: 6, textAlign: 'center', color: 'text.secondary' }}>
                 {metricsLoading ? 'Loading metrics…' : 'No metrics available for this instance.'}
               </Paper>
             ) : (
@@ -805,11 +805,11 @@ export default function InstanceDetailPage() {
                           <TableCell align="right">
                             {formatBytes(backup.sizeBytes)}
                           </TableCell>
-                          <TableCell sx={{ color: '#5f6368' }}>
+                          <TableCell sx={{ color: 'text.secondary' }}>
                             {backup.format || '—'}
                           </TableCell>
                           <TableCell
-                            sx={{ fontFamily: 'monospace', fontSize: 11, color: '#5f6368' }}
+                            sx={{ fontFamily: 'monospace', fontSize: 11, color: 'text.secondary' }}
                           >
                             {backup.name}
                           </TableCell>

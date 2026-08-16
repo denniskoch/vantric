@@ -83,7 +83,7 @@ export default function MyAccountPage() {
                 <Box>
                   {role?.title ?? user.role}
                   {role && (
-                    <Typography sx={{ fontSize: 12, color: '#5f6368' }}>
+                    <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
                       {role.description}
                     </Typography>
                   )}
@@ -95,7 +95,7 @@ export default function MyAccountPage() {
               value: (
                 <Box>
                   {sshUsername(user)}
-                  <Typography sx={{ fontSize: 12, color: '#5f6368' }}>
+                  <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
                     The account Connect signs in as on your guests
                   </Typography>
                 </Box>
@@ -150,7 +150,7 @@ export default function MyAccountPage() {
           fails.
         </Typography>
 
-        <Paper variant="outlined" sx={{ p: 1.5, bgcolor: '#f8f9fa' }}>
+        <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'surface.subtle' }}>
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
             <Box
               component="code"
@@ -158,7 +158,7 @@ export default function MyAccountPage() {
                 flex: 1,
                 fontSize: 12,
                 wordBreak: 'break-all',
-                color: '#202124',
+                color: 'text.primary',
                 fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
               }}
             >
@@ -180,7 +180,7 @@ export default function MyAccountPage() {
         </Paper>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1.5 }}>
-          <Typography sx={{ fontSize: 12, color: '#5f6368' }}>
+          <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
             {key?.fingerprint}
           </Typography>
           {key?.imported && <Chip label="imported" size="small" sx={{ fontSize: 10, height: 18 }} />}

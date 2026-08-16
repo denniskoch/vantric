@@ -158,7 +158,7 @@ export default function ContainersPage() {
             ))}
             {containers.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={9} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading
                     ? 'Loading…'
                     : 'No containers found on your servers.'}
@@ -194,7 +194,7 @@ export default function ContainersPage() {
             closeMenu()
           }}
           disabled={menuContainer?.protected}
-          sx={{ color: '#d93025' }}
+          sx={{ color: 'error.main' }}
         >
           <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
           {menuContainer?.protected ? 'Delete (protected)' : 'Delete'}

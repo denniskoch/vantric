@@ -25,7 +25,7 @@ import StatusIcon from '../components/StatusIcon'
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <TableRow>
-      <TableCell sx={{ color: '#5f6368', width: 220, border: 0 }}>{label}</TableCell>
+      <TableCell sx={{ color: 'text.secondary', width: 220, border: 0 }}>{label}</TableCell>
       <TableCell sx={{ border: 0 }}>{value}</TableCell>
     </TableRow>
   )

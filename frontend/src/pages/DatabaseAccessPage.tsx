@@ -118,7 +118,7 @@ export default function DatabaseAccessPage() {
         label={
           <Box>
             <Typography sx={{ fontSize: 14 }}>Create a new user</Typography>
-            <Typography sx={{ fontSize: 12, color: '#5f6368' }}>
+            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
               Otherwise pick one that already exists on this server
             </Typography>
           </Box>
@@ -191,7 +191,7 @@ export default function DatabaseAccessPage() {
           <MenuItem key={l.id} value={l.id}>
             <Box>
               <Typography sx={{ fontSize: 14 }}>{l.title}</Typography>
-              <Typography sx={{ fontSize: 12, color: '#5f6368' }}>{l.description}</Typography>
+              <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{l.description}</Typography>
             </Box>
           </MenuItem>
         ))}

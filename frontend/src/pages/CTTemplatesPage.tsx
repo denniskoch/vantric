@@ -107,7 +107,7 @@ export default function CTTemplatesPage() {
             ))}
             {templates.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No CT templates found on your servers.'}
                 </TableCell>
               </TableRow>
@@ -122,7 +122,7 @@ export default function CTTemplatesPage() {
             setConfirming(menuTemplate)
             setMenuAnchor(null)
           }}
-          sx={{ color: '#d93025' }}
+          sx={{ color: 'error.main' }}
         >
           <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Delete
         </MenuItem>

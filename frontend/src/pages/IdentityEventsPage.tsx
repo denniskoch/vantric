@@ -108,7 +108,7 @@ export default function IdentityEventsPage() {
                 </TableCell>
                 <TableCell>{event.user || '—'}</TableCell>
                 <TableCell>{event.clientIp || '—'}</TableCell>
-                <TableCell sx={{ color: '#5f6368' }}>{event.app || '—'}</TableCell>
+                <TableCell sx={{ color: 'text.secondary' }}>{event.app || '—'}</TableCell>
                 <TableCell
                   sx={{
                     maxWidth: 280,
@@ -125,7 +125,7 @@ export default function IdentityEventsPage() {
             ))}
             {events.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No events.'}
                 </TableCell>
               </TableRow>

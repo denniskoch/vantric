@@ -58,7 +58,7 @@ export default function SignInPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        bgcolor: '#f8f9fa',
+        bgcolor: 'surface.subtle',
         p: 2,
       }}
     >
@@ -98,7 +98,7 @@ export default function SignInPage() {
             >
               Sign in with {providers.oidc.name}
             </Button>
-            <Divider sx={{ mb: 2, fontSize: 12, color: '#5f6368' }}>or</Divider>
+            <Divider sx={{ mb: 2, fontSize: 12, color: 'text.secondary' }}>or</Divider>
           </>
         )}
 

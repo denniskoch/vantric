@@ -95,7 +95,7 @@ function EditForm({ user, groups }: { user: IdentityUser; groups: { id: string; 
       </TextField>
 
       <Box>
-        <Typography sx={{ fontSize: 16, color: '#202124', mb: 0.5 }}>Groups</Typography>
+        <Typography sx={{ fontSize: 16, color: 'text.primary', mb: 0.5 }}>Groups</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Membership is what grants access to an application, and a superuser
           group makes this account an administrator.
@@ -152,7 +152,7 @@ function EditForm({ user, groups }: { user: IdentityUser; groups: { id: string; 
           Add another group
         </Button>
         {chosen.length === 0 && (
-          <Typography sx={{ fontSize: 12, color: '#5f6368', mt: 1 }}>
+          <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 1 }}>
             This account belongs to no groups.
           </Typography>
         )}

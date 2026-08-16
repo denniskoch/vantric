@@ -53,7 +53,7 @@ export default function ConnectButton({
     }
     return (
       <Tooltip title={unavailable}>
-        <Box component="span" sx={{ color: '#5f6368' }}>
+        <Box component="span" sx={{ color: 'text.secondary' }}>
           —
         </Box>
       </Tooltip>

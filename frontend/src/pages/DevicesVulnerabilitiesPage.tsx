@@ -122,13 +122,13 @@ export default function DevicesVulnerabilitiesPage() {
                       <Chip
                         label="Exploited"
                         size="small"
-                        sx={{ fontSize: 10, height: 18, bgcolor: '#fce8e6', color: '#d93025' }}
+                        sx={{ fontSize: 10, height: 18, bgcolor: 'surface.errorTint', color: 'error.main' }}
                       />
                     )}
                   </Box>
                 </TableCell>
                 <TableCell align="right">{v.hosts || '—'}</TableCell>
-                <TableCell sx={{ color: '#5f6368' }}>{timeAgo(v.detectedAt)}</TableCell>
+                <TableCell sx={{ color: 'text.secondary' }}>{timeAgo(v.detectedAt)}</TableCell>
                 {hasScores && (
                   <TableCell>
                     <Box
@@ -155,7 +155,7 @@ export default function DevicesVulnerabilitiesPage() {
             ))}
             {rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading
                     ? 'Loading…'
                     : data?.configured && data.supported

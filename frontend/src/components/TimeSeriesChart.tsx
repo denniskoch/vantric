@@ -230,7 +230,7 @@ export default function TimeSeriesChart({
                   style={{
                     marginLeft: 'auto',
                     fontVariantNumeric: 'tabular-nums',
-                    color: '#202124',
+                    color: 'text.primary',
                   }}
                 >
                   {format(s.values[hover] ?? 0)}

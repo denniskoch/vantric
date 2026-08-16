@@ -132,7 +132,7 @@ export default function EditDescriptionPage({ target }: { target: DescriptionTar
         </Button>
         <Button onClick={() => navigate(target.backTo(params))}>Cancel</Button>
         {description === current && !isLoading && (
-          <Typography sx={{ alignSelf: 'center', fontSize: 12, color: '#5f6368' }}>
+          <Typography sx={{ alignSelf: 'center', fontSize: 12, color: 'text.secondary' }}>
             No changes yet
           </Typography>
         )}

@@ -12,7 +12,7 @@ export function OSIcon({ name, size = 16 }: { name: string; size?: number }) {
   if (mark.kind === 'brand') return <BrandIcon icon={mark.icon} size={size} />
   // A glyph is not a logo, so it takes the muted colour of secondary
   // text rather than pretending to be a brand.
-  return <mark.icon sx={{ fontSize: size, color: '#5f6368', display: 'block' }} />
+  return <mark.icon sx={{ fontSize: size, color: 'text.secondary', display: 'block' }} />
 }
 
 /**

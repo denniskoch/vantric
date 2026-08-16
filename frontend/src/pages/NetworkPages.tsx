@@ -123,7 +123,7 @@ export function NetworkNetworksPage() {
                     ? `${net.dhcpStart} – ${net.dhcpStop}`
                     : 'No DHCP'}
                 </TableCell>
-                <TableCell sx={{ color: '#5f6368' }}>{net.domainName || '—'}</TableCell>
+                <TableCell sx={{ color: 'text.secondary' }}>{net.domainName || '—'}</TableCell>
                 <TableCell sx={{ color: net.enabled ? undefined : '#d93025' }}>
                   {net.enabled ? 'Enabled' : 'Disabled'}
                 </TableCell>
@@ -131,7 +131,7 @@ export function NetworkNetworksPage() {
             ))}
             {networks.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No networks.'}
                 </TableCell>
               </TableRow>
@@ -195,19 +195,19 @@ export function NetworkClientsPage() {
                   )}
                 </TableCell>
                 <TableCell>{client.name || client.hostname || '—'}</TableCell>
-                <TableCell sx={{ fontFamily: 'monospace', fontSize: 12, color: '#5f6368' }}>
+                <TableCell sx={{ fontFamily: 'monospace', fontSize: 12, color: 'text.secondary' }}>
                   {client.mac}
                 </TableCell>
                 <TableCell>
                   {client.network || '—'}
                   {client.vlan > 0 && (
-                    <Box component="span" sx={{ color: '#5f6368' }}> · VLAN {client.vlan}</Box>
+                    <Box component="span" sx={{ color: 'text.secondary' }}> · VLAN {client.vlan}</Box>
                   )}
                 </TableCell>
                 <TableCell>
                   {client.wired ? 'Wired' : 'Wireless'}
                   {client.uplink && (
-                    <Box component="span" sx={{ color: '#5f6368' }}>
+                    <Box component="span" sx={{ color: 'text.secondary' }}>
                       {' '}· {client.uplink}
                       {client.wired && client.port ? ` port ${client.port}` : ''}
                     </Box>
@@ -224,18 +224,18 @@ export function NetworkClientsPage() {
                           : 'Never seen'
                       }
                     >
-                      <Box component="span" sx={{ color: '#5f6368' }}>
+                      <Box component="span" sx={{ color: 'text.secondary' }}>
                         Offline
                       </Box>
                     </Tooltip>
                   )}
                 </TableCell>
-                <TableCell sx={{ color: '#5f6368' }}>{client.vendor || '—'}</TableCell>
+                <TableCell sx={{ color: 'text.secondary' }}>{client.vendor || '—'}</TableCell>
               </TableRow>
             ))}
             {clients.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No clients.'}
                 </TableCell>
               </TableRow>
@@ -289,9 +289,9 @@ export function NetworkDevicesPage() {
                   <Tooltip title={device.state}>
                     <span style={{ display: 'inline-flex', verticalAlign: 'middle' }}>
                       {device.state === 'online' ? (
-                        <CheckCircleIcon sx={{ color: '#188038', fontSize: 18 }} />
+                        <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} />
                       ) : (
-                        <ErrorIcon sx={{ color: '#d93025', fontSize: 18 }} />
+                        <ErrorIcon sx={{ color: 'error.main', fontSize: 18 }} />
                       )}
                     </span>
                   </Tooltip>
@@ -299,11 +299,11 @@ export function NetworkDevicesPage() {
                 <TableCell>{device.site}</TableCell>
                 <TableCell>{device.name}</TableCell>
                 <TableCell>{device.kind}</TableCell>
-                <TableCell sx={{ color: '#5f6368' }}>{device.model}</TableCell>
+                <TableCell sx={{ color: 'text.secondary' }}>{device.model}</TableCell>
                 <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
                   {device.ip || '—'}
                 </TableCell>
-                <TableCell sx={{ color: '#5f6368' }}>{device.version || '—'}</TableCell>
+                <TableCell sx={{ color: 'text.secondary' }}>{device.version || '—'}</TableCell>
                 <TableCell align="right">{device.clients}</TableCell>
                 <TableCell align="right">
                   {device.uptimeSeconds ? formatDuration(device.uptimeSeconds) : '—'}
@@ -312,7 +312,7 @@ export function NetworkDevicesPage() {
             ))}
             {devices.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={9} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No devices.'}
                 </TableCell>
               </TableRow>
@@ -377,7 +377,7 @@ function CategoryPage({
             ))}
             {networks.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'Nothing here.'}
                 </TableCell>
               </TableRow>
@@ -442,7 +442,7 @@ export function NetworkInternetPage() {
                 <TableRow key={`${wan.site}/${wan.id}`} hover>
                   <TableCell>{wan.site}</TableCell>
                   <TableCell>{wan.name}</TableCell>
-                  <TableCell sx={{ color: '#5f6368' }}>
+                  <TableCell sx={{ color: 'text.secondary' }}>
                     {wan.cellular ? `cellular ${wan.purpose}` : 'wired'}
                   </TableCell>
                   <TableCell sx={{ color: wan.up ? '#188038' : '#5f6368' }}>
@@ -466,7 +466,7 @@ export function NetworkInternetPage() {
                             : 'The gateway has no reading for this uplink'
                         }
                       >
-                        <Box component="span" sx={{ color: '#5f6368' }}>
+                        <Box component="span" sx={{ color: 'text.secondary' }}>
                           {blind ? 'No gateway here' : '—'}
                         </Box>
                       </Tooltip>
@@ -498,7 +498,7 @@ export function NetworkInternetPage() {
             })}
             {wans.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No internet connections.'}
                 </TableCell>
               </TableRow>
@@ -577,7 +577,7 @@ export function NetworkWiFiPage() {
                   )}
                 </TableCell>
                 <TableCell>{net.security}</TableCell>
-                <TableCell sx={{ color: '#5f6368' }}>
+                <TableCell sx={{ color: 'text.secondary' }}>
                   {net.bands?.join(', ') || '—'}
                 </TableCell>
                 <TableCell>{net.network || '—'}</TableCell>
@@ -589,7 +589,7 @@ export function NetworkWiFiPage() {
             ))}
             {wifi.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No wireless networks.'}
                 </TableCell>
               </TableRow>
@@ -671,7 +671,7 @@ export function NetworkSitesPage() {
                   <TableCell>{site.name}</TableCell>
                   <TableCell>
                     {up.length > 0 ? (
-                      <Box component="span" sx={{ color: '#188038' }}>
+                      <Box component="span" sx={{ color: 'success.main' }}>
                         {up.map((n) => n.isp || n.name).join(', ')}
                       </Box>
                     ) : (
@@ -682,7 +682,7 @@ export function NetworkSitesPage() {
                             : 'No uplink reporting — often means no UniFi gateway here'
                         }
                       >
-                        <Box component="span" sx={{ color: '#5f6368' }}>
+                        <Box component="span" sx={{ color: 'text.secondary' }}>
                           Not reported
                         </Box>
                       </Tooltip>
@@ -696,7 +696,7 @@ export function NetworkSitesPage() {
                     {countIn(devices, site.name)}
                     {offline > 0 && (
                       <Tooltip title={`${offline} not online`}>
-                        <Box component="span" sx={{ color: '#f29900' }}> · {offline} down</Box>
+                        <Box component="span" sx={{ color: 'warning.main' }}> · {offline} down</Box>
                       </Tooltip>
                     )}
                   </TableCell>
@@ -706,7 +706,7 @@ export function NetworkSitesPage() {
             })}
             {sites.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No sites.'}
                 </TableCell>
               </TableRow>

@@ -118,11 +118,11 @@ export default function IAMActivityPage() {
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       {entry.status >= 400 ? (
-                        <ErrorIcon sx={{ fontSize: 16, color: '#d93025' }} />
+                        <ErrorIcon sx={{ fontSize: 16, color: 'error.main' }} />
                       ) : (
-                        <CheckCircleIcon sx={{ fontSize: 16, color: '#188038' }} />
+                        <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
                       )}
-                      <Box component="span" sx={{ fontSize: 12, color: '#5f6368' }}>
+                      <Box component="span" sx={{ fontSize: 12, color: 'text.secondary' }}>
                         {entry.status}
                       </Box>
                     </Box>
@@ -130,13 +130,13 @@ export default function IAMActivityPage() {
                 </TableRow>
                 {open === entry.id && (
                   <TableRow>
-                    <TableCell colSpan={6} sx={{ bgcolor: '#f8f9fa' }}>
+                    <TableCell colSpan={6} sx={{ bgcolor: 'surface.subtle' }}>
                       {entry.error && (
-                        <Typography sx={{ fontSize: 12, color: '#d93025', mb: 1 }}>
+                        <Typography sx={{ fontSize: 12, color: 'error.main', mb: 1 }}>
                           {entry.error}
                         </Typography>
                       )}
-                      <Typography sx={{ fontSize: 11, color: '#5f6368', mb: 1 }}>
+                      <Typography sx={{ fontSize: 11, color: 'text.secondary', mb: 1 }}>
                         {entry.method} {entry.path} · {entry.durationMs} ms · from{' '}
                         {entry.remoteAddr || 'unknown'}
                       </Typography>
@@ -164,7 +164,7 @@ export default function IAMActivityPage() {
             ))}
             {shown.length === 0 && entries.length > 0 && (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 4, color: '#5f6368' }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                   Nothing matches "{filter}".
                 </TableCell>
               </TableRow>
@@ -174,7 +174,7 @@ export default function IAMActivityPage() {
       </TableContainer>
       {pagination}
 
-      <Typography sx={{ fontSize: 11, color: '#80868b', mt: 1 }}>
+      <Typography sx={{ fontSize: 11, color: 'text.disabled', mt: 1 }}>
         Secrets are replaced before a payload is stored — passwords, tokens and keys never
         reach this table. Entries are kept for 90 days.
       </Typography>

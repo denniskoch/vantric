@@ -176,9 +176,9 @@ export default function BuildTemplatePage() {
                 }}
               >
                 {sec.invalid ? (
-                  <ErrorIcon sx={{ fontSize: 14, color: '#d93025', mr: 1.5 }} />
+                  <ErrorIcon sx={{ fontSize: 14, color: 'error.main', mr: 1.5 }} />
                 ) : (
-                  <CircleIcon sx={{ fontSize: 8, color: '#5f6368', mr: 2.2, ml: 0.4 }} />
+                  <CircleIcon sx={{ fontSize: 8, color: 'text.secondary', mr: 2.2, ml: 0.4 }} />
                 )}
                 <ListItemText
                   primary={sec.label}
@@ -436,7 +436,7 @@ export default function BuildTemplatePage() {
                   m: 0,
                   p: 1.5,
                   fontSize: 12,
-                  bgcolor: '#f8f9fa',
+                  bgcolor: 'surface.subtle',
                   border: '1px solid #e8eaed',
                   borderRadius: 1,
                   overflowX: 'auto',
@@ -463,7 +463,7 @@ export default function BuildTemplatePage() {
                   m: 0,
                   p: 1.5,
                   fontSize: 12,
-                  bgcolor: '#f8f9fa',
+                  bgcolor: 'surface.subtle',
                   border: '1px solid #e8eaed',
                   borderRadius: 1,
                   overflowX: 'auto',

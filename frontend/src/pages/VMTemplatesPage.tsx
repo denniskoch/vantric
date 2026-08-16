@@ -125,7 +125,7 @@ export default function VMTemplatesPage() {
                     <Box sx={{ minWidth: 0 }}>
                       <Box>{id.title}</Box>
                       {id.title !== tpl.name && (
-                        <Box sx={{ fontSize: 11, color: '#5f6368' }}>{tpl.name}</Box>
+                        <Box sx={{ fontSize: 11, color: 'text.secondary' }}>{tpl.name}</Box>
                       )}
                     </Box>
                   </Box>
@@ -145,7 +145,7 @@ export default function VMTemplatesPage() {
                 <TableCell>{tpl.zone || '—'}</TableCell>
                 <TableCell align="right">{clonesOf(tpl) || '—'}</TableCell>
                 <TableCell>{builtOn(tpl.createdAt)}</TableCell>
-                <TableCell sx={{ color: '#5f6368' }}>{id.notes || '—'}</TableCell>
+                <TableCell sx={{ color: 'text.secondary' }}>{id.notes || '—'}</TableCell>
                 <TableCell align="right">
                   {canEdit && (
                     <IconButton
@@ -164,7 +164,7 @@ export default function VMTemplatesPage() {
             })}
             {templates.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={9} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No VM templates found on your servers.'}
                 </TableCell>
               </TableRow>
@@ -189,7 +189,7 @@ export default function VMTemplatesPage() {
             setConfirming(menuTemplate)
             setMenuAnchor(null)
           }}
-          sx={{ color: '#d93025' }}
+          sx={{ color: 'error.main' }}
         >
           <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Delete
         </MenuItem>

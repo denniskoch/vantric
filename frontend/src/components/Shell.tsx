@@ -78,7 +78,7 @@ export default function Shell() {
   }, [signedOut, navigate, location.pathname])
 
   if (loading || signedOut) {
-    return <Box sx={{ height: '100vh', bgcolor: '#f8f9fa' }} />
+    return <Box sx={{ height: '100vh', bgcolor: 'surface.subtle' }} />
   }
 
   return (
@@ -102,12 +102,12 @@ export default function Shell() {
               sx={{ height: 18, display: 'block' }}
             />
           ) : (
-            <Typography variant="h6" sx={{ color: '#202124', fontWeight: 500 }}>
+            <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 500 }}>
               {brand.name}
             </Typography>
           )}
           {brand.suffix && (
-            <Typography variant="h6" sx={{ color: '#5f6368', fontWeight: 400, mr: 1 }}>
+            <Typography variant="h6" sx={{ color: 'text.secondary', fontWeight: 400, mr: 1 }}>
               {brand.suffix}
             </Typography>
           )}
@@ -118,13 +118,13 @@ export default function Shell() {
               mx: 'auto',
               display: 'flex',
               alignItems: 'center',
-              bgcolor: '#f1f3f4',
+              bgcolor: 'surface.muted',
               borderRadius: 1,
               px: 1.5,
               py: 0.5,
             }}
           >
-            <SearchIcon fontSize="small" sx={{ mr: 1, color: '#5f6368' }} />
+            <SearchIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
             <InputBase
               placeholder="Search (/) for resources"
               fullWidth
@@ -145,7 +145,7 @@ export default function Shell() {
             aria-label={`Account: ${user?.name || user?.email || 'signed out'}`}
             aria-haspopup="menu"
           >
-            <Avatar sx={{ width: 30, height: 30, bgcolor: '#1a73e8', fontSize: 14 }}>
+            <Avatar sx={{ width: 30, height: 30, bgcolor: 'primary.main', fontSize: 14 }}>
               {initialFor(user)}
             </Avatar>
           </IconButton>
@@ -158,14 +158,14 @@ export default function Shell() {
             slotProps={{ paper: { sx: { width: 300 } } }}
           >
             <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Avatar sx={{ width: 36, height: 36, bgcolor: '#1a73e8', fontSize: 16 }}>
+              <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontSize: 16 }}>
                 {initialFor(user)}
               </Avatar>
               <Box sx={{ minWidth: 0 }}>
-                <Typography sx={{ fontSize: 13, color: '#202124' }}>
+                <Typography sx={{ fontSize: 13, color: 'text.primary' }}>
                   {user?.name || 'Signed out'}
                 </Typography>
-                <Typography sx={{ fontSize: 12, color: '#5f6368' }}>
+                <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
                   {user?.email}
                 </Typography>
               </Box>
@@ -255,8 +255,8 @@ export default function Shell() {
           <Toolbar variant="dense" sx={{ minHeight: 48 }} />
           {/* Section header, GCP-style: product icon + large title */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, pt: 2, pb: 1.5 }}>
-            <sectionNav.icon sx={{ fontSize: 28, color: '#5f6368' }} />
-            <Typography sx={{ fontSize: 18, color: '#202124' }}>
+            <sectionNav.icon sx={{ fontSize: 28, color: 'text.secondary' }} />
+            <Typography sx={{ fontSize: 18, color: 'text.primary' }}>
               {sectionNav.label}
             </Typography>
           </Box>
@@ -277,13 +277,13 @@ export default function Shell() {
                     <ListItemText
                       primary={group.label}
                       slotProps={{
-                        primary: { sx: { fontWeight: 500, color: '#202124' } },
+                        primary: { sx: { fontWeight: 500, color: 'text.primary' } },
                       }}
                     />
                     {isCollapsed ? (
-                      <ExpandMoreIcon fontSize="small" sx={{ color: '#5f6368' }} />
+                      <ExpandMoreIcon fontSize="small" sx={{ color: 'text.secondary' }} />
                     ) : (
-                      <ExpandLessIcon fontSize="small" sx={{ color: '#5f6368' }} />
+                      <ExpandLessIcon fontSize="small" sx={{ color: 'text.secondary' }} />
                     )}
                   </ListItemButton>
                   <Collapse in={!isCollapsed} timeout="auto">

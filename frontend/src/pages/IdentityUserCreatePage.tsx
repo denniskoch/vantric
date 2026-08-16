@@ -105,7 +105,7 @@ export default function IdentityUserCreatePage() {
               </IconButton>
             </Box>
             {copied && (
-              <Typography sx={{ fontSize: 12, color: '#188038', mt: 1 }}>
+              <Typography sx={{ fontSize: 12, color: 'success.main', mt: 1 }}>
                 Copied. The link is single-use and expires.
               </Typography>
             )}
@@ -167,7 +167,7 @@ export default function IdentityUserCreatePage() {
       />
 
       <Box>
-        <Typography sx={{ fontSize: 16, color: '#202124', mb: 0.5 }}>Groups</Typography>
+        <Typography sx={{ fontSize: 16, color: 'text.primary', mb: 0.5 }}>Groups</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Membership is what grants access to an application; an account in none
           can sign in but reach nothing.

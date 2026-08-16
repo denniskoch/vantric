@@ -33,11 +33,11 @@ const typeLabels: Record<DNSProviderType, string> = { cloudflare: 'Cloudflare' }
 function StatusGlyph({ provider }: { provider: DNSProvider }) {
   const icon =
     provider.status === 'connected' ? (
-      <CheckCircleIcon sx={{ color: '#188038', fontSize: 18 }} />
+      <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} />
     ) : provider.status === 'unreachable' ? (
-      <ErrorIcon sx={{ color: '#d93025', fontSize: 18 }} />
+      <ErrorIcon sx={{ color: 'error.main', fontSize: 18 }} />
     ) : (
-      <HelpIcon sx={{ color: '#5f6368', fontSize: 18 }} />
+      <HelpIcon sx={{ color: 'text.secondary', fontSize: 18 }} />
     )
   return (
     <Tooltip title={provider.error ? `${provider.status}: ${provider.error}` : provider.status}>
@@ -147,7 +147,7 @@ export default function DNSProvidersPage() {
             ))}
             {providers.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading
                     ? 'Loading…'
                     : 'No DNS providers yet. Add one to manage zones from here.'}

@@ -91,8 +91,8 @@ export default function InstanceSSHPage() {
         display: 'flex',
         flexDirection: 'column',
         height: '100vh',
-        bgcolor: '#202124',
-        color: '#e8eaed',
+        bgcolor: 'text.primary',
+        color: 'surface.faint',
       }}
     >
       <Box

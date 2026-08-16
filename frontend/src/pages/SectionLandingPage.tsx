@@ -23,7 +23,7 @@ export default function SectionLandingPage({ children }: { children?: ReactNode 
   return (
     <Box sx={{ p: 3, maxWidth: 1100 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-        <section.icon sx={{ fontSize: 32, color: '#5f6368' }} />
+        <section.icon sx={{ fontSize: 32, color: 'text.secondary' }} />
         <Typography variant="h5">{section.label}</Typography>
       </Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 720 }}>
@@ -35,7 +35,7 @@ export default function SectionLandingPage({ children }: { children?: ReactNode 
       {groups.map((group) => (
         <Box key={group.label || 'main'} sx={{ mb: 3 }}>
           {group.label && (
-            <Typography sx={{ fontSize: 16, color: '#202124', mb: 1.5 }}>
+            <Typography sx={{ fontSize: 16, color: 'text.primary', mb: 1.5 }}>
               {group.label}
             </Typography>
           )}
@@ -70,19 +70,19 @@ function ItemCard({ item }: { item: SectionItem }) {
         gap: 1.5,
         textDecoration: 'none',
         color: 'inherit',
-        '&:hover': { bgcolor: '#f8f9fa', borderColor: '#1a73e8' },
+        '&:hover': { bgcolor: 'surface.subtle', borderColor: 'primary.main' },
       }}
     >
-      <item.icon sx={{ color: '#1a73e8', fontSize: 20, mt: 0.2 }} />
+      <item.icon sx={{ color: 'primary.main', fontSize: 20, mt: 0.2 }} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: 14, color: '#202124' }}>{item.label}</Typography>
+        <Typography sx={{ fontSize: 14, color: 'text.primary' }}>{item.label}</Typography>
         {item.hint && (
-          <Typography variant="body2" sx={{ color: '#5f6368', fontSize: 12, mt: 0.3 }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: 12, mt: 0.3 }}>
             {item.hint}
           </Typography>
         )}
       </Box>
-      <ChevronRightIcon sx={{ color: '#5f6368', fontSize: 18 }} />
+      <ChevronRightIcon sx={{ color: 'text.secondary', fontSize: 18 }} />
     </Paper>
   )
 }

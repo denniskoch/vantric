@@ -133,9 +133,9 @@ export default function IAMUsersPage() {
               <TableRow key={user.id} hover>
                 <TableCell>
                   {user.active ? (
-                    <CheckCircleIcon sx={{ color: '#188038', fontSize: 18, verticalAlign: 'middle' }} />
+                    <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18, verticalAlign: 'middle' }} />
                   ) : (
-                    <BlockIcon sx={{ color: '#5f6368', fontSize: 18, verticalAlign: 'middle' }} />
+                    <BlockIcon sx={{ color: 'text.secondary', fontSize: 18, verticalAlign: 'middle' }} />
                   )}
                 </TableCell>
                 <TableCell>
@@ -164,7 +164,7 @@ export default function IAMUsersPage() {
             ))}
             {users.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 6, color: '#5f6368' }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No accounts yet.'}
                 </TableCell>
               </TableRow>
@@ -205,7 +205,7 @@ export default function IAMUsersPage() {
             setPendingRemoval(menuUser)
           }}
           disabled={menuUser?.id === me?.id}
-          sx={{ color: '#d93025' }}
+          sx={{ color: 'error.main' }}
         >
           Delete
         </MenuItem>
