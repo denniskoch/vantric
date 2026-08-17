@@ -164,6 +164,16 @@ func parseNIC(name, val string) hypervisor.NIC {
 
 // creationTime reads the ctime Proxmox records in the "meta" config key
 // (e.g. "creation-qemu=8.1.5,ctime=1712534138"). Older VMs lack it.
+//
+// A CLONE INHERITS THIS, which is why it is read for TEMPLATES and not
+// for instances. `meta` is part of the config, and a clone copies the
+// config — so every VM cloned from a template reports the template's
+// build date as its own. Three guests cloned from debian-…-trixie all
+// claimed to have been created at 21:47 on the day the template was
+// built, including one that was ten minutes old, and it read as a real
+// timestamp rather than as a missing one. A template built here is
+// created fresh (BuildTemplate calls qemu/create), so its own ctime is
+// genuinely its build date and the Images list is right to use it.
 func creationTime(meta string) int64 {
 	for _, part := range strings.Split(meta, ",") {
 		if after, found := strings.CutPrefix(part, "ctime="); found {
@@ -204,7 +214,6 @@ func (d *Driver) Describe(ctx context.Context, driverID string) (*hypervisor.Ins
 		SCSIController: cfgString(cfg, "scsihw"),
 		OnBoot:         cfgBool(cfg, "onboot"),
 		HostProtected:  cfgBool(cfg, "protection"),
-		CreatedAt:      creationTime(cfgString(cfg, "meta")),
 		CloudInitUser:  cfgString(cfg, "ciuser"),
 		IPConfig:       cfgString(cfg, "ipconfig0"),
 		Nameservers:    cfgString(cfg, "nameserver"),

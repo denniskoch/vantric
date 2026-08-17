@@ -389,10 +389,15 @@ export default function InstanceDetailPage() {
                   { label: 'Type', value: 'Virtual machine' },
                   { label: 'Status', value: inst.status },
                   {
+                    // The store's own timestamp, NOT the hypervisor's.
+                    // Proxmox's only per-guest timestamp is the ctime in
+                    // its config, and a clone copies the config — so it
+                    // reports the template's build date for every VM
+                    // this console creates. A ten-minute-old guest read
+                    // as three days old, which is worse than reading as
+                    // unknown because it looks like an answer.
                     label: 'Creation time',
-                    value: detail?.createdAt
-                      ? new Date(detail.createdAt * 1000).toLocaleString()
-                      : new Date(inst.createdAt).toLocaleString(),
+                    value: new Date(inst.createdAt).toLocaleString(),
                   },
                   { label: 'Uptime', value: formatUptime(detail?.uptimeSeconds ?? 0) },
                   { label: 'Location', value: `${inst.node} (${hypervisor?.name ?? 'unknown hypervisor'})` },

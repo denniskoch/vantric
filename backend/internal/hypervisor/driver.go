@@ -454,8 +454,12 @@ type InstanceDetail struct {
 	OnBoot         bool   `json:"onBoot"`
 	GuestAgent     bool   `json:"guestAgent"`
 	HostProtected  bool   `json:"hostProtected"` // hypervisor-side protection flag
-	// CreatedAt is unix seconds as recorded by the hypervisor; 0 when unknown.
-	CreatedAt int64 `json:"createdAt"`
+	// There is deliberately NO CreatedAt here. The only timestamp a
+	// hypervisor records for a guest is the ctime in its config, and a
+	// clone copies the config — so it reports the template's build date,
+	// confidently, for every VM this console creates. The store's own
+	// created_at is the record's birthday and is what the detail page
+	// shows. See creationTime in proxmox/describe.go.
 	// CloudInit is whether the guest has a cloud-init drive at all.
 	// Without one the settings below are inert: Proxmox still reports
 	// its defaults for them, and showing those as though they applied

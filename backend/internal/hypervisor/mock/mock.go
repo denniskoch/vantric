@@ -391,7 +391,6 @@ func (d *Driver) Describe(ctx context.Context, driverID string) (*hypervisor.Ins
 	}
 	d.tick(vm)
 	state := vm.state
-	created := vm.created
 	guestUUID := vm.uuid
 	serial := vm.serial
 	description := vm.description
@@ -417,7 +416,6 @@ func (d *Driver) Describe(ctx context.Context, driverID string) (*hypervisor.Ins
 		SCSIController: "virtio-scsi-single",
 		OnBoot:         true,
 		GuestAgent:     true,
-		CreatedAt:      created.Unix(),
 		CloudInitUser:  "labadmin",
 		SSHKeys:        []string{"ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAMOCKKEY labadmin@mock"},
 		NICs: []hypervisor.NIC{{

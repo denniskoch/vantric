@@ -211,7 +211,9 @@ export interface InstanceDetail {
   onBoot: boolean
   guestAgent: boolean
   hostProtected: boolean
-  createdAt: number
+  // No createdAt: a hypervisor's only per-guest timestamp is the ctime
+  // in its config, which a clone inherits from its template. The
+  // instance's own createdAt comes from the store record.
   uptimeSeconds: number
   /** Whether the guest has a cloud-init drive; without one the settings below are inert. */
   cloudInit: boolean
