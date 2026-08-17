@@ -13,9 +13,9 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Tooltip,
 } from '@mui/material'
+import SelectField from '../components/SelectField'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { api } from '../api/client'
 import type { Backup } from '../api/client'
@@ -71,10 +71,9 @@ export default function BackupsPage() {
         </Alert>
       )}
 
-      <TextField
+      <SelectField
         label="Guest"
         size="small"
-        select
         value={guestFilter}
         onChange={(e) => setGuestFilter(e.target.value)}
         sx={{ width: 260, mb: 2 }}
@@ -87,7 +86,7 @@ export default function BackupsPage() {
             {guest}
           </MenuItem>
         ))}
-      </TextField>
+      </SelectField>
 
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">

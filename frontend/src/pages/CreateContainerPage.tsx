@@ -16,6 +16,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
+import SelectField from '../components/SelectField'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CircleIcon from '@mui/icons-material/Circle'
 import ErrorIcon from '@mui/icons-material/Error'
@@ -400,10 +401,9 @@ export default function CreateContainerPage() {
                 applies whether or not anything inside cooperates.
               </Typography>
 
-              <TextField
+              <SelectField
                 label="Bridge"
                 size="small"
-                select
                 value={form.netBridge}
                 onChange={(e) => set({ netBridge: e.target.value })}
                 helperText="Leave blank for a container with no network"
@@ -418,7 +418,7 @@ export default function CreateContainerPage() {
                       {b.cidr ? ` — ${b.cidr}` : ''}
                   </MenuItem>
                 ))}
-              </TextField>
+              </SelectField>
               <TextField
                 label="VLAN tag"
                 size="small"

@@ -259,17 +259,41 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 		"target": {spec.Node},
 		"full":   {"1"},
 	}
+	var cloneTask string
 	path := fmt.Sprintf("/nodes/%s/qemu/%s/clone", templateNode, spec.ImageID)
-	if err := d.do(ctx, http.MethodPost, path, form, nil); err != nil {
+	if err := d.do(ctx, http.MethodPost, path, form, &cloneTask); err != nil {
 		return "", fmt.Errorf("cloning template: %w", err)
 	}
 	d.mu.Lock()
 	d.nodeOf[nextID] = spec.Node
 	d.mu.Unlock()
 
-	// Apply sizing and optional settings. Clone is async;
-	// Proxmox queues these behind the clone lock, so failures here are
-	// surfaced by Get.
+	// THE CLONE HAS TO FINISH BEFORE THE CONFIG IS WRITTEN, and this
+	// used to fire straight into the lock and discard the refusal.
+	//
+	// A clone POST returns as soon as the task is QUEUED, and Proxmox
+	// holds the VM locked for as long as the disk copy takes. The
+	// config write that follows carries the sizing and every cloud-init
+	// key — so when it was refused, the new VM kept the TEMPLATE's
+	// values for all of them, and the old code returned success. A
+	// static address typed into the form produced a guest that came up
+	// on DHCP, which is not a blank but a confident wrong answer, and
+	// nothing anywhere said so. It was a race, which is why some
+	// creates were fine: a fast clone finished before the write landed.
+	//
+	// Waiting on the task removes the race rather than retrying until
+	// lucky, and it makes the serial write and the boot that follow
+	// reliable for the same reason.
+	waitCtx, cancel := context.WithTimeout(ctx, 15*time.Minute)
+	defer cancel()
+	if err := d.waitForTask(waitCtx, cloneTask); err != nil {
+		// The VM may well exist — the id goes back so the console can
+		// record it rather than leaving something the reconciler has to
+		// adopt under a name nobody chose.
+		return nextID, fmt.Errorf("waiting for the clone to finish: %w", err)
+	}
+
+	// Sizing, networking and cloud-init, in one write.
 	cfg := url.Values{
 		"cores":  {strconv.Itoa(spec.CPUs)},
 		"memory": {strconv.Itoa(spec.MemoryMB)},
@@ -287,7 +311,15 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 	applyCloudInit(cfg, spec.CloudInit)
 	cfgPath := fmt.Sprintf("/nodes/%s/qemu/%s/config", spec.Node, nextID)
 	if err := d.do(ctx, http.MethodPost, cfgPath, cfg, nil); err != nil {
-		return nextID, nil // instance exists; config can be fixed manually
+		// REPORTED, NOT SWALLOWED. This is not the serial, whose absence
+		// the detail page states in words; everything in this write
+		// falls back to a template value that looks deliberate. The
+		// instance id still goes back so the console records the machine
+		// that exists — but the operation ends in an error naming what
+		// didn't take.
+		return nextID, fmt.Errorf(
+			"%s was created but its settings didn't apply — it still has the template's "+
+				"sizing and network configuration: %w", spec.Name, err)
 	}
 	if spec.Serial != "" {
 		// A machine that exists without its serial is worth more than a

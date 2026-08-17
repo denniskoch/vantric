@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, Box, MenuItem, TextField, Typography } from '@mui/material'
+import SelectField from '../components/SelectField'
 import { api } from '../api/client'
 import FormPage from '../components/FormPage'
 import SecretField, { generateSecret } from '../components/SecretField'
@@ -114,10 +115,9 @@ export default function CreateStorageKeyPage() {
         helperText="Generated in your browser. Copy it now — this is the only time it's readable."
       />
 
-      <TextField
+      <SelectField
         label="Policy"
         size="small"
-        select
         value={policy}
         onChange={(e) => setPolicy(e.target.value)}
         helperText="What this key is allowed to do. The store's own named policies."
@@ -139,7 +139,7 @@ export default function CreateStorageKeyPage() {
             </Box>
           </MenuItem>
         ))}
-      </TextField>
+      </SelectField>
 
       {warning && <Alert severity="warning">{warning}</Alert>}
     </FormPage>

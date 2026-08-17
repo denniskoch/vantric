@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Checkbox, FormControlLabel, MenuItem, TextField } from '@mui/material'
+import SelectField from '../components/SelectField'
 import { api } from '../api/client'
 import FormPage from '../components/FormPage'
 import { identifierError } from '../validation'
@@ -70,10 +71,9 @@ export function CreateDatabasePage() {
         fullWidth
       />
       {hasOwners && (
-        <TextField
+        <SelectField
           label="Owner"
           size="small"
-          select
           value={owner}
           onChange={(e) => setOwner(e.target.value)}
           helperText="Defaults to the role this console connects as"
@@ -87,7 +87,7 @@ export function CreateDatabasePage() {
               {user.name}
             </MenuItem>
           ))}
-        </TextField>
+        </SelectField>
       )}
     </FormPage>
   )

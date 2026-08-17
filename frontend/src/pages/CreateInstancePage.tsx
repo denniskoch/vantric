@@ -16,6 +16,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
+import SelectField from '../components/SelectField'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CircleIcon from '@mui/icons-material/Circle'
 import ErrorIcon from '@mui/icons-material/Error'
@@ -465,10 +466,9 @@ export default function CreateInstancePage() {
               <Typography variant="body2" color="text.secondary">
                 Leave blank to keep the image's network configuration.
               </Typography>
-              <TextField
+              <SelectField
                 label="Bridge"
                 size="small"
-                select
                 value={netBridge}
                 onChange={(e) => setNetBridge(e.target.value)}
                 disabled={!node}
@@ -490,7 +490,7 @@ export default function CreateInstancePage() {
                     {b.comment ? ` — ${b.comment}` : ''}
                   </MenuItem>
                 ))}
-              </TextField>
+              </SelectField>
               <TextField
                 label="VLAN tag"
                 size="small"

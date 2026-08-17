@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, Box, MenuItem, TextField, Typography } from '@mui/material'
+import SelectField from '../components/SelectField'
 import { api } from '../api/client'
 import FormPage from '../components/FormPage'
 import { policySummary, policyWarning } from '../storagePolicy'
@@ -101,10 +102,9 @@ export default function StorageKeyPage() {
         <MenuItem value="disabled">Disabled</MenuItem>
       </TextField>
 
-      <TextField
+      <SelectField
         label="Policy"
         size="small"
-        select
         value={policy ?? ''}
         onChange={(e) => setPolicy(e.target.value)}
         helperText="Attaching a policy replaces the one that's there, so lowering access is a real reduction."
@@ -123,7 +123,7 @@ export default function StorageKeyPage() {
             </Box>
           </MenuItem>
         ))}
-      </TextField>
+      </SelectField>
 
       {warning && <Alert severity="warning">{warning}</Alert>}
     </FormPage>

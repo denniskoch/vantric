@@ -17,6 +17,7 @@ import {
   ToggleButtonGroup,
   Typography,
 } from '@mui/material'
+import SelectField from '../components/SelectField'
 import { Link as RouterLink } from 'react-router-dom'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CircleIcon from '@mui/icons-material/Circle'
@@ -376,10 +377,9 @@ export default function BuildTemplatePage() {
                 </Alert>
               )}
               <Box sx={{ display: 'flex', gap: 2 }}>
-                <TextField
+                <SelectField
                   label="Bridge"
                   size="small"
-                  select
                   value={netBridge}
                   onChange={(e) => setNetBridge(e.target.value)}
                   helperText={
@@ -398,7 +398,7 @@ export default function BuildTemplatePage() {
                       {b.comment ? ` — ${b.comment}` : ''}
                     </MenuItem>
                   ))}
-                </TextField>
+                </SelectField>
                 <TextField
                   label="VLAN tag"
                   size="small"

@@ -776,6 +776,15 @@ Surface the daily 90% here and link out for the rest.
   editing one, connecting a backend, changing a password. A form in a
   modal can't be linked to, survive a reload, or grow a second section
   without becoming a scrolling box.
+- A "NONE" OPTION NEEDS `components/SelectField`, not a bare
+  `<TextField select>`. MUI reads an empty string as NO SELECTION rather
+  than as a value, so `<MenuItem value="">Hypervisor default</MenuItem>`
+  renders an empty box with a zero-width space in it — before you touch
+  the field AND after you deliberately pick that option, which is why it
+  reads as two separate bugs. Eight selects had it. The unset value
+  stays the empty string, because that is what the API means by "leave
+  this alone"; SelectField just turns on `displayEmpty` and shrinks the
+  label so the option is drawn.
 - Form validation lives in `src/validation.ts` and must SHOW itself: a
   field turns red with the specific problem as soon as its value is
   invalid. A disabled submit button is never the only signal — if a

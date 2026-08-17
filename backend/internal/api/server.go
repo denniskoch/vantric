@@ -472,11 +472,17 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 	s.run(op, "Instance created", func(ctx context.Context, step func(string)) error {
 		step("Cloning " + req.ImageID)
 		driverID, err := driver.Create(ctx, spec)
-		if err != nil {
+		// A CREATE CAN HALF-SUCCEED: the VM exists but its settings
+		// didn't apply. When that happens the driver hands back the id
+		// alongside the error, and the record is written anyway — a
+		// machine with no record here is worse than one whose record is
+		// followed by a failed operation, because the reconciler would
+		// adopt it under a name nobody chose and mark it protected.
+		if driverID == "" {
 			return err
 		}
 		step("Recording the instance")
-		if err := s.saveNewInstance(ctx, &store.Instance{
+		if saveErr := s.saveNewInstance(ctx, &store.Instance{
 			ID:           uuid.NewString(),
 			Name:         req.Name,
 			HypervisorID: req.HypervisorID,
@@ -491,7 +497,13 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 			VLANTag:      req.VLANTag,
 			Description:  req.Description,
 			Protected:    req.Protected,
-		}); err != nil {
+		}); saveErr != nil {
+			return saveErr
+		}
+		if err != nil {
+			// The machine is recorded and will appear in the list; the
+			// operation still fails, because what it was asked to build
+			// is not what exists.
 			return err
 		}
 		step("Starting " + req.Name)

@@ -6,6 +6,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
+import SelectField from './SelectField'
 import type { CloudInitConfig } from '../api/client'
 
 interface Props {
@@ -176,10 +177,9 @@ export function CloudInitAdvancedFields({ value, onChange }: Props) {
         }
         label="Upgrade packages on first boot (slower, but current)"
       />
-      <TextField
+      <SelectField
         label="Datasource format"
         size="small"
-        select
         value={value.datasource}
         onChange={(e) => set('datasource', e.target.value)}
         helperText="Some images only accept one format"
@@ -188,7 +188,7 @@ export function CloudInitAdvancedFields({ value, onChange }: Props) {
         <MenuItem value="">Hypervisor default</MenuItem>
         <MenuItem value="nocloud">NoCloud (most Linux images)</MenuItem>
         <MenuItem value="configdrive2">ConfigDrive 2 (OpenStack-style)</MenuItem>
-      </TextField>
+      </SelectField>
     </>
   )
 }
