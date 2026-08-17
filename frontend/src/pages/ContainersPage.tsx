@@ -87,7 +87,7 @@ export default function ContainersPage() {
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
-        title="CT instances"
+        title="Container instances"
         actions={
           <>
             <Button size="small" startIcon={<RefreshIcon />} onClick={() => refetch()}>

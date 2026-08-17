@@ -100,21 +100,11 @@ export const sections: Section[] = [
     home: '/compute/overview',
     description:
       'Virtual machines and containers on your hypervisors, with the images, disks and templates behind them.',
-    items: [
-      { label: 'Overview', icon: DashboardIcon, to: '/compute/overview' },
-      {
-        // Not under Storage and not under Settings: a zone is neither
-        // a credential nor a thing guests are made of — it's the
-        // machine they run on.
-        label: 'Zones',
-        icon: DnsIcon,
-        to: '/compute/zones',
-        hint: 'The virtualization hosts your guests run on, and how loaded they are',
-      },
-    ],
+    items: [{ label: 'Overview', icon: DashboardIcon, to: '/compute/overview' }],
     groups: [
       {
-        label: 'Virtual machines',
+        // Not "Virtual machines": half of what's in here isn't one.
+        label: 'Instances',
         items: [
           {
             label: 'VM instances',
@@ -123,16 +113,25 @@ export const sections: Section[] = [
             hint: 'Create, start, stop and inspect virtual machines',
           },
           {
-            label: 'CT instances',
+            // "Container", not "CT" or "LXC". CT is Proxmox's own
+            // shorthand and reads as nothing beside VM; LXC would name
+            // the UI after one implementation of hypervisor.Container-
+            // Driver, which exists so a backend's containers needn't
+            // be LXC at all.
+            label: 'Container instances',
             icon: Inventory2Icon,
             to: '/compute/containers',
-            hint: 'System containers (LXC) discovered on your servers',
+            hint: 'System containers discovered on your servers',
           },
         ],
       },
       {
+        // Storage split in two. Eight entries answered two different
+        // questions — what a running guest is using, and what a new
+        // one can be built from — interleaved in one list.
         label: 'Storage',
         items: [
+          { label: 'Datastores', icon: FolderSpecialIcon, to: '/compute/datastores', hint: 'Storage pools everything else sits on' },
           { label: 'Disks', icon: LayersIcon, to: '/compute/disks', hint: 'Virtual disks attached to instances' },
           { label: 'Snapshots', icon: PhotoCameraIcon, to: '/compute/snapshots', hint: 'Point-in-time VM snapshots' },
           {
@@ -141,23 +140,36 @@ export const sections: Section[] = [
             to: '/compute/backups',
             hint: 'Guest backup archives held on your datastores',
           },
+        ],
+      },
+      {
+        label: 'Images and media',
+        items: [
           {
-            label: 'VM Templates',
+            label: 'VM templates',
             icon: AlbumIcon,
             to: '/compute/vm-templates',
             hint: 'Sources instances are cloned from; build new ones from cloud images',
           },
-          { label: 'CT Templates', icon: ArchiveIcon, to: '/compute/ct-templates', hint: 'Root filesystems containers are created from' },
+          { label: 'Container templates', icon: ArchiveIcon, to: '/compute/ct-templates', hint: 'Root filesystems containers are created from' },
           { label: 'Cloud images', icon: CloudUploadIcon, to: '/compute/cloud-images', hint: 'Disk images to build VM templates from' },
           { label: 'ISOs', icon: DiscFullIcon, to: '/compute/isos', hint: 'Installer media, imported by URL or upload' },
-          { label: 'Datastores', icon: FolderSpecialIcon, to: '/compute/datastores', hint: 'Storage pools and their usage' },
         ],
       },
       {
-        // Hypervisor hosts are credentials for a compute backend, the
-        // same shape as DNS providers — so they live under Settings.
+        // The backend and what it exposes. Hypervisors are credentials,
+        // the same shape as DNS providers; zones are the hosts those
+        // credentials reach — infrastructure you check when something
+        // is wrong, rather than a place you work, which is why this is
+        // the bottom of the nav and not the top.
         label: 'Settings',
         items: [
+          {
+            label: 'Zones',
+            icon: LanIcon,
+            to: '/compute/zones',
+            hint: 'The virtualization hosts your guests run on, and how loaded they are',
+          },
           {
             label: 'Hypervisors',
             icon: DnsIcon,

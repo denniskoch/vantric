@@ -56,7 +56,7 @@ export default function CTTemplatesPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <PageHeader title="CT templates" />
+      <PageHeader title="Container templates" />
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
@@ -108,7 +108,7 @@ export default function CTTemplatesPage() {
             {templates.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                  {isLoading ? 'Loading…' : 'No CT templates found on your servers.'}
+                  {isLoading ? 'Loading…' : 'No container templates found on your servers.'}
                 </TableCell>
               </TableRow>
             )}

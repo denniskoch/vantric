@@ -96,7 +96,7 @@ export default function CloudOverviewPage() {
           loading={isLoading}
         />
         <Stat
-          label="CT instances"
+          label="Container instances"
           value={counts && `${counts.containersRunning}/${counts.containers}`}
           hint="running"
           to="/compute/containers"

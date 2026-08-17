@@ -39,7 +39,7 @@ export default function OverviewPage() {
     <SectionLandingPage>
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3 }}>
         <Stat label="VM instances" value={`${running(instances)}/${instances.length}`} />
-        <Stat label="CT instances" value={`${running(containers)}/${containers.length}`} />
+        <Stat label="Container instances" value={`${running(containers)}/${containers.length}`} />
         <Stat label="Hypervisors connected" value={`${connected}/${servers.length}`} />
       </Box>
     </SectionLandingPage>
