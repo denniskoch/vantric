@@ -22,12 +22,14 @@ import {
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import RefreshIcon from '@mui/icons-material/Refresh'
+import EditIcon from '@mui/icons-material/Edit'
 import UploadIcon from '@mui/icons-material/Upload'
 import DownloadIcon from '@mui/icons-material/Download'
 import DeleteIcon from '@mui/icons-material/Delete'
 import FolderIcon from '@mui/icons-material/Folder'
 import DescriptionIcon from '@mui/icons-material/Description'
 import { api } from '../api/client'
+import type { StorageObject } from '../api/client'
 import DetailTable from '../components/DetailTable'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import { formatBytes, timeAgo } from '../format'
@@ -48,6 +50,11 @@ export default function BucketDetailPage() {
   const { canEdit } = usePermissions()
   const [tab, setTab] = useState('objects')
   const [prefix, setPrefix] = useState('')
+  // Cursor pagination: an object store can hand out the NEXT page but
+  // has no notion of page 4, so pages accumulate rather than replace and
+  // there is no page count to show.
+  const [token, setToken] = useState('')
+  const [seen, setSeen] = useState<StorageObject[]>([])
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -70,10 +77,26 @@ export default function BucketDetailPage() {
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ['objects', provider, bucket, prefix],
-    queryFn: () => api.listObjects(provider, bucket, { prefix, delimiter: '/' }),
+    queryKey: ['objects', provider, bucket, prefix, token],
+    queryFn: () => api.listObjects(provider, bucket, { prefix, delimiter: '/', token }),
     enabled: Boolean(provider && bucket),
   })
+
+  // Everything fetched so far under this prefix, de-duplicated because a
+  // refetch of the current cursor returns the same keys again.
+  const objects = token
+    ? [...seen, ...(page?.objects ?? [])].filter(
+        (o, i, all) => all.findIndex((x) => x.key === o.key) === i,
+      )
+    : (page?.objects ?? [])
+
+  // Changing folder starts the cursor over; keeping the old pages would
+  // show keys from somewhere else.
+  const browse = (next: string) => {
+    setPrefix(next)
+    setToken('')
+    setSeen([])
+  }
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['objects', provider, bucket] })
@@ -122,6 +145,15 @@ export default function BucketDetailPage() {
         </Button>
         <Typography variant="h5">{bucket}</Typography>
         <Box sx={{ flex: 1 }} />
+        {canEdit && (
+          <Button
+            size="small"
+            startIcon={<EditIcon />}
+            onClick={() => navigate(`/storage/buckets/${provider}/${bucket}/quota`)}
+          >
+            Set quota
+          </Button>
+        )}
         <Button size="small" startIcon={<RefreshIcon />} onClick={() => refetch()}>
           Refresh
         </Button>
@@ -188,13 +220,13 @@ export default function BucketDetailPage() {
               <Box sx={{ flex: 1 }} />
               {/* Where you are, and the way back. */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: 13 }}>
-                <Link component="button" underline="hover" onClick={() => setPrefix('')}>
+                <Link component="button" underline="hover" onClick={() => browse('')}>
                   {bucket}
                 </Link>
                 {crumbs.map((c) => (
                   <Box key={c.prefix} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     <span style={{ color: '#5f6368' }}>/</span>
-                    <Link component="button" underline="hover" onClick={() => setPrefix(c.prefix)}>
+                    <Link component="button" underline="hover" onClick={() => browse(c.prefix)}>
                       {c.label}
                     </Link>
                   </Box>
@@ -221,7 +253,7 @@ export default function BucketDetailPage() {
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <FolderIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                          <Link component="button" underline="hover" onClick={() => setPrefix(p)}>
+                          <Link component="button" underline="hover" onClick={() => browse(p)}>
                             {p.slice(prefix.length).replace(/\/$/, '')}
                           </Link>
                         </Box>
@@ -233,7 +265,7 @@ export default function BucketDetailPage() {
                       <TableCell />
                     </TableRow>
                   ))}
-                  {page?.objects.map((o) => (
+                  {objects.map((o) => (
                     <TableRow key={o.key} hover>
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -263,7 +295,7 @@ export default function BucketDetailPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {page && page.objects.length === 0 && page.prefixes.length === 0 && (
+                  {page && objects.length === 0 && page.prefixes.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={4} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                         {isLoading ? 'Loading…' : prefix ? 'Nothing under this prefix.' : 'This bucket is empty.'}
@@ -273,11 +305,24 @@ export default function BucketDetailPage() {
                 </TableBody>
               </Table>
             </TableContainer>
-            {page?.truncated && (
-              <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 1 }}>
-                Showing the first page. Object stores paginate by cursor, so there's no page
-                count to report.
-              </Typography>
+            {page?.truncated && page.nextToken && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1.5 }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={isLoading}
+                  onClick={() => {
+                    setSeen(objects)
+                    setToken(page.nextToken)
+                  }}
+                >
+                  Load more
+                </Button>
+                <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+                  {objects.length} so far. An object store pages by cursor, so there's no total
+                  to count down from.
+                </Typography>
+              </Box>
             )}
           </>
         )}

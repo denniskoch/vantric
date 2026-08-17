@@ -1887,6 +1887,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  /** 0 removes the quota. 409 where the store has none. */
+  setBucketQuota: (providerId: string, bucket: string, bytes: number) =>
+    request<void>(`/storage/buckets/${bucket}/quota?provider=${providerId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ bytes }),
+    }),
   deleteBucket: (providerId: string, bucket: string) =>
     request<void>(`/storage/buckets/${bucket}?provider=${providerId}`, { method: 'DELETE' }),
   listObjects: (

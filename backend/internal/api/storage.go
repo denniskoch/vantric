@@ -55,6 +55,7 @@ func (s *Server) storageRoutes(r chi.Router) {
 	r.Get("/storage/buckets", s.listBuckets)
 	r.Post("/storage/buckets", s.createBucket)
 	r.Delete("/storage/buckets/{bucket}", s.deleteBucket)
+	r.Put("/storage/buckets/{bucket}/quota", s.setBucketQuota)
 	r.Get("/storage/buckets/{bucket}/objects", s.listObjects)
 	r.Post("/storage/buckets/{bucket}/objects", s.uploadObject)
 	r.Get("/storage/buckets/{bucket}/object", s.downloadObject)
@@ -347,6 +348,41 @@ func (s *Server) deleteBucket(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := provider.DeleteBucket(r.Context(), chi.URLParam(r, "bucket")); err != nil {
 		s.fail(w, err, "deleting the bucket")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// setBucketQuota is the separate action the create flow deliberately
+// isn't: a quota on a bucket that already has a usage figure takes effect
+// immediately, where one applied at birth blocks every write until the
+// store's scanner has run.
+func (s *Server) setBucketQuota(w http.ResponseWriter, r *http.Request) {
+	provider := s.storageProvider(w, r)
+	if provider == nil {
+		return
+	}
+	quota, ok := provider.(storage.QuotaProvider)
+	if !ok {
+		// A capability the store hasn't got is a 409, not a 500: the
+		// request was fine, this store just has no quotas.
+		s.err(w, http.StatusConflict, "this store doesn't support bucket quotas")
+		return
+	}
+	var req struct {
+		// Bytes of 0 removes the quota.
+		Bytes int64 `json:"bytes"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if req.Bytes < 0 {
+		s.err(w, http.StatusBadRequest, "a quota can't be negative; use 0 to remove it")
+		return
+	}
+	if err := quota.SetBucketQuota(r.Context(), chi.URLParam(r, "bucket"), req.Bytes); err != nil {
+		s.fail(w, err, "setting the quota")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

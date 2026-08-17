@@ -84,6 +84,7 @@ import DatastoresPage from './pages/DatastoresPage'
 import BucketsPage from './pages/BucketsPage'
 import BucketDetailPage from './pages/BucketDetailPage'
 import CreateBucketPage from './pages/CreateBucketPage'
+import BucketQuotaPage from './pages/BucketQuotaPage'
 import StorageInstancesPage from './pages/StorageInstancesPage'
 import StorageInstanceFormPage from './pages/StorageInstanceFormPage'
 import NodesPage from './pages/NodesPage'
@@ -143,6 +144,7 @@ export default function App() {
         <Route path="/storage/buckets" element={<BucketsPage />} />
         <Route path="/storage/buckets/create" element={<RequireRole><CreateBucketPage /></RequireRole>} />
         <Route path="/storage/buckets/:provider/:bucket" element={<BucketDetailPage />} />
+        <Route path="/storage/buckets/:provider/:bucket/quota" element={<RequireRole><BucketQuotaPage /></RequireRole>} />
         <Route path="/storage/instances" element={<RequireRole admin><StorageInstancesPage /></RequireRole>} />
         <Route path="/storage/instances/add" element={<RequireRole admin><StorageInstanceFormPage /></RequireRole>} />
         <Route path="/storage/instances/:id/edit" element={<RequireRole admin><StorageInstanceFormPage /></RequireRole>} />
