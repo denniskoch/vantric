@@ -241,7 +241,10 @@ export default function App() {
         <Route path="/compute/nodes" element={<NodesPage />} />
         {/* A node name is unique only within its server, so both
             address one host. */}
-        <Route path="/compute/nodes/:server/:node" element={<NodeDetailPage />} />
+        {/* A node name is unique only within its hypervisor, so both
+            address one host. The param names must match what
+            NodeDetailPage destructures — useParams fails silently. */}
+        <Route path="/compute/nodes/:hypervisor/:node" element={<NodeDetailPage />} />
         <Route path="/compute/hypervisors" element={<RequireRole admin><HypervisorsPage /></RequireRole>} />
         <Route path="/compute/hypervisors/add" element={<RequireRole admin><HypervisorFormPage /></RequireRole>} />
         <Route path="/compute/hypervisors/:id/edit" element={<RequireRole admin><HypervisorFormPage /></RequireRole>} />
