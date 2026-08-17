@@ -65,9 +65,9 @@ func (s *Server) storageRoutes(r chi.Router) {
 // plus what the store says about itself from a live read.
 type storageProviderView struct {
 	store.StorageProvider
-	HasSecret bool   `json:"hasSecret"`
-	Status    string `json:"status"` // connected | unreachable | unknown
-	Error     string `json:"error,omitempty"`
+	HasSecret bool          `json:"hasSecret"`
+	Status    string        `json:"status"` // connected | unreachable | unknown
+	Error     string        `json:"error,omitempty"`
 	Info      *storage.Info `json:"info,omitempty"`
 }
 
@@ -317,9 +317,6 @@ func (s *Server) createBucket(w http.ResponseWriter, r *http.Request) {
 	}
 	var req struct {
 		Name string `json:"name"`
-		// QuotaBytes is 0 for none. Applied after creation, and only by a
-		// store that has quotas.
-		QuotaBytes int64 `json:"quotaBytes"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		s.err(w, http.StatusBadRequest, "invalid JSON body")
@@ -334,15 +331,12 @@ func (s *Server) createBucket(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err, "creating the bucket")
 		return
 	}
-	if req.QuotaBytes > 0 {
-		if q, ok := provider.(storage.QuotaProvider); ok {
-			if err := q.SetBucketQuota(r.Context(), req.Name, req.QuotaBytes); err != nil {
-				// The bucket exists; saying so beats failing a request
-				// that mostly succeeded.
-				s.log.Warn("bucket created but quota not applied", "bucket", req.Name, "error", err)
-			}
-		}
-	}
+	// NO QUOTA AT BIRTH. RustFS enforces a quota by consulting its usage
+	// scanner, and until that has run on a new bucket every write is
+	// refused with "Bucket quota check temporarily unavailable" — so a
+	// quota applied at creation hands back a bucket nothing can be
+	// written to for as long as the scan takes. Setting one is a separate
+	// action on a bucket that already exists.
 	s.json(w, http.StatusCreated, map[string]string{"name": req.Name})
 }
 

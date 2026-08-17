@@ -4,6 +4,7 @@ import HomeIcon from '@mui/icons-material/Home'
 import ComputerIcon from '@mui/icons-material/Computer'
 import AlbumIcon from '@mui/icons-material/Album'
 import StorageIcon from '@mui/icons-material/Storage'
+import BucketIcon from '@mui/icons-material/ShoppingBasket'
 import LanIcon from '@mui/icons-material/Lan'
 import MemoryIcon from '@mui/icons-material/Memory'
 import DnsIcon from '@mui/icons-material/Dns'
@@ -241,9 +242,33 @@ export const sections: Section[] = [
     label: 'Storage',
     icon: StorageIcon,
     prefix: '/storage',
-    home: '/storage/overview',
-    items: [{ label: 'Overview', icon: DashboardIcon, to: '/storage/overview' }],
-    groups: [],
+    home: '/storage/buckets',
+    items: [],
+    groups: [
+      {
+        label: 'Object storage',
+        items: [
+          {
+            label: 'Buckets',
+            icon: BucketIcon,
+            to: '/storage/buckets',
+            hint: 'Object storage across the S3-compatible stores in your lab',
+          },
+        ],
+      },
+      {
+        // The credential, same slot every other section keeps it in.
+        label: 'Settings',
+        items: [
+          {
+            label: 'Object stores',
+            icon: StorageIcon,
+            to: '/storage/instances',
+            hint: 'S3-compatible stores this console manages buckets through',
+          },
+        ],
+      },
+    ],
     description: 'Shared storage for the lab, beyond the disks attached to instances.',
   },
   {

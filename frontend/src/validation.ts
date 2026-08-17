@@ -253,3 +253,24 @@ export function instanceNameError(value: string): string | null {
   }
   return null
 }
+
+/**
+ * S3's bucket-name rule, which is stricter than a resource name here: a
+ * bucket name reaches DNS through virtual-host addressing, so it can't
+ * carry uppercase or underscores, and it can't look like an address.
+ * Mirrored from the API rather than replacing it — the backend checks
+ * too, and this is so the field can turn red before you submit.
+ */
+export function bucketNameError(value: string): string | null {
+  const name = value.trim()
+  if (!name) return null
+  if (name !== name.toLowerCase()) return 'Bucket names are lowercase only'
+  if (name.includes('_')) return "Underscores aren't allowed — use hyphens"
+  if (name.length < 3 || name.length > 63) return 'Must be 3 to 63 characters'
+  if (name.includes('..')) return "Can't contain two dots in a row"
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(name)) return "Can't look like an IP address"
+  if (!/^[a-z0-9][a-z0-9.-]*[a-z0-9]$/.test(name)) {
+    return 'Lowercase letters, digits, dots and hyphens, starting and ending with one'
+  }
+  return null
+}

@@ -300,6 +300,80 @@ export interface ContainerRequest {
   protected: boolean
 }
 
+/** An S3-compatible object store this console manages buckets through. */
+export interface StorageProvider {
+  id: string
+  name: string
+  type: StorageProviderType
+  baseUrl: string
+  accessKey: string
+  region: string
+  insecureTls: boolean
+  hasSecret: boolean
+  status: 'connected' | 'unreachable' | 'unknown'
+  error?: string
+  /** Absent where the store has no admin API to ask. */
+  info?: StorageInfo
+  createdAt: string
+}
+
+export type StorageProviderType = 'rustfs'
+
+export interface StorageProviderRequest {
+  name: string
+  type: StorageProviderType
+  baseUrl: string
+  accessKey: string
+  /** Blank keeps the stored key. */
+  secretKey: string
+  region: string
+  insecureTls: boolean
+}
+
+/** What the store says about itself. Every field is optional; a zero
+ *  means "not reported" and reads as such. */
+export interface StorageInfo {
+  online: boolean
+  version: string
+  backend: string
+  deploymentId: string
+  onlineDisks: number
+  offlineDisks: number
+  uptimeSeconds: number
+  totalBytes: number
+  usedBytes: number
+  freeBytes: number
+  buckets: number
+  objects: number
+}
+
+export interface Bucket {
+  providerId: string
+  name: string
+  createdAt: number
+  /** From the store's usage scanner, so it lags — see `scanned`. */
+  objects: number
+  sizeBytes: number
+  scanned: boolean
+  quotaBytes: number
+}
+
+export interface StorageObject {
+  key: string
+  sizeBytes: number
+  modifiedAt: number
+  etag: string
+  storageClass: string
+}
+
+export interface ObjectPage {
+  objects: StorageObject[]
+  /** The "folders" a delimiter collapsed. */
+  prefixes: string[]
+  nextToken: string
+  truncated: boolean
+}
+
 export type HypervisorType = 'proxmox' | 'mock'
 
 /** One thing worth someone's attention on the Cloud overview. */
@@ -1794,6 +1868,54 @@ export const api = {
 
   createContainer: (body: ContainerRequest) =>
     request<Operation>('/containers', { method: 'POST', body: JSON.stringify(body) }),
+  listStorageProviderTypes: () => request<StorageProviderType[]>('/storage/provider-types'),
+  listStorageProviders: () => request<StorageProvider[]>('/storage/providers'),
+  createStorageProvider: (body: StorageProviderRequest) =>
+    request<StorageProvider>('/storage/providers', { method: 'POST', body: JSON.stringify(body) }),
+  updateStorageProvider: (id: string, body: StorageProviderRequest) =>
+    request<StorageProvider>(`/storage/providers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  deleteStorageProvider: (id: string) =>
+    request<void>(`/storage/providers/${id}`, { method: 'DELETE' }),
+
+  listBuckets: (providerId?: string) =>
+    request<Bucket[]>(providerId ? `/storage/buckets?provider=${providerId}` : '/storage/buckets'),
+  createBucket: (providerId: string, body: { name: string }) =>
+    request<{ name: string }>(`/storage/buckets?provider=${providerId}`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  deleteBucket: (providerId: string, bucket: string) =>
+    request<void>(`/storage/buckets/${bucket}?provider=${providerId}`, { method: 'DELETE' }),
+  listObjects: (
+    providerId: string,
+    bucket: string,
+    opts: { prefix?: string; delimiter?: string; token?: string; limit?: number } = {},
+  ) => {
+    const q = new URLSearchParams({ provider: providerId })
+    if (opts.prefix) q.set('prefix', opts.prefix)
+    // An empty delimiter is meaningful — it flattens the listing — so it
+    // is sent when supplied rather than skipped as falsy.
+    if (opts.delimiter !== undefined) q.set('delimiter', opts.delimiter)
+    if (opts.token) q.set('token', opts.token)
+    if (opts.limit) q.set('limit', String(opts.limit))
+    return request<ObjectPage>(`/storage/buckets/${bucket}/objects?${q}`)
+  },
+  /** The URL a browser downloads from; the session cookie carries auth. */
+  objectDownloadURL: (providerId: string, bucket: string, key: string) =>
+    `/api/v1/storage/buckets/${bucket}/object?provider=${providerId}&key=${encodeURIComponent(key)}`,
+  uploadObject: (providerId: string, bucket: string, key: string, file: File) =>
+    request<{ key: string; sizeBytes: number }>(
+      `/storage/buckets/${bucket}/objects?provider=${providerId}&key=${encodeURIComponent(key)}`,
+      { method: 'POST', body: file },
+    ),
+  deleteObject: (providerId: string, bucket: string, key: string) =>
+    request<void>(
+      `/storage/buckets/${bucket}/object?provider=${providerId}&key=${encodeURIComponent(key)}`,
+      { method: 'DELETE' },
+    ),
   listContainers: () => request<Container[]>('/containers'),
   getContainer: (name: string) => request<Container>(`/containers/${name}/`),
   containerAction: (name: string, action: 'start' | 'stop' | 'reset') =>

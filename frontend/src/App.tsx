@@ -81,6 +81,11 @@ import ISOsPage from './pages/ISOsPage'
 import CloudImagesPage from './pages/CloudImagesPage'
 import AddMediaPage, { isoKind, cloudImageKind } from './pages/AddMediaPage'
 import DatastoresPage from './pages/DatastoresPage'
+import BucketsPage from './pages/BucketsPage'
+import BucketDetailPage from './pages/BucketDetailPage'
+import CreateBucketPage from './pages/CreateBucketPage'
+import StorageInstancesPage from './pages/StorageInstancesPage'
+import StorageInstanceFormPage from './pages/StorageInstanceFormPage'
 import NodesPage from './pages/NodesPage'
 import NodeDetailPage from './pages/NodeDetailPage'
 
@@ -135,6 +140,12 @@ export default function App() {
         />
         {/* Every section has an overview, on the shared landing template. */}
         <Route path="/storage/overview" element={<SectionLandingPage />} />
+        <Route path="/storage/buckets" element={<BucketsPage />} />
+        <Route path="/storage/buckets/create" element={<RequireRole><CreateBucketPage /></RequireRole>} />
+        <Route path="/storage/buckets/:provider/:bucket" element={<BucketDetailPage />} />
+        <Route path="/storage/instances" element={<RequireRole admin><StorageInstancesPage /></RequireRole>} />
+        <Route path="/storage/instances/add" element={<RequireRole admin><StorageInstanceFormPage /></RequireRole>} />
+        <Route path="/storage/instances/:id/edit" element={<RequireRole admin><StorageInstanceFormPage /></RequireRole>} />
         <Route path="/network/overview" element={<SectionLandingPage />} />
         <Route path="/network/networks" element={<NetworkNetworksPage />} />
         <Route path="/network/clients" element={<NetworkClientsPage />} />

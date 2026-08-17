@@ -29,6 +29,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"vantric/internal/storage"
@@ -170,7 +171,43 @@ func (d *Driver) Buckets(ctx context.Context) ([]storage.Bucket, error) {
 	// lose the bucket list — the names are the page, the sizes are a
 	// column — so it's best-effort and Scanned stays false.
 	d.fillUsage(ctx, buckets)
+	d.fillQuotas(ctx, buckets)
 	return buckets, nil
+}
+
+// fillQuotas reads each bucket's quota — one call per bucket, which is
+// the deliberate exception "one cheap call" makes for a list that isn't
+// polled at list speed and would otherwise show a column it can never
+// fill. Concurrent, and a failure leaves that bucket's quota at zero
+// rather than failing the page.
+func (d *Driver) fillQuotas(ctx context.Context, buckets []storage.Bucket) {
+	const parallel = 8
+	sem := make(chan struct{}, parallel)
+	var wg sync.WaitGroup
+	for i := range buckets {
+		wg.Add(1)
+		go func(b *storage.Bucket) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			resp, err := d.do(ctx, http.MethodGet, "/minio/admin/v3/get-bucket-quota",
+				url.Values{"bucket": {b.Name}}, nil)
+			if err != nil {
+				return
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode < 200 || resp.StatusCode > 299 {
+				return
+			}
+			var out struct {
+				Quota int64 `json:"quota"`
+			}
+			if json.NewDecoder(resp.Body).Decode(&out) == nil {
+				b.QuotaBytes = out.Quota
+			}
+		}(&buckets[i])
+	}
+	wg.Wait()
 }
 
 type dataUsage struct {
