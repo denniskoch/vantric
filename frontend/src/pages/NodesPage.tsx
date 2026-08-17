@@ -48,7 +48,7 @@ export default function NodesPage() {
             <TableRow>
               <TableCell>Status</TableCell>
               <TableCell>Name</TableCell>
-              <TableCell>Server</TableCell>
+              <TableCell>Hypervisor</TableCell>
               <TableCell align="right">vCPUs</TableCell>
               <TableCell>CPU</TableCell>
               <TableCell>Memory</TableCell>

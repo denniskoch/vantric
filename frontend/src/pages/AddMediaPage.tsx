@@ -57,7 +57,7 @@ export const isoKind: MediaKind = {
   accept: '.iso,.img',
   listPath: '/compute/isos',
   urlPlaceholder: 'https://cdimage.debian.org/…/debian-13.0.0-amd64-netinst.iso',
-  urlBlurb: "The server downloads the image directly — the file doesn't pass through your browser.",
+  urlBlurb: "The hypervisor downloads the image directly — the file doesn't pass through your browser.",
   download: api.downloadISO,
   upload: api.uploadISO,
 }
@@ -71,7 +71,7 @@ export const cloudImageKind: MediaKind = {
   listPath: '/compute/cloud-images',
   urlPlaceholder: 'https://cloud.debian.org/…/debian-13-genericcloud-amd64.qcow2',
   urlBlurb:
-    'Cloud images come from your distro’s cloud-image site — Debian genericcloud, Ubuntu cloudimg, Fedora Cloud. The server downloads it directly.',
+    'Cloud images come from your distro’s cloud-image site — Debian genericcloud, Ubuntu cloudimg, Fedora Cloud. The hypervisor downloads it directly.',
   download: api.downloadCloudImage,
   upload: api.uploadCloudImage,
 }
@@ -87,7 +87,7 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
   const [url, setUrl] = useState('')
   const [filename, setFilename] = useState('')
   const [file, setFile] = useState<File | null>(null)
-  const [hypervisorId, setServerId] = useState('')
+  const [hypervisorId, setHypervisorId] = useState('')
   const [datastore, setDatastore] = useState('')
   const [checksum, setChecksum] = useState('')
   const [checksumAlgorithm, setChecksumAlgorithm] = useState('sha256')
@@ -96,16 +96,16 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
   const [error, setError] = useState<string | null>(null)
   const [uploadFraction, setUploadFraction] = useState(0)
 
-  const { data: servers = [] } = useQuery({ queryKey: ['hypervisors'], queryFn: api.listHypervisors })
+  const { data: hypervisors = [] } = useQuery({ queryKey: ['hypervisors'], queryFn: api.listHypervisors })
   const { data: datastores = [] } = useQuery({
     queryKey: ['datastores'],
     queryFn: api.listDatastores,
   })
 
-  const connected = servers.filter((s) => s.status === 'connected')
-  if (!hypervisorId && connected.length > 0) setServerId(connected[0].id)
+  const connected = hypervisors.filter((s) => s.status === 'connected')
+  if (!hypervisorId && connected.length > 0) setHypervisorId(connected[0].id)
 
-  // Only datastores on the chosen server that accept images.
+  // Only datastores on the chosen hypervisor that accept images.
   const targets = datastores.filter(
     (d) => d.hypervisorId === hypervisorId && d.active && d.content.includes(kind.content),
   )
@@ -190,7 +190,7 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
         <PageHeader title={`Uploading ${filename || file?.name}`} />
         <Paper variant="outlined" sx={{ p: 3 }}>
           <Typography variant="body2" sx={{ mb: 1 }}>
-            Transferring to {servers.find((s) => s.id === hypervisorId)?.name}…
+            Transferring to {hypervisors.find((s) => s.id === hypervisorId)?.name}…
           </Typography>
           <LinearProgress variant="determinate" value={uploadFraction * 100} />
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -291,7 +291,7 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
               ) : (
                 <>
                   <Typography variant="body2" color="text.secondary">
-                    The file is streamed through this console to the server.
+                    The file is streamed through this console to the hypervisor.
                   </Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Button
@@ -335,17 +335,17 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
             <>
               <Typography variant="h6">Destination</Typography>
               <TextField
-                label="Server"
+                label="Hypervisor"
                 size="small"
                 select
                 value={hypervisorId}
                 onChange={(e) => {
-                  setServerId(e.target.value)
+                  setHypervisorId(e.target.value)
                   setDatastore('')
                 }}
                 fullWidth
               >
-                {servers.map((s) => (
+                {hypervisors.map((s) => (
                   <MenuItem key={s.id} value={s.id} disabled={s.status !== 'connected'}>
                     {s.name} ({s.status})
                   </MenuItem>
@@ -359,7 +359,7 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
                 onChange={(e) => setDatastore(e.target.value)}
                 helperText={
                   targets.length === 0
-                    ? `No datastore on this server accepts ${kind.content} content`
+                    ? `No datastore on this hypervisor accepts ${kind.content} content`
                     : `Only datastores that accept ${kind.content} content are listed`
                 }
                 fullWidth
@@ -383,7 +383,7 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
               ) : (
                 <>
                   <Typography variant="body2" color="text.secondary">
-                    Optional. The server rejects the download if the checksum doesn't
+                    Optional. The hypervisor rejects the download if the checksum doesn't
                     match.
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 2 }}>

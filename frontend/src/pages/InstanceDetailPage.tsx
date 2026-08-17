@@ -98,8 +98,8 @@ export default function InstanceDetailPage() {
     enabled: Boolean(name),
     refetchInterval: 3000,
   })
-  const { data: servers = [] } = useQuery({ queryKey: ['hypervisors'], queryFn: api.listHypervisors })
-  const server = servers.find((s) => s.id === inst?.hypervisorId)
+  const { data: hypervisors = [] } = useQuery({ queryKey: ['hypervisors'], queryFn: api.listHypervisors })
+  const hypervisor = hypervisors.find((s) => s.id === inst?.hypervisorId)
 
   // Live hypervisor config — on demand, not on the list's poll interval.
   const { data: detail, error: detailError } = useQuery({
@@ -194,7 +194,7 @@ export default function InstanceDetailPage() {
   // deleting a VM that is mid-boot is the same mistake.
   const poweredOn = running || inst.status === 'STAGING'
   const serialPort = detail?.devices?.find((d) => d.kind === 'Serial port')
-  const hypervisorURL = server?.type === 'proxmox' ? server.baseUrl : ''
+  const hypervisorURL = hypervisor?.type === 'proxmox' ? hypervisor.baseUrl : ''
   const hypervisorLink = (mode: 'novnc' | 'xtermjs') => (
     <Button
       size="small"
@@ -395,7 +395,7 @@ export default function InstanceDetailPage() {
                       : new Date(inst.createdAt).toLocaleString(),
                   },
                   { label: 'Uptime', value: formatUptime(detail?.uptimeSeconds ?? 0) },
-                  { label: 'Location', value: `${inst.node} (${server?.name ?? 'unknown server'})` },
+                  { label: 'Location', value: `${inst.node} (${hypervisor?.name ?? 'unknown hypervisor'})` },
                   { label: 'Boot image', value: inst.imageId || '—' },
                   {
                     label: 'Tags',
@@ -689,8 +689,8 @@ export default function InstanceDetailPage() {
               <DetailTable
                 rows={[
                   {
-                    label: 'Server',
-                    value: server ? `${server.name} (${server.type})` : inst.hypervisorId,
+                    label: 'Hypervisor',
+                    value: hypervisor ? `${hypervisor.name} (${hypervisor.type})` : inst.hypervisorId,
                   },
                   { label: 'Driver instance ID', value: inst.driverId },
                 ]}

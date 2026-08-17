@@ -44,8 +44,8 @@ export default function ContainerDetailPage() {
     enabled: Boolean(name),
     refetchInterval: 3000,
   })
-  const { data: servers = [] } = useQuery({ queryKey: ['hypervisors'], queryFn: api.listHypervisors })
-  const server = servers.find((s) => s.id === ct?.hypervisorId)
+  const { data: hypervisors = [] } = useQuery({ queryKey: ['hypervisors'], queryFn: api.listHypervisors })
+  const hypervisor = hypervisors.find((s) => s.id === ct?.hypervisorId)
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['container', name] })
@@ -175,7 +175,7 @@ export default function ContainerDetailPage() {
         </Typography>
         <Table size="small">
           <TableBody>
-            <Row label="Server" value={server ? `${server.name} (${server.type})` : ct.hypervisorId} />
+            <Row label="Hypervisor" value={hypervisor ? `${hypervisor.name} (${hypervisor.type})` : ct.hypervisorId} />
             <Row label="Driver container ID" value={ct.driverId} />
           </TableBody>
         </Table>

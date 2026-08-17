@@ -43,7 +43,7 @@ function reported(value: string | number | undefined | null, render?: () => Reac
  * neither belongs on a datastore page.
  */
 export default function NodeDetailPage() {
-  const { server, node } = useParams<{ server: string; node: string }>()
+  const { hypervisor, node } = useParams<{ hypervisor: string; node: string }>()
   const navigate = useNavigate()
   const hypervisorName = useHypervisorNames()
   const [tab, setTab] = useState('details')
@@ -54,23 +54,23 @@ export default function NodeDetailPage() {
     queryFn: () => api.listNodes(),
     refetchInterval: 10000,
   })
-  const summary = nodes.find((z) => z.hypervisorId === server && z.id === node)
+  const summary = nodes.find((z) => z.hypervisorId === hypervisor && z.id === node)
 
   const {
     data: status,
     isLoading,
     error: statusError,
   } = useQuery({
-    queryKey: ['node', server, node],
-    queryFn: () => api.getNode(server!, node!),
-    enabled: Boolean(server && node),
+    queryKey: ['node', hypervisor, node],
+    queryFn: () => api.getNode(hypervisor!, node!),
+    enabled: Boolean(hypervisor && node),
     refetchInterval: 10000,
   })
 
   const { data: metrics = [], isLoading: metricsLoading } = useQuery({
-    queryKey: ['nodeMetrics', server, node, timeframe],
-    queryFn: () => api.nodeMetrics(server!, node!, timeframe),
-    enabled: Boolean(server && node) && tab === 'observability',
+    queryKey: ['nodeMetrics', hypervisor, node, timeframe],
+    queryFn: () => api.nodeMetrics(hypervisor!, node!, timeframe),
+    enabled: Boolean(hypervisor && node) && tab === 'observability',
   })
 
   // No guest list here. VM instances and CT instances both carry a
@@ -129,7 +129,7 @@ export default function NodeDetailPage() {
                 rows={[
                   { label: 'Name', value: status.name },
                   {
-                    label: 'Server',
+                    label: 'Hypervisor',
                     value: (
                       <Link
                         component={RouterLink}

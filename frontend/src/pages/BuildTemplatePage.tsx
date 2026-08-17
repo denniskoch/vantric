@@ -38,7 +38,7 @@ export default function BuildTemplatePage() {
   const [error, setError] = useState<string | null>(null)
 
   // Source image
-  const [hypervisorId, setServerId] = useState('')
+  const [hypervisorId, setHypervisorId] = useState('')
   const [sourceVolume, setSourceVolume] = useState('')
   // Template
   const [name, setName] = useState('')
@@ -56,7 +56,7 @@ export default function BuildTemplatePage() {
   const [enableAgent, setEnableAgent] = useState(true)
 
 
-  const { data: servers = [] } = useQuery({ queryKey: ['hypervisors'], queryFn: api.listHypervisors })
+  const { data: hypervisors = [] } = useQuery({ queryKey: ['hypervisors'], queryFn: api.listHypervisors })
   const { data: cloudImages = [] } = useQuery({
     queryKey: ['cloudImages'],
     queryFn: api.listCloudImages,
@@ -67,8 +67,8 @@ export default function BuildTemplatePage() {
   })
   const { data: bridges = [] } = useQuery({ queryKey: ['bridges'], queryFn: api.listBridges })
 
-  const connected = servers.filter((s) => s.status === 'connected')
-  if (!hypervisorId && connected.length > 0) setServerId(connected[0].id)
+  const connected = hypervisors.filter((s) => s.status === 'connected')
+  if (!hypervisorId && connected.length > 0) setHypervisorId(connected[0].id)
 
   const images = cloudImages.filter((i) => i.hypervisorId === hypervisorId)
   const image = images.find((i) => i.id === sourceVolume)
@@ -201,18 +201,18 @@ export default function BuildTemplatePage() {
             <>
               <Typography variant="h6">Cloud image</Typography>
               <TextField
-                label="Server"
+                label="Hypervisor"
                 size="small"
                 select
                 value={hypervisorId}
                 onChange={(e) => {
-                  setServerId(e.target.value)
+                  setHypervisorId(e.target.value)
                   setSourceVolume('')
                   setDiskStorage('')
                 }}
                 fullWidth
               >
-                {servers.map((s) => (
+                {hypervisors.map((s) => (
                   <MenuItem key={s.id} value={s.id} disabled={s.status !== 'connected'}>
                     {s.name} ({s.status})
                   </MenuItem>
@@ -226,7 +226,7 @@ export default function BuildTemplatePage() {
                 onChange={(e) => setSourceVolume(e.target.value)}
                 helperText={
                   images.length === 0
-                    ? "No cloud images on this server — download one into a datastore's import content first"
+                    ? "No cloud images on this hypervisor — download one into a datastore's import content first"
                     : 'qcow2/raw images in a datastore’s import content'
                 }
                 fullWidth
@@ -251,7 +251,7 @@ export default function BuildTemplatePage() {
                 }
               >
                 {images.length === 0
-                  ? 'No cloud images on this server yet — import one from your distro’s cloud-image site first.'
+                  ? 'No cloud images on this hypervisor yet — import one from your distro’s cloud-image site first.'
                   : 'Need another? Import one from a URL or upload it.'}
               </Alert>
             </>

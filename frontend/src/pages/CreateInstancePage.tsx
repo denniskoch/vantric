@@ -50,7 +50,7 @@ export default function CreateInstancePage() {
 
   // Machine configuration
   const [name, setName] = useState('')
-  const [hypervisorId, setServerId] = useState('')
+  const [hypervisorId, setHypervisorId] = useState('')
   const [node, setZone] = useState('')
   const [cpus, setCpus] = useState(2)
   const [memoryMb, setMemoryMb] = useState(2048)
@@ -111,7 +111,7 @@ export default function CreateInstancePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template])
 
-  const { data: servers = [] } = useQuery({ queryKey: ['hypervisors'], queryFn: api.listHypervisors })
+  const { data: hypervisors = [] } = useQuery({ queryKey: ['hypervisors'], queryFn: api.listHypervisors })
   const { data: nodes = [] } = useQuery({
     queryKey: ['nodes', hypervisorId],
     queryFn: () => api.listNodes(hypervisorId),
@@ -128,13 +128,13 @@ export default function CreateInstancePage() {
   const zoneBridges = bridges.filter((b) => b.hypervisorId === hypervisorId && b.node === node)
   const bridge = zoneBridges.find((b) => b.name === netBridge)
 
-  const connected = servers.filter((s) => s.status === 'connected')
+  const connected = hypervisors.filter((s) => s.status === 'connected')
   if (!hypervisorId && connected.length > 0) {
-    setServerId(connected[0].id)
+    setHypervisorId(connected[0].id)
   }
 
-  const selectServer = (id: string) => {
-    setServerId(id)
+  const selectHypervisor = (id: string) => {
+    setHypervisorId(id)
     setZone('')
     setImageId('')
   }
@@ -173,9 +173,9 @@ export default function CreateInstancePage() {
   const osValid = Boolean(imageId) && diskGb >= 1
   const valid = machineValid && osValid
 
-  const hypervisorName = servers.find((s) => s.id === hypervisorId)?.name
+  const hypervisorName = hypervisors.find((s) => s.id === hypervisorId)?.name
   // Templates, read for what they are. The family list is whatever is
-  // actually on the server — a lab shows what it has, not a catalogue
+  // actually on the hypervisor — a lab shows what it has, not a catalogue
   // of what it could have.
   const identified = images.map((img) => ({ img, id: templateIdentity(img) }))
   const families = [...new Set(identified.map((i) => i.id.family))].sort((a, b) =>
@@ -210,7 +210,7 @@ export default function CreateInstancePage() {
       label: 'Machine configuration',
       summary: machineValid
         ? `${cpus} vCPU, ${formatMemory(memoryMb)}, ${hypervisorName}/${node}`
-        : 'Name, server, node, size',
+        : 'Name, hypervisor, node, size',
       invalid: !machineValid,
     },
     {
@@ -313,19 +313,19 @@ export default function CreateInstancePage() {
                 fullWidth
               />
               <TextField
-                label="Server"
+                label="Hypervisor"
                 size="small"
                 select
                 value={hypervisorId}
-                onChange={(e) => selectServer(e.target.value)}
+                onChange={(e) => selectHypervisor(e.target.value)}
                 helperText={
-                  servers.length === 0
+                  hypervisors.length === 0
                     ? 'No hypervisors registered — add one under Settings → Hypervisors'
                     : undefined
                 }
                 fullWidth
               >
-                {servers.map((s) => (
+                {hypervisors.map((s) => (
                   <MenuItem key={s.id} value={s.id} disabled={s.status !== 'connected'}>
                     {s.name} ({s.status})
                   </MenuItem>
@@ -396,10 +396,10 @@ export default function CreateInstancePage() {
                 disabled={!hypervisorId}
                 helperText={
                   !hypervisorId
-                    ? 'Select a server first (Machine configuration)'
+                    ? 'Select a hypervisor first (Machine configuration)'
                     : images.length === 0
-                      ? 'No templates found on this server'
-                      : 'Read from the templates on this server'
+                      ? 'No templates found on this hypervisor'
+                      : 'Read from the templates on this hypervisor'
                 }
                 fullWidth
               >
