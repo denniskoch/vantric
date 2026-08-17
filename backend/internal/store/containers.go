@@ -10,20 +10,20 @@ import (
 // Container is a system container (LXC). Kept separate from Instance:
 // containers list, provision, and behave differently from VMs.
 type Container struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	HypervisorID    string    `json:"hypervisorId"`
-	Node        string    `json:"node"`
-	CPUs        int       `json:"cpus"`
-	MemoryMB    int       `json:"memoryMb"`
-	DiskGB      int       `json:"diskGb"`
-	Status      string    `json:"status"`
-	DriverID    string    `json:"driverId"`
-	InternalIP  string    `json:"internalIp"`
-	Description string    `json:"description"`
-	Protected   bool      `json:"protected"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	ID           string    `json:"id"`
+	Name         string    `json:"name"`
+	HypervisorID string    `json:"hypervisorId"`
+	Node         string    `json:"node"`
+	CPUs         int       `json:"cpus"`
+	MemoryMB     int       `json:"memoryMb"`
+	DiskGB       int       `json:"diskGb"`
+	Status       string    `json:"status"`
+	DriverID     string    `json:"driverId"`
+	InternalIP   string    `json:"internalIp"`
+	Description  string    `json:"description"`
+	Protected    bool      `json:"protected"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
 }
 
 const containerCols = `id, name, hypervisor_id, node, cpus, memory_mb, disk_gb,
@@ -116,5 +116,32 @@ func (s *Store) SetContainerProtection(ctx context.Context, id string, protected
 
 func (s *Store) DeleteContainer(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM containers WHERE id = ?`, id)
+	return err
+}
+
+// GetContainerByDriverID finds the record for one container on one
+// hypervisor, whatever it ended up being called — which is how the
+// create flow recognises a container the reconciler adopted while it was
+// still working.
+func (s *Store) GetContainerByDriverID(ctx context.Context, hypervisorID, driverID string) (*Container, error) {
+	ct, err := scanContainer(s.db.QueryRowContext(ctx,
+		`SELECT `+containerCols+` FROM containers WHERE hypervisor_id = ? AND driver_id = ?`,
+		hypervisorID, driverID).Scan)
+	if err == sql.ErrNoRows {
+		return nil, ErrNotFound
+	}
+	return ct, err
+}
+
+// ClaimContainer takes over a record the reconciler adopted a moment
+// before this app's own create finished writing one — the same race
+// ClaimInstance exists for, and it bites harder here because a container
+// is created in seconds and the sweep runs every two.
+func (s *Store) ClaimContainer(ctx context.Context, c *Container) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE containers SET name = ?, driver_id = ?, node = ?, cpus = ?, memory_mb = ?,
+		 disk_gb = ?, description = ?, protected = ?, updated_at = ? WHERE id = ?`,
+		c.Name, c.DriverID, c.Node, c.CPUs, c.MemoryMB, c.DiskGB, c.Description,
+		boolInt(c.Protected), now(), c.ID)
 	return err
 }

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"vantric/internal/hypervisor"
 )
@@ -134,4 +135,107 @@ func (d *Driver) DeleteContainer(ctx context.Context, driverID string) error {
 		d.mu.Unlock()
 	}
 	return err
+}
+
+// CreateContainer provisions an LXC from a root-filesystem template.
+//
+// This is NOT the VM path with different keys. Creating a VM is a CLONE:
+// Proxmox copies a template guest that already carries a login, keys,
+// sizing and a disk, so the form is mostly overrides. A container is
+// built from a tarball that carries none of that, so every setting is
+// stated here — and the addressing goes on the interface itself rather
+// than through cloud-init, so it applies whether or not anything inside
+// the container cooperates.
+func (d *Driver) CreateContainer(ctx context.Context, spec hypervisor.ContainerSpec) (string, error) {
+	var nextID string
+	if err := d.do(ctx, http.MethodGet, "/cluster/nextid", nil, &nextID); err != nil {
+		return "", fmt.Errorf("allocating vmid: %w", err)
+	}
+
+	form := url.Values{
+		"vmid":       {nextID},
+		"hostname":   {spec.Name},
+		"ostemplate": {spec.Template},
+		"cores":      {strconv.Itoa(spec.CPUs)},
+		"memory":     {strconv.Itoa(spec.MemoryMB)},
+		// rootfs is "<storage>:<size in GiB>" on create — the only place
+		// in this API where a size is written as a bare number.
+		"rootfs": {fmt.Sprintf("%s:%d", spec.Storage, spec.DiskGB)},
+	}
+	// Swap is 0 by default rather than Proxmox's 512: a lab container
+	// swapping out of the host's memory is a surprise, and pve1 is
+	// already at its limit. Asked for explicitly, it's honoured.
+	form.Set("swap", strconv.Itoa(spec.SwapMB))
+	if spec.Unprivileged {
+		form.Set("unprivileged", "1")
+	}
+	if spec.Nesting {
+		// The one feature flag a lab actually reaches for — Docker in a
+		// container needs it.
+		form.Set("features", "nesting=1")
+	}
+	if spec.StartOnBoot {
+		form.Set("onboot", "1")
+	}
+	if spec.Password != "" {
+		form.Set("password", spec.Password) // hashed by Proxmox
+	}
+	if spec.SSHKeys != "" {
+		form.Set("ssh-public-keys", spec.SSHKeys)
+	}
+	if spec.Nameservers != "" {
+		form.Set("nameserver", spec.Nameservers)
+	}
+	if spec.SearchDomain != "" {
+		form.Set("searchdomain", spec.SearchDomain)
+	}
+	if spec.Description != "" {
+		form.Set("description", spec.Description)
+	}
+	if net := containerNIC(spec); net != "" {
+		form.Set("net0", net)
+	}
+
+	path := fmt.Sprintf("/nodes/%s/lxc", spec.Node)
+	if err := d.do(ctx, http.MethodPost, path, form, nil); err != nil {
+		return "", err
+	}
+	d.mu.Lock()
+	d.nodeOf[nextID] = spec.Node
+	d.mu.Unlock()
+	return nextID, nil
+}
+
+// containerNIC renders net0. A container's NIC carries its ADDRESSING as
+// well as its bridge, which a VM's does not — that's the shape
+// difference to remember when reading this beside the VM create.
+func containerNIC(spec hypervisor.ContainerSpec) string {
+	if spec.NetworkBridge == "" {
+		return ""
+	}
+	parts := []string{"name=eth0", "bridge=" + spec.NetworkBridge}
+	if spec.VLANTag > 0 {
+		parts = append(parts, "tag="+strconv.Itoa(spec.VLANTag))
+	}
+	switch {
+	case spec.IP.DHCP:
+		parts = append(parts, "ip=dhcp")
+	case spec.IP.Address != "":
+		parts = append(parts, "ip="+spec.IP.Address)
+		if spec.IP.Gateway != "" {
+			parts = append(parts, "gw="+spec.IP.Gateway)
+		}
+	}
+	switch {
+	case spec.IP.DHCP6:
+		parts = append(parts, "ip6=dhcp")
+	case spec.IP.SLAAC:
+		parts = append(parts, "ip6=auto")
+	case spec.IP.Address6 != "":
+		parts = append(parts, "ip6="+spec.IP.Address6)
+		if spec.IP.Gateway6 != "" {
+			parts = append(parts, "gw6="+spec.IP.Gateway6)
+		}
+	}
+	return strings.Join(parts, ",")
 }

@@ -334,6 +334,58 @@ type InstanceSpec struct {
 	Serial string
 }
 
+// ContainerSpec describes a container to create.
+//
+// It is NOT InstanceSpec with a different name. A VM is cloned from a
+// template that already carries a login, keys, sizing and a disk, so
+// most of InstanceSpec is optional and blanks mean "inherit". A
+// container is built from a root-filesystem tarball that carries none
+// of that: everything here has to be stated, and there is nothing to
+// inherit from.
+type ContainerSpec struct {
+	Name string
+	Node string
+	// Template is a CT template volume id, e.g.
+	// "local:vztmpl/debian-13-standard_13.0-1_amd64.tar.zst".
+	Template string
+	CPUs      int
+	MemoryMB  int
+	// SwapMB is a container-only setting: an LXC gets its own swap
+	// allowance out of the host's, where a VM swaps inside its own disk.
+	SwapMB int
+	DiskGB int
+	// Storage is the pool the root filesystem is created on. A VM
+	// inherits this from the template it clones; a container has no
+	// template disk, so it must be chosen.
+	Storage string
+
+	NetworkBridge string
+	VLANTag       int
+	// IP is the container's addressing. Proxmox configures this on the
+	// interface directly rather than through cloud-init, so it applies
+	// whether or not anything inside the container cooperates.
+	IP IPConfig
+	// Nameservers and SearchDomain override what the host passes down.
+	Nameservers  string
+	SearchDomain string
+
+	// Password is the root password, sent to the hypervisor to hash.
+	Password string
+	// SSHKeys are authorized public keys for root, one per line.
+	SSHKeys string
+
+	// Unprivileged is the safe default and the reason it's a field: a
+	// privileged container shares the host's user namespace, so root
+	// inside is root outside if it escapes.
+	Unprivileged bool
+	// Nesting allows running containers (or Docker) inside this one,
+	// which is the usual reason a lab container needs a feature flag.
+	Nesting bool
+	// StartOnBoot maps to Proxmox's onboot.
+	StartOnBoot bool
+	Description string
+}
+
 // NIC is one virtual network interface of an instance.
 type NIC struct {
 	Name      string `json:"name"`  // net0
@@ -617,6 +669,12 @@ type GuestProvisioner interface {
 //	cd, ok := driver.(hypervisor.ContainerDriver)
 type ContainerDriver interface {
 	CTTemplates(ctx context.Context) ([]CTTemplate, error)
+	// CreateContainer provisions from a root-filesystem template. Unlike
+	// Create for a VM this is not a clone — there is no template guest
+	// to copy, so every setting is passed rather than inherited, which
+	// is why ContainerSpec carries fields InstanceSpec leaves to the
+	// image.
+	CreateContainer(ctx context.Context, spec ContainerSpec) (driverID string, err error)
 	ListContainers(ctx context.Context) ([]InstanceState, error)
 	GetContainer(ctx context.Context, driverID string) (*InstanceState, error)
 	StartContainer(ctx context.Context, driverID string) error

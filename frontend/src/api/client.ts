@@ -270,6 +270,36 @@ export interface Container {
   updatedAt: string
 }
 
+/** What a container needs stated, since there is no template guest to
+ *  inherit from the way a VM clone does. */
+export interface ContainerRequest {
+  name: string
+  hypervisorId: string
+  node: string
+  /** A CT template volume id. */
+  template: string
+  /** Pool the root filesystem is created on. */
+  storage: string
+  cpus: number
+  memoryMb: number
+  swapMb: number
+  diskGb: number
+  netBridge: string
+  vlanTag: number
+  dhcp: boolean
+  address: string
+  gateway: string
+  nameservers: string
+  searchDomain: string
+  password: string
+  sshKeys: string
+  unprivileged: boolean
+  nesting: boolean
+  startOnBoot: boolean
+  description: string
+  protected: boolean
+}
+
 export type HypervisorType = 'proxmox' | 'mock'
 
 /** One thing worth someone's attention on the Cloud overview. */
@@ -1762,6 +1792,8 @@ export const api = {
       body: JSON.stringify({ protected: protectedFlag }),
     }),
 
+  createContainer: (body: ContainerRequest) =>
+    request<Operation>('/containers', { method: 'POST', body: JSON.stringify(body) }),
   listContainers: () => request<Container[]>('/containers'),
   getContainer: (name: string) => request<Container>(`/containers/${name}/`),
   containerAction: (name: string, action: 'start' | 'stop' | 'reset') =>

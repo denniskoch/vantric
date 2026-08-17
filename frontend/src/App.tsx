@@ -76,6 +76,7 @@ import SnapshotsPage from './pages/SnapshotsPage'
 import BackupsPage from './pages/BackupsPage'
 import ContainersPage from './pages/ContainersPage'
 import ContainerDetailPage from './pages/ContainerDetailPage'
+import CreateContainerPage from './pages/CreateContainerPage'
 import ISOsPage from './pages/ISOsPage'
 import CloudImagesPage from './pages/CloudImagesPage'
 import AddMediaPage, { isoKind, cloudImageKind } from './pages/AddMediaPage'
@@ -210,6 +211,7 @@ export default function App() {
         <Route path="/compute/instances/create" element={<RequireRole><CreateInstancePage /></RequireRole>} />
         <Route path="/compute/instances/:name" element={<InstanceDetailPage />} />
         <Route path="/compute/containers" element={<ContainersPage />} />
+        <Route path="/compute/containers/create" element={<RequireRole><CreateContainerPage /></RequireRole>} />
         <Route path="/compute/containers/:name" element={<ContainerDetailPage />} />
         <Route path="/compute/vm-templates" element={<VMTemplatesPage />} />
         <Route path="/compute/vm-templates/build" element={<RequireRole><BuildTemplatePage /></RequireRole>} />

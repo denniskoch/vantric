@@ -183,7 +183,7 @@ func (d *Driver) NodeMetrics(ctx context.Context, node string, timeframe hypervi
 		// keeps the mock honest about which charts can be drawn.
 		points = append(points, hypervisor.MetricPoint{
 			Time:           start + int64(i)*step,
-			CPUPercent:     status.CPUPercent * (0.8 + 0.3*math.Sin(phase)) + rand.Float64()*3,
+			CPUPercent:     status.CPUPercent*(0.8+0.3*math.Sin(phase)) + rand.Float64()*3,
 			MemoryBytes:    float64(status.MemoryUsedBytes) * (0.97 + 0.02*math.Sin(phase/3)),
 			MaxMemoryBytes: maxMem,
 			NetInBytes:     140000 + 60000*math.Sin(phase/2) + rand.Float64()*20000,
@@ -635,6 +635,36 @@ func (d *Driver) CTTemplates(ctx context.Context) ([]hypervisor.CTTemplate, erro
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return append([]hypervisor.CTTemplate{}, d.ctTemplates...), nil
+}
+
+// Compile-time proof the mock still speaks the whole capability. Without
+// it, adding a method to ContainerDriver silently drops the mock out of
+// the type assertion and containers become "unsupported" in
+// development, with nothing failing to build.
+var _ hypervisor.ContainerDriver = (*Driver)(nil)
+
+func (d *Driver) CreateContainer(ctx context.Context, spec hypervisor.ContainerSpec) (string, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.nextID++
+	id := fmt.Sprintf("%d", d.nextID)
+	d.cts[id] = &instance{
+		created: time.Now(),
+		uuid:    uuid.NewString(),
+		state: hypervisor.InstanceState{
+			DriverID: id,
+			Name:     spec.Name,
+			Node:     spec.Node,
+			Status:   hypervisor.StatusProvisioning,
+			CPUs:     spec.CPUs,
+			MemoryMB: spec.MemoryMB,
+			DiskGB:   spec.DiskGB,
+		},
+		// Faster than a VM, which is most of the point of a container.
+		next: hypervisor.StatusRunning,
+		at:   time.Now().Add(2 * time.Second),
+	}
+	return id, nil
 }
 
 func (d *Driver) ListContainers(ctx context.Context) ([]hypervisor.InstanceState, error) {

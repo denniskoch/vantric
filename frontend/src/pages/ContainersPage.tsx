@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link as RouterLink } from 'react-router-dom'
+import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
@@ -19,6 +19,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material'
+import AddBoxIcon from '@mui/icons-material/AddBox'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
@@ -40,6 +41,7 @@ import { settle } from '../bulk'
 export default function ContainersPage() {
   // Offered only where the API would allow it; see rbac.go.
   const { canEdit } = usePermissions()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
   const [menuContainer, setMenuContainer] = useState<Container | null>(null)
@@ -124,6 +126,16 @@ export default function ContainersPage() {
         title="Container instances"
         actions={
           <>
+            {canEdit && (
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<AddBoxIcon />}
+                onClick={() => navigate('/compute/containers/create')}
+              >
+                Create container
+              </Button>
+            )}
             <Button size="small" startIcon={<RefreshIcon />} onClick={() => refetch()}>
               Refresh
             </Button>

@@ -38,6 +38,7 @@ import type { Operation } from '../api/client'
  *  they're declared. */
 const affects: Record<string, string[]> = {
   instance: ['instances', 'instance', 'overview'],
+  container: ['containers', 'container', 'overview'],
   image: ['images', 'instances'],
   iso: ['isos'],
   cloudImage: ['cloudImages'],

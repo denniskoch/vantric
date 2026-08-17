@@ -1,14 +1,17 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 
 	"vantric/internal/hypervisor"
+	"vantric/internal/store"
 )
 
 // Container handlers. Containers (LXC) are a separate resource from VM
@@ -17,6 +20,7 @@ import (
 
 func (s *Server) containerRoutes(r chi.Router) {
 	r.Get("/containers", s.listContainersHandler)
+	r.Post("/containers", s.createContainer)
 	r.Route("/containers/{container}", func(r chi.Router) {
 		r.Get("/", s.getContainer)
 		r.Delete("/", s.deleteContainerHandler)
@@ -147,4 +151,161 @@ func (s *Server) deleteContainerHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// createContainer provisions an LXC.
+//
+// It mirrors createInstance in shape — validate, hand the slow part to
+// an operation, claim whatever the reconciler adopted meanwhile — but
+// not in content. There is no template guest to clone, so every setting
+// is stated rather than inherited, and the addressing goes on the
+// interface rather than through cloud-init.
+func (s *Server) createContainer(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name         string `json:"name"`
+		HypervisorID string `json:"hypervisorId"`
+		Node         string `json:"node"`
+		Template     string `json:"template"`
+		Storage      string `json:"storage"`
+		CPUs         int    `json:"cpus"`
+		MemoryMB     int    `json:"memoryMb"`
+		SwapMB       int    `json:"swapMb"`
+		DiskGB       int    `json:"diskGb"`
+		NetBridge    string `json:"netBridge"`
+		VLANTag      int    `json:"vlanTag"`
+		DHCP         bool   `json:"dhcp"`
+		Address      string `json:"address"`
+		Gateway      string `json:"gateway"`
+		Nameservers  string `json:"nameservers"`
+		SearchDomain string `json:"searchDomain"`
+		Password     string `json:"password"`
+		SSHKeys      string `json:"sshKeys"`
+		Unprivileged bool   `json:"unprivileged"`
+		Nesting      bool   `json:"nesting"`
+		StartOnBoot  bool   `json:"startOnBoot"`
+		Description  string `json:"description"`
+		Protected    bool   `json:"protected"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if !nameRe.MatchString(req.Name) {
+		s.err(w, http.StatusBadRequest,
+			"name must be lowercase letters, digits, hyphens (start with a letter)")
+		return
+	}
+	if req.Template == "" {
+		s.err(w, http.StatusBadRequest, "a container template is required")
+		return
+	}
+	if req.Storage == "" {
+		s.err(w, http.StatusBadRequest, "a storage pool for the root filesystem is required")
+		return
+	}
+	if req.Node == "" {
+		s.err(w, http.StatusBadRequest, "a node is required")
+		return
+	}
+	// A container has no template disk to inherit a size from, so these
+	// are floors rather than fallbacks-for-blank.
+	if req.CPUs <= 0 {
+		req.CPUs = 1
+	}
+	if req.MemoryMB <= 0 {
+		req.MemoryMB = 512
+	}
+	if req.DiskGB <= 0 {
+		req.DiskGB = 8
+	}
+	// Neither a password nor a key means a container nobody can log in
+	// to. Proxmox allows it; a console shouldn't hand it to you silently.
+	if req.Password == "" && req.SSHKeys == "" {
+		s.err(w, http.StatusBadRequest,
+			"set a root password or an SSH key, or there is no way in")
+		return
+	}
+	if existing, err := s.store.GetContainer(r.Context(), req.Name); err == nil && existing != nil {
+		s.err(w, http.StatusConflict, "a container with this name already exists")
+		return
+	}
+	cd := s.containerDriver(w, req.HypervisorID)
+	if cd == nil {
+		return
+	}
+
+	spec := hypervisor.ContainerSpec{
+		Name:          req.Name,
+		Node:          req.Node,
+		Template:      req.Template,
+		Storage:       req.Storage,
+		CPUs:          req.CPUs,
+		MemoryMB:      req.MemoryMB,
+		SwapMB:        req.SwapMB,
+		DiskGB:        req.DiskGB,
+		NetworkBridge: req.NetBridge,
+		VLANTag:       req.VLANTag,
+		IP: hypervisor.IPConfig{
+			DHCP:    req.DHCP,
+			Address: req.Address,
+			Gateway: req.Gateway,
+		},
+		Nameservers:  req.Nameservers,
+		SearchDomain: req.SearchDomain,
+		Password:     req.Password,
+		SSHKeys:      req.SSHKeys,
+		Unprivileged: req.Unprivileged,
+		Nesting:      req.Nesting,
+		StartOnBoot:  req.StartOnBoot,
+		Description:  req.Description,
+	}
+
+	op := s.ops.start("Creating container "+req.Name, "container", req.Name,
+		req.HypervisorID, "/compute/containers/"+req.Name)
+	s.run(op, "Container created", func(ctx context.Context, step func(string)) error {
+		step("Extracting " + req.Template)
+		driverID, err := cd.CreateContainer(ctx, spec)
+		if err != nil {
+			return err
+		}
+		step("Recording the container")
+		if err := s.saveNewContainer(ctx, &store.Container{
+			ID:           uuid.NewString(),
+			Name:         req.Name,
+			HypervisorID: req.HypervisorID,
+			Node:         req.Node,
+			CPUs:         req.CPUs,
+			MemoryMB:     req.MemoryMB,
+			DiskGB:       req.DiskGB,
+			Status:       string(hypervisor.StatusProvisioning),
+			DriverID:     driverID,
+			Description:  req.Description,
+			Protected:    req.Protected,
+		}); err != nil {
+			return err
+		}
+		// A container starts in seconds rather than minutes, so this is
+		// one attempt rather than the retry loop a clone needs — but it
+		// is still a STEP of the create, so a failure to start says so
+		// instead of leaving a built container sitting stopped.
+		step("Starting " + req.Name)
+		return cd.StartContainer(ctx, driverID)
+	})
+	s.json(w, http.StatusAccepted, op)
+}
+
+// saveNewContainer writes the record, or takes over the one the
+// reconciler adopted while the container was being created. Same race as
+// saveNewInstance, tighter: a container appears in seconds.
+func (s *Server) saveNewContainer(ctx context.Context, ct *store.Container) error {
+	if adopted, err := s.store.GetContainerByDriverID(ctx, ct.HypervisorID, ct.DriverID); err == nil {
+		ct.ID = adopted.ID
+		if err := s.store.ClaimContainer(ctx, ct); err != nil {
+			return err
+		}
+		s.log.Info("claimed a container the reconciler adopted mid-create",
+			"name", ct.Name, "adoptedAs", adopted.Name, "driverId", ct.DriverID)
+		return nil
+	}
+	return s.store.CreateContainer(ctx, ct)
 }
