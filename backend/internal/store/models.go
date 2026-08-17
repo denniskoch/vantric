@@ -10,22 +10,22 @@ import (
 var ErrNotFound = errors.New("store: not found")
 
 type Instance struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	HypervisorID    string `json:"hypervisorId"`
-	Node        string `json:"node"`
-	CPUs        int    `json:"cpus"`
-	MemoryMB    int    `json:"memoryMb"`
-	DiskGB      int    `json:"diskGb"`
-	ImageID     string `json:"imageId"`
-	Status      string `json:"status"`
-	DriverID    string `json:"driverId"`
-	InternalIP  string `json:"internalIp"`
-	ExternalIP  string `json:"externalIp"`
-	NetBridge   string `json:"netBridge"`
-	VLANTag     int    `json:"vlanTag"`
-	Description string `json:"description"`
-	Protected   bool   `json:"protected"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	HypervisorID string `json:"hypervisorId"`
+	Node         string `json:"node"`
+	CPUs         int    `json:"cpus"`
+	MemoryMB     int    `json:"memoryMb"`
+	DiskGB       int    `json:"diskGb"`
+	ImageID      string `json:"imageId"`
+	Status       string `json:"status"`
+	DriverID     string `json:"driverId"`
+	InternalIP   string `json:"internalIp"`
+	ExternalIP   string `json:"externalIp"`
+	NetBridge    string `json:"netBridge"`
+	VLANTag      int    `json:"vlanTag"`
+	Description  string `json:"description"`
+	Protected    bool   `json:"protected"`
 	// OSType is the hypervisor's guest-type hint (Proxmox's l26, win11,
 	// …). Filled in once per instance, and only used to decide whether
 	// "connect" means SSH or RDP.

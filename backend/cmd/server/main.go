@@ -25,6 +25,8 @@ import (
 	inventoryfactory "vantric/internal/inventory/factory"
 	"vantric/internal/network"
 	networkfactory "vantric/internal/network/factory"
+	"vantric/internal/storage"
+	storagefactory "vantric/internal/storage/factory"
 	"vantric/internal/store"
 )
 
@@ -79,11 +81,13 @@ func main() {
 
 	inventoryRegistry := inventory.NewRegistry()
 	loadInventoryRegistry(ctx, st, inventoryRegistry, log)
+	storageRegistry := storage.NewRegistry()
+	loadStorageRegistry(ctx, st, storageRegistry, log)
 
 	// The console's SSH key lives beside the database.
 	dataDir := filepath.Dir(cfg.Database.DSN)
 	server := api.New(st, registry, dnsRegistry, dbRegistry, identityRegistry,
-		networkRegistry, inventoryRegistry, log, cfg.StaticDir, dataDir, cfg.SiteURL,
+		networkRegistry, inventoryRegistry, storageRegistry, log, cfg.StaticDir, dataDir, cfg.SiteURL,
 		api.SSHOptions{Provision: cfg.SSH.Provision, Sudo: cfg.SSH.ProvisionSudo})
 	reconciler := api.NewReconciler(st, registry, log, 2*time.Second)
 	go reconciler.Run(ctx)
@@ -215,4 +219,21 @@ func loadInventoryRegistry(ctx context.Context, st *store.Store, registry *inven
 		registry.Set(providers[i].ID, provider)
 	}
 	log.Info("inventory registry loaded", "providers", len(providers))
+}
+
+func loadStorageRegistry(ctx context.Context, st *store.Store, registry *storage.Registry, log *slog.Logger) {
+	providers, err := st.ListStorageProviders(ctx)
+	if err != nil {
+		log.Error("listing storage providers", "error", err)
+		return
+	}
+	for i := range providers {
+		provider, err := storagefactory.Build(&providers[i])
+		if err != nil {
+			log.Error("building storage provider", "provider", providers[i].Name, "error", err)
+			continue
+		}
+		registry.Set(providers[i].ID, provider)
+	}
+	log.Info("storage registry loaded", "providers", len(providers))
 }

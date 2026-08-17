@@ -164,6 +164,20 @@ var migrations = []string{
 		insecure_tls INTEGER NOT NULL DEFAULT 0,
 		created_at TEXT NOT NULL
 	)`,
+	// S3-compatible object stores. Several are supported for the same
+	// reason several hypervisors are: a lab may run one for backups and
+	// another for whatever it serves.
+	`CREATE TABLE IF NOT EXISTS storage_providers (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL UNIQUE,
+		type TEXT NOT NULL,
+		base_url TEXT NOT NULL DEFAULT '',
+		access_key TEXT NOT NULL DEFAULT '',
+		secret_key TEXT NOT NULL DEFAULT '',
+		region TEXT NOT NULL DEFAULT '',
+		insecure_tls INTEGER NOT NULL DEFAULT 0,
+		created_at TEXT NOT NULL
+	)`,
 	`CREATE TABLE IF NOT EXISTS network_providers (
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL UNIQUE,

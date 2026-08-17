@@ -23,6 +23,7 @@ import (
 	"vantric/internal/inventory"
 	"vantric/internal/network"
 	"vantric/internal/nvd"
+	"vantric/internal/storage"
 	"vantric/internal/store"
 )
 
@@ -46,6 +47,8 @@ type Server struct {
 	identityRegistry *identity.Registry
 	// networkRegistry holds the live network controllers (UniFi).
 	networkRegistry *network.Registry
+	// storageRegistry holds the live object stores (RustFS).
+	storageRegistry *storage.Registry
 	// inventoryRegistry holds the live device inventory services
 	// (FleetDM) — what's installed inside the guests.
 	inventoryRegistry *inventory.Registry
@@ -82,6 +85,7 @@ func New(
 	identityRegistry *identity.Registry,
 	networkRegistry *network.Registry,
 	inventoryRegistry *inventory.Registry,
+	storageRegistry *storage.Registry,
 	log *slog.Logger,
 	staticDir string,
 	dataDir string,
@@ -93,6 +97,7 @@ func New(
 		store: st, registry: registry, dnsRegistry: dnsRegistry, dbRegistry: dbRegistry,
 		identityRegistry: identityRegistry, networkRegistry: networkRegistry,
 		inventoryRegistry: inventoryRegistry,
+		storageRegistry:   storageRegistry,
 		nvd:               client,
 		log:               log, staticDir: staticDir, dataDir: dataDir, siteURL: siteURL, ssh: sshOpts,
 		ops: newOpRegistry(),
@@ -207,6 +212,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		s.networkRoutes(r)
 		s.inventoryRoutes(r)
 		s.installerRoutes(r)
+		s.storageRoutes(r)
 
 		r.Get("/instances", s.listInstances)
 		r.Post("/instances", s.createInstance)
@@ -381,19 +387,19 @@ func (s *Server) instanceOSInfo(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name        string           `json:"name"`
-		HypervisorID    string           `json:"hypervisorId"`
-		Node        string           `json:"node"`
-		CPUs        int              `json:"cpus"`
-		MemoryMB    int              `json:"memoryMb"`
-		DiskGB      int              `json:"diskGb"`
-		ImageID     string           `json:"imageId"`
-		NetBridge   string           `json:"netBridge"`
-		VLANTag     int              `json:"vlanTag"`
-		CloudInit   cloudInitRequest `json:"cloudInit"`
-		Description string           `json:"description"`
-		Serial      string           `json:"serial"`
-		Protected   bool             `json:"protected"`
+		Name         string           `json:"name"`
+		HypervisorID string           `json:"hypervisorId"`
+		Node         string           `json:"node"`
+		CPUs         int              `json:"cpus"`
+		MemoryMB     int              `json:"memoryMb"`
+		DiskGB       int              `json:"diskGb"`
+		ImageID      string           `json:"imageId"`
+		NetBridge    string           `json:"netBridge"`
+		VLANTag      int              `json:"vlanTag"`
+		CloudInit    cloudInitRequest `json:"cloudInit"`
+		Description  string           `json:"description"`
+		Serial       string           `json:"serial"`
+		Protected    bool             `json:"protected"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		s.err(w, http.StatusBadRequest, "invalid JSON body")
@@ -470,20 +476,20 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		}
 		step("Recording the instance")
 		if err := s.saveNewInstance(ctx, &store.Instance{
-			ID:          uuid.NewString(),
-			Name:        req.Name,
-			HypervisorID:    req.HypervisorID,
-			Node:        req.Node,
-			CPUs:        req.CPUs,
-			MemoryMB:    req.MemoryMB,
-			DiskGB:      req.DiskGB,
-			ImageID:     req.ImageID,
-			Status:      string(hypervisor.StatusProvisioning),
-			DriverID:    driverID,
-			NetBridge:   req.NetBridge,
-			VLANTag:     req.VLANTag,
-			Description: req.Description,
-			Protected:   req.Protected,
+			ID:           uuid.NewString(),
+			Name:         req.Name,
+			HypervisorID: req.HypervisorID,
+			Node:         req.Node,
+			CPUs:         req.CPUs,
+			MemoryMB:     req.MemoryMB,
+			DiskGB:       req.DiskGB,
+			ImageID:      req.ImageID,
+			Status:       string(hypervisor.StatusProvisioning),
+			DriverID:     driverID,
+			NetBridge:    req.NetBridge,
+			VLANTag:      req.VLANTag,
+			Description:  req.Description,
+			Protected:    req.Protected,
 		}); err != nil {
 			return err
 		}
