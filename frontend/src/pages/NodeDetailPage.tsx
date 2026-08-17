@@ -133,7 +133,7 @@ export default function NodeDetailPage() {
                     value: (
                       <Link
                         component={RouterLink}
-                        to="/compute/settings/hypervisors"
+                        to="/compute/hypervisors"
                         underline="hover"
                       >
                         {hypervisorName(status.hypervisorId)}

@@ -242,10 +242,11 @@ export default function App() {
         {/* A node name is unique only within its server, so both
             address one host. */}
         <Route path="/compute/nodes/:server/:node" element={<NodeDetailPage />} />
-        <Route path="/compute/settings/hypervisors" element={<RequireRole admin><HypervisorsPage /></RequireRole>} />
-        <Route path="/compute/hypervisors" element={<Navigate to="/compute/settings/hypervisors" replace />} />
-        <Route path="/compute/settings/hypervisors/add" element={<RequireRole admin><HypervisorFormPage /></RequireRole>} />
-        <Route path="/compute/settings/hypervisors/:id/edit" element={<RequireRole admin><HypervisorFormPage /></RequireRole>} />
+        <Route path="/compute/hypervisors" element={<RequireRole admin><HypervisorsPage /></RequireRole>} />
+        <Route path="/compute/hypervisors/add" element={<RequireRole admin><HypervisorFormPage /></RequireRole>} />
+        <Route path="/compute/hypervisors/:id/edit" element={<RequireRole admin><HypervisorFormPage /></RequireRole>} />
+        {/* The old address, from when this lived under Settings. */}
+        <Route path="/compute/settings/hypervisors" element={<Navigate to="/compute/hypervisors" replace />} />
       </Route>
     </Routes>
   )

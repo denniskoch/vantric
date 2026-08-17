@@ -157,12 +157,13 @@ export const sections: Section[] = [
         ],
       },
       {
-        // The backend and what it exposes. Hypervisors are credentials,
-        // the same shape as DNS providers; nodes are the hosts those
-        // credentials reach — infrastructure you check when something
-        // is wrong, rather than a place you work, which is why this is
-        // the bottom of the nav and not the top.
-        label: 'Settings',
+        // NOT "Settings", which every other section uses for the one
+        // thing it holds: credentials. This group holds two things and
+        // neither is a preference — a node is a read-only host, a
+        // hypervisor is a stored credential. It sits at the bottom
+        // because it's what you check when something is wrong, not
+        // where you work.
+        label: 'Infrastructure',
         items: [
           {
             label: 'Nodes',
@@ -173,7 +174,7 @@ export const sections: Section[] = [
           {
             label: 'Hypervisors',
             icon: DnsIcon,
-            to: '/compute/settings/hypervisors',
+            to: '/compute/hypervisors',
             hint: 'Virtualization hosts backing everything else',
           },
         ],

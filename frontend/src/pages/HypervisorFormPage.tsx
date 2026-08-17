@@ -16,7 +16,7 @@ const emptyForm: HypervisorRequest = {
   insecureTls: true,
 }
 
-const backTo = '/compute/settings/hypervisors'
+const backTo = '/compute/hypervisors'
 
 function HypervisorForm({ editing }: { editing: Hypervisor | null }) {
   const navigate = useNavigate()

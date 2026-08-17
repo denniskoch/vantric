@@ -105,7 +105,7 @@ export default function HypervisorsPage() {
         title="Hypervisors"
         actions={
           <>
-            <Button variant="contained" size="small" startIcon={<AddBoxIcon />} onClick={() => navigate('/compute/settings/hypervisors/add')}>
+            <Button variant="contained" size="small" startIcon={<AddBoxIcon />} onClick={() => navigate('/compute/hypervisors/add')}>
               Add hypervisor
             </Button>
           </>
@@ -153,7 +153,7 @@ export default function HypervisorsPage() {
                   {hypervisor.status === 'connected' ? hypervisor.nodes : '—'}
                 </TableCell>
                 <TableCell align="right">
-                  <IconButton size="small" onClick={() => navigate(`/compute/settings/hypervisors/${hypervisor.id}/edit`)}>
+                  <IconButton size="small" onClick={() => navigate(`/compute/hypervisors/${hypervisor.id}/edit`)}>
                     <EditIcon fontSize="small" />
                   </IconButton>
                   <IconButton

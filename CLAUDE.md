@@ -53,28 +53,49 @@ Surface the daily 90% here and link out for the rest.
   `internal/hypervisor/*` may import Proxmox specifics. New backends
   implement Driver and register in `internal/hypervisor/factory`
   (`factory.Types` + `Build`) — that alone exposes them in the API and the
-  Servers GUI type dropdown.
-- Servers (virtualization hosts) are DB records managed in the GUI
-  (Compute → Settings → Hypervisors; they are backend credentials, the
-  same shape as DNS providers), one live driver per server held in
-  `hypervisor.Registry` keyed by server ID. Catalog listings (zones,
+  Hypervisors GUI type dropdown.
+- WHAT THINGS ARE CALLED, since two of these were renamed and the old
+  words are still in the git history. A HYPERVISOR is a stored
+  credential for a virtualization backend — `store.Hypervisor`, the
+  `hypervisors` table, `hypervisorId` in JSON, `/hypervisors` in the
+  API. It was "server", which was vague and already meant two other
+  things here (a database server, and this app's own `api.Server`). A
+  NODE is one host that credential reaches, and what a guest is placed
+  on — `hypervisor.Node`, `/nodes`, the `node` column. It was "zone",
+  borrowed from GCP where a zone is a datacenter holding thousands of
+  machines rather than the single box this names. DNS ZONES are
+  unrelated and keep the word, which is exactly what DNS means by it.
+- Hypervisors are DB records managed in the GUI (Compute →
+  Infrastructure → Hypervisors; they are backend credentials, the same
+  shape as DNS providers), one live driver per record held in
+  `hypervisor.Registry` keyed by hypervisor ID. Catalog listings (nodes,
   images, disks, snapshots, isos, ct-templates, datastores) span ALL
-  servers by default and stamp each item with its `serverId`, so list
-  pages show a Server column instead of a server filter — see
-  `listAcrossServers` in internal/api/catalog.go. `?server=` narrows to
-  one server; the create flows use it since placement is per-server. A
-  server that errors is skipped and logged, not fatal to the page.
-  Removing a server is a DISCONNECT: it drops the server's instance and
-  container records in the same transaction (they mirror the driver and
-  mean nothing without it) and never touches the hypervisor, so the
-  guests keep running and re-adding the server re-adopts them. Refusing
-  until its guests are deleted would make forgetting a credential the
-  most dangerous button in the app.
+  hypervisors by default and stamp each item with its `hypervisorId` —
+  see `listAcrossHypervisors` in internal/api/catalog.go.
+  `?hypervisor=` narrows to one; the create flows use it since placement
+  is per-hypervisor. One that errors is skipped and logged, not fatal to
+  the page. Catalog TABLES show a Node column and not a hypervisor one:
+  a record fronts one node in the ordinary case, so both columns
+  answered the same question, and the node is the more specific answer.
+  Removing a hypervisor is a DISCONNECT: it drops that hypervisor's
+  instance and container records in the same transaction (they mirror
+  the driver and mean nothing without it) and never touches the
+  hypervisor itself, so the guests keep running and re-adding it
+  re-adopts them. Refusing until its guests are deleted would make
+  forgetting a credential the most dangerous button in the app.
   There is NO config path for adding one: hypervisors, like every other
   backend, are added in the UI once the app is up — two ways in, one of
   which silently applies only to an empty database, is a thing to
-  explain rather than a feature. Server secrets never leave the backend
+  explain rather than a feature. Secrets never leave the backend
   (`json:"-"`; API exposes `hasSecret`).
+- A NODE IS A RESOURCE, not just a placement dropdown. `/nodes` lists
+  every host across every hypervisor with the usage a host listing
+  already reports, and a node drills into the one page in this console
+  that describes the SUBSTRATE — CPU model, load, swap, and the host's
+  own root filesystem. Every other page can show healthy guests and a
+  half-empty datastore while the machine under them is out of memory.
+  It sits at the BOTTOM of the nav, under Infrastructure: it's what you
+  check when something is wrong, not where you work.
 - SIZING IS TYPED IN, not chosen from a catalog. Machine types were a
   GCP analogue (`hl-standard-2` and friends) that didn't earn its keep:
   a lab has one of everything, so "4 vCPU, 8 GB" is the answer rather
@@ -167,7 +188,7 @@ Surface the daily 90% here and link out for the rest.
   record as its identity, so it's how a record here lines up with a
   tool running inside the machine. It is also the only identifier that
   survives a rename, a migration and a vmid being REUSED — which is
-  why any future local metadata keys on serverId + uuid, never on the
+  why any future local metadata keys on hypervisorId + uuid, never on the
   vmid. Proxmox spells it inside `smbios1`, a list whose other fields
   may be base64; `smbiosUUID` parses it and is one of the repo's few
   tests, since an empty result would show up as a correlation that
@@ -223,7 +244,7 @@ Surface the daily 90% here and link out for the rest.
 - THE CREATE FLOW READS THE TEMPLATE rather than asking again. A
   template built here was given a login, keys, DNS and a size, and a
   clone inherits all of it — Proxmox copies the config — so
-  `GET /images/{id}?server=` describes the template and the form fills
+  `GET /images/{id}?hypervisor=` describes the template and the form fills
   its blanks from that. Only blanks: picking an image never overwrites
   something typed, and sizing stops following the template once the
   sizing fields have been touched. This pairs with the existing rule
@@ -275,12 +296,15 @@ Surface the daily 90% here and link out for the rest.
   asks often while there's no address (every 5th sweep, since a booting
   VM gets one in seconds) and slowly once there is (every 30th), which
   is one agent call a minute per running guest.
-- The reconciler also ADOPTS VMs found on a server that the app didn't
+- The reconciler also ADOPTS VMs found on a hypervisor that the app didn't
   create (they appear as instances with deletion protection enabled) and
   removes instances whose VM vanished out-of-band. Driver.List must be
   one cheap call; guest-agent IP lookups happen via Get, throttled.
 - Containers (LXC) are a SEPARATE resource from VM instances — separate
-  table, API (/containers), nav item, and pages — because they list and
+  table, API (/containers), nav item, and pages. The UI says CONTAINER,
+  not Proxmox's "CT" (which reads as nothing beside VM) and not "LXC"
+  (which would name the UI after one implementation of the capability
+  interface below) — because they list and
   provision differently. Container support is the optional
   hypervisor.ContainerDriver capability interface (type assertion), so
   future drivers without containers stay simple. Proxmox's
@@ -290,7 +314,7 @@ Surface the daily 90% here and link out for the rest.
   write them, this console lists what exists and removes what you no
   longer want. Listing is the optional `hypervisor.BackupDriver`
   capability (type assertion), so a driver without a backup catalog
-  stays simple and its servers contribute nothing rather than erroring.
+  stays simple and its hypervisors contribute nothing rather than erroring.
   A backup outlives its guest, so the archive carries the vmid and
   guest type; the name is resolved from the cluster where the guest
   still exists and left blank where it doesn't.

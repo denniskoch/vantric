@@ -105,7 +105,7 @@ export default function CloudOverviewPage() {
         <Stat
           label="Hypervisors"
           value={counts?.hypervisors}
-          to="/compute/settings/hypervisors"
+          to="/compute/hypervisors"
           loading={isLoading}
         />
         <Stat
