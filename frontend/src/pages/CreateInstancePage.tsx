@@ -51,7 +51,7 @@ export default function CreateInstancePage() {
   // Machine configuration
   const [name, setName] = useState('')
   const [serverId, setServerId] = useState('')
-  const [zone, setZone] = useState('')
+  const [node, setZone] = useState('')
   const [cpus, setCpus] = useState(2)
   const [memoryMb, setMemoryMb] = useState(2048)
   // OS and storage
@@ -112,9 +112,9 @@ export default function CreateInstancePage() {
   }, [template])
 
   const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
-  const { data: zones = [] } = useQuery({
-    queryKey: ['zones', serverId],
-    queryFn: () => api.listZones(serverId),
+  const { data: nodes = [] } = useQuery({
+    queryKey: ['nodes', serverId],
+    queryFn: () => api.listNodes(serverId),
     enabled: Boolean(serverId),
   })
   const { data: images = [] } = useQuery({
@@ -124,8 +124,8 @@ export default function CreateInstancePage() {
   })
   const { data: bridges = [] } = useQuery({ queryKey: ['bridges'], queryFn: api.listBridges })
 
-  // Bridges are per-node, so only the chosen zone's are attachable.
-  const zoneBridges = bridges.filter((b) => b.serverId === serverId && b.zone === zone)
+  // Bridges are per-node, so only the chosen node's are attachable.
+  const zoneBridges = bridges.filter((b) => b.serverId === serverId && b.node === node)
   const bridge = zoneBridges.find((b) => b.name === netBridge)
 
   const connected = servers.filter((s) => s.status === 'connected')
@@ -145,7 +145,7 @@ export default function CreateInstancePage() {
         serial: serial.trim() || name,
         name,
         serverId,
-        zone,
+        node,
         cpus,
         memoryMb,
         diskGb,
@@ -169,7 +169,7 @@ export default function CreateInstancePage() {
   const memoryError = memoryMb < 128 ? 'At least 128 MB' : ''
 
   const machineValid =
-    nameRe.test(name) && Boolean(serverId) && Boolean(zone) && !cpuError && !memoryError
+    nameRe.test(name) && Boolean(serverId) && Boolean(node) && !cpuError && !memoryError
   const osValid = Boolean(imageId) && diskGb >= 1
   const valid = machineValid && osValid
 
@@ -209,8 +209,8 @@ export default function CreateInstancePage() {
       id: 'machine',
       label: 'Machine configuration',
       summary: machineValid
-        ? `${cpus} vCPU, ${formatMemory(memoryMb)}, ${serverName}/${zone}`
-        : 'Name, server, zone, size',
+        ? `${cpus} vCPU, ${formatMemory(memoryMb)}, ${serverName}/${node}`
+        : 'Name, server, node, size',
       invalid: !machineValid,
     },
     {
@@ -332,15 +332,15 @@ export default function CreateInstancePage() {
                 ))}
               </TextField>
               <TextField
-                label="Zone"
+                label="Node"
                 size="small"
                 select
-                value={zone}
+                value={node}
                 onChange={(e) => setZone(e.target.value)}
                 disabled={!serverId}
                 fullWidth
               >
-                {zones.map((z) => (
+                {nodes.map((z) => (
                   <MenuItem key={z.id} value={z.id}>
                     {z.name} ({z.status})
                   </MenuItem>
@@ -423,7 +423,7 @@ export default function CreateInstancePage() {
                 disabled={!family}
                 helperText={
                   chosen
-                    ? `${chosen.img.name} · ${chosen.img.zone}${
+                    ? `${chosen.img.name} · ${chosen.img.node}${
                         chosen.img.architecture ? ` · ${chosen.img.architecture}` : ''
                       }${chosen.img.createdAt ? `, built ${builtOn(chosen.img.createdAt)}` : ''}`
                     : 'Which release to clone'
@@ -471,10 +471,10 @@ export default function CreateInstancePage() {
                 select
                 value={netBridge}
                 onChange={(e) => setNetBridge(e.target.value)}
-                disabled={!zone}
+                disabled={!node}
                 helperText={
-                  !zone
-                    ? 'Pick a zone first (Machine configuration)'
+                  !node
+                    ? 'Pick a node first (Machine configuration)'
                     : zoneBridges.length === 0
                       ? 'No bridges reported on this node'
                       : "Leave blank to keep the image's own network"

@@ -33,7 +33,7 @@ export default function DatastoresPage() {
             <TableRow>
               <TableCell>Status</TableCell>
               <TableCell>Name</TableCell>
-              <TableCell>Zone</TableCell>
+              <TableCell>Node</TableCell>
               <TableCell>Type</TableCell>
               <TableCell>Content</TableCell>
               <TableCell>Usage</TableCell>
@@ -53,7 +53,7 @@ export default function DatastoresPage() {
                   </Tooltip>
                 </TableCell>
                 <TableCell>{ds.name}</TableCell>
-                <TableCell>{ds.zone}</TableCell>
+                <TableCell>{ds.node}</TableCell>
                 <TableCell>{ds.type}</TableCell>
                 <TableCell sx={{ color: 'text.secondary', fontSize: 12 }}>{ds.content}</TableCell>
                 <TableCell>

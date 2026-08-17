@@ -231,7 +231,7 @@ export default function InstancesPage() {
               </TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Name</TableCell>
-              <TableCell>Zone</TableCell>
+              <TableCell>Node</TableCell>
               <TableCell>Internal IP</TableCell>
               <TableCell>External IP</TableCell>
               <TableCell>Connect</TableCell>
@@ -262,7 +262,7 @@ export default function InstancesPage() {
                     {inst.name}
                   </Link>
                 </TableCell>
-                <TableCell>{inst.zone}</TableCell>
+                <TableCell>{inst.node}</TableCell>
                 <TableCell>{inst.internalIp || '—'}</TableCell>
                 <TableCell>{inst.externalIp || '—'}</TableCell>
                 <TableCell>

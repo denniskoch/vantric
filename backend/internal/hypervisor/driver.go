@@ -22,9 +22,9 @@ const (
 // ErrNotFound is returned when a driver instance no longer exists.
 var ErrNotFound = errors.New("hypervisor: instance not found")
 
-// Zone is a placement target. On Proxmox this is a cluster node — a
+// Node is a placement target. On Proxmox this is a cluster node — a
 // real machine, which is why it carries usage as well as a name.
-type Zone struct {
+type Node struct {
 	// ServerID is filled in by the API layer, not the driver.
 	ServerID string `json:"serverId"`
 	ID       string `json:"id"`
@@ -32,7 +32,7 @@ type Zone struct {
 	Status   string `json:"status"`
 	// The usage below costs NOTHING EXTRA: a host listing reports it
 	// alongside the name we came for, and this app decoded only the
-	// name for as long as zones were nothing but a dropdown. Zero
+	// name for as long as nodes were nothing but a dropdown. Zero
 	// where the backend doesn't say.
 	CPUs             int     `json:"cpus"`
 	CPUPercent       float64 `json:"cpuPercent"`
@@ -44,7 +44,7 @@ type Zone struct {
 }
 
 // NodeStatus is a virtualization host's own description of itself,
-// read on demand for the zone detail view the way InstanceDetail is
+// read on demand for the node detail view the way InstanceDetail is
 // for a guest. It is the one thing in this console that describes the
 // SUBSTRATE rather than something running on it: every other page can
 // show a full datastore and a healthy guest while the host underneath
@@ -108,7 +108,7 @@ type Image struct {
 	ServerID string `json:"serverId"`
 	ID       string `json:"id"`
 	Name     string `json:"name"`
-	Zone     string `json:"zone"`
+	Node     string `json:"node"`
 	// Description is the hypervisor's notes field. Its first line is
 	// the template's friendly name where someone has written one — the
 	// only part of what a picker shows that a machine can't work out.
@@ -130,7 +130,7 @@ type Disk struct {
 	ID       string `json:"id"`      // driver-scoped, e.g. "101/scsi0"
 	Name     string `json:"name"`    // volume name, e.g. "vm-101-disk-0"
 	InUseBy  string `json:"inUseBy"` // VM name the disk is attached to
-	Zone     string `json:"zone"`
+	Node     string `json:"node"`
 	Storage  string `json:"storage"` // storage pool
 	SizeGB   int    `json:"sizeGb"`
 }
@@ -142,7 +142,7 @@ type Volume struct {
 	ServerID  string `json:"serverId"`
 	ID        string `json:"id"` // volume ID, e.g. "local:iso/debian-12.iso"
 	Name      string `json:"name"`
-	Zone      string `json:"zone"`
+	Node      string `json:"node"`
 	Storage   string `json:"storage"`
 	SizeBytes int64  `json:"sizeBytes"`
 	// CreatedAt is unix seconds; 0 when unknown.
@@ -164,7 +164,7 @@ type Backup struct {
 	ServerID  string `json:"serverId"`
 	ID        string `json:"id"` // volume ID
 	Name      string `json:"name"`
-	Zone      string `json:"zone"`
+	Node      string `json:"node"`
 	Storage   string `json:"storage"`
 	SizeBytes int64  `json:"sizeBytes"`
 	// CreatedAt is unix seconds; 0 when unknown.
@@ -186,7 +186,7 @@ type Backup struct {
 // ISODownloadSpec asks the hypervisor to fetch an image itself, so the
 // bytes never pass through this app.
 type ISODownloadSpec struct {
-	Zone     string // node to run the download on
+	Node     string // node to run the download on
 	Storage  string
 	Filename string
 	URL      string
@@ -203,7 +203,7 @@ type ISODownloadSpec struct {
 
 // ISOUploadSpec describes an image streamed up from the browser.
 type ISOUploadSpec struct {
-	Zone     string
+	Node     string
 	Storage  string
 	Filename string
 	// Content is the datastore content type: "iso" (default) or
@@ -234,7 +234,7 @@ type Bridge struct {
 	// ServerID is filled in by the API layer, not the driver.
 	ServerID string `json:"serverId"`
 	Name     string `json:"name"` // vmbr0
-	Zone     string `json:"zone"`
+	Node     string `json:"node"`
 	// CIDR is the bridge's own address, when it has one.
 	CIDR      string `json:"cidr"`
 	Comment   string `json:"comment"`
@@ -249,7 +249,7 @@ type Datastore struct {
 	ServerID   string `json:"serverId"`
 	ID         string `json:"id"` // e.g. "pve1/local-lvm"
 	Name       string `json:"name"`
-	Zone       string `json:"zone"`
+	Node       string `json:"node"`
 	Type       string `json:"type"`    // lvmthin, zfspool, dir, nfs, ...
 	Content    string `json:"content"` // comma-separated content types
 	TotalBytes int64  `json:"totalBytes"`
@@ -265,7 +265,7 @@ type Snapshot struct {
 	ID          string `json:"id"` // driver-scoped, e.g. "101/pre-upgrade"
 	Name        string `json:"name"`
 	VMName      string `json:"vmName"`
-	Zone        string `json:"zone"`
+	Node        string `json:"node"`
 	Description string `json:"description"`
 	// CreatedAt is unix seconds; 0 when the hypervisor doesn't report it.
 	CreatedAt int64 `json:"createdAt"`
@@ -308,7 +308,7 @@ type CloudInit struct {
 // InstanceSpec describes an instance to create.
 type InstanceSpec struct {
 	Name     string
-	Zone     string
+	Node     string
 	CPUs     int
 	MemoryMB int
 	DiskGB   int
@@ -426,7 +426,7 @@ type InstanceDetail struct {
 // imported disk, a cloud-init drive, and a serial console.
 type TemplateSpec struct {
 	Name string
-	Zone string
+	Node string
 	// SourceVolume is a datastore volume holding the disk image, e.g.
 	// "local:import/debian-13-genericcloud-amd64.qcow2".
 	SourceVolume string
@@ -484,7 +484,7 @@ type OSInfo struct {
 type InstanceState struct {
 	DriverID   string `json:"driverId"`
 	Name       string `json:"name"`
-	Zone       string `json:"zone"`
+	Node       string `json:"node"`
 	Status     Status `json:"status"`
 	CPUs       int    `json:"cpus"`
 	MemoryMB   int    `json:"memoryMb"`
@@ -501,15 +501,15 @@ type InstanceState struct {
 type Driver interface {
 	// Name identifies the driver, e.g. "proxmox" or "mock".
 	Name() string
-	Zones(ctx context.Context) ([]Zone, error)
+	Nodes(ctx context.Context) ([]Node, error)
 	// NodeStatus describes one host in detail. Like Describe it is read
 	// on demand for a detail view, not by the reconciler, so it may
 	// make several backend calls.
-	NodeStatus(ctx context.Context, zone string) (*NodeStatus, error)
+	NodeStatus(ctx context.Context, node string) (*NodeStatus, error)
 	// NodeMetrics returns the host's own resource-usage samples, in the
 	// same shape as an instance's — a host is a machine too, and the
 	// question "was this busy an hour ago" is the same question.
-	NodeMetrics(ctx context.Context, zone string, timeframe MetricTimeframe) ([]MetricPoint, error)
+	NodeMetrics(ctx context.Context, node string, timeframe MetricTimeframe) ([]MetricPoint, error)
 	Images(ctx context.Context) ([]Image, error)
 	Disks(ctx context.Context) ([]Disk, error)
 	Snapshots(ctx context.Context) ([]Snapshot, error)
@@ -524,7 +524,7 @@ type Driver interface {
 	// DeleteVolume removes a storage volume (an ISO or a container
 	// template) by volume id. taskID may be empty when the backend
 	// deletes synchronously.
-	DeleteVolume(ctx context.Context, zone, volumeID string) (taskID string, err error)
+	DeleteVolume(ctx context.Context, node, volumeID string) (taskID string, err error)
 	// Bridges lists the network bridges instances can attach to.
 	Bridges(ctx context.Context) ([]Bridge, error)
 	// CloudImages lists disk images available to build templates from.

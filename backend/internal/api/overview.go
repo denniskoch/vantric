@@ -83,7 +83,7 @@ type counts struct {
 
 type datastoreUsage struct {
 	Name       string  `json:"name"`
-	Zone       string  `json:"zone"`
+	Node       string  `json:"node"`
 	ServerID   string  `json:"serverId"`
 	UsedBytes  int64   `json:"usedBytes"`
 	TotalBytes int64   `json:"totalBytes"`
@@ -325,7 +325,7 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Shared storage is reported once per node it's mounted on. The
-		// Datastores page lists those rows because they're per-zone
+		// Datastores page lists those rows because they're per-node
 		// facts; here they're one bar and one warning, or a shared NFS
 		// mount fills the page with copies of itself.
 		seen := map[string]bool{}
@@ -335,7 +335,7 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 			}
 			key := ds.ServerID + "/" + ds.Name
 			if !ds.Shared {
-				key += "/" + ds.Zone
+				key += "/" + ds.Node
 			}
 			if seen[key] {
 				continue
@@ -344,7 +344,7 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 			pct := float64(ds.UsedBytes) / float64(ds.TotalBytes) * 100
 			mu.Lock()
 			stores = append(stores, datastoreUsage{
-				Name: ds.Name, Zone: ds.Zone, ServerID: ds.ServerID,
+				Name: ds.Name, Node: ds.Node, ServerID: ds.ServerID,
 				UsedBytes: ds.UsedBytes, TotalBytes: ds.TotalBytes, Percent: pct,
 			})
 			mu.Unlock()
@@ -353,14 +353,14 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 				add(problem{
 					Severity: "error",
 					Title:    "Datastore " + ds.Name + " is " + pctString(pct) + " full",
-					Detail:   "On " + ds.Zone + ". Backups and new disks will start failing.",
+					Detail:   "On " + ds.Node + ". Backups and new disks will start failing.",
 					To:       "/compute/datastores",
 				})
 			case pct >= datastoreWarnPercent:
 				add(problem{
 					Severity: "warning",
 					Title:    "Datastore " + ds.Name + " is " + pctString(pct) + " full",
-					Detail:   "On " + ds.Zone + ".",
+					Detail:   "On " + ds.Node + ".",
 					To:       "/compute/datastores",
 				})
 			}

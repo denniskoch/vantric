@@ -43,7 +43,7 @@ export default function CTTemplatesPage() {
   })
 
   const remove = useMutation({
-    mutationFn: (tpl: CTTemplate) => api.deleteCTTemplate(tpl.serverId, tpl.zone, tpl.id),
+    mutationFn: (tpl: CTTemplate) => api.deleteCTTemplate(tpl.serverId, tpl.node, tpl.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ctTemplates'] })
       setConfirming(null)
@@ -70,7 +70,7 @@ export default function CTTemplatesPage() {
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>Datastore</TableCell>
-              <TableCell>Zone</TableCell>
+              <TableCell>Node</TableCell>
               <TableCell align="right">Size</TableCell>
               <TableCell>Uploaded</TableCell>
               <TableCell align="right" />
@@ -83,7 +83,7 @@ export default function CTTemplatesPage() {
                   <OSName name={tpl.name} />
                 </TableCell>
                 <TableCell>{tpl.storage}</TableCell>
-                <TableCell>{tpl.zone}</TableCell>
+                <TableCell>{tpl.node}</TableCell>
                 <TableCell align="right">{formatBytes(tpl.sizeBytes)}</TableCell>
                 <TableCell>
                   {tpl.createdAt ? new Date(tpl.createdAt * 1000).toLocaleDateString() : '—'}

@@ -31,7 +31,7 @@ export default function SnapshotsPage() {
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>VM</TableCell>
-              <TableCell>Zone</TableCell>
+              <TableCell>Node</TableCell>
               <TableCell>Description</TableCell>
               <TableCell>Created</TableCell>
               <TableCell>RAM</TableCell>
@@ -50,7 +50,7 @@ export default function SnapshotsPage() {
                     {snap.vmName}
                   </Link>
                 </TableCell>
-                <TableCell>{snap.zone}</TableCell>
+                <TableCell>{snap.node}</TableCell>
                 <TableCell>{snap.description || '—'}</TableCell>
                 <TableCell>
                   {snap.createdAt ? new Date(snap.createdAt * 1000).toLocaleString() : '—'}

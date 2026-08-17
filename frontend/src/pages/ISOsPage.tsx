@@ -44,7 +44,7 @@ export default function ISOsPage() {
   })
 
   const remove = useMutation({
-    mutationFn: (iso: ISO) => api.deleteISO(iso.serverId, iso.zone, iso.id),
+    mutationFn: (iso: ISO) => api.deleteISO(iso.serverId, iso.node, iso.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['isos'] })
       setConfirming(null)
@@ -86,7 +86,7 @@ export default function ISOsPage() {
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>Datastore</TableCell>
-              <TableCell>Zone</TableCell>
+              <TableCell>Node</TableCell>
               <TableCell align="right">Size</TableCell>
               <TableCell>Uploaded</TableCell>
               <TableCell align="right" />
@@ -99,7 +99,7 @@ export default function ISOsPage() {
                   <OSName name={iso.name} />
                 </TableCell>
                 <TableCell>{iso.storage}</TableCell>
-                <TableCell>{iso.zone}</TableCell>
+                <TableCell>{iso.node}</TableCell>
                 <TableCell align="right">{formatBytes(iso.sizeBytes)}</TableCell>
                 <TableCell>
                   {iso.createdAt ? new Date(iso.createdAt * 1000).toLocaleDateString() : '—'}

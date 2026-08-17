@@ -138,7 +138,7 @@ export default function ContainerDetailPage() {
         <Table size="small">
           <TableBody>
             <Row label="Status" value={ct.status} />
-            <Row label="Zone" value={ct.zone} />
+            <Row label="Node" value={ct.node} />
             <Row label="Resources" value={`${ct.cpus} vCPU, ${ct.memoryMb} MB memory`} />
             <Row label="Root disk" value={`${ct.diskGb} GB`} />
             {ct.description && <Row label="Description" value={ct.description} />}

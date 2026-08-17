@@ -33,7 +33,7 @@ func (d *Driver) DownloadISO(ctx context.Context, spec hypervisor.ISODownloadSpe
 		form.Set("verify-certificates", "0")
 	}
 	var upid string
-	path := fmt.Sprintf("/nodes/%s/storage/%s/download-url", spec.Zone, spec.Storage)
+	path := fmt.Sprintf("/nodes/%s/storage/%s/download-url", spec.Node, spec.Storage)
 	if err := d.do(ctx, http.MethodPost, path, form, &upid); err != nil {
 		return "", err
 	}
@@ -73,7 +73,7 @@ func (d *Driver) UploadISO(ctx context.Context, spec hypervisor.ISOUploadSpec, c
 		strings.NewReader(epilogue),
 	)
 
-	path := fmt.Sprintf("/nodes/%s/storage/%s/upload", spec.Zone, spec.Storage)
+	path := fmt.Sprintf("/nodes/%s/storage/%s/upload", spec.Node, spec.Storage)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, d.cfg.BaseURL+"/api2/json"+path, body)
 	if err != nil {
 		return "", err
@@ -103,7 +103,7 @@ func (d *Driver) UploadISO(ctx context.Context, spec hypervisor.ISOUploadSpec, c
 // DeleteVolume removes a storage volume. The storage is part of the
 // volume id ("local:iso/debian.iso"), so only the node has to be
 // supplied.
-func (d *Driver) DeleteVolume(ctx context.Context, zone, volumeID string) (string, error) {
+func (d *Driver) DeleteVolume(ctx context.Context, node, volumeID string) (string, error) {
 	storage, _, found := strings.Cut(volumeID, ":")
 	if !found || storage == "" {
 		return "", fmt.Errorf("proxmox: %q is not a volume id", volumeID)
@@ -112,7 +112,7 @@ func (d *Driver) DeleteVolume(ctx context.Context, zone, volumeID string) (strin
 	// backend, so decode into a nullable string.
 	var upid *string
 	path := fmt.Sprintf("/nodes/%s/storage/%s/content/%s",
-		zone, storage, url.PathEscape(volumeID))
+		node, storage, url.PathEscape(volumeID))
 	if err := d.do(ctx, http.MethodDelete, path, nil, &upid); err != nil {
 		return "", err
 	}

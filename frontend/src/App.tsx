@@ -80,8 +80,8 @@ import ISOsPage from './pages/ISOsPage'
 import CloudImagesPage from './pages/CloudImagesPage'
 import AddMediaPage, { isoKind, cloudImageKind } from './pages/AddMediaPage'
 import DatastoresPage from './pages/DatastoresPage'
-import ZonesPage from './pages/ZonesPage'
-import ZoneDetailPage from './pages/ZoneDetailPage'
+import NodesPage from './pages/NodesPage'
+import NodeDetailPage from './pages/NodeDetailPage'
 
 export default function App() {
   return (
@@ -238,10 +238,10 @@ export default function App() {
           }
         />
         <Route path="/compute/datastores" element={<DatastoresPage />} />
-        <Route path="/compute/zones" element={<ZonesPage />} />
-        {/* A zone name is unique only within its server, so both
+        <Route path="/compute/nodes" element={<NodesPage />} />
+        {/* A node name is unique only within its server, so both
             address one host. */}
-        <Route path="/compute/zones/:server/:zone" element={<ZoneDetailPage />} />
+        <Route path="/compute/nodes/:server/:node" element={<NodeDetailPage />} />
         <Route path="/compute/settings/hypervisors" element={<RequireRole admin><ServersPage /></RequireRole>} />
         <Route path="/compute/servers" element={<Navigate to="/compute/settings/hypervisors" replace />} />
         <Route path="/compute/settings/hypervisors/add" element={<RequireRole admin><HypervisorFormPage /></RequireRole>} />

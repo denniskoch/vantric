@@ -75,7 +75,7 @@ export default function BuildTemplatePage() {
   // Disk storage must accept VM images and live on the image's node.
   // Bridges live on the image's node.
   const zoneBridges = bridges.filter(
-    (b) => b.serverId === serverId && (!image || b.zone === image.zone),
+    (b) => b.serverId === serverId && (!image || b.node === image.node),
   )
   const bridge = zoneBridges.find((b) => b.name === netBridge)
   const diskTargets = datastores.filter(
@@ -83,14 +83,14 @@ export default function BuildTemplatePage() {
       d.serverId === serverId &&
       d.active &&
       d.content.includes('images') &&
-      (!image || d.zone === image.zone),
+      (!image || d.node === image.node),
   )
 
   const start = useMutation({
     mutationFn: () =>
       api.buildTemplate(serverId, {
         name,
-        zone: image!.zone,
+        node: image!.node,
         sourceVolume,
         diskStorage,
         diskGb,
@@ -233,7 +233,7 @@ export default function BuildTemplatePage() {
               >
                 {images.map((img) => (
                   <MenuItem key={img.id} value={img.id}>
-                    {img.name} — {img.zone} ({formatBytes(img.sizeBytes)})
+                    {img.name} — {img.node} ({formatBytes(img.sizeBytes)})
                   </MenuItem>
                 ))}
               </TextField>

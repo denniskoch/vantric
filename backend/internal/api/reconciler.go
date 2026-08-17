@@ -156,13 +156,13 @@ func (r *Reconciler) syncContainer(ctx context.Context, cd hypervisor.ContainerD
 
 // syncContainerShape is syncShape for containers.
 func (r *Reconciler) syncContainerShape(ctx context.Context, ct *store.Container, state hypervisor.InstanceState) {
-	name, zone := ct.Name, ct.Zone
+	name, node := ct.Name, ct.Node
 	cpus, memoryMB, diskGB := ct.CPUs, ct.MemoryMB, ct.DiskGB
 	if state.Name != "" {
 		name = state.Name
 	}
-	if state.Zone != "" {
-		zone = state.Zone
+	if state.Node != "" {
+		node = state.Node
 	}
 	if state.CPUs > 0 {
 		cpus = state.CPUs
@@ -173,15 +173,15 @@ func (r *Reconciler) syncContainerShape(ctx context.Context, ct *store.Container
 	if state.DiskGB > 0 {
 		diskGB = state.DiskGB
 	}
-	if name == ct.Name && zone == ct.Zone && cpus == ct.CPUs &&
+	if name == ct.Name && node == ct.Node && cpus == ct.CPUs &&
 		memoryMB == ct.MemoryMB && diskGB == ct.DiskGB {
 		return
 	}
-	if err := r.store.UpdateContainerShape(ctx, ct.ID, name, zone, cpus, memoryMB, diskGB); err != nil {
+	if err := r.store.UpdateContainerShape(ctx, ct.ID, name, node, cpus, memoryMB, diskGB); err != nil {
 		r.log.Warn("reconciler: container shape update failed", "name", ct.Name, "error", err)
 		return
 	}
-	ct.Name, ct.Zone = name, zone
+	ct.Name, ct.Node = name, node
 	ct.CPUs, ct.MemoryMB, ct.DiskGB = cpus, memoryMB, diskGB
 }
 
@@ -192,7 +192,7 @@ func (r *Reconciler) adoptContainer(ctx context.Context, server store.Server, st
 		ID:        uuid.NewString(),
 		Name:      state.Name,
 		ServerID:  server.ID,
-		Zone:      state.Zone,
+		Node:      state.Node,
 		CPUs:      state.CPUs,
 		MemoryMB:  state.MemoryMB,
 		DiskGB:    state.DiskGB,
@@ -268,13 +268,13 @@ func (r *Reconciler) syncInstance(ctx context.Context, driver hypervisor.Driver,
 // Only meaningful values are taken. A blank name or a zero count is
 // the hypervisor not knowing yet, not an instruction to forget.
 func (r *Reconciler) syncShape(ctx context.Context, inst *store.Instance, state hypervisor.InstanceState) {
-	name, zone := inst.Name, inst.Zone
+	name, node := inst.Name, inst.Node
 	cpus, memoryMB, diskGB := inst.CPUs, inst.MemoryMB, inst.DiskGB
 	if state.Name != "" {
 		name = state.Name
 	}
-	if state.Zone != "" {
-		zone = state.Zone
+	if state.Node != "" {
+		node = state.Node
 	}
 	if state.CPUs > 0 {
 		cpus = state.CPUs
@@ -285,11 +285,11 @@ func (r *Reconciler) syncShape(ctx context.Context, inst *store.Instance, state 
 	if state.DiskGB > 0 {
 		diskGB = state.DiskGB
 	}
-	if name == inst.Name && zone == inst.Zone && cpus == inst.CPUs &&
+	if name == inst.Name && node == inst.Node && cpus == inst.CPUs &&
 		memoryMB == inst.MemoryMB && diskGB == inst.DiskGB {
 		return
 	}
-	if err := r.store.UpdateInstanceShape(ctx, inst.ID, name, zone, cpus, memoryMB, diskGB); err != nil {
+	if err := r.store.UpdateInstanceShape(ctx, inst.ID, name, node, cpus, memoryMB, diskGB); err != nil {
 		// A rename can collide with another instance's name, which is
 		// worth saying once rather than every two seconds.
 		r.log.Warn("reconciler: shape update failed", "name", inst.Name, "error", err)
@@ -298,7 +298,7 @@ func (r *Reconciler) syncShape(ctx context.Context, inst *store.Instance, state 
 	if name != inst.Name {
 		r.log.Info("reconciler: instance renamed on the hypervisor", "from", inst.Name, "to", name)
 	}
-	inst.Name, inst.Zone = name, zone
+	inst.Name, inst.Node = name, node
 	inst.CPUs, inst.MemoryMB, inst.DiskGB = cpus, memoryMB, diskGB
 }
 
@@ -345,7 +345,7 @@ func (r *Reconciler) adoptInstance(ctx context.Context, server store.Server, sta
 		ID:        uuid.NewString(),
 		Name:      state.Name,
 		ServerID:  server.ID,
-		Zone:      state.Zone,
+		Node:      state.Node,
 		CPUs:      state.CPUs,
 		MemoryMB:  state.MemoryMB,
 		DiskGB:    state.DiskGB,

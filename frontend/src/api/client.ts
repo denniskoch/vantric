@@ -122,7 +122,7 @@ export interface Instance {
   id: string
   name: string
   serverId: string
-  zone: string
+  node: string
   cpus: number
   memoryMb: number
   diskGb: number
@@ -185,7 +185,7 @@ export interface Device {
 /** Full hypervisor-side config, read on demand for the detail view. */
 export interface InstanceDetail {
   name: string
-  zone: string
+  node: string
   status: InstanceStatus
   cpus: number
   memoryMb: number
@@ -257,7 +257,7 @@ export interface Container {
   id: string
   name: string
   serverId: string
-  zone: string
+  node: string
   cpus: number
   memoryMb: number
   diskGb: number
@@ -297,7 +297,7 @@ export interface OverviewCounts {
 
 export interface OverviewDatastore {
   name: string
-  zone: string
+  node: string
   serverId: string
   usedBytes: number
   totalBytes: number
@@ -617,7 +617,7 @@ export interface ServerRequest {
   insecureTls: boolean
 }
 
-export interface Zone {
+export interface Node {
   serverId: string
   id: string
   name: string
@@ -662,7 +662,7 @@ export interface Image {
   serverId: string
   id: string
   name: string
-  zone: string
+  node: string
   /** The hypervisor's notes. Its first line is the friendly name. */
   description: string
   tags: string[] | null
@@ -676,7 +676,7 @@ export interface Disk {
   id: string
   name: string
   inUseBy: string
-  zone: string
+  node: string
   storage: string
   sizeGb: number
 }
@@ -686,7 +686,7 @@ export interface Snapshot {
   id: string
   name: string
   vmName: string
-  zone: string
+  node: string
   description: string
   createdAt: number
   includesRam: boolean
@@ -696,7 +696,7 @@ export interface ISO {
   serverId: string
   id: string
   name: string
-  zone: string
+  node: string
   storage: string
   sizeBytes: number
   createdAt: number
@@ -712,7 +712,7 @@ export interface Backup {
   serverId: string
   id: string
   name: string
-  zone: string
+  node: string
   storage: string
   sizeBytes: number
   createdAt: number
@@ -743,7 +743,7 @@ export interface InstanceBackups {
 
 export interface TemplateBuildRequest {
   name: string
-  zone: string
+  node: string
   sourceVolume: string
   diskStorage: string
   diskGb: number
@@ -784,7 +784,7 @@ export interface Operation {
 export interface Bridge {
   serverId: string
   name: string
-  zone: string
+  node: string
   cidr: string
   comment: string
   active: boolean
@@ -796,7 +796,7 @@ export interface Datastore {
   serverId: string
   id: string
   name: string
-  zone: string
+  node: string
   type: string
   content: string
   totalBytes: number
@@ -806,7 +806,7 @@ export interface Datastore {
 }
 
 export interface ISODownloadRequest {
-  zone: string
+  node: string
   storage: string
   filename: string
   url: string
@@ -1201,7 +1201,7 @@ export const emptyCloudInit: CloudInitConfig = {
 export interface CreateInstanceRequest {
   name: string
   serverId: string
-  zone: string
+  node: string
   cpus: number
   memoryMb: number
   diskGb?: number
@@ -1282,7 +1282,7 @@ function uploadInstallerStream(file: File, onProgress: (fraction: number) => voi
 function uploadStream(
   path: string,
   serverId: string,
-  params: { zone: string; storage: string; filename: string },
+  params: { node: string; storage: string; filename: string },
   file: File,
   onProgress: (fraction: number) => void,
 ) {
@@ -1354,14 +1354,14 @@ export const api = {
 
   // Catalog listings span every server; pass a server id to narrow
   // (the create flows do, since placement is per-server).
-  listZones: (serverId?: string) =>
-    request<Zone[]>(serverId ? `/zones?server=${serverId}` : '/zones'),
+  listNodes: (serverId?: string) =>
+    request<Node[]>(serverId ? `/nodes?server=${serverId}` : '/nodes'),
   /** One host in detail — read on demand, never polled at list speed. */
-  getZone: (serverId: string, zone: string) =>
-    request<NodeStatus>(`/zones/${encodeURIComponent(zone)}?server=${serverId}`),
-  zoneMetrics: (serverId: string, zone: string, timeframe: MetricTimeframe) =>
+  getNode: (serverId: string, node: string) =>
+    request<NodeStatus>(`/nodes/${encodeURIComponent(node)}?server=${serverId}`),
+  nodeMetrics: (serverId: string, node: string, timeframe: MetricTimeframe) =>
     request<MetricPoint[]>(
-      `/zones/${encodeURIComponent(zone)}/metrics?server=${serverId}&timeframe=${timeframe}`,
+      `/nodes/${encodeURIComponent(node)}/metrics?server=${serverId}&timeframe=${timeframe}`,
     ),
   listBridges: () => request<Bridge[]>('/bridges'),
   listImages: (serverId?: string) =>
@@ -1380,16 +1380,16 @@ export const api = {
   /** Streams a file to the hypervisor with progress. */
   uploadISO: (
     serverId: string,
-    params: { zone: string; storage: string; filename: string },
+    params: { node: string; storage: string; filename: string },
     file: File,
     onProgress: (fraction: number) => void,
   ) => uploadStream('/isos/upload', serverId, params, file, onProgress),
-  deleteISO: (serverId: string, zone: string, volume: string) => {
-    const query = new URLSearchParams({ server: serverId, zone, volume })
+  deleteISO: (serverId: string, node: string, volume: string) => {
+    const query = new URLSearchParams({ server: serverId, node, volume })
     return request<Operation>(`/isos?${query}`, { method: 'DELETE' })
   },
-  deleteCTTemplate: (serverId: string, zone: string, volume: string) => {
-    const query = new URLSearchParams({ server: serverId, zone, volume })
+  deleteCTTemplate: (serverId: string, node: string, volume: string) => {
+    const query = new URLSearchParams({ server: serverId, node, volume })
     return request<Operation>(`/ct-templates?${query}`, { method: 'DELETE' })
   },
   setImageDescription: (serverId: string, imageId: string, description: string) =>
@@ -1411,12 +1411,12 @@ export const api = {
     }),
   uploadCloudImage: (
     serverId: string,
-    params: { zone: string; storage: string; filename: string },
+    params: { node: string; storage: string; filename: string },
     file: File,
     onProgress: (fraction: number) => void,
   ) => uploadStream('/cloud-images/upload', serverId, params, file, onProgress),
-  deleteCloudImage: (serverId: string, zone: string, volume: string) => {
-    const query = new URLSearchParams({ server: serverId, zone, volume })
+  deleteCloudImage: (serverId: string, node: string, volume: string) => {
+    const query = new URLSearchParams({ server: serverId, node, volume })
     return request<Operation>(`/cloud-images?${query}`, { method: 'DELETE' })
   },
   buildTemplate: (serverId: string, body: TemplateBuildRequest) =>
@@ -1711,9 +1711,9 @@ export const api = {
     request<void>(`/dns/zones/${zoneId}?provider=${providerId}`, { method: 'DELETE' }),
 
   listBackups: () => request<Backup[]>('/backups'),
-  deleteBackup: (serverId: string, zone: string, volume: string) =>
+  deleteBackup: (serverId: string, node: string, volume: string) =>
     request<Operation>(
-      `/backups?server=${serverId}&zone=${encodeURIComponent(zone)}&volume=${encodeURIComponent(volume)}`,
+      `/backups?server=${serverId}&node=${encodeURIComponent(node)}&volume=${encodeURIComponent(volume)}`,
       { method: 'DELETE' },
     ),
 

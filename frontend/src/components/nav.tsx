@@ -158,16 +158,16 @@ export const sections: Section[] = [
       },
       {
         // The backend and what it exposes. Hypervisors are credentials,
-        // the same shape as DNS providers; zones are the hosts those
+        // the same shape as DNS providers; nodes are the hosts those
         // credentials reach — infrastructure you check when something
         // is wrong, rather than a place you work, which is why this is
         // the bottom of the nav and not the top.
         label: 'Settings',
         items: [
           {
-            label: 'Zones',
+            label: 'Nodes',
             icon: LanIcon,
-            to: '/compute/zones',
+            to: '/compute/nodes',
             hint: 'The virtualization hosts your guests run on, and how loaded they are',
           },
           {

@@ -42,39 +42,39 @@ function reported(value: string | number | undefined | null, render?: () => Reac
  * why swap and the host's own root filesystem are here, and why
  * neither belongs on a datastore page.
  */
-export default function ZoneDetailPage() {
-  const { server, zone } = useParams<{ server: string; zone: string }>()
+export default function NodeDetailPage() {
+  const { server, node } = useParams<{ server: string; node: string }>()
   const navigate = useNavigate()
   const serverName = useServerNames()
   const [tab, setTab] = useState('details')
   const [timeframe, setTimeframe] = useState<MetricTimeframe>('hour')
 
-  const { data: zones = [] } = useQuery({
-    queryKey: ['zones'],
-    queryFn: () => api.listZones(),
+  const { data: nodes = [] } = useQuery({
+    queryKey: ['nodes'],
+    queryFn: () => api.listNodes(),
     refetchInterval: 10000,
   })
-  const summary = zones.find((z) => z.serverId === server && z.id === zone)
+  const summary = nodes.find((z) => z.serverId === server && z.id === node)
 
   const {
     data: status,
     isLoading,
     error: statusError,
   } = useQuery({
-    queryKey: ['zone', server, zone],
-    queryFn: () => api.getZone(server!, zone!),
-    enabled: Boolean(server && zone),
+    queryKey: ['node', server, node],
+    queryFn: () => api.getNode(server!, node!),
+    enabled: Boolean(server && node),
     refetchInterval: 10000,
   })
 
   const { data: metrics = [], isLoading: metricsLoading } = useQuery({
-    queryKey: ['zoneMetrics', server, zone, timeframe],
-    queryFn: () => api.zoneMetrics(server!, zone!, timeframe),
-    enabled: Boolean(server && zone) && tab === 'observability',
+    queryKey: ['nodeMetrics', server, node, timeframe],
+    queryFn: () => api.nodeMetrics(server!, node!, timeframe),
+    enabled: Boolean(server && node) && tab === 'observability',
   })
 
   // No guest list here. VM instances and CT instances both carry a
-  // Zone column already, and forty-four rows of what this host is
+  // Node column already, and forty-four rows of what this host is
   // running would bury the six facts the page exists to show.
 
   const times = metrics.map((m) => m.time)
@@ -83,8 +83,8 @@ export default function ZoneDetailPage() {
   return (
     <Box sx={{ pb: 4 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 3, py: 1.5 }}>
-        <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate('/compute/zones')}>
-          Zones
+        <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate('/compute/nodes')}>
+          Nodes
         </Button>
         {summary &&
           (summary.status === 'online' ? (
@@ -92,7 +92,7 @@ export default function ZoneDetailPage() {
           ) : (
             <ErrorIcon sx={{ color: 'error.main', fontSize: 20 }} />
           ))}
-        <Typography variant="h5">{zone}</Typography>
+        <Typography variant="h5">{node}</Typography>
       </Box>
 
       <Tabs

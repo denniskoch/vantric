@@ -158,9 +158,9 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		s.iamRoutes(r)
 
 		r.Get("/overview", s.overview)
-		r.Get("/zones", s.listZones)
-		r.Get("/zones/{zone}", s.zoneStatus)
-		r.Get("/zones/{zone}/metrics", s.zoneMetrics)
+		r.Get("/nodes", s.listNodes)
+		r.Get("/nodes/{node}", s.nodeStatus)
+		r.Get("/nodes/{node}/metrics", s.nodeMetrics)
 		r.Get("/bridges", s.listBridges)
 		r.Get("/images", s.listImages)
 		r.Get("/disks", s.listDisks)
@@ -383,7 +383,7 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name        string           `json:"name"`
 		ServerID    string           `json:"serverId"`
-		Zone        string           `json:"zone"`
+		Node        string           `json:"node"`
 		CPUs        int              `json:"cpus"`
 		MemoryMB    int              `json:"memoryMb"`
 		DiskGB      int              `json:"diskGb"`
@@ -403,8 +403,8 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, "name must be lowercase letters, digits, hyphens (start with a letter)")
 		return
 	}
-	if req.ServerID == "" || req.Zone == "" || req.ImageID == "" {
-		s.err(w, http.StatusBadRequest, "serverId, zone and imageId are required")
+	if req.ServerID == "" || req.Node == "" || req.ImageID == "" {
+		s.err(w, http.StatusBadRequest, "serverId, node and imageId are required")
 		return
 	}
 	driver, ok := s.registry.Get(req.ServerID)
@@ -444,7 +444,7 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 
 	spec := hypervisor.InstanceSpec{
 		Name:          req.Name,
-		Zone:          req.Zone,
+		Node:          req.Node,
 		CPUs:          req.CPUs,
 		MemoryMB:      req.MemoryMB,
 		DiskGB:        req.DiskGB,
@@ -473,7 +473,7 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 			ID:          uuid.NewString(),
 			Name:        req.Name,
 			ServerID:    req.ServerID,
-			Zone:        req.Zone,
+			Node:        req.Node,
 			CPUs:        req.CPUs,
 			MemoryMB:    req.MemoryMB,
 			DiskGB:      req.DiskGB,

@@ -154,7 +154,7 @@ export default function InstanceDetailPage() {
 
   const removeBackup = useMutation({
     mutationFn: (backup: Backup) =>
-      api.deleteBackup(backup.serverId, backup.zone, backup.id),
+      api.deleteBackup(backup.serverId, backup.node, backup.id),
     onSuccess: () => {
       // The hypervisor deletes on a task, so the archive lingers for a
       // moment; this tab is read on demand, so re-read it.
@@ -202,7 +202,7 @@ export default function InstanceDetailPage() {
       component="a"
       target="_blank"
       rel="noreferrer"
-      href={proxmoxConsoleURL(hypervisorURL, inst.zone, inst.driverId, mode)}
+      href={proxmoxConsoleURL(hypervisorURL, inst.node, inst.driverId, mode)}
     >
       Open in Proxmox
     </Button>
@@ -395,7 +395,7 @@ export default function InstanceDetailPage() {
                       : new Date(inst.createdAt).toLocaleString(),
                   },
                   { label: 'Uptime', value: formatUptime(detail?.uptimeSeconds ?? 0) },
-                  { label: 'Location', value: `${inst.zone} (${server?.name ?? 'unknown server'})` },
+                  { label: 'Location', value: `${inst.node} (${server?.name ?? 'unknown server'})` },
                   { label: 'Boot image', value: inst.imageId || '—' },
                   {
                     label: 'Tags',

@@ -57,7 +57,7 @@ func (s *Server) downloadISO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Zone               string `json:"zone"`
+		Node               string `json:"node"`
 		Storage            string `json:"storage"`
 		Filename           string `json:"filename"`
 		URL                string `json:"url"`
@@ -69,8 +69,8 @@ func (s *Server) downloadISO(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	if req.Zone == "" || req.Storage == "" {
-		s.err(w, http.StatusBadRequest, "zone and storage are required")
+	if req.Node == "" || req.Storage == "" {
+		s.err(w, http.StatusBadRequest, "node and storage are required")
 		return
 	}
 	if !strings.HasPrefix(req.URL, "http://") && !strings.HasPrefix(req.URL, "https://") {
@@ -91,7 +91,7 @@ func (s *Server) downloadISO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	taskID, err := driver.DownloadISO(r.Context(), hypervisor.ISODownloadSpec{
-		Zone:               req.Zone,
+		Node:               req.Node,
 		Storage:            req.Storage,
 		Filename:           filename,
 		URL:                req.URL,
@@ -119,9 +119,9 @@ func (s *Server) uploadVolume(content string, extensions []string) http.HandlerF
 			return
 		}
 		q := r.URL.Query()
-		zone, storage := q.Get("zone"), q.Get("storage")
-		if zone == "" || storage == "" {
-			s.err(w, http.StatusBadRequest, "zone and storage are required")
+		node, storage := q.Get("node"), q.Get("storage")
+		if node == "" || storage == "" {
+			s.err(w, http.StatusBadRequest, "node and storage are required")
 			return
 		}
 		filename, ok := safeFilename(q.Get("filename"), extensions)
@@ -137,7 +137,7 @@ func (s *Server) uploadVolume(content string, extensions []string) http.HandlerF
 			return
 		}
 		taskID, err := driver.UploadISO(r.Context(), hypervisor.ISOUploadSpec{
-			Zone:      zone,
+			Node:      node,
 			Storage:   storage,
 			Filename:  filename,
 			Content:   content,
@@ -172,16 +172,16 @@ func (s *Server) deleteVolume(kind, label, resourceType string) http.HandlerFunc
 			return
 		}
 		q := r.URL.Query()
-		zone, volume := q.Get("zone"), q.Get("volume")
-		if zone == "" || volume == "" {
-			s.err(w, http.StatusBadRequest, "zone and volume are required")
+		node, volume := q.Get("node"), q.Get("volume")
+		if node == "" || volume == "" {
+			s.err(w, http.StatusBadRequest, "node and volume are required")
 			return
 		}
 		if !strings.Contains(volume, ":"+kind+"/") {
 			s.err(w, http.StatusBadRequest, "volume is not a "+label)
 			return
 		}
-		taskID, err := driver.DeleteVolume(r.Context(), zone, volume)
+		taskID, err := driver.DeleteVolume(r.Context(), node, volume)
 		if err != nil {
 			s.fail(w, err, "deleting "+label)
 			return

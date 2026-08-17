@@ -52,7 +52,7 @@ var migrations = []string{
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL UNIQUE,
 		server_id TEXT NOT NULL REFERENCES servers(id),
-		zone TEXT NOT NULL,
+		node TEXT NOT NULL,
 		cpus INTEGER NOT NULL,
 		memory_mb INTEGER NOT NULL,
 		disk_gb INTEGER NOT NULL,
@@ -72,7 +72,7 @@ var migrations = []string{
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL UNIQUE,
 		server_id TEXT NOT NULL REFERENCES servers(id),
-		zone TEXT NOT NULL,
+		node TEXT NOT NULL,
 		cpus INTEGER NOT NULL,
 		memory_mb INTEGER NOT NULL,
 		disk_gb INTEGER NOT NULL,
@@ -261,6 +261,20 @@ var migrations = []string{
 }
 
 func (s *Store) migrate() error {
+	// Renames run FIRST. A CREATE TABLE IF NOT EXISTS under the new
+	// name would otherwise make an empty table beside the populated old
+	// one, and the rename would then fail against a name already taken.
+	for _, m := range renameMigrations {
+		// "no such table"/"no such column" is a rename that already ran,
+		// or a fresh database that never had the old name — both are the
+		// expected outcome on every boot but the one that migrates.
+		if _, err := s.db.Exec(m); err != nil &&
+			!strings.Contains(err.Error(), "no such table") &&
+			!strings.Contains(err.Error(), "no such column") &&
+			!strings.Contains(err.Error(), "duplicate column") {
+			return fmt.Errorf("store: migration failed: %w", err)
+		}
+	}
 	for _, m := range migrations {
 		if _, err := s.db.Exec(m); err != nil {
 			return fmt.Errorf("store: migration failed: %w", err)
@@ -287,6 +301,14 @@ func (s *Store) migrate() error {
 // where you size a VM by typing the numbers you want. Existing
 // databases drop the column and the catalog; fresh ones never make
 // them, so both of these are "already done" on most boots.
+// A placement target is a NODE — the machine a guest runs on. It was
+// "zone", borrowed from a cloud where a zone is a datacenter holding
+// thousands of machines rather than the one box this names.
+var renameMigrations = []string{
+	`ALTER TABLE instances RENAME COLUMN zone TO node`,
+	`ALTER TABLE containers RENAME COLUMN zone TO node`,
+}
+
 var columnMigrations = []string{
 	// VLAN arrived a commit after the subnets table did; a database
 	// created in between has the table without it.

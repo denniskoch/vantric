@@ -38,7 +38,7 @@ export default function BackupsPage() {
   })
 
   const remove = useMutation({
-    mutationFn: (backup: Backup) => api.deleteBackup(backup.serverId, backup.zone, backup.id),
+    mutationFn: (backup: Backup) => api.deleteBackup(backup.serverId, backup.node, backup.id),
     onSuccess: () => {
       // The hypervisor deletes on a task, so the archive lingers for a
       // moment; the poll picks up its disappearance.
@@ -96,7 +96,7 @@ export default function BackupsPage() {
               <TableCell>Created</TableCell>
               <TableCell>Guest</TableCell>
               <TableCell>Type</TableCell>
-              <TableCell>Zone</TableCell>
+              <TableCell>Node</TableCell>
               <TableCell>Datastore</TableCell>
               <TableCell align="right">Size</TableCell>
               <TableCell>Archive</TableCell>
@@ -126,7 +126,7 @@ export default function BackupsPage() {
                   )}
                 </TableCell>
                 <TableCell>{guestLabels[backup.guestType] ?? backup.guestType ?? '—'}</TableCell>
-                <TableCell>{backup.zone}</TableCell>
+                <TableCell>{backup.node}</TableCell>
                 <TableCell>{backup.storage}</TableCell>
                 <TableCell align="right">{formatBytes(backup.sizeBytes)}</TableCell>
                 <TableCell sx={{ color: 'text.secondary' }}>{backup.format || '—'}</TableCell>

@@ -53,9 +53,9 @@ func cfgFloat(cfg map[string]any, key string) float64 {
 // version and a number on the next (cpuinfo.mhz is the usual one), and
 // a typed decode fails WHOLE — one field changing shape would empty
 // the page rather than blank a row.
-func (d *Driver) NodeStatus(ctx context.Context, zone string) (*hypervisor.NodeStatus, error) {
+func (d *Driver) NodeStatus(ctx context.Context, node string) (*hypervisor.NodeStatus, error) {
 	var raw map[string]any
-	path := fmt.Sprintf("/nodes/%s/status", zone)
+	path := fmt.Sprintf("/nodes/%s/status", node)
 	if err := d.do(ctx, http.MethodGet, path, nil, &raw); err != nil {
 		return nil, err
 	}
@@ -67,8 +67,8 @@ func (d *Driver) NodeStatus(ctx context.Context, zone string) (*hypervisor.NodeS
 	boot := cfgMap(raw, "boot-info")
 
 	status := &hypervisor.NodeStatus{
-		ID:            zone,
-		Name:          zone,
+		ID:            node,
+		Name:          node,
 		UptimeSeconds: cfgInt64(raw, "uptime"),
 
 		CPUModel:   cfgString(cpu, "model"),
@@ -114,7 +114,7 @@ func (d *Driver) NodeStatus(ctx context.Context, zone string) (*hypervisor.NodeS
 // place of per-disk I/O — a host has no single disk to count. So the
 // disk fields of every point stay zero here, and the caller renders
 // three charts rather than a fourth that would always read flat.
-func (d *Driver) NodeMetrics(ctx context.Context, zone string, timeframe hypervisor.MetricTimeframe) ([]hypervisor.MetricPoint, error) {
+func (d *Driver) NodeMetrics(ctx context.Context, node string, timeframe hypervisor.MetricTimeframe) ([]hypervisor.MetricPoint, error) {
 	if timeframe == "" {
 		timeframe = hypervisor.TimeframeHour
 	}
@@ -126,7 +126,7 @@ func (d *Driver) NodeMetrics(ctx context.Context, zone string, timeframe hypervi
 		NetIn    float64 `json:"netin"`
 		NetOut   float64 `json:"netout"`
 	}
-	path := fmt.Sprintf("/nodes/%s/rrddata?timeframe=%s&cf=AVERAGE", zone, timeframe)
+	path := fmt.Sprintf("/nodes/%s/rrddata?timeframe=%s&cf=AVERAGE", node, timeframe)
 	if err := d.do(ctx, http.MethodGet, path, nil, &rows); err != nil {
 		return nil, err
 	}

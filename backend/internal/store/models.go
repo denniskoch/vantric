@@ -13,7 +13,7 @@ type Instance struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	ServerID    string `json:"serverId"`
-	Zone        string `json:"zone"`
+	Node        string `json:"node"`
 	CPUs        int    `json:"cpus"`
 	MemoryMB    int    `json:"memoryMb"`
 	DiskGB      int    `json:"diskGb"`
@@ -51,7 +51,7 @@ func parseTime(s string) time.Time {
 	return t
 }
 
-const instanceCols = `id, name, server_id, zone, cpus, memory_mb, disk_gb,
+const instanceCols = `id, name, server_id, node, cpus, memory_mb, disk_gb,
 	image_id, status, driver_id, internal_ip, external_ip, net_bridge, vlan_tag,
 	description, protected, os_type, uuid, serial, created_at, updated_at`
 
@@ -59,7 +59,7 @@ func scanInstance(scan func(dest ...any) error) (*Instance, error) {
 	var i Instance
 	var created, updated string
 	var protected int
-	err := scan(&i.ID, &i.Name, &i.ServerID, &i.Zone, &i.CPUs, &i.MemoryMB,
+	err := scan(&i.ID, &i.Name, &i.ServerID, &i.Node, &i.CPUs, &i.MemoryMB,
 		&i.DiskGB, &i.ImageID, &i.Status, &i.DriverID, &i.InternalIP, &i.ExternalIP,
 		&i.NetBridge, &i.VLANTag, &i.Description, &protected, &i.OSType, &i.UUID,
 		&i.Serial, &created, &updated)
@@ -77,7 +77,7 @@ func (s *Store) CreateInstance(ctx context.Context, i *Instance) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO instances (`+instanceCols+`)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		i.ID, i.Name, i.ServerID, i.Zone, i.CPUs, i.MemoryMB, i.DiskGB,
+		i.ID, i.Name, i.ServerID, i.Node, i.CPUs, i.MemoryMB, i.DiskGB,
 		i.ImageID, i.Status, i.DriverID, i.InternalIP, i.ExternalIP, i.NetBridge, i.VLANTag,
 		i.Description, boolInt(i.Protected), i.OSType, i.UUID, i.Serial, ts, ts)
 	i.CreatedAt = parseTime(ts)
@@ -184,10 +184,10 @@ func (s *Store) RenameInstance(ctx context.Context, id, name string) error {
 
 func (s *Store) ClaimInstance(ctx context.Context, i *Instance) error {
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE instances SET name = ?, driver_id = ?, zone = ?, cpus = ?, memory_mb = ?,
+		`UPDATE instances SET name = ?, driver_id = ?, node = ?, cpus = ?, memory_mb = ?,
 		 disk_gb = ?, image_id = ?, net_bridge = ?, vlan_tag = ?, description = ?,
 		 protected = ?, updated_at = ? WHERE id = ?`,
-		i.Name, i.DriverID, i.Zone, i.CPUs, i.MemoryMB, i.DiskGB, i.ImageID, i.NetBridge,
+		i.Name, i.DriverID, i.Node, i.CPUs, i.MemoryMB, i.DiskGB, i.ImageID, i.NetBridge,
 		i.VLANTag, i.Description, boolInt(i.Protected), now(), i.ID)
 	return err
 }
@@ -200,11 +200,11 @@ func (s *Store) ClaimInstance(ctx context.Context, i *Instance) error {
 // name and no sizing yet, and a record written from that snapshot used
 // to keep those zeroes forever. It also means renaming or resizing a
 // guest in the hypervisor shows up here instead of quietly drifting.
-func (s *Store) UpdateInstanceShape(ctx context.Context, id, name, zone string, cpus, memoryMB, diskGB int) error {
+func (s *Store) UpdateInstanceShape(ctx context.Context, id, name, node string, cpus, memoryMB, diskGB int) error {
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE instances SET name = ?, zone = ?, cpus = ?, memory_mb = ?, disk_gb = ?,
+		`UPDATE instances SET name = ?, node = ?, cpus = ?, memory_mb = ?, disk_gb = ?,
 		 updated_at = ? WHERE id = ?`,
-		name, zone, cpus, memoryMB, diskGB, now(), id)
+		name, node, cpus, memoryMB, diskGB, now(), id)
 	return err
 }
 

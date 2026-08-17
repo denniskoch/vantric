@@ -49,7 +49,7 @@ func parseDisk(key, val string, vm clusterVM) hypervisor.Disk {
 		ID:      fmt.Sprintf("%d/%s", vm.VMID, key),
 		Name:    spec.Name,
 		InUseBy: vm.Name,
-		Zone:    vm.Node,
+		Node:    vm.Node,
 		Storage: spec.Storage,
 		SizeGB:  int(spec.SizeBytes >> 30),
 	}
@@ -112,7 +112,7 @@ func (d *Driver) Datastores(ctx context.Context) ([]hypervisor.Datastore, error)
 		datastores = append(datastores, hypervisor.Datastore{
 			ID:         s.Node + "/" + s.Storage,
 			Name:       s.Storage,
-			Zone:       s.Node,
+			Node:       s.Node,
 			Type:       s.PluginType,
 			Content:    s.Content,
 			TotalBytes: s.MaxDisk,
@@ -206,7 +206,7 @@ func (d *Driver) ISOs(ctx context.Context) ([]hypervisor.ISO, error) {
 	isos := make([]hypervisor.ISO, 0, len(items))
 	for _, it := range items {
 		isos = append(isos, hypervisor.ISO{
-			ID: it.VolID, Name: it.Name, Zone: it.Node, Storage: it.Storage,
+			ID: it.VolID, Name: it.Name, Node: it.Node, Storage: it.Storage,
 			SizeBytes: it.SizeBytes, CreatedAt: it.CreatedAt,
 		})
 	}
@@ -222,7 +222,7 @@ func (d *Driver) CTTemplates(ctx context.Context) ([]hypervisor.CTTemplate, erro
 	templates := make([]hypervisor.CTTemplate, 0, len(items))
 	for _, it := range items {
 		templates = append(templates, hypervisor.CTTemplate{
-			ID: it.VolID, Name: it.Name, Zone: it.Node, Storage: it.Storage,
+			ID: it.VolID, Name: it.Name, Node: it.Node, Storage: it.Storage,
 			SizeBytes: it.SizeBytes, CreatedAt: it.CreatedAt,
 		})
 	}
@@ -245,7 +245,7 @@ func (d *Driver) Backups(ctx context.Context) ([]hypervisor.Backup, error) {
 	backups := make([]hypervisor.Backup, 0, len(items))
 	for _, it := range items {
 		backups = append(backups, hypervisor.Backup{
-			ID: it.VolID, Name: it.Name, Zone: it.Node, Storage: it.Storage,
+			ID: it.VolID, Name: it.Name, Node: it.Node, Storage: it.Storage,
 			SizeBytes: it.SizeBytes, CreatedAt: it.CreatedAt,
 			VMID: it.VMID, GuestName: names[it.VMID], GuestType: it.Subtype,
 			Format: it.Format, Notes: it.Notes, Protected: it.Protected,
@@ -284,7 +284,7 @@ func (d *Driver) Snapshots(ctx context.Context) ([]hypervisor.Snapshot, error) {
 				ID:          fmt.Sprintf("%d/%s", vm.VMID, s.Name),
 				Name:        s.Name,
 				VMName:      vm.Name,
-				Zone:        vm.Node,
+				Node:        vm.Node,
 				Description: strings.TrimSpace(s.Description),
 				CreatedAt:   s.SnapTime,
 				IncludesRAM: s.VMState == 1,

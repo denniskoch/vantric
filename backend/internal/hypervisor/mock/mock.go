@@ -58,31 +58,31 @@ func New() *Driver {
 		tasks:  map[string]*task{},
 		isos: []hypervisor.ISO{
 			{ID: "local:iso/debian-12.7.0-amd64-netinst.iso", Name: "debian-12.7.0-amd64-netinst.iso",
-				Zone: "lab-node-a", Storage: "local", SizeBytes: 663748608, CreatedAt: time.Now().Add(-90 * 24 * time.Hour).Unix()},
+				Node: "lab-node-a", Storage: "local", SizeBytes: 663748608, CreatedAt: time.Now().Add(-90 * 24 * time.Hour).Unix()},
 			{ID: "local:iso/ubuntu-24.04.1-live-server-amd64.iso", Name: "ubuntu-24.04.1-live-server-amd64.iso",
-				Zone: "lab-node-a", Storage: "local", SizeBytes: 2754981888, CreatedAt: time.Now().Add(-30 * 24 * time.Hour).Unix()},
+				Node: "lab-node-a", Storage: "local", SizeBytes: 2754981888, CreatedAt: time.Now().Add(-30 * 24 * time.Hour).Unix()},
 		},
 		images: []hypervisor.Image{
-			{ID: "9000", Name: "debian-12-cloudinit", Zone: "lab-node-a",
+			{ID: "9000", Name: "debian-12-cloudinit", Node: "lab-node-a",
 				Description:  "Debian GNU/Linux 12 (bookworm)\ncloud-init, qemu-guest-agent",
 				Architecture: "x86_64", CreatedAt: time.Now().Add(-40 * 24 * time.Hour).Unix()},
-			{ID: "9001", Name: "ubuntu-2404-cloudinit", Zone: "lab-node-a",
+			{ID: "9001", Name: "ubuntu-2404-cloudinit", Node: "lab-node-a",
 				Architecture: "x86_64", CreatedAt: time.Now().Add(-12 * 24 * time.Hour).Unix()},
-			{ID: "9002", Name: "alpine-321", Zone: "lab-node-b",
+			{ID: "9002", Name: "alpine-321", Node: "lab-node-b",
 				Architecture: "x86_64", CreatedAt: time.Now().Add(-5 * 24 * time.Hour).Unix()},
 		},
 		ctTemplates: []hypervisor.CTTemplate{
 			{ID: "local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst", Name: "debian-12-standard_12.7-1_amd64.tar.zst",
-				Zone: "lab-node-a", Storage: "local", SizeBytes: 130150400, CreatedAt: time.Now().Add(-60 * 24 * time.Hour).Unix()},
+				Node: "lab-node-a", Storage: "local", SizeBytes: 130150400, CreatedAt: time.Now().Add(-60 * 24 * time.Hour).Unix()},
 			{ID: "local:vztmpl/alpine-3.21-default_20241217_amd64.tar.xz", Name: "alpine-3.21-default_20241217_amd64.tar.xz",
-				Zone: "lab-node-a", Storage: "local", SizeBytes: 3355443, CreatedAt: time.Now().Add(-20 * 24 * time.Hour).Unix()},
+				Node: "lab-node-a", Storage: "local", SizeBytes: 3355443, CreatedAt: time.Now().Add(-20 * 24 * time.Hour).Unix()},
 		},
 	}
 	// Seed a couple of containers so the CT pages have data in dev.
 	d.cts["200"] = &instance{
 		created: time.Now(),
 		state: hypervisor.InstanceState{
-			DriverID: "200", Name: "pihole", Zone: "lab-node-a",
+			DriverID: "200", Name: "pihole", Node: "lab-node-a",
 			Status: hypervisor.StatusRunning, CPUs: 1, MemoryMB: 512, DiskGB: 4,
 			InternalIP: "10.20.0.53",
 		},
@@ -90,7 +90,7 @@ func New() *Driver {
 	d.cts["201"] = &instance{
 		created: time.Now(),
 		state: hypervisor.InstanceState{
-			DriverID: "201", Name: "docker-host", Zone: "lab-node-b",
+			DriverID: "201", Name: "docker-host", Node: "lab-node-b",
 			Status: hypervisor.StatusTerminated, CPUs: 2, MemoryMB: 2048, DiskGB: 16,
 		},
 	}
@@ -102,9 +102,9 @@ func (d *Driver) Name() string { return "mock" }
 const gb = int64(1) << 30
 
 // The two mock hosts differ on purpose: node-b is short of memory and
-// has started swapping, which is the state the zone pages exist to
+// has started swapping, which is the state the node pages exist to
 // make visible and the one you can't produce on demand in a real lab.
-var mockNodes = []hypervisor.Zone{
+var mockNodes = []hypervisor.Node{
 	{
 		ID: "lab-node-a", Name: "lab-node-a", Status: "online",
 		CPUs: 12, CPUPercent: 8.4,
@@ -121,14 +121,14 @@ var mockNodes = []hypervisor.Zone{
 	},
 }
 
-func (d *Driver) Zones(ctx context.Context) ([]hypervisor.Zone, error) {
-	return append([]hypervisor.Zone{}, mockNodes...), nil
+func (d *Driver) Nodes(ctx context.Context) ([]hypervisor.Node, error) {
+	return append([]hypervisor.Node{}, mockNodes...), nil
 }
 
-func (d *Driver) NodeStatus(ctx context.Context, zone string) (*hypervisor.NodeStatus, error) {
-	var z *hypervisor.Zone
+func (d *Driver) NodeStatus(ctx context.Context, node string) (*hypervisor.NodeStatus, error) {
+	var z *hypervisor.Node
 	for i := range mockNodes {
-		if mockNodes[i].ID == zone {
+		if mockNodes[i].ID == node {
 			z = &mockNodes[i]
 		}
 	}
@@ -167,8 +167,8 @@ func (d *Driver) NodeStatus(ctx context.Context, zone string) (*hypervisor.NodeS
 	return status, nil
 }
 
-func (d *Driver) NodeMetrics(ctx context.Context, zone string, timeframe hypervisor.MetricTimeframe) ([]hypervisor.MetricPoint, error) {
-	status, err := d.NodeStatus(ctx, zone)
+func (d *Driver) NodeMetrics(ctx context.Context, node string, timeframe hypervisor.MetricTimeframe) ([]hypervisor.MetricPoint, error) {
+	status, err := d.NodeStatus(ctx, node)
 	if err != nil {
 		return nil, err
 	}
@@ -215,19 +215,19 @@ func (d *Driver) Images(ctx context.Context) ([]hypervisor.Image, error) {
 
 func (d *Driver) Bridges(ctx context.Context) ([]hypervisor.Bridge, error) {
 	return []hypervisor.Bridge{
-		{Name: "vmbr0", Zone: "lab-node-a", CIDR: "10.20.0.2/24", Comment: "lab LAN",
+		{Name: "vmbr0", Node: "lab-node-a", CIDR: "10.20.0.2/24", Comment: "lab LAN",
 			Active: true, VLANAware: true, Ports: "eno1"},
-		{Name: "vmbr1", Zone: "lab-node-a", Comment: "isolated", Active: true},
-		{Name: "vmbr0", Zone: "lab-node-b", CIDR: "10.20.0.3/24", Active: true, VLANAware: true, Ports: "eno1"},
+		{Name: "vmbr1", Node: "lab-node-a", Comment: "isolated", Active: true},
+		{Name: "vmbr0", Node: "lab-node-b", CIDR: "10.20.0.3/24", Active: true, VLANAware: true, Ports: "eno1"},
 	}, nil
 }
 
 func (d *Driver) CloudImages(ctx context.Context) ([]hypervisor.CloudImage, error) {
 	return []hypervisor.CloudImage{
 		{ID: "local:import/debian-13-genericcloud-amd64.qcow2", Name: "debian-13-genericcloud-amd64.qcow2",
-			Zone: "lab-node-a", Storage: "local", SizeBytes: 361758720, CreatedAt: time.Now().Add(-3 * 24 * time.Hour).Unix()},
+			Node: "lab-node-a", Storage: "local", SizeBytes: 361758720, CreatedAt: time.Now().Add(-3 * 24 * time.Hour).Unix()},
 		{ID: "local:import/noble-server-cloudimg-amd64.img", Name: "noble-server-cloudimg-amd64.img",
-			Zone: "lab-node-a", Storage: "local", SizeBytes: 601309184, CreatedAt: time.Now().Add(-9 * 24 * time.Hour).Unix()},
+			Node: "lab-node-a", Storage: "local", SizeBytes: 601309184, CreatedAt: time.Now().Add(-9 * 24 * time.Hour).Unix()},
 	}, nil
 }
 
@@ -254,7 +254,7 @@ func (d *Driver) BuildTemplate(ctx context.Context, spec hypervisor.TemplateSpec
 	d.nextID++
 	id := fmt.Sprintf("%d", d.nextID)
 	d.images = append(d.images, hypervisor.Image{
-		ID: id, Name: spec.Name, Zone: spec.Zone,
+		ID: id, Name: spec.Name, Node: spec.Node,
 		Description:  "Built from " + spec.SourceVolume,
 		Architecture: "x86_64", CreatedAt: time.Now().Unix(),
 	})
@@ -286,7 +286,7 @@ func (d *Driver) Disks(ctx context.Context) ([]hypervisor.Disk, error) {
 			ID:      id + "/scsi0",
 			Name:    fmt.Sprintf("vm-%s-disk-0", id),
 			InUseBy: vm.state.Name,
-			Zone:    vm.state.Zone,
+			Node:    vm.state.Node,
 			Storage: "local-lvm",
 			SizeGB:  vm.state.DiskGB,
 		})
@@ -305,7 +305,7 @@ func (d *Driver) Snapshots(ctx context.Context) ([]hypervisor.Snapshot, error) {
 			ID:          id + "/clean-install",
 			Name:        "clean-install",
 			VMName:      vm.state.Name,
-			Zone:        vm.state.Zone,
+			Node:        vm.state.Node,
 			Description: "Automatic post-provision snapshot (mock)",
 			CreatedAt:   vm.created.Unix(),
 		})
@@ -325,7 +325,7 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 		state: hypervisor.InstanceState{
 			DriverID: id,
 			Name:     spec.Name,
-			Zone:     spec.Zone,
+			Node:     spec.Node,
 			Status:   hypervisor.StatusProvisioning,
 			CPUs:     spec.CPUs,
 			MemoryMB: spec.MemoryMB,
@@ -551,7 +551,7 @@ func (d *Driver) ISOs(ctx context.Context) ([]hypervisor.ISO, error) {
 // DownloadISO simulates a server-side fetch: the task "runs" briefly,
 // then the image appears in the listing.
 func (d *Driver) DownloadISO(ctx context.Context, spec hypervisor.ISODownloadSpec) (string, error) {
-	return d.startImport(spec.Zone, spec.Storage, spec.Filename, 6*time.Second, 0), nil
+	return d.startImport(spec.Node, spec.Storage, spec.Filename, 6*time.Second, 0), nil
 }
 
 func (d *Driver) UploadISO(ctx context.Context, spec hypervisor.ISOUploadSpec, content io.Reader) (string, error) {
@@ -560,28 +560,28 @@ func (d *Driver) UploadISO(ctx context.Context, spec hypervisor.ISOUploadSpec, c
 	if err != nil {
 		return "", err
 	}
-	return d.startImport(spec.Zone, spec.Storage, spec.Filename, 2*time.Second, n), nil
+	return d.startImport(spec.Node, spec.Storage, spec.Filename, 2*time.Second, n), nil
 }
 
-func (d *Driver) startImport(zone, storage, filename string, after time.Duration, size int64) string {
+func (d *Driver) startImport(node, storage, filename string, after time.Duration, size int64) string {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.nextTask++
-	id := fmt.Sprintf("UPID:%s:mock:%d", zone, d.nextTask)
+	id := fmt.Sprintf("UPID:%s:mock:%d", node, d.nextTask)
 	if size == 0 {
 		size = 1 << 30
 	}
 	d.tasks[id] = &task{
 		done: time.Now().Add(after),
 		iso: hypervisor.ISO{
-			ID: storage + ":iso/" + filename, Name: filename, Zone: zone,
+			ID: storage + ":iso/" + filename, Name: filename, Node: node,
 			Storage: storage, SizeBytes: size, CreatedAt: time.Now().Unix(),
 		},
 	}
 	return id
 }
 
-func (d *Driver) DeleteVolume(ctx context.Context, zone, volumeID string) (string, error) {
+func (d *Driver) DeleteVolume(ctx context.Context, node, volumeID string) (string, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	for i, iso := range d.isos {
@@ -620,11 +620,11 @@ func (d *Driver) TaskStatus(ctx context.Context, taskID string) (*hypervisor.Tas
 
 func (d *Driver) Datastores(ctx context.Context) ([]hypervisor.Datastore, error) {
 	return []hypervisor.Datastore{
-		{ID: "lab-node-a/local", Name: "local", Zone: "lab-node-a", Type: "dir",
+		{ID: "lab-node-a/local", Name: "local", Node: "lab-node-a", Type: "dir",
 			Content: "iso,vztmpl,backup", TotalBytes: 100 << 30, UsedBytes: 38 << 30, Active: true},
-		{ID: "lab-node-a/local-lvm", Name: "local-lvm", Zone: "lab-node-a", Type: "lvmthin",
+		{ID: "lab-node-a/local-lvm", Name: "local-lvm", Node: "lab-node-a", Type: "lvmthin",
 			Content: "images,rootdir", TotalBytes: 500 << 30, UsedBytes: 213 << 30, Active: true},
-		{ID: "lab-node-b/ssd-tank", Name: "ssd-tank", Zone: "lab-node-b", Type: "zfspool",
+		{ID: "lab-node-b/ssd-tank", Name: "ssd-tank", Node: "lab-node-b", Type: "zfspool",
 			Content: "images,rootdir", TotalBytes: 2 << 40, UsedBytes: 700 << 30, Active: true, Shared: true},
 	}, nil
 }

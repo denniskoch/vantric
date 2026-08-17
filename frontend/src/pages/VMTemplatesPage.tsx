@@ -101,7 +101,7 @@ export default function VMTemplatesPage() {
               <TableCell>Name</TableCell>
               <TableCell>Operating system</TableCell>
               <TableCell>ID</TableCell>
-              <TableCell>Zone</TableCell>
+              <TableCell>Node</TableCell>
               <TableCell align="right">Instances</TableCell>
               <TableCell>Built</TableCell>
               <TableCell>Notes</TableCell>
@@ -140,7 +140,7 @@ export default function VMTemplatesPage() {
                   )}
                 </TableCell>
                 <TableCell>{tpl.id}</TableCell>
-                <TableCell>{tpl.zone || '—'}</TableCell>
+                <TableCell>{tpl.node || '—'}</TableCell>
                 <TableCell align="right">{clonesOf(tpl) || '—'}</TableCell>
                 <TableCell>{builtOn(tpl.createdAt)}</TableCell>
                 <TableCell sx={{ color: 'text.secondary' }}>{id.notes || '—'}</TableCell>

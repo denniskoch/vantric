@@ -30,7 +30,7 @@ export default function DisksPage() {
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>In use by</TableCell>
-              <TableCell>Zone</TableCell>
+              <TableCell>Node</TableCell>
               <TableCell>Storage pool</TableCell>
               <TableCell align="right">Size (GB)</TableCell>
             </TableRow>
@@ -52,7 +52,7 @@ export default function DisksPage() {
                     '—'
                   )}
                 </TableCell>
-                <TableCell>{disk.zone}</TableCell>
+                <TableCell>{disk.node}</TableCell>
                 <TableCell>{disk.storage}</TableCell>
                 <TableCell align="right">{disk.sizeGb || '—'}</TableCell>
               </TableRow>

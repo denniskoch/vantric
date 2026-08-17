@@ -27,7 +27,7 @@ func (d *Driver) ListContainers(ctx context.Context) ([]hypervisor.InstanceState
 		states = append(states, hypervisor.InstanceState{
 			DriverID: strconv.Itoa(vm.VMID),
 			Name:     vm.Name,
-			Zone:     vm.Node,
+			Node:     vm.Node,
 			Status:   mapStatus(vm.Status, vm.Lock),
 			CPUs:     vm.MaxCPU,
 			MemoryMB: int(vm.MaxMem / (1024 * 1024)),
@@ -57,7 +57,7 @@ func (d *Driver) GetContainer(ctx context.Context, driverID string) (*hypervisor
 	state := &hypervisor.InstanceState{
 		DriverID: driverID,
 		Name:     cur.Name,
-		Zone:     node,
+		Node:     node,
 		Status:   mapStatus(cur.Status, cur.Lock),
 		CPUs:     cur.CPUs,
 		MemoryMB: int(cur.MaxMem / (1024 * 1024)),

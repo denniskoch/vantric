@@ -41,7 +41,7 @@ func (s *Server) downloadCloudImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Zone               string `json:"zone"`
+		Node               string `json:"node"`
 		Storage            string `json:"storage"`
 		Filename           string `json:"filename"`
 		URL                string `json:"url"`
@@ -53,8 +53,8 @@ func (s *Server) downloadCloudImage(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	if req.Zone == "" || req.Storage == "" {
-		s.err(w, http.StatusBadRequest, "zone and storage are required")
+	if req.Node == "" || req.Storage == "" {
+		s.err(w, http.StatusBadRequest, "node and storage are required")
 		return
 	}
 	if !strings.HasPrefix(req.URL, "http://") && !strings.HasPrefix(req.URL, "https://") {
@@ -75,7 +75,7 @@ func (s *Server) downloadCloudImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	taskID, err := driver.DownloadISO(r.Context(), hypervisor.ISODownloadSpec{
-		Zone:               req.Zone,
+		Node:               req.Node,
 		Storage:            req.Storage,
 		Filename:           filename,
 		URL:                req.URL,
@@ -102,7 +102,7 @@ func (s *Server) buildTemplate(w http.ResponseWriter, r *http.Request) {
 	serverID := r.URL.Query().Get("server")
 	var req struct {
 		Name          string           `json:"name"`
-		Zone          string           `json:"zone"`
+		Node          string           `json:"node"`
 		SourceVolume  string           `json:"sourceVolume"`
 		DiskStorage   string           `json:"diskStorage"`
 		DiskGB        int              `json:"diskGb"`
@@ -124,8 +124,8 @@ func (s *Server) buildTemplate(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, "name must be lowercase letters, digits, hyphens (start with a letter)")
 		return
 	}
-	if req.Zone == "" || req.SourceVolume == "" || req.DiskStorage == "" {
-		s.err(w, http.StatusBadRequest, "zone, sourceVolume and diskStorage are required")
+	if req.Node == "" || req.SourceVolume == "" || req.DiskStorage == "" {
+		s.err(w, http.StatusBadRequest, "node, sourceVolume and diskStorage are required")
 		return
 	}
 	if !strings.Contains(req.SourceVolume, ":import/") {
@@ -149,7 +149,7 @@ func (s *Server) buildTemplate(w http.ResponseWriter, r *http.Request) {
 
 	spec := hypervisor.TemplateSpec{
 		Name:          req.Name,
-		Zone:          req.Zone,
+		Node:          req.Node,
 		SourceVolume:  req.SourceVolume,
 		DiskStorage:   req.DiskStorage,
 		DiskGB:        req.DiskGB,

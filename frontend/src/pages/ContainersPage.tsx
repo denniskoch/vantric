@@ -114,7 +114,7 @@ export default function ContainersPage() {
               </TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Name</TableCell>
-              <TableCell>Zone</TableCell>
+              <TableCell>Node</TableCell>
               <TableCell align="right">vCPUs</TableCell>
               <TableCell align="right">Memory (MB)</TableCell>
               <TableCell>Internal IP</TableCell>
@@ -139,7 +139,7 @@ export default function ContainersPage() {
                     {ct.name}
                   </Link>
                 </TableCell>
-                <TableCell>{ct.zone}</TableCell>
+                <TableCell>{ct.node}</TableCell>
                 <TableCell align="right">{ct.cpus}</TableCell>
                 <TableCell align="right">{ct.memoryMb}</TableCell>
                 <TableCell>{ct.internalIp || '—'}</TableCell>

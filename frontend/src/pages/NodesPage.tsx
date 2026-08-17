@@ -23,23 +23,23 @@ import { useServerNames } from '../useServerNames'
 /**
  * The hosts everything else runs on.
  *
- * Every other page in Compute shows something running ON a zone; this
- * one shows the zone. The usage here costs no extra call — a host
+ * Every other page in Compute shows something running ON a node; this
+ * one shows the node. The usage here costs no extra call — a host
  * listing reports it alongside the name, and this app read only the
- * name for as long as zones were a dropdown and nothing more.
+ * name for as long as nodes were a dropdown and nothing more.
  */
-export default function ZonesPage() {
+export default function NodesPage() {
   const serverName = useServerNames()
-  const { data: zones = [], isLoading } = useQuery({
-    queryKey: ['zones'],
-    queryFn: () => api.listZones(),
+  const { data: nodes = [], isLoading } = useQuery({
+    queryKey: ['nodes'],
+    queryFn: () => api.listNodes(),
     refetchInterval: 10000,
   })
 
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
-        title="Zones"
+        title="Nodes"
         description="The virtualization hosts your instances and containers run on."
       />
       <TableContainer component={Paper} variant="outlined">
@@ -57,11 +57,11 @@ export default function ZonesPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {zones.map((zone) => (
-              <TableRow key={`${zone.serverId}/${zone.id}`} hover>
+            {nodes.map((node) => (
+              <TableRow key={`${node.serverId}/${node.id}`} hover>
                 <TableCell>
-                  <Tooltip title={zone.status || 'unknown'}>
-                    {zone.status === 'online' ? (
+                  <Tooltip title={node.status || 'unknown'}>
+                    {node.status === 'online' ? (
                       <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} />
                     ) : (
                       <ErrorIcon sx={{ color: 'error.main', fontSize: 18 }} />
@@ -71,35 +71,35 @@ export default function ZonesPage() {
                 <TableCell>
                   <Link
                     component={RouterLink}
-                    to={`/compute/zones/${zone.serverId}/${encodeURIComponent(zone.id)}`}
+                    to={`/compute/nodes/${node.serverId}/${encodeURIComponent(node.id)}`}
                     underline="hover"
                   >
-                    {zone.name}
+                    {node.name}
                   </Link>
                 </TableCell>
-                <TableCell>{serverName(zone.serverId)}</TableCell>
-                <TableCell align="right">{zone.cpus || '—'}</TableCell>
+                <TableCell>{serverName(node.serverId)}</TableCell>
+                <TableCell align="right">{node.cpus || '—'}</TableCell>
                 <TableCell>
                   {/* A rate, not an occupancy: the bar shows how hard
                       the host is working, with no used-of-total pair
                       the way memory and disk have. */}
-                  <UsageBar used={zone.cpuPercent} total={100} minWidth={110} showValues={false} />
+                  <UsageBar used={node.cpuPercent} total={100} minWidth={110} showValues={false} />
                 </TableCell>
                 <TableCell>
-                  <UsageBar used={zone.memoryUsedBytes} total={zone.memoryTotalBytes} />
+                  <UsageBar used={node.memoryUsedBytes} total={node.memoryTotalBytes} />
                 </TableCell>
                 <TableCell>
-                  <UsageBar used={zone.diskUsedBytes} total={zone.diskTotalBytes} />
+                  <UsageBar used={node.diskUsedBytes} total={node.diskTotalBytes} />
                 </TableCell>
                 <TableCell sx={{ color: 'text.secondary' }}>
-                  {zone.uptimeSeconds ? formatUptime(zone.uptimeSeconds) : '—'}
+                  {node.uptimeSeconds ? formatUptime(node.uptimeSeconds) : '—'}
                 </TableCell>
               </TableRow>
             ))}
-            {zones.length === 0 && (
+            {nodes.length === 0 && (
               <TableRow>
                 <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                  {isLoading ? 'Loading…' : 'No zones found. Add a hypervisor to see its hosts.'}
+                  {isLoading ? 'Loading…' : 'No nodes found. Add a hypervisor to see its hosts.'}
                 </TableCell>
               </TableRow>
             )}

@@ -21,7 +21,7 @@ func (d *Driver) CloudImages(ctx context.Context) ([]hypervisor.CloudImage, erro
 	images := make([]hypervisor.CloudImage, 0, len(items))
 	for _, it := range items {
 		images = append(images, hypervisor.CloudImage{
-			ID: it.VolID, Name: it.Name, Zone: it.Node, Storage: it.Storage,
+			ID: it.VolID, Name: it.Name, Node: it.Node, Storage: it.Storage,
 			SizeBytes: it.SizeBytes, CreatedAt: it.CreatedAt,
 		})
 	}
@@ -123,11 +123,11 @@ func (d *Driver) BuildTemplate(ctx context.Context, spec hypervisor.TemplateSpec
 
 	step("Creating the VM and importing the disk")
 	var createTask string
-	if err := d.do(ctx, http.MethodPost, fmt.Sprintf("/nodes/%s/qemu", spec.Zone), form, &createTask); err != nil {
+	if err := d.do(ctx, http.MethodPost, fmt.Sprintf("/nodes/%s/qemu", spec.Node), form, &createTask); err != nil {
 		return "", fmt.Errorf("creating VM: %w", err)
 	}
 	d.mu.Lock()
-	d.nodeOf[vmid] = spec.Zone
+	d.nodeOf[vmid] = spec.Node
 	d.mu.Unlock()
 	if err := d.waitForTask(ctx, createTask); err != nil {
 		return "", fmt.Errorf("importing disk: %w", err)
@@ -137,7 +137,7 @@ func (d *Driver) BuildTemplate(ctx context.Context, spec hypervisor.TemplateSpec
 	if spec.DiskGB > 0 {
 		step(fmt.Sprintf("Resizing the disk to %d GB", spec.DiskGB))
 		resize := url.Values{"disk": {"scsi0"}, "size": {fmt.Sprintf("%dG", spec.DiskGB)}}
-		path := fmt.Sprintf("/nodes/%s/qemu/%s/resize", spec.Zone, vmid)
+		path := fmt.Sprintf("/nodes/%s/qemu/%s/resize", spec.Node, vmid)
 		if err := d.do(ctx, http.MethodPut, path, resize, nil); err != nil {
 			// A smaller-than-current request is refused; that's not fatal.
 			step("Disk left at the image's own size")
@@ -145,7 +145,7 @@ func (d *Driver) BuildTemplate(ctx context.Context, spec hypervisor.TemplateSpec
 	}
 
 	step("Converting to a template")
-	path := fmt.Sprintf("/nodes/%s/qemu/%s/template", spec.Zone, vmid)
+	path := fmt.Sprintf("/nodes/%s/qemu/%s/template", spec.Node, vmid)
 	if err := d.do(ctx, http.MethodPost, path, url.Values{}, nil); err != nil {
 		return "", fmt.Errorf("converting to template: %w", err)
 	}

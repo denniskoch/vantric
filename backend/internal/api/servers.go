@@ -44,7 +44,7 @@ func (s *Server) listServers(w http.ResponseWriter, r *http.Request) {
 	s.json(w, http.StatusOK, views)
 }
 
-// probeServer asks the driver for its zones with a short timeout to
+// probeServer asks the driver for its nodes with a short timeout to
 // report connectivity and node count.
 func (s *Server) probeServer(ctx context.Context, sv store.Server) serverView {
 	view := serverView{Server: sv, HasSecret: sv.Secret != "", Status: "unknown"}
@@ -55,14 +55,14 @@ func (s *Server) probeServer(ctx context.Context, sv store.Server) serverView {
 	}
 	probeCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	zones, err := driver.Zones(probeCtx)
+	nodes, err := driver.Nodes(probeCtx)
 	if err != nil {
 		view.Status = "unreachable"
 		view.Error = err.Error()
 		return view
 	}
 	view.Status = "connected"
-	view.Nodes = len(zones)
+	view.Nodes = len(nodes)
 	return view
 }
 

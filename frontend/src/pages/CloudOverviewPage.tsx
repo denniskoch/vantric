@@ -147,7 +147,7 @@ export default function CloudOverviewPage() {
           </Typography>
           <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
             {data.datastores.map((ds) => (
-              <DatastoreBar key={`${ds.serverId}/${ds.zone}/${ds.name}`} datastore={ds} />
+              <DatastoreBar key={`${ds.serverId}/${ds.node}/${ds.name}`} datastore={ds} />
             ))}
           </Paper>
         </>
@@ -231,7 +231,7 @@ function DatastoreBar({ datastore }: { datastore: OverviewDatastore }) {
     <Box sx={{ mb: 1.5, '&:last-of-type': { mb: 0 } }}>
       <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
         <Typography sx={{ fontSize: 13, color: 'text.primary' }}>{datastore.name}</Typography>
-        <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{datastore.zone}</Typography>
+        <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{datastore.node}</Typography>
         <Box sx={{ flex: 1 }} />
         <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
           {formatBytes(datastore.usedBytes)} of {formatBytes(datastore.totalBytes)} ·{' '}

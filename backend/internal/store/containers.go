@@ -13,7 +13,7 @@ type Container struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
 	ServerID    string    `json:"serverId"`
-	Zone        string    `json:"zone"`
+	Node        string    `json:"node"`
 	CPUs        int       `json:"cpus"`
 	MemoryMB    int       `json:"memoryMb"`
 	DiskGB      int       `json:"diskGb"`
@@ -26,14 +26,14 @@ type Container struct {
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
-const containerCols = `id, name, server_id, zone, cpus, memory_mb, disk_gb,
+const containerCols = `id, name, server_id, node, cpus, memory_mb, disk_gb,
 	status, driver_id, internal_ip, description, protected, created_at, updated_at`
 
 func scanContainer(scan func(dest ...any) error) (*Container, error) {
 	var c Container
 	var created, updated string
 	var protected int
-	err := scan(&c.ID, &c.Name, &c.ServerID, &c.Zone, &c.CPUs, &c.MemoryMB, &c.DiskGB,
+	err := scan(&c.ID, &c.Name, &c.ServerID, &c.Node, &c.CPUs, &c.MemoryMB, &c.DiskGB,
 		&c.Status, &c.DriverID, &c.InternalIP, &c.Description, &protected, &created, &updated)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func (s *Store) CreateContainer(ctx context.Context, c *Container) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO containers (`+containerCols+`)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		c.ID, c.Name, c.ServerID, c.Zone, c.CPUs, c.MemoryMB, c.DiskGB,
+		c.ID, c.Name, c.ServerID, c.Node, c.CPUs, c.MemoryMB, c.DiskGB,
 		c.Status, c.DriverID, c.InternalIP, c.Description, boolInt(c.Protected), ts, ts)
 	c.CreatedAt = parseTime(ts)
 	c.UpdatedAt = c.CreatedAt
@@ -93,11 +93,11 @@ func (s *Store) UpdateContainerState(ctx context.Context, id, status, internalIP
 
 // UpdateContainerShape is UpdateInstanceShape for containers; same
 // race, same drift.
-func (s *Store) UpdateContainerShape(ctx context.Context, id, name, zone string, cpus, memoryMB, diskGB int) error {
+func (s *Store) UpdateContainerShape(ctx context.Context, id, name, node string, cpus, memoryMB, diskGB int) error {
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE containers SET name = ?, zone = ?, cpus = ?, memory_mb = ?, disk_gb = ?,
+		`UPDATE containers SET name = ?, node = ?, cpus = ?, memory_mb = ?, disk_gb = ?,
 		 updated_at = ? WHERE id = ?`,
-		name, zone, cpus, memoryMB, diskGB, now(), id)
+		name, node, cpus, memoryMB, diskGB, now(), id)
 	return err
 }
 

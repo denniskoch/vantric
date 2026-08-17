@@ -65,7 +65,7 @@ export default function RenameInstancePage() {
       {/* What a rename does and doesn't do. The second half is the
           part people assume wrongly. */}
       <Alert severity="info" sx={{ mb: 2 }}>
-        This renames the virtual machine on {inst?.zone ? `${inst.zone}` : 'the hypervisor'} —
+        This renames the virtual machine on {inst?.node ? `${inst.node}` : 'the hypervisor'} —
         the same label Proxmox shows. The guest's own hostname is not changed: nothing
         inside the machine is touched, and anything pointing at the old hostname keeps
         working. To rename the operating system, run <code>hostnamectl</code> in the guest.

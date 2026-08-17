@@ -259,7 +259,7 @@ func (s *Server) dbDriver(w http.ResponseWriter, r *http.Request) database.Drive
 }
 
 // listDatabases spans every server, stamping each database with the
-// server it came from — the same pattern as catalog and zone listings.
+// server it came from — the same pattern as catalog and node listings.
 func (s *Server) listDatabases(w http.ResponseWriter, r *http.Request) {
 	servers, err := s.store.ListDatabaseServers(r.Context())
 	if err != nil {

@@ -1,7 +1,7 @@
 // Package proxmox implements hypervisor.Driver against the Proxmox VE
 // REST API using API-token auth.
 //
-// Mapping: zone = cluster node, image = template VMID, create = clone.
+// Mapping: node = cluster node, image = template VMID, create = clone.
 package proxmox
 
 import (
@@ -97,10 +97,10 @@ func (d *Driver) do(ctx context.Context, method, path string, form url.Values, o
 	return json.Unmarshal(env.Data, out)
 }
 
-func (d *Driver) Zones(ctx context.Context) ([]hypervisor.Zone, error) {
+func (d *Driver) Nodes(ctx context.Context) ([]hypervisor.Node, error) {
 	// /nodes reports usage alongside the name, so the summary below is
 	// free — it is the same one request either way.
-	var nodes []struct {
+	var raw []struct {
 		Node    string  `json:"node"`
 		Status  string  `json:"status"`
 		CPU     float64 `json:"cpu"` // fraction 0..1
@@ -111,12 +111,12 @@ func (d *Driver) Zones(ctx context.Context) ([]hypervisor.Zone, error) {
 		MaxDisk int64   `json:"maxdisk"`
 		Uptime  int64   `json:"uptime"`
 	}
-	if err := d.do(ctx, http.MethodGet, "/nodes", nil, &nodes); err != nil {
+	if err := d.do(ctx, http.MethodGet, "/nodes", nil, &raw); err != nil {
 		return nil, err
 	}
-	zones := make([]hypervisor.Zone, 0, len(nodes))
-	for _, n := range nodes {
-		zones = append(zones, hypervisor.Zone{
+	nodes := make([]hypervisor.Node, 0, len(raw))
+	for _, n := range raw {
+		nodes = append(nodes, hypervisor.Node{
 			ID:               n.Node,
 			Name:             n.Node,
 			Status:           n.Status,
@@ -129,8 +129,8 @@ func (d *Driver) Zones(ctx context.Context) ([]hypervisor.Zone, error) {
 			UptimeSeconds:    n.Uptime,
 		})
 	}
-	sortByName(zones, func(z hypervisor.Zone) string { return z.Name })
-	return zones, nil
+	sortByName(nodes, func(n hypervisor.Node) string { return n.Name })
+	return nodes, nil
 }
 
 type clusterVM struct {
@@ -177,7 +177,7 @@ func (d *Driver) Images(ctx context.Context) ([]hypervisor.Image, error) {
 			images = append(images, hypervisor.Image{
 				ID:   strconv.Itoa(vm.VMID),
 				Name: vm.Name,
-				Zone: vm.Node,
+				Node: vm.Node,
 			})
 		}
 	}
@@ -206,7 +206,7 @@ func (d *Driver) describeImages(ctx context.Context, images []hypervisor.Image) 
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			var cfg map[string]any
-			path := fmt.Sprintf("/nodes/%s/qemu/%s/config", img.Zone, img.ID)
+			path := fmt.Sprintf("/nodes/%s/qemu/%s/config", img.Node, img.ID)
 			if err := d.do(ctx, http.MethodGet, path, nil, &cfg); err != nil {
 				return
 			}
@@ -256,7 +256,7 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 	form := url.Values{
 		"newid":  {nextID},
 		"name":   {spec.Name},
-		"target": {spec.Zone},
+		"target": {spec.Node},
 		"full":   {"1"},
 	}
 	path := fmt.Sprintf("/nodes/%s/qemu/%s/clone", templateNode, spec.ImageID)
@@ -264,7 +264,7 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 		return "", fmt.Errorf("cloning template: %w", err)
 	}
 	d.mu.Lock()
-	d.nodeOf[nextID] = spec.Zone
+	d.nodeOf[nextID] = spec.Node
 	d.mu.Unlock()
 
 	// Apply sizing and optional settings. Clone is async;
@@ -285,7 +285,7 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 		cfg.Set("net0", net0)
 	}
 	applyCloudInit(cfg, spec.CloudInit)
-	cfgPath := fmt.Sprintf("/nodes/%s/qemu/%s/config", spec.Zone, nextID)
+	cfgPath := fmt.Sprintf("/nodes/%s/qemu/%s/config", spec.Node, nextID)
 	if err := d.do(ctx, http.MethodPost, cfgPath, cfg, nil); err != nil {
 		return nextID, nil // instance exists; config can be fixed manually
 	}
@@ -294,7 +294,7 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 		// failed create, and the gap reports itself: the reconciler
 		// reads the serial back and the detail page says "not set on the
 		// hypervisor" rather than showing what was asked for.
-		_ = d.setSerial(ctx, spec.Zone, nextID, spec.Serial)
+		_ = d.setSerial(ctx, spec.Node, nextID, spec.Serial)
 	}
 
 	// Booting it is the console's job, not this method's. A new instance
@@ -324,7 +324,7 @@ func (d *Driver) List(ctx context.Context) ([]hypervisor.InstanceState, error) {
 		states = append(states, hypervisor.InstanceState{
 			DriverID: strconv.Itoa(vm.VMID),
 			Name:     vm.Name,
-			Zone:     vm.Node,
+			Node:     vm.Node,
 			Status:   mapStatus(vm.Status, vm.Lock),
 			CPUs:     vm.MaxCPU,
 			MemoryMB: int(vm.MaxMem / (1024 * 1024)),
@@ -356,7 +356,7 @@ func (d *Driver) Get(ctx context.Context, driverID string) (*hypervisor.Instance
 	state := &hypervisor.InstanceState{
 		DriverID:      driverID,
 		Name:          cur.Name,
-		Zone:          node,
+		Node:          node,
 		Status:        mapStatus(cur.Status, cur.Lock),
 		CPUs:          cur.CPUs,
 		MemoryMB:      int(cur.MaxMem / (1024 * 1024)),

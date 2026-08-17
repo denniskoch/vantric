@@ -44,7 +44,7 @@ export default function CloudImagesPage() {
   })
 
   const remove = useMutation({
-    mutationFn: (image: CloudImage) => api.deleteCloudImage(image.serverId, image.zone, image.id),
+    mutationFn: (image: CloudImage) => api.deleteCloudImage(image.serverId, image.node, image.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cloudImages'] })
       setConfirming(null)
@@ -86,7 +86,7 @@ export default function CloudImagesPage() {
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>Datastore</TableCell>
-              <TableCell>Zone</TableCell>
+              <TableCell>Node</TableCell>
               <TableCell align="right">Size</TableCell>
               <TableCell>Uploaded</TableCell>
               <TableCell align="right" />
@@ -99,7 +99,7 @@ export default function CloudImagesPage() {
                   <OSName name={image.name} />
                 </TableCell>
                 <TableCell>{image.storage}</TableCell>
-                <TableCell>{image.zone}</TableCell>
+                <TableCell>{image.node}</TableCell>
                 <TableCell align="right">{formatBytes(image.sizeBytes)}</TableCell>
                 <TableCell>
                   {image.createdAt ? new Date(image.createdAt * 1000).toLocaleDateString() : '—'}

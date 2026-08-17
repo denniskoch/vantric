@@ -14,7 +14,7 @@ import (
 	"vantric/internal/store"
 )
 
-// Catalog handlers list hypervisor-side inventory (zones, templates,
+// Catalog handlers list hypervisor-side inventory (nodes, templates,
 // storage). They span every registered server by default so the UI can
 // show one table with a Server column, the way instance lists do.
 // `?server=` narrows to a single server, which the create flows use.
@@ -55,41 +55,41 @@ func listAcrossServers[T any](
 	return items, nil
 }
 
-func (s *Server) listZones(w http.ResponseWriter, r *http.Request) {
-	zones, err := listAcrossServers(s, r,
-		func(ctx context.Context, d hypervisor.Driver) ([]hypervisor.Zone, error) {
-			return d.Zones(ctx)
+func (s *Server) listNodes(w http.ResponseWriter, r *http.Request) {
+	nodes, err := listAcrossServers(s, r,
+		func(ctx context.Context, d hypervisor.Driver) ([]hypervisor.Node, error) {
+			return d.Nodes(ctx)
 		},
-		// Stamped like every other catalog listing. A zone name is only
+		// Stamped like every other catalog listing. A node name is only
 		// unique WITHIN a server — two hypervisors may each call their
 		// host "pve1" — so the pair is what addresses one.
-		func(z *hypervisor.Zone, id string) { z.ServerID = id })
+		func(z *hypervisor.Node, id string) { z.ServerID = id })
 	if err != nil {
-		s.fail(w, err, "zones")
+		s.fail(w, err, "nodes")
 		return
 	}
-	s.json(w, http.StatusOK, zones)
+	s.json(w, http.StatusOK, nodes)
 }
 
-// zoneStatus and zoneMetrics describe one host, read on demand for the
-// zone detail view. They take ?server= like every other single-item
+// nodeStatus and nodeMetrics describe one host, read on demand for the
+// node detail view. They take ?server= like every other single-item
 // catalog read, since the name alone doesn't identify a host.
 
-func (s *Server) zoneStatus(w http.ResponseWriter, r *http.Request) {
+func (s *Server) nodeStatus(w http.ResponseWriter, r *http.Request) {
 	driver := s.driverForServer(w, r)
 	if driver == nil {
 		return
 	}
-	status, err := driver.NodeStatus(r.Context(), chi.URLParam(r, "zone"))
+	status, err := driver.NodeStatus(r.Context(), chi.URLParam(r, "node"))
 	if err != nil {
-		s.fail(w, err, "zone")
+		s.fail(w, err, "node")
 		return
 	}
 	status.ServerID = r.URL.Query().Get("server")
 	s.json(w, http.StatusOK, status)
 }
 
-func (s *Server) zoneMetrics(w http.ResponseWriter, r *http.Request) {
+func (s *Server) nodeMetrics(w http.ResponseWriter, r *http.Request) {
 	driver := s.driverForServer(w, r)
 	if driver == nil {
 		return
@@ -98,9 +98,9 @@ func (s *Server) zoneMetrics(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	points, err := driver.NodeMetrics(r.Context(), chi.URLParam(r, "zone"), timeframe)
+	points, err := driver.NodeMetrics(r.Context(), chi.URLParam(r, "node"), timeframe)
 	if err != nil {
-		s.fail(w, err, "zone metrics")
+		s.fail(w, err, "node metrics")
 		return
 	}
 	if points == nil {
@@ -120,7 +120,7 @@ func (s *Server) listBridges(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slices.SortFunc(bridges, func(a, b hypervisor.Bridge) int {
-		if c := strings.Compare(a.Zone, b.Zone); c != 0 {
+		if c := strings.Compare(a.Node, b.Node); c != 0 {
 			return c
 		}
 		return strings.Compare(a.Name, b.Name)
@@ -327,7 +327,7 @@ func (s *Server) listDatastores(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slices.SortFunc(datastores, func(a, b hypervisor.Datastore) int {
-		if c := strings.Compare(a.Zone, b.Zone); c != 0 {
+		if c := strings.Compare(a.Node, b.Node); c != 0 {
 			return c
 		}
 		return strings.Compare(a.Name, b.Name)

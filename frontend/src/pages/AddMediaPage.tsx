@@ -109,7 +109,7 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
   const targets = datastores.filter(
     (d) => d.serverId === serverId && d.active && d.content.includes(kind.content),
   )
-  const target = targets.find((d) => `${d.zone}/${d.name}` === datastore)
+  const target = targets.find((d) => `${d.node}/${d.name}` === datastore)
 
   const start = useMutation({
     mutationFn: async () => {
@@ -118,14 +118,14 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
         if (!file) throw new Error('choose a file to upload')
         await kind.upload(
           serverId,
-          { zone: target.zone, storage: target.name, filename: filename || file.name },
+          { node: target.node, storage: target.name, filename: filename || file.name },
           file,
           setUploadFraction,
         )
         return
       }
       await kind.download(serverId, {
-        zone: target.zone,
+        node: target.node,
         storage: target.name,
         filename,
         url,
@@ -171,7 +171,7 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
     {
       id: 'destination',
       label: 'Destination',
-      summary: target ? `${target.name} on ${target.zone}` : 'Server and datastore',
+      summary: target ? `${target.name} on ${target.node}` : 'Server and datastore',
       invalid: !destinationValid,
     },
     {
@@ -365,8 +365,8 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
                 fullWidth
               >
                 {targets.map((d) => (
-                  <MenuItem key={d.id} value={`${d.zone}/${d.name}`}>
-                    {d.name} — {d.zone} ({formatBytes(d.totalBytes - d.usedBytes)} free)
+                  <MenuItem key={d.id} value={`${d.node}/${d.name}`}>
+                    {d.name} — {d.node} ({formatBytes(d.totalBytes - d.usedBytes)} free)
                   </MenuItem>
                 ))}
               </TextField>
