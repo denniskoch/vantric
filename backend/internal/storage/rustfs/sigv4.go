@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -101,13 +102,59 @@ func canonicalURI(path string) string {
 	return path
 }
 
-// canonicalQuery sorts and re-encodes the query string. url.Values.Encode
-// already sorts by key and escapes the way SigV4 wants, so the only
-// thing to add is that a valueless parameter still needs its "=".
+// canonicalQuery sorts and re-encodes the query string.
+//
+// url.Values.Encode is NOT this encoding, which is the sort of thing
+// that goes unnoticed for a long time: it writes a space as "+" where
+// SigV4 canonicalises it as "%20". Nothing here carried a value with a
+// space until policy names did, and the failure it would have produced
+// is a signature mismatch — which reads as a rejected credential rather
+// than as an escaping bug, and would have been blamed on the store.
+//
+// encodeQuery below is used to BUILD the URL as well, so what goes on
+// the wire and what gets signed come from one function rather than two
+// that agree by coincidence.
 func canonicalQuery(req *http.Request) string {
-	q := req.URL.Query()
-	if len(q) == 0 {
+	return encodeQuery(req.URL.Query())
+}
+
+// encodeQuery renders values sorted by key, RFC 3986 throughout.
+func encodeQuery(values url.Values) string {
+	if len(values) == 0 {
 		return ""
 	}
-	return q.Encode()
+	keys := make([]string, 0, len(values))
+	for k := range values {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var out strings.Builder
+	for _, k := range keys {
+		for _, v := range values[k] {
+			if out.Len() > 0 {
+				out.WriteByte('&')
+			}
+			// A valueless parameter still needs its "=", which is what
+			// the trailing empty string produces.
+			out.WriteString(awsEscape(k) + "=" + awsEscape(v))
+		}
+	}
+	return out.String()
+}
+
+// awsEscape percent-encodes everything outside RFC 3986's unreserved set,
+// in uppercase hex. Notably not "+" for a space.
+func awsEscape(s string) string {
+	var out strings.Builder
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c >= 'A' && c <= 'Z', c >= 'a' && c <= 'z', c >= '0' && c <= '9',
+			c == '-', c == '_', c == '.', c == '~':
+			out.WriteByte(c)
+		default:
+			out.WriteString("%" + strings.ToUpper(hex.EncodeToString([]byte{c})))
+		}
+	}
+	return out.String()
 }

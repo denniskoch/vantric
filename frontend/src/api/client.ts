@@ -374,6 +374,26 @@ export interface ObjectPage {
   truncated: boolean
 }
 
+/**
+ * A credential on the STORE — what a backup script signs with — not an
+ * account in this console. The secret is never returned by anything.
+ */
+export interface StorageUser {
+  providerId: string
+  accessKey: string
+  enabled: boolean
+  /** The bound policy's name, empty for a key that can reach nothing. */
+  policy: string
+  updatedAt: number
+}
+
+export interface StoragePolicy {
+  providerId: string
+  name: string
+  /** Every action the document allows, flattened. */
+  actions: string[]
+}
+
 export type HypervisorType = 'proxmox' | 'mock'
 
 /** One thing worth someone's attention on the Cloud overview. */
@@ -1920,6 +1940,41 @@ export const api = {
   deleteObject: (providerId: string, bucket: string, key: string) =>
     request<void>(
       `/storage/buckets/${bucket}/object?provider=${providerId}&key=${encodeURIComponent(key)}`,
+      { method: 'DELETE' },
+    ),
+  listStorageUsers: (providerId?: string) =>
+    request<StorageUser[]>(
+      providerId ? `/storage/users?provider=${providerId}` : '/storage/users',
+    ),
+  listStoragePolicies: (providerId: string) =>
+    request<StoragePolicy[]>(`/storage/policies?provider=${providerId}`),
+  createStorageUser: (
+    providerId: string,
+    body: { accessKey: string; secretKey: string; policy: string },
+  ) =>
+    request<{ accessKey: string }>(`/storage/users?provider=${providerId}`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  setStorageUserSecret: (providerId: string, accessKey: string, secretKey: string) =>
+    request<void>(
+      `/storage/users/${encodeURIComponent(accessKey)}/secret?provider=${providerId}`,
+      { method: 'PUT', body: JSON.stringify({ secretKey }) },
+    ),
+  setStorageUserStatus: (providerId: string, accessKey: string, enabled: boolean) =>
+    request<void>(
+      `/storage/users/${encodeURIComponent(accessKey)}/status?provider=${providerId}`,
+      { method: 'PUT', body: JSON.stringify({ enabled }) },
+    ),
+  /** An empty policy unbinds, leaving a key with no permissions. */
+  setStorageUserPolicy: (providerId: string, accessKey: string, policy: string) =>
+    request<void>(
+      `/storage/users/${encodeURIComponent(accessKey)}/policy?provider=${providerId}`,
+      { method: 'PUT', body: JSON.stringify({ policy }) },
+    ),
+  deleteStorageUser: (providerId: string, accessKey: string) =>
+    request<void>(
+      `/storage/users/${encodeURIComponent(accessKey)}?provider=${providerId}`,
       { method: 'DELETE' },
     ),
   listContainers: () => request<Container[]>('/containers'),

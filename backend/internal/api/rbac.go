@@ -39,16 +39,54 @@ const (
 // ownerOnly are the route prefixes where a mutation needs an owner.
 // Credentials for a backend, accounts that can sign in, and the
 // settings that govern both.
+// A PREFIX HERE IS A ROUTE PATH, AND RENAMING A ROUTE MOVES IT OUT OF
+// THIS LIST WITHOUT BREAKING THE BUILD. That already happened once: the
+// hypervisor rename moved /servers to /hypervisors and left the old
+// spelling sitting here, matching nothing — so for as long as that
+// stood, an editor could add a hypervisor credential. There is a test
+// (rbac_test.go) that walks the registered routes and fails when a
+// credential route isn't covered, because a string that silently stops
+// matching is not something to leave to a reader's eye.
 var ownerOnly = []string{
 	"/api/v1/iam/",             // accounts, roles, SSO
-	"/api/v1/servers",          // hypervisor credentials
+	"/api/v1/hypervisors",      // hypervisor credentials
 	"/api/v1/dns/providers",    // and the rest of the backends
 	"/api/v1/database/servers", // (the servers themselves, not what's in them)
 	"/api/v1/identity/providers",
 	"/api/v1/network/providers",
 	"/api/v1/inventory/providers",
+	"/api/v1/storage/providers",
 	"/api/v1/inventory/enrichment/", // an API key
 	"/api/v1/installers/token/",     // the download token
+}
+
+// ownerOnlyMatch decides whether a path is one of the owner-only ones,
+// and the two forms of entry are the point.
+//
+// An entry ENDING IN "/" owns everything beneath it — /api/v1/iam/ has
+// to cover /iam/users/{id}/password, and every route under it is about
+// accounts. An entry that does NOT end in "/" is a COLLECTION AND ITS
+// MEMBERS ONLY: the credential record itself, not the resources inside
+// the backend it reaches.
+//
+// That distinction was missing, and a plain prefix match made
+// /api/v1/database/servers own everything below it — so creating a
+// database, adding a database user and granting access were all
+// owner-only, while the comment beside the list said "the servers
+// themselves, not what's in them" and the role doc promised editors
+// could change databases. Connecting a backend is an owner's decision;
+// using one is an editor's.
+func ownerOnlyMatch(prefix, path string) bool {
+	if strings.HasSuffix(prefix, "/") {
+		return strings.HasPrefix(path, prefix)
+	}
+	if path == prefix {
+		return true
+	}
+	rest, ok := strings.CutPrefix(path, prefix+"/")
+	// One more segment is the record's id. Anything deeper is a resource
+	// inside that backend.
+	return ok && rest != "" && !strings.Contains(rest, "/")
 }
 
 // selfService are the mutations anybody signed in may make, because
@@ -91,7 +129,7 @@ func (s *Server) requireRole(next http.Handler) http.Handler {
 			return
 		}
 		for _, prefix := range ownerOnly {
-			if strings.HasPrefix(path, prefix) {
+			if ownerOnlyMatch(prefix, path) {
 				s.log.Warn("refused: needs an owner",
 					"account", user.Email, "role", user.Role, "path", path)
 				s.err(w, http.StatusForbidden,

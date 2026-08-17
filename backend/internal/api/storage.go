@@ -60,6 +60,14 @@ func (s *Server) storageRoutes(r chi.Router) {
 	r.Post("/storage/buckets/{bucket}/objects", s.uploadObject)
 	r.Get("/storage/buckets/{bucket}/object", s.downloadObject)
 	r.Delete("/storage/buckets/{bucket}/object", s.deleteObject)
+
+	r.Get("/storage/users", s.listStorageUsers)
+	r.Post("/storage/users", s.createStorageUser)
+	r.Put("/storage/users/{key}/secret", s.setStorageUserSecret)
+	r.Put("/storage/users/{key}/status", s.setStorageUserStatus)
+	r.Put("/storage/users/{key}/policy", s.setStorageUserPolicy)
+	r.Delete("/storage/users/{key}", s.deleteStorageUser)
+	r.Get("/storage/policies", s.listStoragePolicies)
 }
 
 // storageProviderView is the API shape: everything but the secret key,
@@ -479,6 +487,230 @@ func (s *Server) deleteObject(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := provider.DeleteObject(r.Context(), chi.URLParam(r, "bucket"), key); err != nil {
 		s.fail(w, err, "deleting the object")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// --- access keys (the store's own IAM) ---
+//
+// These are credentials on the STORE, not accounts in this console: a
+// key a backup script signs with, and the policy that says what it may
+// reach. The section owns them for the same reason it owns buckets —
+// the store is the source of truth and this reads and writes it.
+//
+// The secret is write-only in every direction, like every other
+// credential here. It is set once by whoever creates the key and the
+// store won't give it back, so the console doesn't pretend it can.
+
+// accessKeyError applies the store's own limits, plus one of ours: a key
+// with a slash or a space in it could be created and then never
+// addressed, since these routes carry it in the path.
+func accessKeyError(key string) string {
+	switch {
+	case len(key) < storage.MinAccessKeyLen:
+		return fmt.Sprintf("an access key must be at least %d characters", storage.MinAccessKeyLen)
+	case strings.ContainsAny(key, " \t/\\?#%"):
+		return "an access key can't contain spaces, slashes or URL punctuation"
+	}
+	return ""
+}
+
+func secretKeyError(secret string) string {
+	if len(secret) < storage.MinSecretKeyLen {
+		return fmt.Sprintf("a secret key must be at least %d characters", storage.MinSecretKeyLen)
+	}
+	return ""
+}
+
+// storageUsers resolves the instance and asserts the IAM capability,
+// answering 409 when the store hasn't got one — the same rule quotas
+// follow. The request was fine; this store just has no users.
+func (s *Server) storageUsers(w http.ResponseWriter, r *http.Request) storage.UserProvider {
+	provider := s.storageProvider(w, r)
+	if provider == nil {
+		return nil
+	}
+	users, ok := provider.(storage.UserProvider)
+	if !ok {
+		s.err(w, http.StatusConflict, "this store doesn't manage its own access keys")
+		return nil
+	}
+	return users
+}
+
+func (s *Server) listStorageUsers(w http.ResponseWriter, r *http.Request) {
+	providers, err := s.store.ListStorageProviders(r.Context())
+	if err != nil {
+		s.fail(w, err, "storage providers")
+		return
+	}
+	if only := r.URL.Query().Get("provider"); only != "" {
+		providers = slices.DeleteFunc(providers, func(p store.StorageProvider) bool {
+			return p.ID != only
+		})
+	}
+	users := []storage.User{}
+	for _, p := range providers {
+		provider, ok := s.storageRegistry.Get(p.ID)
+		if !ok {
+			continue
+		}
+		iam, ok := provider.(storage.UserProvider)
+		if !ok {
+			continue
+		}
+		// One store that errors is skipped and logged, not fatal to the
+		// page — the same rule catalog listings follow across hypervisors.
+		found, err := iam.Users(r.Context())
+		if err != nil {
+			s.log.Warn("listing access keys failed", "instance", p.Name, "error", err)
+			continue
+		}
+		for i := range found {
+			found[i].ProviderID = p.ID
+		}
+		users = append(users, found...)
+	}
+	slices.SortFunc(users, func(a, b storage.User) int {
+		return strings.Compare(a.AccessKey, b.AccessKey)
+	})
+	s.json(w, http.StatusOK, users)
+}
+
+func (s *Server) listStoragePolicies(w http.ResponseWriter, r *http.Request) {
+	iam := s.storageUsers(w, r)
+	if iam == nil {
+		return
+	}
+	policies, err := iam.Policies(r.Context())
+	if err != nil {
+		s.fail(w, err, "listing policies")
+		return
+	}
+	provider := r.URL.Query().Get("provider")
+	for i := range policies {
+		policies[i].ProviderID = provider
+	}
+	s.json(w, http.StatusOK, policies)
+}
+
+func (s *Server) createStorageUser(w http.ResponseWriter, r *http.Request) {
+	iam := s.storageUsers(w, r)
+	if iam == nil {
+		return
+	}
+	var req struct {
+		AccessKey string `json:"accessKey"`
+		SecretKey string `json:"secretKey"`
+		Policy    string `json:"policy"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	req.AccessKey = strings.TrimSpace(req.AccessKey)
+	if msg := accessKeyError(req.AccessKey); msg != "" {
+		s.err(w, http.StatusBadRequest, msg)
+		return
+	}
+	if msg := secretKeyError(req.SecretKey); msg != "" {
+		s.err(w, http.StatusBadRequest, msg)
+		return
+	}
+	if err := iam.CreateUser(r.Context(), req.AccessKey, req.SecretKey); err != nil {
+		s.fail(w, err, "creating the access key")
+		return
+	}
+	// THE POLICY IS A SECOND CALL, because the store ignores a policy
+	// named in the create body — it accepts it, reports success, and
+	// leaves the key bound to nothing. Same two-step as creating an
+	// authentik account, and for the same reason: the first call makes
+	// the thing, the second makes it usable.
+	//
+	// A failure here leaves a real key with no permissions rather than
+	// no key at all, so it reports what happened instead of pretending
+	// the whole thing failed — the key exists and the page will show it.
+	if req.Policy != "" {
+		if err := iam.SetUserPolicy(r.Context(), req.AccessKey, req.Policy); err != nil {
+			s.err(w, http.StatusConflict, fmt.Sprintf(
+				"the access key was created, but attaching the %q policy failed: %v", req.Policy, err))
+			return
+		}
+	}
+	s.json(w, http.StatusCreated, map[string]string{"accessKey": req.AccessKey})
+}
+
+func (s *Server) setStorageUserSecret(w http.ResponseWriter, r *http.Request) {
+	iam := s.storageUsers(w, r)
+	if iam == nil {
+		return
+	}
+	var req struct {
+		SecretKey string `json:"secretKey"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if msg := secretKeyError(req.SecretKey); msg != "" {
+		s.err(w, http.StatusBadRequest, msg)
+		return
+	}
+	if err := iam.SetUserSecret(r.Context(), chi.URLParam(r, "key"), req.SecretKey); err != nil {
+		s.fail(w, err, "replacing the secret key")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) setStorageUserStatus(w http.ResponseWriter, r *http.Request) {
+	iam := s.storageUsers(w, r)
+	if iam == nil {
+		return
+	}
+	var req struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if err := iam.SetUserStatus(r.Context(), chi.URLParam(r, "key"), req.Enabled); err != nil {
+		s.fail(w, err, "changing the access key's status")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) setStorageUserPolicy(w http.ResponseWriter, r *http.Request) {
+	iam := s.storageUsers(w, r)
+	if iam == nil {
+		return
+	}
+	var req struct {
+		// Policy is empty to unbind, which leaves a key that can sign
+		// requests and reach nothing.
+		Policy string `json:"policy"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if err := iam.SetUserPolicy(r.Context(), chi.URLParam(r, "key"), strings.TrimSpace(req.Policy)); err != nil {
+		s.fail(w, err, "attaching the policy")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) deleteStorageUser(w http.ResponseWriter, r *http.Request) {
+	iam := s.storageUsers(w, r)
+	if iam == nil {
+		return
+	}
+	if err := iam.DeleteUser(r.Context(), chi.URLParam(r, "key")); err != nil {
+		s.fail(w, err, "deleting the access key")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

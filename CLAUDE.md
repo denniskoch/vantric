@@ -594,6 +594,81 @@ Surface the daily 90% here and link out for the rest.
   don't serve it at all, so `ErrUnsupported` is a distinct answer from
   an error: a missing feature reads as one, and the per-instance list
   keeps working because it comes from host detail.
+- OBJECT STORAGE is the same split a seventh time:
+  `internal/storage.Provider` is the boundary (RustFS first), stores are
+  DB records with a write-only secret key, one live provider per record
+  in `storage.Registry`, and a factory maps type → implementation.
+  Bucket and access-key listings span every store and stamp each row
+  with its `providerId`, the way catalog listings span hypervisors. The
+  split INSIDE the driver is between the S3 API, which every one of
+  these speaks, and the ADMIN API, which each spells differently:
+  buckets and objects come from the first, capacity, per-bucket usage,
+  quotas and IAM from the second. A store with no admin API leaves
+  `Info` zero and still works.
+- THE ADMIN PREFIX IS PART OF THE API, not a spelling of it. RustFS
+  serves its admin API under BOTH `/minio/admin/v3` and
+  `/rustfs/admin/v3`, and they behave differently: under MinIO's prefix
+  the IAM endpoints honour MinIO's ENCRYPTED PAYLOAD ENVELOPE —
+  add-user answers "failed to decrypt MinIO admin payload" to plain
+  JSON, list-users returns ciphertext — and under its own prefix every
+  one of them is plaintext. That cost a wrong conclusion recorded in
+  the code for a while ("users need sio/DARE implemented first"), when
+  what they needed was the other door. The driver now speaks one prefix
+  for everything, including the calls that worked either way.
+- USAGE FIGURES COME FROM THE STORE'S SCANNER AND LAG. A bucket written
+  to a moment ago still reports zero objects, so `Bucket.Scanned` says
+  whether the numbers mean anything yet and the UI shows "—" rather
+  than a confident 0 — the same rule as the SMBIOS serial. Quotas are
+  one call per bucket, concurrent, best-effort: the deliberate
+  exception to "one cheap call", for a list that isn't polled at list
+  speed and would otherwise carry a column it could never fill.
+- NO QUOTA AT BIRTH. RustFS enforces a quota by consulting that same
+  scanner, and until it has run on a new bucket every write is refused
+  with "Bucket quota check temporarily unavailable" — so a quota
+  applied at creation hands back a bucket nothing can write to. Setting
+  one is a separate action on a bucket that already exists.
+- ACCESS KEYS ARE CREDENTIALS ON THE STORE, and the UI says access key
+  where the store's API says user (`storage.UserProvider`, an optional
+  capability like QuotaProvider). Nothing signs in as one — it's what a
+  backup job holds — and this console already has three other things
+  called users: accounts, the identity directory, and database users.
+  Same CONTAINER-not-CT rule: the backend keeps the tool's word, the UI
+  picks the clearer one.
+- THE SECRET IS GENERATED IN THE BROWSER AND NEVER STORED. It exists in
+  one place on its way to the store and is unreadable afterwards, which
+  is the same write-only rule the account SSH key follows. A form that
+  asks somebody to invent forty random characters gets `password123`,
+  so the console offers a strong one and says out loud that this is the
+  only moment it's readable.
+- A POLICY IS THE STORE'S OWN NAMED DOCUMENT, not a level. The database
+  section collapses permissions to read / read-write / full because two
+  engines spell the same three intentions differently and the console
+  had to choose words. Here the store PUBLISHES its list, including
+  ones that don't map onto those three at all (`diagnostics`,
+  `consoleAdmin`), so the names travel as they are and a mapping would
+  hide half of them. What is derived is a WARNING, from the actions
+  rather than the name: the stock `readonly` grants GetObject and NOT
+  ListBucket, so a key carrying it can fetch a name it already knows
+  and can't browse — which reads as a broken credential from the other
+  end. Deriving it from the document means a store shipping a different
+  readonly, or a hand-written policy with the same gap, is described
+  correctly.
+- TWO CALLS MAKE A USABLE KEY. The store accepts a policy named in the
+  create body, reports success, and ignores it — so attaching one is a
+  second call, the same two-step as creating an authentik account. A
+  failure there leaves a real key with no permissions rather than no
+  key, and the API says exactly that instead of reporting a failure
+  that would send you looking for a key that exists.
+- CREATE MUST NOT BE AN UPSERT IN DISGUISE. `add-user` replaces the
+  secret of a key that already exists and keeps its policy, so an
+  unchecked create would silently break whatever is signing with that
+  name. The driver reads first and refuses; the store offers no
+  conditional create, so this races in theory, and refusing what we can
+  see beats not looking. The same call is how a secret is REPLACED —
+  and there the current status has to be carried across explicitly,
+  because add-user applies whatever status its body holds and a
+  hardcoded "enabled" would turn "change the secret" into "un-revoke a
+  disabled key".
 - IAM & Admin (this console's own RBAC) and Identity Platform (the
   lab's identity service) are deliberately separate sections: one
   governs access to this app, the other manages a service in the lab.
@@ -811,6 +886,23 @@ Surface the daily 90% here and link out for the rest.
   role per user for now; the binding model is what it grows into. Also
   enforced: the console can't lose its last active owner, and you
   can't delete or disable the account you're signed in as.
+- THE OWNER-ONLY LIST IS ROUTE PATHS, AND A RENAME MOVES A ROUTE OUT OF
+  IT WITHOUT BREAKING ANYTHING. That happened: the hypervisor rename
+  took `/servers` to `/hypervisors` and left the old spelling in
+  `ownerOnly`, matching nothing — so an editor could add a hypervisor
+  credential, the exact grant the rule exists to prevent, with
+  everything still compiling and every test still passing.
+  `rbac_test.go` now names the paths that must be covered, because a
+  string that quietly stops matching is not something to leave to a
+  reader's eye. The other half of the same fix: an entry ENDING IN "/"
+  owns everything beneath it (`/iam/` has to reach
+  `/iam/users/{id}/password`), and an entry without one covers the
+  COLLECTION AND ITS MEMBERS ONLY. A blind prefix match made
+  `/database/servers` own everything below it, so creating a database,
+  adding a database user and granting access were all owner-only —
+  against both the role doc and the list's own comment beside it.
+  Connecting a backend is an owner's decision; using one is an
+  editor's, and that includes minting an object store's access keys.
 - CLOUD OVERVIEW IS THE FRONT DOOR: `/overview`, first in the global
   menu, and where `/` lands. It answers "what's wrong right now", which
   every other page answers only if you already knew where to look. It

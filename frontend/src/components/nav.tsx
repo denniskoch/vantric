@@ -263,6 +263,15 @@ export const sections: Section[] = [
             to: '/storage/buckets',
             hint: 'Object storage across the S3-compatible stores in your lab',
           },
+          {
+            // The store's API calls these users; this says access key,
+            // because nothing signs in as one and this console already
+            // has three other things called users.
+            label: 'Access keys',
+            icon: VpnKeyIcon,
+            to: '/storage/keys',
+            hint: 'Credentials for the S3 API, and what each one is allowed to reach',
+          },
         ],
       },
       {

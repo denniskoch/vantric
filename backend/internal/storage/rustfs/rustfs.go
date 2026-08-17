@@ -1,19 +1,20 @@
 // Package rustfs implements storage.Provider against RustFS — an
-// S3-compatible object store that also answers MinIO's admin API v3.
+// S3-compatible object store with an admin API modelled on MinIO's v3.
 //
 // Two APIs, one credential. Buckets and objects are plain S3; capacity,
-// per-bucket usage and quotas come from /minio/admin/v3/*, which RustFS
-// serves under both that prefix and /rustfs/admin/v3/*. MinIO's prefix
-// is used here because it is the one a MinIO-compatible store is most
-// likely to have.
+// per-bucket usage, quotas and IAM come from the admin API.
 //
-// What is NOT implemented, deliberately: users and access keys. Those
-// admin endpoints take MinIO's ENCRYPTED payload envelope — add-user
-// answers "failed to decrypt MinIO admin payload" to a plain JSON body,
-// and list-users returns ciphertext — so they need MinIO's sio/DARE
-// format implemented before they can be spoken to at all. Everything a
-// bucket page needs is plaintext; that is a separate piece of work and
-// its absence costs nothing here.
+// THE PREFIX IS THE WHOLE STORY, and it cost a wrong conclusion to
+// learn. RustFS serves that admin API under BOTH /minio/admin/v3 and
+// /rustfs/admin/v3, and they are not the same API. Under MinIO's prefix
+// it honours MinIO's ENCRYPTED PAYLOAD ENVELOPE on the IAM endpoints —
+// add-user answers "failed to decrypt MinIO admin payload" to plain
+// JSON and list-users returns ciphertext — which read as "users need
+// sio/DARE implemented first". Under its OWN prefix every one of those
+// endpoints is plaintext JSON. So this driver speaks /rustfs/admin/v3
+// for everything, including the calls that worked either way: one
+// prefix, one payload convention, and no endpoint that silently changes
+// format depending on which door it was reached through.
 package rustfs
 
 import (
@@ -23,6 +24,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -71,7 +73,7 @@ func (d *Driver) Type() string { return "rustfs" }
 func (d *Driver) do(ctx context.Context, method, path string, query url.Values, body []byte) (*http.Response, error) {
 	u := d.cfg.BaseURL + path
 	if len(query) > 0 {
-		u += "?" + query.Encode()
+		u += "?" + encodeQuery(query)
 	}
 	var reader io.Reader
 	if body != nil {
@@ -122,6 +124,13 @@ func check(resp *http.Response, action string) error {
 			return fmt.Errorf("the bucket still has objects in it")
 		case "BucketAlreadyOwnedByYou", "BucketAlreadyExists":
 			return fmt.Errorf("a bucket with this name already exists")
+		case "InternalError", "InvalidArgument", "InvalidRequest":
+			// The admin API puts the real answer in the message and files
+			// the code under "internal" — a policy name that doesn't exist
+			// and a secret that's too short both arrive as a 500. Prefixing
+			// those with the code makes a refusal read as a crash, so the
+			// message stands on its own.
+			return errors.New(e.Message)
 		}
 		return fmt.Errorf("%s: %s", e.Code, e.Message)
 	}
@@ -190,7 +199,7 @@ func (d *Driver) fillQuotas(ctx context.Context, buckets []storage.Bucket) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			resp, err := d.do(ctx, http.MethodGet, "/minio/admin/v3/get-bucket-quota",
+			resp, err := d.do(ctx, http.MethodGet, admin+"/get-bucket-quota",
 				url.Values{"bucket": {b.Name}}, nil)
 			if err != nil {
 				return
@@ -229,7 +238,7 @@ type dataUsage struct {
 }
 
 func (d *Driver) dataUsage(ctx context.Context) (*dataUsage, error) {
-	resp, err := d.do(ctx, http.MethodGet, "/minio/admin/v3/datausageinfo", nil, nil)
+	resp, err := d.do(ctx, http.MethodGet, admin+"/datausageinfo", nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +294,7 @@ func (d *Driver) DeleteBucket(ctx context.Context, name string) error {
 // SetBucketQuota implements storage.QuotaProvider. 0 removes the quota.
 func (d *Driver) SetBucketQuota(ctx context.Context, bucket string, bytes int64) error {
 	body := []byte(fmt.Sprintf(`{"quota":%d,"quotatype":"hard"}`, bytes))
-	resp, err := d.do(ctx, http.MethodPut, "/minio/admin/v3/set-bucket-quota",
+	resp, err := d.do(ctx, http.MethodPut, admin+"/set-bucket-quota",
 		url.Values{"bucket": {bucket}}, body)
 	if err != nil {
 		return err
@@ -444,7 +453,7 @@ type adminInfo struct {
 }
 
 func (d *Driver) Info(ctx context.Context) (*storage.Info, error) {
-	resp, err := d.do(ctx, http.MethodGet, "/minio/admin/v3/info", nil, nil)
+	resp, err := d.do(ctx, http.MethodGet, admin+"/info", nil, nil)
 	if err != nil {
 		return nil, err
 	}

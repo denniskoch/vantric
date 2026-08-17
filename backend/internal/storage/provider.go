@@ -121,6 +121,89 @@ type QuotaProvider interface {
 	SetBucketQuota(ctx context.Context, bucket string, bytes int64) error
 }
 
+// User is a credential the STORE holds, not an account in this console:
+// an access key, its secret, and the policy that says what it may
+// reach. It's what a backup script or a container registry signs its
+// requests with, and it lives in the store's own IAM — this console
+// creates and revokes them, it does not keep a copy.
+//
+// The secret is deliberately absent from this struct in both
+// directions. It is set once, by whoever creates the key, and no store
+// worth using will read it back.
+type User struct {
+	// ProviderID is filled in by the API layer, not the provider.
+	ProviderID string `json:"providerId"`
+	AccessKey  string `json:"accessKey"`
+	Enabled    bool   `json:"enabled"`
+	// Policy is the name of the policy bound to this key, empty for
+	// none — which is a key that can sign requests and do nothing.
+	Policy string `json:"policy"`
+	// UpdatedAt is unix seconds; 0 when the store doesn't report it.
+	UpdatedAt int64 `json:"updatedAt"`
+}
+
+// Policy is a NAMED permission document the store already holds.
+//
+// This is the one place the three-level model used for database
+// permissions would be wrong. There, two engines spelled the same three
+// intentions differently and the console had to pick words; here the
+// store publishes its own named list, including ones that don't map onto
+// read/write/full at all (diagnostics, consoleAdmin). Inventing a
+// mapping would hide those and lie about the rest, so the names travel
+// as they are.
+type Policy struct {
+	// ProviderID is filled in by the API layer.
+	ProviderID string `json:"providerId"`
+	Name       string `json:"name"`
+	// Actions is every action the document allows, flattened and
+	// deduplicated. It's here so the UI can say what a policy does
+	// without rendering IAM JSON at somebody — and specifically so it
+	// can warn about the ones that grant reads but not listing, which
+	// is what the stock "readonly" does.
+	Actions []string `json:"actions"`
+}
+
+// How short a credential may be. These are the LOOSEST limits any of
+// these stores accepts, so the API layer can refuse an impossible key
+// before the round trip without encoding one implementation's rule: a
+// shorter secret comes back from RustFS as a 500 saying "invalid secret
+// key length", which is a poor way to learn a form's requirements. A
+// store that wants more is free to refuse what passes here — its error
+// is then about that store rather than about the shape of the request.
+//
+// The numbers deliberately do NOT follow AWS, which mints 20-character
+// access keys and 40-character secrets. Those are what AWS generates,
+// not what an S3 API requires, and a lab key called "backups" is a
+// reasonable thing to want.
+const (
+	MinAccessKeyLen = 3
+	MinSecretKeyLen = 8
+)
+
+// UserProvider is the optional capability for stores with their own IAM.
+// Same type-assertion rule as QuotaProvider: a store without users
+// contributes none, and the section's pages answer 409 rather than
+// pretending.
+type UserProvider interface {
+	Users(ctx context.Context) ([]User, error)
+	// CreateUser refuses an access key that already exists. The
+	// underlying call is usually an upsert, and a "create" that quietly
+	// replaces a working credential's secret is the worst kind of
+	// success.
+	CreateUser(ctx context.Context, accessKey, secretKey string) error
+	// SetUserSecret replaces the secret and MUST leave the key's status
+	// alone — reissuing a credential is not a decision to re-enable one
+	// that was switched off.
+	SetUserSecret(ctx context.Context, accessKey, secretKey string) error
+	SetUserStatus(ctx context.Context, accessKey string, enabled bool) error
+	// SetUserPolicy binds one policy, replacing whatever was there.
+	// Empty unbinds, leaving the key with no permissions at all.
+	SetUserPolicy(ctx context.Context, accessKey, policy string) error
+	DeleteUser(ctx context.Context, accessKey string) error
+	// Policies lists what SetUserPolicy will accept.
+	Policies(ctx context.Context) ([]Policy, error)
+}
+
 // Registry holds one live Provider per configured instance, keyed by its
 // record ID, and is updated as instances are added or edited.
 type Registry struct {

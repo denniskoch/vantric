@@ -261,6 +261,28 @@ export function instanceNameError(value: string): string | null {
  * Mirrored from the API rather than replacing it — the backend checks
  * too, and this is so the field can turn red before you submit.
  */
+/**
+ * An access key on an object store. Looser than a bucket name on
+ * purpose: this one never reaches DNS, so `Backups_2026` is fine. What
+ * it can't have is anything that would make the key unaddressable in
+ * the URL the console manages it through — the backend applies the same
+ * rule.
+ */
+export function accessKeyError(value: string): string | null {
+  const key = value.trim()
+  if (!key) return null
+  if (key.length < 3) return 'Must be at least 3 characters'
+  if (/[\s]/.test(key)) return "Can't contain spaces"
+  if (/[/\\?#%]/.test(key)) return "Can't contain / \\ ? # or %"
+  return null
+}
+
+/** The store refuses anything shorter, with a 500 rather than a hint. */
+export function secretKeyError(value: string): string | null {
+  if (!value) return null
+  return value.length < 8 ? 'Must be at least 8 characters' : null
+}
+
 export function bucketNameError(value: string): string | null {
   const name = value.trim()
   if (!name) return null
