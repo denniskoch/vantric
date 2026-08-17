@@ -4,7 +4,6 @@ import HomeIcon from '@mui/icons-material/Home'
 import ComputerIcon from '@mui/icons-material/Computer'
 import AlbumIcon from '@mui/icons-material/Album'
 import StorageIcon from '@mui/icons-material/Storage'
-import BucketIcon from '@mui/icons-material/ShoppingBasket'
 import LanIcon from '@mui/icons-material/Lan'
 import MemoryIcon from '@mui/icons-material/Memory'
 import DnsIcon from '@mui/icons-material/Dns'
@@ -43,6 +42,16 @@ import { siDocker } from 'simple-icons'
 // Sections that span engines (Databases) keep a generic icon: an
 // elephant would claim PostgreSQL for a list that also holds MySQL.
 const DockerIcon = createSvgIcon(<path d={siDocker.path} />, 'Docker')
+
+// A bucket, drawn rather than borrowed. MUI has no pail, and the nearest
+// candidates all read as something else at 20px — a basket, a box, a bin
+// — so this is the same move brands.ts makes for the Windows mark and
+// the whale above: when the library hasn't got the shape, draw it. A rim
+// and a tapering body is the whole thing.
+const BucketIcon = createSvgIcon(
+  <path d="M12 2a5 5 0 0 0-5 5h1.7a3.3 3.3 0 0 1 6.6 0H17a5 5 0 0 0-5-5zM3 8h18v3.2H3zM5.2 12.4h13.6L17.2 22H6.8z" />,
+  'Bucket',
+)
 
 export interface SectionItem {
   label: string
