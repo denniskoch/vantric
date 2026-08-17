@@ -36,8 +36,23 @@ import DetailTable from '../components/DetailTable'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import { canEdit, formatTTL, recordData, toRecordSets } from '../dnsRecords'
 import type { RecordSet } from '../dnsRecords'
+import { usePermissions } from '../user'
+
+/** A DNS timer: the number that's in the record, glossed in the unit
+ *  a person would have typed it in. */
+function formatSeconds(seconds: number): string {
+  const unit = (size: number, name: string) => {
+    const n = seconds / size
+    return `${seconds.toLocaleString()} (${n} ${name}${n === 1 ? '' : 's'})`
+  }
+  if (seconds >= 86400 && seconds % 86400 === 0) return unit(86400, 'day')
+  if (seconds >= 3600 && seconds % 3600 === 0) return unit(3600, 'hour')
+  if (seconds >= 60 && seconds % 60 === 0) return unit(60, 'minute')
+  return `${seconds.toLocaleString()} seconds`
+}
 
 export default function DNSZoneDetailPage() {
+  const { canEdit: canEditZone } = usePermissions()
   const { providerId = '', zoneId = '' } = useParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -73,9 +88,20 @@ export default function DNSZoneDetailPage() {
     enabled: Boolean(providerId && zoneId),
   })
 
+  // The SOA is read separately because it is not a record set: a zone
+  // has exactly one, it can't be created or deleted, and a provider
+  // that manages it itself reports none (404, not an error).
+  const { data: soa } = useQuery({
+    queryKey: ['dnsSOA', providerId, zoneId],
+    queryFn: () => api.getZoneSOA(providerId, zoneId),
+    enabled: Boolean(providerId && zoneId),
+    retry: false,
+  })
+
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['dnsZone', providerId, zoneId] })
     queryClient.invalidateQueries({ queryKey: ['dnsRecords', providerId, zoneId] })
+    queryClient.invalidateQueries({ queryKey: ['dnsSOA', providerId, zoneId] })
   }
 
   const removeSet = useMutation({
@@ -125,7 +151,7 @@ export default function DNSZoneDetailPage() {
   }
 
   const active = zone.status === 'active' && !zone.paused
-  const sets = toRecordSets(records)
+  const sets = toRecordSets(records).filter((set) => set.type !== 'SOA')
 
   return (
     <Box sx={{ pb: 4 }}>
@@ -225,6 +251,57 @@ export default function DNSZoneDetailPage() {
             {(recordsError as Error).message}
           </Alert>
         )}
+        {/* The SOA is shown apart from the record sets, and not in that
+            table, because its seven fields render there as one
+            unreadable string. A provider that manages its own reports
+            none, and then this section simply isn't there. */}
+        {soa && (
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+              <Typography sx={{ fontSize: 16 }}>Start of authority</Typography>
+              {canEditZone && (
+                <Button size="small" startIcon={<EditIcon />} onClick={() => navigate(`${zonePath}/soa`)}>
+                  Edit
+                </Button>
+              )}
+            </Box>
+
+            {/* PowerDNS writes a .invalid nameserver into every zone it
+                creates. It is the server saying nobody has set this,
+                and it was previously visible only as part of a string
+                nobody reads. */}
+            {soa.placeholder && (
+              <Alert severity="warning" sx={{ mb: 1 }}>
+                The primary nameserver is still <code>{soa.primaryNs}</code> — the placeholder
+                this zone was created with. Secondaries and anything reading the SOA will see
+                it.
+              </Alert>
+            )}
+
+            <DetailTable
+              rows={[
+                { label: 'Primary nameserver', value: soa.primaryNs },
+                { label: 'Hostmaster', value: soa.hostmaster },
+                {
+                  label: 'Serial',
+                  // Never grouped. The convention is YYYYMMDDnn, so
+                  // "2,026,081,601" reads as a quantity where the value
+                  // is a date and a revision.
+                  value: String(soa.serial),
+                },
+                { label: 'Refresh', value: formatSeconds(soa.refresh) },
+                { label: 'Retry', value: formatSeconds(soa.retry) },
+                { label: 'Expire', value: formatSeconds(soa.expire) },
+                {
+                  label: 'Negative TTL',
+                  value: `${formatSeconds(soa.negativeTtl)} — how long "no such name" is cached`,
+                },
+                { label: 'Record TTL', value: formatSeconds(soa.ttl) },
+              ]}
+            />
+          </Box>
+        )}
+
         <Box sx={{ mb: 2 }}>
           <Button
             variant="contained"
@@ -297,7 +374,7 @@ export default function DNSZoneDetailPage() {
               {sets.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                    {recordsLoading ? 'Loading…' : 'This zone has no records.'}
+                    {recordsLoading ? 'Loading…' : 'No record sets yet.'}
                   </TableCell>
                 </TableRow>
               )}

@@ -28,6 +28,7 @@ import SectionLandingPage from './pages/SectionLandingPage'
 import DNSZonesPage from './pages/DNSZonesPage'
 import DNSZoneDetailPage from './pages/DNSZoneDetailPage'
 import RecordSetPage from './pages/RecordSetPage'
+import ZoneSOAPage from './pages/ZoneSOAPage'
 import CreateZonePage from './pages/CreateZonePage'
 import DatabaseInstancesPage from './pages/DatabaseInstancesPage'
 import DatabaseInstanceDetailPage from './pages/DatabaseInstanceDetailPage'
@@ -192,6 +193,7 @@ export default function App() {
         <Route path="/dns/zones" element={<DNSZonesPage />} />
         <Route path="/dns/zones/create" element={<RequireRole><CreateZonePage /></RequireRole>} />
         <Route path="/dns/zones/:providerId/:zoneId" element={<DNSZoneDetailPage />} />
+        <Route path="/dns/zones/:providerId/:zoneId/soa" element={<RequireRole><ZoneSOAPage /></RequireRole>} />
         <Route path="/dns/zones/:providerId/:zoneId/records/new" element={<RequireRole><RecordSetPage /></RequireRole>} />
         <Route path="/dns/zones/:providerId/:zoneId/records/edit" element={<RequireRole><RecordSetPage /></RequireRole>} />
         <Route path="/dns/providers" element={<RequireRole admin><DNSProvidersPage /></RequireRole>} />

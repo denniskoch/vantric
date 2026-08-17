@@ -839,6 +839,21 @@ export interface DNSProviderRequest {
   baseUrl: string
 }
 
+/** A zone's start-of-authority record, taken apart into its seven fields. */
+export interface ZoneSOA {
+  primaryNs: string
+  /** The RNAME as an email address; the wire form hides the @ as a dot. */
+  hostmaster: string
+  serial: number
+  refresh: number
+  retry: number
+  expire: number
+  negativeTtl: number
+  ttl: number
+  /** True when the server filled this in rather than a person. */
+  placeholder: boolean
+}
+
 export interface DNSAccount {
   id: string
   name: string
@@ -1671,6 +1686,13 @@ export const api = {
     }),
   getDNSZone: (providerId: string, zoneId: string) =>
     request<DNSZone>(`/dns/zones/${zoneId}?provider=${providerId}`),
+  getZoneSOA: (providerId: string, zoneId: string) =>
+    request<ZoneSOA>(`/dns/zones/${zoneId}/soa?provider=${providerId}`),
+  saveZoneSOA: (providerId: string, zoneId: string, body: ZoneSOA) =>
+    request<ZoneSOA>(`/dns/zones/${zoneId}/soa?provider=${providerId}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
   listDNSRecords: (providerId: string, zoneId: string) =>
     request<DNSRecord[]>(`/dns/zones/${zoneId}/records?provider=${providerId}`),
   saveDNSRecordSet: (providerId: string, zoneId: string, body: DNSRecordSetRequest) =>

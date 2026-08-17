@@ -39,6 +39,8 @@ func (s *Server) dnsRoutes(r chi.Router) {
 	r.Post("/dns/zones", s.createDNSZone)
 	r.Get("/dns/zones/{id}", s.getDNSZone)
 	r.Get("/dns/zones/{id}/records", s.listDNSRecords)
+	r.Get("/dns/zones/{id}/soa", s.zoneSOA)
+	r.Put("/dns/zones/{id}/soa", s.saveZoneSOA)
 	r.Put("/dns/zones/{id}/record-sets", s.saveDNSRecordSet)
 	r.Delete("/dns/zones/{id}/record-sets", s.deleteDNSRecordSet)
 	r.Delete("/dns/zones/{id}", s.deleteDNSZone)
