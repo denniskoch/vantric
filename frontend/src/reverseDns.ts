@@ -4,13 +4,14 @@
 // the zone 80.168.192.in-addr.arpa, and the address 192.168.80.7 is the
 // name 7.80.168.192.in-addr.arpa.
 //
-// What lives here is READING that back and placing a record inside it —
-// not deciding what zone a prefix deserves. Anyone creating a reverse
-// zone knows which one they want; asking for a mask and computing the
-// zone from it turns a one-line answer into a form that has opinions
-// about RFC 2317 and classless delegation, which is a conversation with
-// whoever holds the delegation rather than anything a create button
-// settles.
+// What lives here is READING that back — telling a reverse zone from a
+// forward one, and saying which network one covers. Nothing here works
+// anything out on the operator's behalf. Deriving a zone from a prefix,
+// or a record's name from an address, is arithmetic that anyone
+// creating reverse DNS already does in their head, and a console that
+// does it for them is a console that has to be right about RFC 2317
+// and about which network an address belongs to. It states what it
+// reads and gets out of the way.
 
 const IN_ADDR = 'in-addr.arpa'
 const IP6 = 'ip6.arpa'
@@ -26,13 +27,6 @@ export function isReverseZone(zone: string): boolean {
   return name.endsWith(IN_ADDR) || name.endsWith(IP6)
 }
 
-function octets(address: string): number[] | null {
-  const parts = address.split('.')
-  if (parts.length !== 4) return null
-  const values = parts.map((p) => (/^\d{1,3}$/.test(p) ? Number(p) : NaN))
-  return values.every((v) => Number.isInteger(v) && v >= 0 && v <= 255) ? values : null
-}
-
 /** The network a reverse zone covers, for reading a name nobody can. */
 export function networkForReverseZone(zone: string): string | null {
   const name = zone.trim().toLowerCase().replace(/\.$/, '')
@@ -43,30 +37,4 @@ export function networkForReverseZone(zone: string): string | null {
   const forward = [...labels].reverse().map(Number)
   const padded = [...forward, 0, 0, 0].slice(0, 4)
   return `${padded.join('.')}/${forward.length * 8}`
-}
-
-/** The full PTR name for an address, e.g. 7.80.168.192.in-addr.arpa. */
-export function ptrNameFor(address: string): string | null {
-  const parts = octets(address.trim())
-  return parts ? `${[...parts].reverse().join('.')}.${IN_ADDR}` : null
-}
-
-/**
- * What to put in the record form's name field for an address, given the
- * zone it's going into — the leading labels, with the zone's own
- * suffix removed. Null when the address isn't inside the zone, which is
- * the mistake worth catching: 192.168.80.7 typed into a zone for
- * 192.168.20.0/24 would otherwise become a name in the wrong network.
- */
-export function relativePtrName(address: string, zone: string): string | null {
-  const full = ptrNameFor(address)
-  if (!full) return null
-  const suffix = zone.trim().toLowerCase().replace(/\.$/, '')
-  if (full === suffix) return '@'
-  return full.endsWith('.' + suffix) ? full.slice(0, -(suffix.length + 1)) : null
-}
-
-/** Whether a value looks like the user meant an address, not a label. */
-export function looksLikeIPv4(value: string): boolean {
-  return octets(value.trim()) !== null
 }
