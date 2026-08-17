@@ -30,6 +30,33 @@ var (
 	_ storage.UserProvider  = (*Driver)(nil)
 )
 
+// missingUser recognises "there is no such access key", which this store
+// says FOUR different ways depending on which endpoint noticed:
+//
+//	user-info       404 NoSuchResource  user 'x' does not exist
+//	set-user-status 500 InternalError   failed to set user status: user 'x' does not exist
+//	remove-user     500 InternalError   failed to query temporary user state: user 'x' does not exist
+//	set-policy      400 InvalidArgument user not found
+//
+// Only the first is a status code anything can act on, so the rest are
+// read from the message. Matching a string is not a nice way to classify
+// an error, and it's the honest one here — the alternative is a console
+// that answers 500 when you disable a key somebody deleted in the other
+// tab, which reads as this app breaking rather than as the key being
+// gone.
+//
+// The match deliberately requires the word "user": the same endpoints
+// say "policy does not exist" for a bad policy name, and reporting that
+// as a missing access key would send somebody looking for the wrong
+// thing.
+func missingUser(message string) bool {
+	m := strings.ToLower(message)
+	if !strings.Contains(m, "user") {
+		return false
+	}
+	return strings.Contains(m, "does not exist") || strings.Contains(m, "not found")
+}
+
 // userRecord is what list-users and user-info both return. policyName is
 // singular even though the store has an attach/detach API that sounds
 // plural: one binding is what it reports, so one binding is what this

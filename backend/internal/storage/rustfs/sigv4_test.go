@@ -76,3 +76,33 @@ func TestCanonicalQueryRoundTrip(t *testing.T) {
 		t.Errorf("canonicalQuery = %q, but the URL carries %q", got, raw)
 	}
 }
+
+// The exact strings this store returns for a missing access key, copied
+// from it rather than from the docs. String matching is the only way to
+// classify three of these four — see missingUser — so the strings are
+// pinned here, and the policy case is pinned alongside them because
+// reporting that as a missing key is the failure mode worth preventing.
+func TestMissingUser(t *testing.T) {
+	yes := []string{
+		"user 'no-such' does not exist",
+		"failed to set user status: user 'no-such' does not exist",
+		"failed to query temporary user state: user 'no-such' does not exist",
+		"user not found",
+	}
+	for _, m := range yes {
+		if !missingUser(m) {
+			t.Errorf("missingUser(%q) = false, want true", m)
+		}
+	}
+	no := []string{
+		"policy does not exist",
+		"failed to create user: invalid secret key length",
+		"failed to create user: invalid access key length",
+		"invalid account status: banana",
+	}
+	for _, m := range no {
+		if missingUser(m) {
+			t.Errorf("missingUser(%q) = true, want false", m)
+		}
+	}
+}

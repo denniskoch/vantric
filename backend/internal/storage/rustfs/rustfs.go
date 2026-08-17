@@ -130,6 +130,9 @@ func check(resp *http.Response, action string) error {
 			// and a secret that's too short both arrive as a 500. Prefixing
 			// those with the code makes a refusal read as a crash, so the
 			// message stands on its own.
+			if missingUser(e.Message) {
+				return storage.ErrNotFound
+			}
 			return errors.New(e.Message)
 		}
 		return fmt.Errorf("%s: %s", e.Code, e.Message)

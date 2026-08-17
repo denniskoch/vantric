@@ -254,7 +254,8 @@ func (s *Server) err(w http.ResponseWriter, code int, msg string) {
 }
 
 func (s *Server) fail(w http.ResponseWriter, err error, context string) {
-	if errors.Is(err, store.ErrNotFound) || errors.Is(err, hypervisor.ErrNotFound) {
+	if errors.Is(err, store.ErrNotFound) || errors.Is(err, hypervisor.ErrNotFound) ||
+		errors.Is(err, storage.ErrNotFound) {
 		s.err(w, http.StatusNotFound, context+": not found")
 		return
 	}
