@@ -16,6 +16,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip,
   Typography,
 } from '@mui/material'
 import RefreshIcon from '@mui/icons-material/Refresh'
@@ -24,6 +25,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
 import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import DeleteIcon from '@mui/icons-material/Delete'
+import CloseIcon from '@mui/icons-material/Close'
 import { Button } from '@mui/material'
 import { api } from '../api/client'
 import type { Container } from '../api/client'
@@ -31,6 +33,7 @@ import StatusIcon from '../components/StatusIcon'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import PageHeader from '../components/PageHeader'
 import { usePermissions } from '../user'
+import { settle } from '../bulk'
 
 // CT (LXC) instances. Separate from VM instances by design — they
 // list and provision differently.
@@ -41,7 +44,8 @@ export default function ContainersPage() {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
   const [menuContainer, setMenuContainer] = useState<Container | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState<Container | null>(null)
+  const [deleting, setDeleting] = useState<Container[] | null>(null)
+  const [picked, setPicked] = useState<Set<string>>(new Set())
 
   const { data: containers = [], refetch, isLoading } = useQuery({
     queryKey: ['containers'],
@@ -60,9 +64,10 @@ export default function ContainersPage() {
   })
 
   const remove = useMutation({
-    mutationFn: (name: string) => api.deleteContainer(name),
+    mutationFn: (names: string[]) => settle(names, (name) => api.deleteContainer(name)),
     onSuccess: () => {
       setDeleting(null)
+      setPicked(new Set())
       invalidate()
     },
     onError: (e: Error) => {
@@ -70,6 +75,37 @@ export default function ContainersPage() {
       setError(e.message)
     },
   })
+
+  // Same model as VM instances: each action runs against the ELIGIBLE
+  // subset, so a mixed selection isn't a refusal, and N requests report
+  // as one outcome.
+  const bulk = useMutation({
+    mutationFn: ({ act, names }: { act: 'start' | 'stop' | 'reset'; names: string[] }) =>
+      settle(names, (name) => api.containerAction(name, act)),
+    onSuccess: invalidate,
+    onError: (e: Error) => setError(e.message),
+  })
+
+  const selected = containers.filter((ct) => picked.has(ct.name))
+  const eligible = (want: (ct: Container) => boolean) =>
+    selected.filter(want).map((ct) => ct.name)
+  const startable = eligible((ct) => ct.status === 'TERMINATED')
+  const stoppable = eligible((ct) => ct.status === 'RUNNING')
+  const running = selected.filter((ct) => ct.status === 'RUNNING' || ct.status === 'STAGING')
+  const protectedOnes = selected.filter((ct) => ct.protected)
+  const deleteBlocked =
+    running.length > 0
+      ? `${running.length === 1 ? running[0].name + ' is' : running.length + ' of these are'} still running — stop first`
+      : protectedOnes.length > 0
+        ? `${protectedOnes.length === 1 ? protectedOnes[0].name + ' has' : protectedOnes.length + ' of these have'} deletion protection`
+        : ''
+
+  const toggle = (name: string) =>
+    setPicked((current) => {
+      const next = new Set(current)
+      if (!next.delete(name)) next.add(name)
+      return next
+    })
 
   const openMenu = (e: React.MouseEvent<HTMLElement>, ct: Container) => {
     setMenuAnchor(e.currentTarget)
@@ -95,8 +131,8 @@ export default function ContainersPage() {
         }
       />
       <Typography variant="body2" color="text.secondary" sx={{ mt: -1.5, mb: 2 }}>
-        System containers (LXC) discovered on your servers. Container
-        provisioning from this console is coming soon.
+        System containers on your hypervisors, including any this console
+        didn't create.
       </Typography>
 
       {error && (
@@ -105,12 +141,81 @@ export default function ContainersPage() {
         </Alert>
       )}
 
+      {canEdit && selected.length > 0 && (
+        <Paper
+          variant="outlined"
+          sx={{
+            mb: 1,
+            px: 1,
+            py: 0.5,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+            bgcolor: 'surface.infoTint',
+            borderColor: '#d2e3fc',
+          }}
+        >
+          <IconButton size="small" aria-label="Clear selection" onClick={() => setPicked(new Set())}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+          <Typography sx={{ fontSize: 13, color: 'text.primary', mx: 1 }}>{selected.length}</Typography>
+          <Button
+            size="small"
+            startIcon={<PlayArrowIcon />}
+            disabled={startable.length === 0 || bulk.isPending}
+            onClick={() => bulk.mutate({ act: 'start', names: startable })}
+          >
+            Start
+          </Button>
+          <Button
+            size="small"
+            startIcon={<StopIcon />}
+            disabled={stoppable.length === 0 || bulk.isPending}
+            onClick={() => bulk.mutate({ act: 'stop', names: stoppable })}
+          >
+            Stop
+          </Button>
+          <Button
+            size="small"
+            startIcon={<RestartAltIcon />}
+            disabled={stoppable.length === 0 || bulk.isPending}
+            onClick={() => bulk.mutate({ act: 'reset', names: stoppable })}
+          >
+            Restart
+          </Button>
+          <Box sx={{ flex: 1 }} />
+          {/* Disabled alone would be a mystery, so the reason is the
+              tooltip and it names the container in the way. */}
+          <Tooltip title={deleteBlocked}>
+            <span>
+              <Button
+                size="small"
+                startIcon={<DeleteIcon />}
+                disabled={Boolean(deleteBlocked)}
+                onClick={() => setDeleting(selected)}
+                sx={{ color: deleteBlocked ? undefined : 'error.main' }}
+              >
+                Delete
+              </Button>
+            </span>
+          </Tooltip>
+        </Paper>
+      )}
+
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell padding="checkbox">
-                <Checkbox size="small" disabled />
+                <Checkbox
+                  size="small"
+                  disabled={!canEdit}
+                  checked={containers.length > 0 && selected.length === containers.length}
+                  indeterminate={selected.length > 0 && selected.length < containers.length}
+                  onChange={(e) =>
+                    setPicked(e.target.checked ? new Set(containers.map((ct) => ct.name)) : new Set())
+                  }
+                />
               </TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Name</TableCell>
@@ -123,9 +228,14 @@ export default function ContainersPage() {
           </TableHead>
           <TableBody>
             {containers.map((ct) => (
-              <TableRow key={ct.id} hover>
+              <TableRow key={ct.id} hover selected={picked.has(ct.name)}>
                 <TableCell padding="checkbox">
-                  <Checkbox size="small" />
+                  <Checkbox
+                    size="small"
+                    disabled={!canEdit}
+                    checked={picked.has(ct.name)}
+                    onChange={() => toggle(ct.name)}
+                  />
                 </TableCell>
                 <TableCell>
                   <StatusIcon status={ct.status} />
@@ -186,32 +296,47 @@ export default function ContainersPage() {
         </MenuItem>
         <MenuItem
           onClick={() => {
-            setDeleting(menuContainer)
+            setDeleting(menuContainer ? [menuContainer] : null)
             closeMenu()
           }}
-          disabled={menuContainer?.protected}
+          disabled={menuContainer?.protected || isPoweredOn(menuContainer)}
           sx={{ color: 'error.main' }}
         >
           <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
-          {menuContainer?.protected ? 'Delete (protected)' : 'Delete'}
+          {/* A disabled item should say which of the two reasons it is. */}
+          {menuContainer?.protected
+            ? 'Delete (protected)'
+            : isPoweredOn(menuContainer)
+              ? 'Delete (stop it first)'
+              : 'Delete'}
         </MenuItem>
       </Menu>
 
       <ConfirmDeleteDialog
         open={Boolean(deleting)}
-        title={`Delete ${deleting?.name}?`}
+        title={
+          deleting?.length === 1 ? `Delete ${deleting[0].name}?` : `Delete ${deleting?.length} containers?`
+        }
         body={
           <>
-            This destroys the container and its root filesystem. Backups taken
-            of it are not removed, but nothing else brings it back.
+            This destroys{' '}
+            {deleting?.length === 1 ? 'the container and its root filesystem' : 'these containers and their root filesystems'}.
+            Backups taken of {deleting?.length === 1 ? 'it' : 'them'} are not removed, but nothing
+            else brings {deleting?.length === 1 ? 'it' : 'them'} back.
           </>
         }
-        confirmPhrase={deleting?.name}
-        confirmLabel="to delete it"
+        // Typing the name can't be muscle memory; for several, the count
+        // is the thing to read rather than a name nobody would retype.
+        confirmPhrase={deleting?.length === 1 ? deleting[0].name : 'I UNDERSTAND'}
+        confirmLabel="to delete"
         pending={remove.isPending}
         onCancel={() => setDeleting(null)}
-        onConfirm={() => deleting && remove.mutate(deleting.name)}
+        onConfirm={() => deleting && remove.mutate(deleting.map((ct) => ct.name))}
       />
     </Box>
   )
+}
+
+function isPoweredOn(ct: Container | null): boolean {
+  return ct?.status === 'RUNNING' || ct?.status === 'STAGING'
 }

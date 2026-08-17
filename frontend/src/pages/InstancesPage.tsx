@@ -34,6 +34,7 @@ import ConnectButton from '../components/ConnectButton'
 import PageHeader from '../components/PageHeader'
 import StatusIcon from '../components/StatusIcon'
 import { usePermissions } from '../user'
+import { settle } from '../bulk'
 
 
 export default function InstancesPage() {
@@ -361,21 +362,3 @@ function isPoweredOn(inst: Instance | null): boolean {
   return inst?.status === 'RUNNING' || inst?.status === 'STAGING'
 }
 
-/**
- * Runs one call per instance and reports the outcome once.
- *
- * Everything here is per-instance at the API, so a bulk action is N
- * requests; what it must not be is N alerts, or a single failure that
- * hides the ones that worked.
- */
-async function settle<T>(names: string[], call: (name: string) => Promise<T>): Promise<void> {
-  const results = await Promise.allSettled(names.map(call))
-  const failures = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[]
-  if (failures.length === 0) return
-  const reason = (failures[0].reason as Error).message
-  throw new Error(
-    failures.length === names.length
-      ? reason
-      : `${failures.length} of ${names.length} failed — ${reason}`,
-  )
-}

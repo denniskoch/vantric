@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -121,6 +122,16 @@ func (s *Server) deleteContainerHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	if ct.Protected {
 		s.err(w, http.StatusConflict, "deletion protection is enabled on this container")
+		return
+	}
+	// Same rule as an instance, for the same reason: this destroys the
+	// root filesystem, and a running container is one somebody may be
+	// using. Proxmox refuses it too, but the refusal belongs here so it
+	// holds whatever calls the API — and so the message names the
+	// container rather than arriving as a backend error.
+	if poweredOn(ct.Status) {
+		s.err(w, http.StatusConflict,
+			"stop "+ct.Name+" before deleting it — it is "+strings.ToLower(ct.Status))
 		return
 	}
 	cd := s.containerDriver(w, ct.HypervisorID)
