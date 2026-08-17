@@ -70,7 +70,6 @@ export default function CTTemplatesPage() {
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>Datastore</TableCell>
-              <TableCell>Server</TableCell>
               <TableCell>Zone</TableCell>
               <TableCell align="right">Size</TableCell>
               <TableCell>Uploaded</TableCell>
@@ -84,7 +83,6 @@ export default function CTTemplatesPage() {
                   <OSName name={tpl.name} />
                 </TableCell>
                 <TableCell>{tpl.storage}</TableCell>
-                <TableCell>{serverName(tpl.serverId)}</TableCell>
                 <TableCell>{tpl.zone}</TableCell>
                 <TableCell align="right">{formatBytes(tpl.sizeBytes)}</TableCell>
                 <TableCell>
@@ -107,7 +105,7 @@ export default function CTTemplatesPage() {
             ))}
             {templates.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No container templates found on your servers.'}
                 </TableCell>
               </TableRow>

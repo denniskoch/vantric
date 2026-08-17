@@ -86,7 +86,6 @@ export default function ISOsPage() {
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>Datastore</TableCell>
-              <TableCell>Server</TableCell>
               <TableCell>Zone</TableCell>
               <TableCell align="right">Size</TableCell>
               <TableCell>Uploaded</TableCell>
@@ -100,7 +99,6 @@ export default function ISOsPage() {
                   <OSName name={iso.name} />
                 </TableCell>
                 <TableCell>{iso.storage}</TableCell>
-                <TableCell>{serverName(iso.serverId)}</TableCell>
                 <TableCell>{iso.zone}</TableCell>
                 <TableCell align="right">{formatBytes(iso.sizeBytes)}</TableCell>
                 <TableCell>
@@ -123,7 +121,7 @@ export default function ISOsPage() {
             ))}
             {isos.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No ISO images found on your servers.'}
                 </TableCell>
               </TableRow>

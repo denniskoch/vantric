@@ -14,10 +14,8 @@ import {
 } from '@mui/material'
 import { api } from '../api/client'
 import PageHeader from '../components/PageHeader'
-import { useServerNames } from '../useServerNames'
 
 export default function SnapshotsPage() {
-  const serverName = useServerNames()
   const { data: snapshots = [], isLoading } = useQuery({
     queryKey: ['snapshots'],
     queryFn: api.listSnapshots,
@@ -33,7 +31,6 @@ export default function SnapshotsPage() {
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>VM</TableCell>
-              <TableCell>Server</TableCell>
               <TableCell>Zone</TableCell>
               <TableCell>Description</TableCell>
               <TableCell>Created</TableCell>
@@ -53,7 +50,6 @@ export default function SnapshotsPage() {
                     {snap.vmName}
                   </Link>
                 </TableCell>
-                <TableCell>{serverName(snap.serverId)}</TableCell>
                 <TableCell>{snap.zone}</TableCell>
                 <TableCell>{snap.description || '—'}</TableCell>
                 <TableCell>
@@ -68,7 +64,7 @@ export default function SnapshotsPage() {
             ))}
             {snapshots.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No snapshots found on your servers.'}
                 </TableCell>
               </TableRow>

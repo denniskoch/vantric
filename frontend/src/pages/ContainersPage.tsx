@@ -48,8 +48,6 @@ export default function ContainersPage() {
     queryFn: api.listContainers,
     refetchInterval: 3000,
   })
-  const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
-  const serverName = (id: string) => servers.find((s) => s.id === id)?.name ?? '—'
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ['containers'] })
@@ -116,7 +114,6 @@ export default function ContainersPage() {
               </TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Name</TableCell>
-              <TableCell>Server</TableCell>
               <TableCell>Zone</TableCell>
               <TableCell align="right">vCPUs</TableCell>
               <TableCell align="right">Memory (MB)</TableCell>
@@ -142,7 +139,6 @@ export default function ContainersPage() {
                     {ct.name}
                   </Link>
                 </TableCell>
-                <TableCell>{serverName(ct.serverId)}</TableCell>
                 <TableCell>{ct.zone}</TableCell>
                 <TableCell align="right">{ct.cpus}</TableCell>
                 <TableCell align="right">{ct.memoryMb}</TableCell>
@@ -158,7 +154,7 @@ export default function ContainersPage() {
             ))}
             {containers.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading
                     ? 'Loading…'
                     : 'No containers found on your servers.'}

@@ -13,10 +13,8 @@ import {
 } from '@mui/material'
 import { api } from '../api/client'
 import PageHeader from '../components/PageHeader'
-import { useServerNames } from '../useServerNames'
 
 export default function DisksPage() {
-  const serverName = useServerNames()
   const { data: disks = [], isLoading } = useQuery({
     queryKey: ['disks'],
     queryFn: api.listDisks,
@@ -32,7 +30,6 @@ export default function DisksPage() {
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>In use by</TableCell>
-              <TableCell>Server</TableCell>
               <TableCell>Zone</TableCell>
               <TableCell>Storage pool</TableCell>
               <TableCell align="right">Size (GB)</TableCell>
@@ -55,7 +52,6 @@ export default function DisksPage() {
                     '—'
                   )}
                 </TableCell>
-                <TableCell>{serverName(disk.serverId)}</TableCell>
                 <TableCell>{disk.zone}</TableCell>
                 <TableCell>{disk.storage}</TableCell>
                 <TableCell align="right">{disk.sizeGb || '—'}</TableCell>
@@ -63,7 +59,7 @@ export default function DisksPage() {
             ))}
             {disks.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No disks found on your servers.'}
                 </TableCell>
               </TableRow>

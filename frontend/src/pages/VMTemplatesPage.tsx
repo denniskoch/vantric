@@ -101,7 +101,6 @@ export default function VMTemplatesPage() {
               <TableCell>Name</TableCell>
               <TableCell>Operating system</TableCell>
               <TableCell>ID</TableCell>
-              <TableCell>Server</TableCell>
               <TableCell>Zone</TableCell>
               <TableCell align="right">Instances</TableCell>
               <TableCell>Built</TableCell>
@@ -141,7 +140,6 @@ export default function VMTemplatesPage() {
                   )}
                 </TableCell>
                 <TableCell>{tpl.id}</TableCell>
-                <TableCell>{serverName(tpl.serverId)}</TableCell>
                 <TableCell>{tpl.zone || '—'}</TableCell>
                 <TableCell align="right">{clonesOf(tpl) || '—'}</TableCell>
                 <TableCell>{builtOn(tpl.createdAt)}</TableCell>
@@ -164,7 +162,7 @@ export default function VMTemplatesPage() {
             })}
             {templates.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No VM templates found on your servers.'}
                 </TableCell>
               </TableRow>

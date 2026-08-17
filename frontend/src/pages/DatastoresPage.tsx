@@ -16,10 +16,8 @@ import ErrorIcon from '@mui/icons-material/Error'
 import { api } from '../api/client'
 import PageHeader from '../components/PageHeader'
 import UsageBar from '../components/UsageBar'
-import { useServerNames } from '../useServerNames'
 
 export default function DatastoresPage() {
-  const serverName = useServerNames()
   const { data: datastores = [], isLoading } = useQuery({
     queryKey: ['datastores'],
     queryFn: api.listDatastores,
@@ -35,7 +33,6 @@ export default function DatastoresPage() {
             <TableRow>
               <TableCell>Status</TableCell>
               <TableCell>Name</TableCell>
-              <TableCell>Server</TableCell>
               <TableCell>Zone</TableCell>
               <TableCell>Type</TableCell>
               <TableCell>Content</TableCell>
@@ -56,7 +53,6 @@ export default function DatastoresPage() {
                   </Tooltip>
                 </TableCell>
                 <TableCell>{ds.name}</TableCell>
-                <TableCell>{serverName(ds.serverId)}</TableCell>
                 <TableCell>{ds.zone}</TableCell>
                 <TableCell>{ds.type}</TableCell>
                 <TableCell sx={{ color: 'text.secondary', fontSize: 12 }}>{ds.content}</TableCell>
@@ -72,7 +68,7 @@ export default function DatastoresPage() {
             ))}
             {datastores.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No datastores found on your servers.'}
                 </TableCell>
               </TableRow>

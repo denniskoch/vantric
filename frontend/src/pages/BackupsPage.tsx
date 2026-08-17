@@ -36,8 +36,6 @@ export default function BackupsPage() {
     queryFn: api.listBackups,
     refetchInterval: 60000,
   })
-  const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
-  const serverName = (id: string) => servers.find((s) => s.id === id)?.name ?? '—'
 
   const remove = useMutation({
     mutationFn: (backup: Backup) => api.deleteBackup(backup.serverId, backup.zone, backup.id),
@@ -98,7 +96,6 @@ export default function BackupsPage() {
               <TableCell>Created</TableCell>
               <TableCell>Guest</TableCell>
               <TableCell>Type</TableCell>
-              <TableCell>Server</TableCell>
               <TableCell>Zone</TableCell>
               <TableCell>Datastore</TableCell>
               <TableCell align="right">Size</TableCell>
@@ -129,7 +126,6 @@ export default function BackupsPage() {
                   )}
                 </TableCell>
                 <TableCell>{guestLabels[backup.guestType] ?? backup.guestType ?? '—'}</TableCell>
-                <TableCell>{serverName(backup.serverId)}</TableCell>
                 <TableCell>{backup.zone}</TableCell>
                 <TableCell>{backup.storage}</TableCell>
                 <TableCell align="right">{formatBytes(backup.sizeBytes)}</TableCell>
@@ -157,7 +153,7 @@ export default function BackupsPage() {
             ))}
             {shown.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No backups on any datastore.'}
                 </TableCell>
               </TableRow>

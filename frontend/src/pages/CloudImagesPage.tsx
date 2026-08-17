@@ -86,7 +86,6 @@ export default function CloudImagesPage() {
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>Datastore</TableCell>
-              <TableCell>Server</TableCell>
               <TableCell>Zone</TableCell>
               <TableCell align="right">Size</TableCell>
               <TableCell>Uploaded</TableCell>
@@ -100,7 +99,6 @@ export default function CloudImagesPage() {
                   <OSName name={image.name} />
                 </TableCell>
                 <TableCell>{image.storage}</TableCell>
-                <TableCell>{serverName(image.serverId)}</TableCell>
                 <TableCell>{image.zone}</TableCell>
                 <TableCell align="right">{formatBytes(image.sizeBytes)}</TableCell>
                 <TableCell>
@@ -123,7 +121,7 @@ export default function CloudImagesPage() {
             ))}
             {images.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading ? 'Loading…' : 'No cloud images found. Add one to build VM templates from.'}
                 </TableCell>
               </TableRow>
