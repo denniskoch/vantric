@@ -85,6 +85,7 @@ import BucketsPage from './pages/BucketsPage'
 import BucketDetailPage from './pages/BucketDetailPage'
 import CreateBucketPage from './pages/CreateBucketPage'
 import BucketQuotaPage from './pages/BucketQuotaPage'
+import BucketPublicPage from './pages/BucketPublicPage'
 import StorageKeysPage from './pages/StorageKeysPage'
 import CreateStorageKeyPage from './pages/CreateStorageKeyPage'
 import StorageKeyPage from './pages/StorageKeyPage'
@@ -149,6 +150,7 @@ export default function App() {
         <Route path="/storage/buckets/create" element={<RequireRole><CreateBucketPage /></RequireRole>} />
         <Route path="/storage/buckets/:provider/:bucket" element={<BucketDetailPage />} />
         <Route path="/storage/buckets/:provider/:bucket/quota" element={<RequireRole><BucketQuotaPage /></RequireRole>} />
+        <Route path="/storage/buckets/:provider/:bucket/public" element={<RequireRole><BucketPublicPage /></RequireRole>} />
         <Route path="/storage/keys" element={<StorageKeysPage />} />
         <Route path="/storage/keys/create" element={<RequireRole><CreateStorageKeyPage /></RequireRole>} />
         <Route path="/storage/keys/:providerId/:accessKey" element={<RequireRole><StorageKeyPage /></RequireRole>} />

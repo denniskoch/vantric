@@ -653,6 +653,42 @@ Surface the daily 90% here and link out for the rest.
   end. Deriving it from the document means a store shipping a different
   readonly, or a hand-written policy with the same gap, is described
   correctly.
+- A BUCKET POLICY IS THE OTHER HALF OF ACCESS, and the half that can go
+  wrong silently. A key's policy says which buckets that KEY may reach;
+  a bucket policy hangs on the BUCKET and can name a principal of `*`,
+  which means no credential at all — an object served to anyone who
+  knows the URL, over plain HTTP. Nothing else in this console can see
+  that. So the bucket's Permissions tab LEADS with it, in terms of what
+  actually happens (anyone can read / list / write) rather than a
+  "Public" badge, since those are very different sizes of mistake.
+  Reading a policy lives in `internal/storage` rather than a driver: the
+  document is S3's, not any one store's, and "is this bucket public"
+  deciding differently per backend would be worse than not asking.
+  Deny statements are skipped, wildcard actions are matched (`s3:*` is
+  the most public a bucket gets and must not read as "no match"), and a
+  document that won't parse reports NOT public — the tab shows the
+  document beside the verdict, so an unreadable policy is visible as
+  one, where crying wolf about it would be a warning that never clears.
+- WHO CAN REACH THIS BUCKET IS A CORRELATION, NOT AN ENDPOINT. No S3
+  API answers it: you would have to read every access key's attached
+  policy and match resource ARNs yourself, which is exactly the
+  connective work this app exists for. `MatchesBucket` handles the
+  wildcards, and stops at the bucket segment — `arn:aws:s3:::lab-*`
+  matches, `arn:aws:s3:::lab-backups-archive` does not match
+  `lab-backups`, and a KMS ARN matches nothing.
+- THE CONSOLE EDITS ONLY THE ANONYMOUS HALF. Opening a folder and
+  closing it are the daily 90%; composing arbitrary statements is the
+  deep, rare configuration that stays in the tool that owns it. Two
+  rules make that safe. Statements this console didn't write pass
+  through VERBATIM as raw JSON — re-encoding them would drop any field
+  these structs don't model, and dropping a `Condition` that confined a
+  grant to one subnet would silently widen it. And granting REPLACES
+  the previous public grant rather than accumulating, the same rule
+  database grants follow, so "what is public here" stays answerable by
+  looking once. Listing is granted on the BUCKET ARN, never the object
+  one, where it would silently do nothing — and a prefixed grant
+  confines it with an `s3:prefix` condition, or opening one folder
+  would publish every key name in the bucket.
 - TWO CALLS MAKE A USABLE KEY. The store accepts a policy named in the
   create body, reports success, and ignores it — so attaching one is a
   second call, the same two-step as creating an authentik account. A

@@ -61,6 +61,10 @@ func (s *Server) storageRoutes(r chi.Router) {
 	r.Get("/storage/buckets/{bucket}/object", s.downloadObject)
 	r.Delete("/storage/buckets/{bucket}/object", s.deleteObject)
 
+	r.Get("/storage/buckets/{bucket}/permissions", s.bucketPermissions)
+	r.Put("/storage/buckets/{bucket}/public", s.grantBucketPublic)
+	r.Delete("/storage/buckets/{bucket}/public", s.revokeBucketPublic)
+
 	r.Get("/storage/users", s.listStorageUsers)
 	r.Post("/storage/users", s.createStorageUser)
 	r.Put("/storage/users/{key}/secret", s.setStorageUserSecret)
@@ -711,6 +715,197 @@ func (s *Server) deleteStorageUser(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := iam.DeleteUser(r.Context(), chi.URLParam(r, "key")); err != nil {
 		s.fail(w, err, "deleting the access key")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// --- bucket permissions ---
+//
+// Two questions, which S3 answers in two unrelated places. WHO CAN REACH
+// THIS BUCKET comes from the policies attached to the store's access
+// keys, and answering it means reading all of them and matching resource
+// ARNs — there is no endpoint for it, which is why the console does it
+// and the store's own UI doesn't. IS IT PUBLIC comes from the bucket
+// policy, and is the one setting here that can expose data to the
+// internet without anything else in this console noticing.
+
+type bucketKeyAccess struct {
+	AccessKey string `json:"accessKey"`
+	Enabled   bool   `json:"enabled"`
+	Policy    string `json:"policy"`
+	// Actions are the ones that policy allows, so the row can say what
+	// this key may do rather than only that it's on the list.
+	Actions []string `json:"actions"`
+}
+
+type bucketPermissionsView struct {
+	// Policy is nil when the bucket has none, which is the ordinary state.
+	Policy *storage.BucketPolicy `json:"policy"`
+	// PolicySupported is false for a store with no bucket policies at
+	// all — a different thing from a bucket that hasn't got one, and the
+	// UI says so rather than showing a reassuring "Not public".
+	PolicySupported bool              `json:"policySupported"`
+	Keys            []bucketKeyAccess `json:"keys"`
+	// KeysKnown is false where the store has no IAM to ask, so an empty
+	// list doesn't read as "nothing can reach this".
+	KeysKnown bool `json:"keysKnown"`
+}
+
+func (s *Server) bucketPermissions(w http.ResponseWriter, r *http.Request) {
+	provider := s.storageProvider(w, r)
+	if provider == nil {
+		return
+	}
+	bucket := chi.URLParam(r, "bucket")
+	view := bucketPermissionsView{Keys: []bucketKeyAccess{}}
+
+	if policies, ok := provider.(storage.PolicyProvider); ok {
+		view.PolicySupported = true
+		policy, err := policies.BucketPolicy(r.Context(), bucket)
+		if err != nil {
+			s.fail(w, err, "reading the bucket policy")
+			return
+		}
+		view.Policy = policy
+	}
+
+	if iam, ok := provider.(storage.UserProvider); ok {
+		users, err := iam.Users(r.Context())
+		if err != nil {
+			s.fail(w, err, "listing access keys")
+			return
+		}
+		named, err := iam.Policies(r.Context())
+		if err != nil {
+			s.fail(w, err, "listing policies")
+			return
+		}
+		view.KeysKnown = true
+		byName := make(map[string]storage.Policy, len(named))
+		for _, p := range named {
+			byName[p.Name] = p
+		}
+		for _, u := range users {
+			// A key with no policy reaches nothing, so it isn't listed
+			// here — it appears on the Access keys page as "No access",
+			// which is where that fact belongs.
+			p, ok := byName[u.Policy]
+			if !ok {
+				continue
+			}
+			if !slices.ContainsFunc(p.Resources, func(arn string) bool {
+				return storage.MatchesBucket(arn, bucket)
+			}) {
+				continue
+			}
+			view.Keys = append(view.Keys, bucketKeyAccess{
+				AccessKey: u.AccessKey,
+				Enabled:   u.Enabled,
+				Policy:    u.Policy,
+				Actions:   p.Actions,
+			})
+		}
+	}
+	s.json(w, http.StatusOK, view)
+}
+
+// storagePolicies resolves the instance and asserts bucket-policy
+// support, 409 where the store hasn't got it — the same rule as quotas.
+func (s *Server) storagePolicies(w http.ResponseWriter, r *http.Request) storage.PolicyProvider {
+	provider := s.storageProvider(w, r)
+	if provider == nil {
+		return nil
+	}
+	policies, ok := provider.(storage.PolicyProvider)
+	if !ok {
+		s.err(w, http.StatusConflict, "this store doesn't support bucket policies")
+		return nil
+	}
+	return policies
+}
+
+func (s *Server) grantBucketPublic(w http.ResponseWriter, r *http.Request) {
+	policies := s.storagePolicies(w, r)
+	if policies == nil {
+		return
+	}
+	var req struct {
+		// Prefix confines the grant to one folder; empty opens the whole
+		// bucket.
+		Prefix string `json:"prefix"`
+		// AllowList additionally lets anyone enumerate what's there.
+		AllowList bool `json:"allowList"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if strings.Contains(req.Prefix, "*") {
+		// The prefix becomes an ARN, where a stray "*" would widen the
+		// grant rather than fail — the one typo here that silently opens
+		// more than was asked for.
+		s.err(w, http.StatusBadRequest, "a prefix is a folder path, not a pattern — leave out the *")
+		return
+	}
+	bucket := chi.URLParam(r, "bucket")
+	current, err := policies.BucketPolicy(r.Context(), bucket)
+	if err != nil {
+		s.fail(w, err, "reading the bucket policy")
+		return
+	}
+	var document json.RawMessage
+	if current != nil {
+		document = current.Document
+	}
+	next, err := storage.WithPublicRead(document, bucket, req.Prefix, req.AllowList)
+	if err != nil {
+		s.err(w, http.StatusConflict,
+			"this bucket's existing policy couldn't be read, so it won't be rewritten: "+err.Error())
+		return
+	}
+	if err := policies.SetBucketPolicy(r.Context(), bucket, next); err != nil {
+		s.fail(w, err, "opening the bucket to anonymous reads")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) revokeBucketPublic(w http.ResponseWriter, r *http.Request) {
+	policies := s.storagePolicies(w, r)
+	if policies == nil {
+		return
+	}
+	bucket := chi.URLParam(r, "bucket")
+	current, err := policies.BucketPolicy(r.Context(), bucket)
+	if err != nil {
+		s.fail(w, err, "reading the bucket policy")
+		return
+	}
+	if current == nil {
+		// Nothing to close. Not an error — the caller asked for a bucket
+		// that isn't public and that's what they have.
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	next, err := storage.WithoutPublic(current.Document)
+	if err != nil {
+		s.err(w, http.StatusConflict,
+			"this bucket's policy couldn't be read, so it won't be rewritten: "+err.Error())
+		return
+	}
+	// Nothing left to keep means removing the document rather than
+	// storing an empty one.
+	if len(next) == 0 {
+		if err := policies.DeleteBucketPolicy(r.Context(), bucket); err != nil {
+			s.fail(w, err, "removing the bucket policy")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if err := policies.SetBucketPolicy(r.Context(), bucket, next); err != nil {
+		s.fail(w, err, "closing anonymous access")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"sort"
@@ -209,8 +210,9 @@ func (d *Driver) DeleteUser(ctx context.Context, accessKey string) error {
 // on the single-string form, losing every policy in the response.
 type policyDoc struct {
 	Statement []struct {
-		Effect string          `json:"Effect"`
-		Action json.RawMessage `json:"Action"`
+		Effect   string          `json:"Effect"`
+		Action   json.RawMessage `json:"Action"`
+		Resource json.RawMessage `json:"Resource"`
 	} `json:"Statement"`
 }
 
@@ -221,32 +223,40 @@ func (d *Driver) Policies(ctx context.Context) ([]storage.Policy, error) {
 	}
 	policies := make([]storage.Policy, 0, len(raw))
 	for name, doc := range raw {
-		policies = append(policies, storage.Policy{Name: name, Actions: allowedActions(doc)})
+		actions, resources := allowed(doc)
+		policies = append(policies, storage.Policy{Name: name, Actions: actions, Resources: resources})
 	}
 	sort.Slice(policies, func(i, j int) bool { return policies[i].Name < policies[j].Name })
 	return policies, nil
 }
 
-// allowedActions flattens the Allow statements' actions, deduplicated
-// and sorted. Deny statements are skipped: this is for describing what a
-// policy grants, and listing a denied action as one of them would read
-// as the opposite of the truth.
-func allowedActions(doc policyDoc) []string {
-	seen := map[string]bool{}
+// allowed flattens the Allow statements' actions and resources, each
+// deduplicated and sorted. Deny statements are skipped: this describes
+// what a policy GRANTS, and listing a denied action among them would
+// read as the opposite of the truth.
+func allowed(doc policyDoc) (actions, resources []string) {
+	seenAction, seenResource := map[string]bool{}, map[string]bool{}
 	for _, st := range doc.Statement {
 		if !strings.EqualFold(st.Effect, "Allow") {
 			continue
 		}
 		for _, action := range stringOrList(st.Action) {
-			seen[action] = true
+			seenAction[action] = true
+		}
+		for _, resource := range stringOrList(st.Resource) {
+			seenResource[resource] = true
 		}
 	}
-	actions := make([]string, 0, len(seen))
-	for action := range seen {
-		actions = append(actions, action)
+	return sortedKeys(seenAction), sortedKeys(seenResource)
+}
+
+func sortedKeys(set map[string]bool) []string {
+	out := make([]string, 0, len(set))
+	for k := range set {
+		out = append(out, k)
 	}
-	sort.Strings(actions)
-	return actions
+	sort.Strings(out)
+	return out
 }
 
 // stringOrList decodes IAM's "either one or many" shape.
@@ -261,6 +271,63 @@ func stringOrList(raw json.RawMessage) []string {
 	var many []string
 	if json.Unmarshal(raw, &many) == nil {
 		return many
+	}
+	return nil
+}
+
+// --- bucket policies ---
+
+var _ storage.PolicyProvider = (*Driver)(nil)
+
+// BucketPolicy reads the document hanging on the bucket itself. This is
+// the S3 API rather than the admin one — a bucket policy is part of the
+// bucket, and every S3-compatible store answers it the same way.
+//
+// No policy is a 404 with NoSuchBucketPolicy, which is the ORDINARY
+// state and must not read as an error: nil, nil says "there isn't one",
+// where returning ErrNotFound would make the permissions tab of a normal
+// bucket look broken.
+func (d *Driver) BucketPolicy(ctx context.Context, bucket string) (*storage.BucketPolicy, error) {
+	resp, err := d.do(ctx, http.MethodGet, "/"+bucket, url.Values{"policy": {""}}, nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := check(resp, "read the bucket policy"); err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer resp.Body.Close()
+	document, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return nil, err
+	}
+	return &storage.BucketPolicy{
+		Document: document,
+		Exposure: storage.AnalyzePolicy(document),
+	}, nil
+}
+
+func (d *Driver) SetBucketPolicy(ctx context.Context, bucket string, document json.RawMessage) error {
+	resp, err := d.do(ctx, http.MethodPut, "/"+bucket, url.Values{"policy": {""}}, document)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return check(resp, "set the bucket policy")
+}
+
+func (d *Driver) DeleteBucketPolicy(ctx context.Context, bucket string) error {
+	resp, err := d.do(ctx, http.MethodDelete, "/"+bucket, url.Values{"policy": {""}}, nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	// Removing one that isn't there is a success, not a 404: the caller
+	// asked for a bucket with no policy and that is what it has.
+	if err := check(resp, "remove the bucket policy"); err != nil && !errors.Is(err, storage.ErrNotFound) {
+		return err
 	}
 	return nil
 }

@@ -11,6 +11,7 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"sync"
@@ -161,6 +162,10 @@ type Policy struct {
 	// can warn about the ones that grant reads but not listing, which
 	// is what the stock "readonly" does.
 	Actions []string `json:"actions"`
+	// Resources is every ARN the document allows those actions on. It's
+	// what makes "which keys can reach this bucket" answerable without
+	// asking the store a question it has no endpoint for.
+	Resources []string `json:"resources"`
 }
 
 // How short a credential may be. These are the LOOSEST limits any of
@@ -179,6 +184,58 @@ const (
 	MinAccessKeyLen = 3
 	MinSecretKeyLen = 8
 )
+
+// A BUCKET POLICY is the other half of access, and the half that can go
+// wrong quietly. A user's policy says which buckets a KEY may reach; a
+// bucket policy hangs on the BUCKET and can name a principal of "*",
+// which means no credential at all — an object served to anyone who
+// knows the URL, over plain HTTP. Nothing else in this console can see
+// that, and the store's own listing won't tell you either.
+//
+// So this is read and REPORTED first, and only then edited. The daily
+// question is "is anything in here public, and what", not "compose an
+// IAM document" — which is the deep, rare configuration that stays in
+// the tool that owns it.
+
+// Exposure is what a bucket's policy opens to anonymous callers.
+type Exposure struct {
+	// Public is true when any statement allows a principal of "*".
+	Public bool    `json:"public"`
+	Grants []Grant `json:"grants"`
+}
+
+// Grant is one anonymous allow, described rather than quoted.
+type Grant struct {
+	// Sid is the statement's own label, empty when it has none.
+	Sid       string   `json:"sid"`
+	Actions   []string `json:"actions"`
+	Resources []string `json:"resources"`
+	// Listable is the difference between "anyone can fetch a key they
+	// already know" and "anyone can enumerate what's in here", which are
+	// very different sizes of mistake.
+	Listable bool `json:"listable"`
+	// Writable means anonymous callers can add or remove objects.
+	Writable bool `json:"writable"`
+}
+
+// BucketPolicy is the document as the store holds it, plus what it
+// means. Document is nil when the bucket has no policy at all — which
+// is the ordinary case and is not an error.
+type BucketPolicy struct {
+	Document json.RawMessage `json:"document,omitempty"`
+	Exposure Exposure        `json:"exposure"`
+}
+
+// PolicyProvider is the optional capability for stores with bucket
+// policies. Same type-assertion rule as the others.
+type PolicyProvider interface {
+	// BucketPolicy returns nil, nil when the bucket has no policy.
+	BucketPolicy(ctx context.Context, bucket string) (*BucketPolicy, error)
+	SetBucketPolicy(ctx context.Context, bucket string, document json.RawMessage) error
+	// DeleteBucketPolicy removes it entirely, and is not an error when
+	// there wasn't one.
+	DeleteBucketPolicy(ctx context.Context, bucket string) error
+}
 
 // UserProvider is the optional capability for stores with their own IAM.
 // Same type-assertion rule as QuotaProvider: a store without users

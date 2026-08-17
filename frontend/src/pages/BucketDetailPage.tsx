@@ -30,6 +30,7 @@ import FolderIcon from '@mui/icons-material/Folder'
 import DescriptionIcon from '@mui/icons-material/Description'
 import { api } from '../api/client'
 import type { StorageObject } from '../api/client'
+import BucketPermissions from '../components/BucketPermissions'
 import DetailTable from '../components/DetailTable'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import { formatBytes, timeAgo } from '../format'
@@ -181,6 +182,7 @@ export default function BucketDetailPage() {
         sx={{ px: 3, borderBottom: '1px solid #dadce0', minHeight: 44 }}
       >
         <Tab label="Objects" value="objects" sx={{ textTransform: 'none', minHeight: 44 }} />
+        <Tab label="Permissions" value="permissions" sx={{ textTransform: 'none', minHeight: 44 }} />
         <Tab label="Details" value="details" sx={{ textTransform: 'none', minHeight: 44 }} />
       </Tabs>
 
@@ -325,6 +327,10 @@ export default function BucketDetailPage() {
               </Box>
             )}
           </>
+        )}
+
+        {tab === 'permissions' && (
+          <BucketPermissions providerId={provider} bucket={bucket} />
         )}
 
         {tab === 'details' && (

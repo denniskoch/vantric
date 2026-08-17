@@ -392,6 +392,42 @@ export interface StoragePolicy {
   name: string
   /** Every action the document allows, flattened. */
   actions: string[]
+  /** Every ARN it allows them on — how "reaches this bucket" is answered. */
+  resources: string[]
+}
+
+/** One anonymous allow in a bucket policy, described rather than quoted. */
+export interface PublicGrant {
+  sid: string
+  actions: string[]
+  resources: string[]
+  /** Anyone can enumerate the bucket, not just fetch a known key. */
+  listable: boolean
+  /** Anyone can add or remove objects. */
+  writable: boolean
+}
+
+export interface BucketPolicy {
+  /** The raw IAM document, as the store holds it. */
+  document?: unknown
+  exposure: { public: boolean; grants: PublicGrant[] }
+}
+
+export interface BucketKeyAccess {
+  accessKey: string
+  enabled: boolean
+  policy: string
+  actions: string[]
+}
+
+export interface BucketPermissions {
+  /** null when this bucket has no policy — the ordinary state. */
+  policy: BucketPolicy | null
+  /** false when the STORE has no bucket policies, which is not the same. */
+  policySupported: boolean
+  keys: BucketKeyAccess[]
+  /** false when the store has no IAM to ask, so empty isn't "nothing". */
+  keysKnown: boolean
 }
 
 export type HypervisorType = 'proxmox' | 'mock'
@@ -1942,6 +1978,21 @@ export const api = {
       `/storage/buckets/${bucket}/object?provider=${providerId}&key=${encodeURIComponent(key)}`,
       { method: 'DELETE' },
     ),
+  bucketPermissions: (providerId: string, bucket: string) =>
+    request<BucketPermissions>(`/storage/buckets/${bucket}/permissions?provider=${providerId}`),
+  grantBucketPublic: (
+    providerId: string,
+    bucket: string,
+    body: { prefix: string; allowList: boolean },
+  ) =>
+    request<void>(`/storage/buckets/${bucket}/public?provider=${providerId}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  revokeBucketPublic: (providerId: string, bucket: string) =>
+    request<void>(`/storage/buckets/${bucket}/public?provider=${providerId}`, {
+      method: 'DELETE',
+    }),
   listStorageUsers: (providerId?: string) =>
     request<StorageUser[]>(
       providerId ? `/storage/users?provider=${providerId}` : '/storage/users',
