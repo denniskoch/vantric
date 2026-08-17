@@ -37,7 +37,7 @@ export default function DisksPage() {
           </TableHead>
           <TableBody>
             {disks.map((disk) => (
-              <TableRow key={`${disk.serverId}/${disk.id}`} hover>
+              <TableRow key={`${disk.hypervisorId}/${disk.id}`} hover>
                 <TableCell>{disk.name}</TableCell>
                 <TableCell>
                   {disk.inUseBy ? (

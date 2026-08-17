@@ -36,11 +36,11 @@ func safeFilename(name string, extensions []string) (string, bool) {
 	return "", false
 }
 
-// driverForServer resolves a server id from the query string.
-func (s *Server) driverForServer(w http.ResponseWriter, r *http.Request) hypervisor.Driver {
-	id := r.URL.Query().Get("server")
+// driverForHypervisor resolves a server id from the query string.
+func (s *Server) driverForHypervisor(w http.ResponseWriter, r *http.Request) hypervisor.Driver {
+	id := r.URL.Query().Get("hypervisor")
 	if id == "" {
-		s.err(w, http.StatusBadRequest, "server query parameter is required")
+		s.err(w, http.StatusBadRequest, "hypervisor query parameter is required")
 		return nil
 	}
 	driver, ok := s.registry.Get(id)
@@ -52,7 +52,7 @@ func (s *Server) driverForServer(w http.ResponseWriter, r *http.Request) hypervi
 }
 
 func (s *Server) downloadISO(w http.ResponseWriter, r *http.Request) {
-	driver := s.driverForServer(w, r)
+	driver := s.driverForHypervisor(w, r)
 	if driver == nil {
 		return
 	}
@@ -104,7 +104,7 @@ func (s *Server) downloadISO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	op := s.ops.start("Downloading ISO "+filename, "iso", filename,
-		r.URL.Query().Get("server"), "/compute/isos")
+		r.URL.Query().Get("hypervisor"), "/compute/isos")
 	s.watchTask(op, driver, taskID, "Downloaded to "+req.Storage)
 	s.json(w, http.StatusAccepted, op)
 }
@@ -114,7 +114,7 @@ func (s *Server) downloadISO(w http.ResponseWriter, r *http.Request) {
 // through; metadata rides in the query string.
 func (s *Server) uploadVolume(content string, extensions []string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		driver := s.driverForServer(w, r)
+		driver := s.driverForHypervisor(w, r)
 		if driver == nil {
 			return
 		}
@@ -155,7 +155,7 @@ func (s *Server) uploadVolume(content string, extensions []string) http.HandlerF
 		if content == "import" {
 			kind, to = "cloudImage", "/compute/cloud-images"
 		}
-		op := s.ops.start("Uploading "+filename, kind, filename, q.Get("server"), to)
+		op := s.ops.start("Uploading "+filename, kind, filename, q.Get("hypervisor"), to)
 		s.watchTask(op, driver, taskID, "Uploaded to "+storage)
 		s.json(w, http.StatusAccepted, op)
 	}
@@ -167,7 +167,7 @@ func (s *Server) uploadVolume(content string, extensions []string) http.HandlerF
 // storage-content path would happily delete VM disks and backups too.
 func (s *Server) deleteVolume(kind, label, resourceType string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		driver := s.driverForServer(w, r)
+		driver := s.driverForHypervisor(w, r)
 		if driver == nil {
 			return
 		}
@@ -188,7 +188,7 @@ func (s *Server) deleteVolume(kind, label, resourceType string) http.HandlerFunc
 		}
 		name := volume[strings.LastIndex(volume, "/")+1:]
 		op := s.ops.start("Deleting "+label+" "+name, resourceType, name,
-			q.Get("server"), "")
+			q.Get("hypervisor"), "")
 		s.watchTask(op, driver, taskID, "Deleted")
 		s.json(w, http.StatusAccepted, op)
 	}
@@ -206,7 +206,7 @@ func (s *Server) deleteVolume(kind, label, resourceType string) http.HandlerFunc
 // alone, so the form was asking questions whose answers were already
 // on file.
 func (s *Server) describeImage(w http.ResponseWriter, r *http.Request) {
-	driver := s.driverForServer(w, r)
+	driver := s.driverForHypervisor(w, r)
 	if driver == nil {
 		return
 	}
@@ -222,7 +222,7 @@ func (s *Server) describeImage(w http.ResponseWriter, r *http.Request) {
 // record of its own here — it is listed straight from the hypervisor —
 // so this is a pass-through with nothing to keep in step.
 func (s *Server) setImageDescription(w http.ResponseWriter, r *http.Request) {
-	driver := s.driverForServer(w, r)
+	driver := s.driverForHypervisor(w, r)
 	if driver == nil {
 		return
 	}
@@ -238,19 +238,19 @@ func (s *Server) setImageDescription(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) deleteImage(w http.ResponseWriter, r *http.Request) {
-	driver := s.driverForServer(w, r)
+	driver := s.driverForHypervisor(w, r)
 	if driver == nil {
 		return
 	}
 	imageID := chi.URLParam(r, "id")
-	serverID := r.URL.Query().Get("server")
+	hypervisorID := r.URL.Query().Get("hypervisor")
 	instances, err := s.store.ListInstances(r.Context())
 	if err != nil {
 		s.fail(w, err, "instances")
 		return
 	}
 	for _, inst := range instances {
-		if inst.ServerID == serverID && inst.ImageID == imageID {
+		if inst.HypervisorID == hypervisorID && inst.ImageID == imageID {
 			s.err(w, http.StatusConflict,
 				"instance "+inst.Name+" still records this template as its source image")
 			return
@@ -262,7 +262,7 @@ func (s *Server) deleteImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	op := s.ops.start("Deleting VM template "+imageID, "image", imageID,
-		serverID, "/compute/vm-templates")
+		hypervisorID, "/compute/vm-templates")
 	s.watchTask(op, driver, taskID, "Deleted")
 	s.json(w, http.StatusAccepted, op)
 }

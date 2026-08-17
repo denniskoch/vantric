@@ -50,7 +50,7 @@ export default function CreateInstancePage() {
 
   // Machine configuration
   const [name, setName] = useState('')
-  const [serverId, setServerId] = useState('')
+  const [hypervisorId, setServerId] = useState('')
   const [node, setZone] = useState('')
   const [cpus, setCpus] = useState(2)
   const [memoryMb, setMemoryMb] = useState(2048)
@@ -82,9 +82,9 @@ export default function CreateInstancePage() {
   // given a login, keys and a size; a clone inherits all of it, so the
   // form should show that rather than ask for it a second time.
   const { data: template } = useQuery({
-    queryKey: ['image', serverId, imageId],
-    queryFn: () => api.describeImage(serverId, imageId),
-    enabled: Boolean(serverId) && Boolean(imageId),
+    queryKey: ['image', hypervisorId, imageId],
+    queryFn: () => api.describeImage(hypervisorId, imageId),
+    enabled: Boolean(hypervisorId) && Boolean(imageId),
     retry: false,
   })
 
@@ -111,25 +111,25 @@ export default function CreateInstancePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template])
 
-  const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
+  const { data: servers = [] } = useQuery({ queryKey: ['hypervisors'], queryFn: api.listHypervisors })
   const { data: nodes = [] } = useQuery({
-    queryKey: ['nodes', serverId],
-    queryFn: () => api.listNodes(serverId),
-    enabled: Boolean(serverId),
+    queryKey: ['nodes', hypervisorId],
+    queryFn: () => api.listNodes(hypervisorId),
+    enabled: Boolean(hypervisorId),
   })
   const { data: images = [] } = useQuery({
-    queryKey: ['images', serverId],
-    queryFn: () => api.listImages(serverId),
-    enabled: Boolean(serverId),
+    queryKey: ['images', hypervisorId],
+    queryFn: () => api.listImages(hypervisorId),
+    enabled: Boolean(hypervisorId),
   })
   const { data: bridges = [] } = useQuery({ queryKey: ['bridges'], queryFn: api.listBridges })
 
   // Bridges are per-node, so only the chosen node's are attachable.
-  const zoneBridges = bridges.filter((b) => b.serverId === serverId && b.node === node)
+  const zoneBridges = bridges.filter((b) => b.hypervisorId === hypervisorId && b.node === node)
   const bridge = zoneBridges.find((b) => b.name === netBridge)
 
   const connected = servers.filter((s) => s.status === 'connected')
-  if (!serverId && connected.length > 0) {
+  if (!hypervisorId && connected.length > 0) {
     setServerId(connected[0].id)
   }
 
@@ -144,7 +144,7 @@ export default function CreateInstancePage() {
       api.createInstance({
         serial: serial.trim() || name,
         name,
-        serverId,
+        hypervisorId,
         node,
         cpus,
         memoryMb,
@@ -169,11 +169,11 @@ export default function CreateInstancePage() {
   const memoryError = memoryMb < 128 ? 'At least 128 MB' : ''
 
   const machineValid =
-    nameRe.test(name) && Boolean(serverId) && Boolean(node) && !cpuError && !memoryError
+    nameRe.test(name) && Boolean(hypervisorId) && Boolean(node) && !cpuError && !memoryError
   const osValid = Boolean(imageId) && diskGb >= 1
   const valid = machineValid && osValid
 
-  const serverName = servers.find((s) => s.id === serverId)?.name
+  const hypervisorName = servers.find((s) => s.id === hypervisorId)?.name
   // Templates, read for what they are. The family list is whatever is
   // actually on the server — a lab shows what it has, not a catalogue
   // of what it could have.
@@ -209,7 +209,7 @@ export default function CreateInstancePage() {
       id: 'machine',
       label: 'Machine configuration',
       summary: machineValid
-        ? `${cpus} vCPU, ${formatMemory(memoryMb)}, ${serverName}/${node}`
+        ? `${cpus} vCPU, ${formatMemory(memoryMb)}, ${hypervisorName}/${node}`
         : 'Name, server, node, size',
       invalid: !machineValid,
     },
@@ -316,7 +316,7 @@ export default function CreateInstancePage() {
                 label="Server"
                 size="small"
                 select
-                value={serverId}
+                value={hypervisorId}
                 onChange={(e) => selectServer(e.target.value)}
                 helperText={
                   servers.length === 0
@@ -337,7 +337,7 @@ export default function CreateInstancePage() {
                 select
                 value={node}
                 onChange={(e) => setZone(e.target.value)}
-                disabled={!serverId}
+                disabled={!hypervisorId}
                 fullWidth
               >
                 {nodes.map((z) => (
@@ -393,9 +393,9 @@ export default function CreateInstancePage() {
                 select
                 value={family}
                 onChange={(e) => chooseFamily(e.target.value)}
-                disabled={!serverId}
+                disabled={!hypervisorId}
                 helperText={
-                  !serverId
+                  !hypervisorId
                     ? 'Select a server first (Machine configuration)'
                     : images.length === 0
                       ? 'No templates found on this server'

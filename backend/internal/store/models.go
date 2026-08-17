@@ -12,7 +12,7 @@ var ErrNotFound = errors.New("store: not found")
 type Instance struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
-	ServerID    string `json:"serverId"`
+	HypervisorID    string `json:"hypervisorId"`
 	Node        string `json:"node"`
 	CPUs        int    `json:"cpus"`
 	MemoryMB    int    `json:"memoryMb"`
@@ -51,7 +51,7 @@ func parseTime(s string) time.Time {
 	return t
 }
 
-const instanceCols = `id, name, server_id, node, cpus, memory_mb, disk_gb,
+const instanceCols = `id, name, hypervisor_id, node, cpus, memory_mb, disk_gb,
 	image_id, status, driver_id, internal_ip, external_ip, net_bridge, vlan_tag,
 	description, protected, os_type, uuid, serial, created_at, updated_at`
 
@@ -59,7 +59,7 @@ func scanInstance(scan func(dest ...any) error) (*Instance, error) {
 	var i Instance
 	var created, updated string
 	var protected int
-	err := scan(&i.ID, &i.Name, &i.ServerID, &i.Node, &i.CPUs, &i.MemoryMB,
+	err := scan(&i.ID, &i.Name, &i.HypervisorID, &i.Node, &i.CPUs, &i.MemoryMB,
 		&i.DiskGB, &i.ImageID, &i.Status, &i.DriverID, &i.InternalIP, &i.ExternalIP,
 		&i.NetBridge, &i.VLANTag, &i.Description, &protected, &i.OSType, &i.UUID,
 		&i.Serial, &created, &updated)
@@ -77,7 +77,7 @@ func (s *Store) CreateInstance(ctx context.Context, i *Instance) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO instances (`+instanceCols+`)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		i.ID, i.Name, i.ServerID, i.Node, i.CPUs, i.MemoryMB, i.DiskGB,
+		i.ID, i.Name, i.HypervisorID, i.Node, i.CPUs, i.MemoryMB, i.DiskGB,
 		i.ImageID, i.Status, i.DriverID, i.InternalIP, i.ExternalIP, i.NetBridge, i.VLANTag,
 		i.Description, boolInt(i.Protected), i.OSType, i.UUID, i.Serial, ts, ts)
 	i.CreatedAt = parseTime(ts)
@@ -153,7 +153,7 @@ func (s *Store) UpdateInstanceState(ctx context.Context, id, status, internalIP,
 // recognises a VM the reconciler adopted while it was still working.
 func (s *Store) GetInstanceByDriverID(ctx context.Context, serverID, driverID string) (*Instance, error) {
 	inst, err := scanInstance(s.db.QueryRowContext(ctx,
-		`SELECT `+instanceCols+` FROM instances WHERE server_id = ? AND driver_id = ?`,
+		`SELECT `+instanceCols+` FROM instances WHERE hypervisor_id = ? AND driver_id = ?`,
 		serverID, driverID).Scan)
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound

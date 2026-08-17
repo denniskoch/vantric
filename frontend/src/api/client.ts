@@ -121,7 +121,7 @@ export type InstanceStatus =
 export interface Instance {
   id: string
   name: string
-  serverId: string
+  hypervisorId: string
   node: string
   cpus: number
   memoryMb: number
@@ -256,7 +256,7 @@ export interface OSInfo {
 export interface Container {
   id: string
   name: string
-  serverId: string
+  hypervisorId: string
   node: string
   cpus: number
   memoryMb: number
@@ -270,7 +270,7 @@ export interface Container {
   updatedAt: string
 }
 
-export type ServerType = 'proxmox' | 'mock'
+export type HypervisorType = 'proxmox' | 'mock'
 
 /** One thing worth someone's attention on the Cloud overview. */
 export interface OverviewProblem {
@@ -298,7 +298,7 @@ export interface OverviewCounts {
 export interface OverviewDatastore {
   name: string
   node: string
-  serverId: string
+  hypervisorId: string
   usedBytes: number
   totalBytes: number
   percent: number
@@ -594,10 +594,10 @@ export interface AuditEntry {
   payload?: string
 }
 
-export interface Server {
+export interface Hypervisor {
   id: string
   name: string
-  type: ServerType
+  type: HypervisorType
   baseUrl: string
   tokenId: string
   insecureTls: boolean
@@ -608,9 +608,9 @@ export interface Server {
   createdAt: string
 }
 
-export interface ServerRequest {
+export interface HypervisorRequest {
   name: string
-  type: ServerType
+  type: HypervisorType
   baseUrl: string
   tokenId: string
   secret: string
@@ -618,7 +618,7 @@ export interface ServerRequest {
 }
 
 export interface Node {
-  serverId: string
+  hypervisorId: string
   id: string
   name: string
   status: string
@@ -633,7 +633,7 @@ export interface Node {
 
 /** A virtualization host's own description of itself. */
 export interface NodeStatus {
-  serverId: string
+  hypervisorId: string
   id: string
   name: string
   uptimeSeconds: number
@@ -659,7 +659,7 @@ export interface NodeStatus {
 }
 
 export interface Image {
-  serverId: string
+  hypervisorId: string
   id: string
   name: string
   node: string
@@ -672,7 +672,7 @@ export interface Image {
 }
 
 export interface Disk {
-  serverId: string
+  hypervisorId: string
   id: string
   name: string
   inUseBy: string
@@ -682,7 +682,7 @@ export interface Disk {
 }
 
 export interface Snapshot {
-  serverId: string
+  hypervisorId: string
   id: string
   name: string
   vmName: string
@@ -693,7 +693,7 @@ export interface Snapshot {
 }
 
 export interface ISO {
-  serverId: string
+  hypervisorId: string
   id: string
   name: string
   node: string
@@ -709,7 +709,7 @@ export type CloudImage = ISO
 
 /** A guest backup archive on a datastore. */
 export interface Backup {
-  serverId: string
+  hypervisorId: string
   id: string
   name: string
   node: string
@@ -770,7 +770,7 @@ export interface Operation {
   resource: string
   /** which lists to refresh when this finishes */
   resourceType: 'instance' | 'image' | 'iso' | 'cloudImage' | 'ctTemplate' | 'backup'
-  serverId?: string
+  hypervisorId?: string
   status: 'RUNNING' | 'DONE' | 'ERROR'
   step?: string
   steps?: string[]
@@ -782,7 +782,7 @@ export interface Operation {
 }
 
 export interface Bridge {
-  serverId: string
+  hypervisorId: string
   name: string
   node: string
   cidr: string
@@ -793,7 +793,7 @@ export interface Bridge {
 }
 
 export interface Datastore {
-  serverId: string
+  hypervisorId: string
   id: string
   name: string
   node: string
@@ -1200,7 +1200,7 @@ export const emptyCloudInit: CloudInitConfig = {
 
 export interface CreateInstanceRequest {
   name: string
-  serverId: string
+  hypervisorId: string
   node: string
   cpus: number
   memoryMb: number
@@ -1281,13 +1281,13 @@ function uploadInstallerStream(file: File, onProgress: (fraction: number) => voi
 
 function uploadStream(
   path: string,
-  serverId: string,
+  hypervisorId: string,
   params: { node: string; storage: string; filename: string },
   file: File,
   onProgress: (fraction: number) => void,
 ) {
   return new Promise<Operation>((resolve, reject) => {
-    const query = new URLSearchParams({ server: serverId, ...params })
+    const query = new URLSearchParams({ server: hypervisorId, ...params })
     const xhr = new XMLHttpRequest()
     xhr.open('POST', `/api/v1${path}?${query}`)
     xhr.setRequestHeader('Content-Type', 'application/octet-stream')
@@ -1354,73 +1354,73 @@ export const api = {
 
   // Catalog listings span every server; pass a server id to narrow
   // (the create flows do, since placement is per-server).
-  listNodes: (serverId?: string) =>
-    request<Node[]>(serverId ? `/nodes?server=${serverId}` : '/nodes'),
+  listNodes: (hypervisorId?: string) =>
+    request<Node[]>(hypervisorId ? `/nodes?hypervisor=${hypervisorId}` : '/nodes'),
   /** One host in detail — read on demand, never polled at list speed. */
-  getNode: (serverId: string, node: string) =>
-    request<NodeStatus>(`/nodes/${encodeURIComponent(node)}?server=${serverId}`),
-  nodeMetrics: (serverId: string, node: string, timeframe: MetricTimeframe) =>
+  getNode: (hypervisorId: string, node: string) =>
+    request<NodeStatus>(`/nodes/${encodeURIComponent(node)}?hypervisor=${hypervisorId}`),
+  nodeMetrics: (hypervisorId: string, node: string, timeframe: MetricTimeframe) =>
     request<MetricPoint[]>(
-      `/nodes/${encodeURIComponent(node)}/metrics?server=${serverId}&timeframe=${timeframe}`,
+      `/nodes/${encodeURIComponent(node)}/metrics?hypervisor=${hypervisorId}&timeframe=${timeframe}`,
     ),
   listBridges: () => request<Bridge[]>('/bridges'),
-  listImages: (serverId?: string) =>
-    request<Image[]>(serverId ? `/images?server=${serverId}` : '/images'),
+  listImages: (hypervisorId?: string) =>
+    request<Image[]>(hypervisorId ? `/images?hypervisor=${hypervisorId}` : '/images'),
   /** A template's own configuration — what a clone of it inherits. */
-  describeImage: (serverId: string, imageId: string) =>
-    request<InstanceDetail>(`/images/${imageId}?server=${serverId}`),
+  describeImage: (hypervisorId: string, imageId: string) =>
+    request<InstanceDetail>(`/images/${imageId}?hypervisor=${hypervisorId}`),
   listDisks: () => request<Disk[]>('/disks'),
   listSnapshots: () => request<Snapshot[]>('/snapshots'),
   listISOs: () => request<ISO[]>('/isos'),
-  downloadISO: (serverId: string, body: ISODownloadRequest) =>
-    request<Operation>(`/isos/download?server=${serverId}`, {
+  downloadISO: (hypervisorId: string, body: ISODownloadRequest) =>
+    request<Operation>(`/isos/download?hypervisor=${hypervisorId}`, {
       method: 'POST',
       body: JSON.stringify(body),
     }),
   /** Streams a file to the hypervisor with progress. */
   uploadISO: (
-    serverId: string,
+    hypervisorId: string,
     params: { node: string; storage: string; filename: string },
     file: File,
     onProgress: (fraction: number) => void,
-  ) => uploadStream('/isos/upload', serverId, params, file, onProgress),
-  deleteISO: (serverId: string, node: string, volume: string) => {
-    const query = new URLSearchParams({ server: serverId, node, volume })
+  ) => uploadStream('/isos/upload', hypervisorId, params, file, onProgress),
+  deleteISO: (hypervisorId: string, node: string, volume: string) => {
+    const query = new URLSearchParams({ server: hypervisorId, node, volume })
     return request<Operation>(`/isos?${query}`, { method: 'DELETE' })
   },
-  deleteCTTemplate: (serverId: string, node: string, volume: string) => {
-    const query = new URLSearchParams({ server: serverId, node, volume })
+  deleteCTTemplate: (hypervisorId: string, node: string, volume: string) => {
+    const query = new URLSearchParams({ server: hypervisorId, node, volume })
     return request<Operation>(`/ct-templates?${query}`, { method: 'DELETE' })
   },
-  setImageDescription: (serverId: string, imageId: string, description: string) =>
-    request<void>(`/images/${imageId}/description?server=${serverId}`, {
+  setImageDescription: (hypervisorId: string, imageId: string, description: string) =>
+    request<void>(`/images/${imageId}/description?hypervisor=${hypervisorId}`, {
       method: 'POST',
       body: JSON.stringify({ description }),
     }),
   /** Destroys the template VM itself, not a file. */
-  deleteImage: (serverId: string, imageId: string) =>
-    request<Operation>(`/images/${imageId}?server=${serverId}`, {
+  deleteImage: (hypervisorId: string, imageId: string) =>
+    request<Operation>(`/images/${imageId}?hypervisor=${hypervisorId}`, {
       method: 'DELETE',
     }),
   listCTTemplates: () => request<CTTemplate[]>('/ct-templates'),
   listCloudImages: () => request<CloudImage[]>('/cloud-images'),
-  downloadCloudImage: (serverId: string, body: ISODownloadRequest) =>
-    request<Operation>(`/cloud-images/download?server=${serverId}`, {
+  downloadCloudImage: (hypervisorId: string, body: ISODownloadRequest) =>
+    request<Operation>(`/cloud-images/download?hypervisor=${hypervisorId}`, {
       method: 'POST',
       body: JSON.stringify(body),
     }),
   uploadCloudImage: (
-    serverId: string,
+    hypervisorId: string,
     params: { node: string; storage: string; filename: string },
     file: File,
     onProgress: (fraction: number) => void,
-  ) => uploadStream('/cloud-images/upload', serverId, params, file, onProgress),
-  deleteCloudImage: (serverId: string, node: string, volume: string) => {
-    const query = new URLSearchParams({ server: serverId, node, volume })
+  ) => uploadStream('/cloud-images/upload', hypervisorId, params, file, onProgress),
+  deleteCloudImage: (hypervisorId: string, node: string, volume: string) => {
+    const query = new URLSearchParams({ server: hypervisorId, node, volume })
     return request<Operation>(`/cloud-images?${query}`, { method: 'DELETE' })
   },
-  buildTemplate: (serverId: string, body: TemplateBuildRequest) =>
-    request<Operation>(`/vm-templates/build?server=${serverId}`, {
+  buildTemplate: (hypervisorId: string, body: TemplateBuildRequest) =>
+    request<Operation>(`/vm-templates/build?hypervisor=${hypervisorId}`, {
       method: 'POST',
       body: JSON.stringify(body),
     }),
@@ -1490,13 +1490,13 @@ export const api = {
   dismissOperation: (id: string) => request<void>(`/operations/${id}`, { method: 'DELETE' }),
   clearOperations: () => request<void>('/operations', { method: 'DELETE' }),
 
-  listServers: () => request<Server[]>('/servers'),
-  createServer: (body: ServerRequest) =>
-    request<Server>('/servers', { method: 'POST', body: JSON.stringify(body) }),
-  updateServer: (id: string, body: ServerRequest) =>
-    request<Server>(`/servers/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-  deleteServer: (id: string) =>
-    request<void>(`/servers/${id}`, { method: 'DELETE' }),
+  listHypervisors: () => request<Hypervisor[]>('/hypervisors'),
+  createHypervisor: (body: HypervisorRequest) =>
+    request<Hypervisor>('/hypervisors', { method: 'POST', body: JSON.stringify(body) }),
+  updateHypervisor: (id: string, body: HypervisorRequest) =>
+    request<Hypervisor>(`/hypervisors/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteHypervisor: (id: string) =>
+    request<void>(`/hypervisors/${id}`, { method: 'DELETE' }),
   listNetworkProviderTypes: () =>
     request<NetworkProviderType[]>('/network/provider-types'),
   importSubnets: (networkIds: string[]) =>
@@ -1711,9 +1711,9 @@ export const api = {
     request<void>(`/dns/zones/${zoneId}?provider=${providerId}`, { method: 'DELETE' }),
 
   listBackups: () => request<Backup[]>('/backups'),
-  deleteBackup: (serverId: string, node: string, volume: string) =>
+  deleteBackup: (hypervisorId: string, node: string, volume: string) =>
     request<Operation>(
-      `/backups?server=${serverId}&node=${encodeURIComponent(node)}&volume=${encodeURIComponent(volume)}`,
+      `/backups?hypervisor=${hypervisorId}&node=${encodeURIComponent(node)}&volume=${encodeURIComponent(volume)}`,
       { method: 'DELETE' },
     ),
 

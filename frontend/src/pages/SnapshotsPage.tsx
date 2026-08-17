@@ -39,7 +39,7 @@ export default function SnapshotsPage() {
           </TableHead>
           <TableBody>
             {snapshots.map((snap) => (
-              <TableRow key={`${snap.serverId}/${snap.id}`} hover>
+              <TableRow key={`${snap.hypervisorId}/${snap.id}`} hover>
                 <TableCell>{snap.name}</TableCell>
                 <TableCell>
                   <Link

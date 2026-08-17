@@ -44,8 +44,8 @@ export const templateDescription: DescriptionTarget = {
   noun: 'template',
   backTo: () => '/compute/vm-templates',
   backLabel: 'VM templates',
-  load: async (p) => (await api.describeImage(p.serverId, p.id)).description,
-  save: (p, description) => api.setImageDescription(p.serverId, p.id, description),
+  load: async (p) => (await api.describeImage(p.hypervisorId, p.id)).description,
+  save: (p, description) => api.setImageDescription(p.hypervisorId, p.id, description),
   affects: ['images', 'image'],
 }
 

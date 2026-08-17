@@ -62,7 +62,7 @@ import IdentityEventsPage from './pages/IdentityEventsPage'
 import IdentityProvidersPage from './pages/IdentityProvidersPage'
 import AddIdentityProviderPage from './pages/AddIdentityProviderPage'
 import DNSProvidersPage from './pages/DNSProvidersPage'
-import ServersPage from './pages/ServersPage'
+import HypervisorsPage from './pages/HypervisorsPage'
 import InventoryProvidersPage from './pages/InventoryProvidersPage'
 import DevicesHostsPage from './pages/DevicesHostsPage'
 import DevicesHostPage from './pages/DevicesHostPage'
@@ -125,7 +125,7 @@ export default function App() {
           }
         />
         <Route
-          path="/compute/vm-templates/:serverId/:id/description"
+          path="/compute/vm-templates/:hypervisorId/:id/description"
           element={
             <RequireRole>
               <EditDescriptionPage target={templateDescription} />
@@ -242,8 +242,8 @@ export default function App() {
         {/* A node name is unique only within its server, so both
             address one host. */}
         <Route path="/compute/nodes/:server/:node" element={<NodeDetailPage />} />
-        <Route path="/compute/settings/hypervisors" element={<RequireRole admin><ServersPage /></RequireRole>} />
-        <Route path="/compute/servers" element={<Navigate to="/compute/settings/hypervisors" replace />} />
+        <Route path="/compute/settings/hypervisors" element={<RequireRole admin><HypervisorsPage /></RequireRole>} />
+        <Route path="/compute/hypervisors" element={<Navigate to="/compute/settings/hypervisors" replace />} />
         <Route path="/compute/settings/hypervisors/add" element={<RequireRole admin><HypervisorFormPage /></RequireRole>} />
         <Route path="/compute/settings/hypervisors/:id/edit" element={<RequireRole admin><HypervisorFormPage /></RequireRole>} />
       </Route>

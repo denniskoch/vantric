@@ -107,7 +107,7 @@ func main() {
 
 // loadRegistry builds a live driver for every registered server.
 func loadRegistry(ctx context.Context, st *store.Store, registry *hypervisor.Registry, log *slog.Logger) {
-	servers, err := st.ListServers(ctx)
+	servers, err := st.ListHypervisors(ctx)
 	if err != nil {
 		log.Error("listing servers", "error", err)
 		return

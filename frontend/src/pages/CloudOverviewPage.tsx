@@ -147,7 +147,7 @@ export default function CloudOverviewPage() {
           </Typography>
           <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
             {data.datastores.map((ds) => (
-              <DatastoreBar key={`${ds.serverId}/${ds.node}/${ds.name}`} datastore={ds} />
+              <DatastoreBar key={`${ds.hypervisorId}/${ds.node}/${ds.name}`} datastore={ds} />
             ))}
           </Paper>
         </>

@@ -29,7 +29,7 @@ export default function OverviewPage() {
     queryFn: api.listContainers,
     refetchInterval: 5000,
   })
-  const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
+  const { data: servers = [] } = useQuery({ queryKey: ['hypervisors'], queryFn: api.listHypervisors })
 
   const running = (list: { status: string }[]) =>
     list.filter((i) => i.status === 'RUNNING').length

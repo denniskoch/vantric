@@ -55,8 +55,8 @@ export default function InstancesPage() {
     queryFn: api.listInstances,
     refetchInterval: 3000,
   })
-  const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
-  const serverName = (id: string) => servers.find((s) => s.id === id)?.name ?? '—'
+  const { data: servers = [] } = useQuery({ queryKey: ['hypervisors'], queryFn: api.listHypervisors })
+  const hypervisorName = (id: string) => servers.find((s) => s.id === id)?.name ?? '—'
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ['instances'] })
@@ -337,7 +337,7 @@ export default function InstancesPage() {
           <>
             This destroys{' '}
             {deleting && deleting.length === 1
-              ? 'the virtual machine and its disks on ' + serverName(deleting[0].serverId)
+              ? 'the virtual machine and its disks on ' + hypervisorName(deleting[0].hypervisorId)
               : deleting?.map((i) => i.name).join(', ')}
             . Snapshots and backups taken of{' '}
             {deleting && deleting.length === 1 ? 'it' : 'them'} are not removed, but

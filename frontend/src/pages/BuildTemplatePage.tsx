@@ -38,7 +38,7 @@ export default function BuildTemplatePage() {
   const [error, setError] = useState<string | null>(null)
 
   // Source image
-  const [serverId, setServerId] = useState('')
+  const [hypervisorId, setServerId] = useState('')
   const [sourceVolume, setSourceVolume] = useState('')
   // Template
   const [name, setName] = useState('')
@@ -56,7 +56,7 @@ export default function BuildTemplatePage() {
   const [enableAgent, setEnableAgent] = useState(true)
 
 
-  const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
+  const { data: servers = [] } = useQuery({ queryKey: ['hypervisors'], queryFn: api.listHypervisors })
   const { data: cloudImages = [] } = useQuery({
     queryKey: ['cloudImages'],
     queryFn: api.listCloudImages,
@@ -68,19 +68,19 @@ export default function BuildTemplatePage() {
   const { data: bridges = [] } = useQuery({ queryKey: ['bridges'], queryFn: api.listBridges })
 
   const connected = servers.filter((s) => s.status === 'connected')
-  if (!serverId && connected.length > 0) setServerId(connected[0].id)
+  if (!hypervisorId && connected.length > 0) setServerId(connected[0].id)
 
-  const images = cloudImages.filter((i) => i.serverId === serverId)
+  const images = cloudImages.filter((i) => i.hypervisorId === hypervisorId)
   const image = images.find((i) => i.id === sourceVolume)
   // Disk storage must accept VM images and live on the image's node.
   // Bridges live on the image's node.
   const zoneBridges = bridges.filter(
-    (b) => b.serverId === serverId && (!image || b.node === image.node),
+    (b) => b.hypervisorId === hypervisorId && (!image || b.node === image.node),
   )
   const bridge = zoneBridges.find((b) => b.name === netBridge)
   const diskTargets = datastores.filter(
     (d) =>
-      d.serverId === serverId &&
+      d.hypervisorId === hypervisorId &&
       d.active &&
       d.content.includes('images') &&
       (!image || d.node === image.node),
@@ -88,7 +88,7 @@ export default function BuildTemplatePage() {
 
   const start = useMutation({
     mutationFn: () =>
-      api.buildTemplate(serverId, {
+      api.buildTemplate(hypervisorId, {
         name,
         node: image!.node,
         sourceVolume,
@@ -204,7 +204,7 @@ export default function BuildTemplatePage() {
                 label="Server"
                 size="small"
                 select
-                value={serverId}
+                value={hypervisorId}
                 onChange={(e) => {
                   setServerId(e.target.value)
                   setSourceVolume('')

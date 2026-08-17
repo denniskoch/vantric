@@ -23,7 +23,7 @@ import TimeSeriesChart from '../components/TimeSeriesChart'
 import UsageBar from '../components/UsageBar'
 import { chart } from '../chartPalette'
 import { formatBytes, formatBytesPerSec, formatPercent, formatUptime } from '../format'
-import { useServerNames } from '../useServerNames'
+import { useHypervisorNames } from '../useHypervisorNames'
 
 /** Renders a value the host didn't report as words rather than a zero. */
 function reported(value: string | number | undefined | null, render?: () => React.ReactNode) {
@@ -45,7 +45,7 @@ function reported(value: string | number | undefined | null, render?: () => Reac
 export default function NodeDetailPage() {
   const { server, node } = useParams<{ server: string; node: string }>()
   const navigate = useNavigate()
-  const serverName = useServerNames()
+  const hypervisorName = useHypervisorNames()
   const [tab, setTab] = useState('details')
   const [timeframe, setTimeframe] = useState<MetricTimeframe>('hour')
 
@@ -54,7 +54,7 @@ export default function NodeDetailPage() {
     queryFn: () => api.listNodes(),
     refetchInterval: 10000,
   })
-  const summary = nodes.find((z) => z.serverId === server && z.id === node)
+  const summary = nodes.find((z) => z.hypervisorId === server && z.id === node)
 
   const {
     data: status,
@@ -136,7 +136,7 @@ export default function NodeDetailPage() {
                         to="/compute/settings/hypervisors"
                         underline="hover"
                       >
-                        {serverName(status.serverId)}
+                        {hypervisorName(status.hypervisorId)}
                       </Link>
                     ),
                   },

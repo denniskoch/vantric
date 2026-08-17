@@ -194,11 +194,11 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		r.Get("/ssh-key", s.mySSHKey)
 		r.Post("/ssh-key/rotate", s.rotateMySSHKey)
 		r.Put("/ssh-key", s.importMySSHKey)
-		r.Get("/server-types", s.listServerTypes)
-		r.Get("/servers", s.listServers)
-		r.Post("/servers", s.createServer)
-		r.Put("/servers/{id}", s.updateServer)
-		r.Delete("/servers/{id}", s.deleteServer)
+		r.Get("/hypervisor-types", s.listHypervisorTypes)
+		r.Get("/hypervisors", s.listHypervisors)
+		r.Post("/hypervisors", s.createHypervisor)
+		r.Put("/hypervisors/{id}", s.updateHypervisor)
+		r.Delete("/hypervisors/{id}", s.deleteHypervisor)
 
 		s.containerRoutes(r)
 		s.dnsRoutes(r)
@@ -285,7 +285,7 @@ func (s *Server) claimAdopted(ctx context.Context, inst *store.Instance) (*store
 	if err != nil {
 		return nil, err
 	}
-	sameVM := existing.ServerID == inst.ServerID &&
+	sameVM := existing.HypervisorID == inst.HypervisorID &&
 		(existing.DriverID == inst.DriverID || existing.DriverID == "")
 	if !sameVM {
 		return nil, nil
@@ -306,7 +306,7 @@ func (s *Server) instanceDriver(w http.ResponseWriter, r *http.Request) (*store.
 		s.fail(w, err, "instance")
 		return nil, nil
 	}
-	driver, ok := s.registry.Get(inst.ServerID)
+	driver, ok := s.registry.Get(inst.HypervisorID)
 	if !ok {
 		s.err(w, http.StatusConflict, "the server backing this instance is no longer registered")
 		return nil, nil
@@ -382,7 +382,7 @@ func (s *Server) instanceOSInfo(w http.ResponseWriter, r *http.Request) {
 func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name        string           `json:"name"`
-		ServerID    string           `json:"serverId"`
+		HypervisorID    string           `json:"hypervisorId"`
 		Node        string           `json:"node"`
 		CPUs        int              `json:"cpus"`
 		MemoryMB    int              `json:"memoryMb"`
@@ -403,11 +403,11 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, "name must be lowercase letters, digits, hyphens (start with a letter)")
 		return
 	}
-	if req.ServerID == "" || req.Node == "" || req.ImageID == "" {
+	if req.HypervisorID == "" || req.Node == "" || req.ImageID == "" {
 		s.err(w, http.StatusBadRequest, "serverId, node and imageId are required")
 		return
 	}
-	driver, ok := s.registry.Get(req.ServerID)
+	driver, ok := s.registry.Get(req.HypervisorID)
 	if !ok {
 		s.err(w, http.StatusBadRequest, "unknown serverId")
 		return
@@ -461,7 +461,7 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 	// for minutes, so it goes to the background and the console reports
 	// it in the notification bell.
 	op := s.ops.start("Creating instance "+req.Name, "instance", req.Name,
-		req.ServerID, "/compute/instances/"+req.Name)
+		req.HypervisorID, "/compute/instances/"+req.Name)
 	s.run(op, "Instance created", func(ctx context.Context, step func(string)) error {
 		step("Cloning " + req.ImageID)
 		driverID, err := driver.Create(ctx, spec)
@@ -472,7 +472,7 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		if err := s.saveNewInstance(ctx, &store.Instance{
 			ID:          uuid.NewString(),
 			Name:        req.Name,
-			ServerID:    req.ServerID,
+			HypervisorID:    req.HypervisorID,
 			Node:        req.Node,
 			CPUs:        req.CPUs,
 			MemoryMB:    req.MemoryMB,
@@ -533,7 +533,7 @@ func (s *Server) startNewInstance(ctx context.Context, driver hypervisor.Driver,
 // replaced was "UNIQUE constraint failed: instances.name" reported over
 // a machine that had in fact been created.
 func (s *Server) saveNewInstance(ctx context.Context, inst *store.Instance) error {
-	if adopted, err := s.store.GetInstanceByDriverID(ctx, inst.ServerID, inst.DriverID); err == nil {
+	if adopted, err := s.store.GetInstanceByDriverID(ctx, inst.HypervisorID, inst.DriverID); err == nil {
 		inst.ID = adopted.ID
 		if err := s.store.ClaimInstance(ctx, inst); err != nil {
 			return err
@@ -561,7 +561,7 @@ func (s *Server) instanceAction(action string) http.HandlerFunc {
 			s.fail(w, err, "instance")
 			return
 		}
-		driver, ok := s.registry.Get(inst.ServerID)
+		driver, ok := s.registry.Get(inst.HypervisorID)
 		if !ok {
 			s.err(w, http.StatusConflict, "the server backing this instance is no longer registered")
 			return
@@ -742,7 +742,7 @@ func (s *Server) deleteInstance(w http.ResponseWriter, r *http.Request) {
 			"stop "+inst.Name+" before deleting it — it is "+strings.ToLower(inst.Status))
 		return
 	}
-	driver, ok := s.registry.Get(inst.ServerID)
+	driver, ok := s.registry.Get(inst.HypervisorID)
 	if !ok {
 		s.err(w, http.StatusConflict, "the server backing this instance is no longer registered")
 		return

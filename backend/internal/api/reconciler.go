@@ -46,7 +46,7 @@ func (r *Reconciler) Run(ctx context.Context) {
 
 func (r *Reconciler) sweep(ctx context.Context) {
 	r.sweeps++
-	servers, err := r.store.ListServers(ctx)
+	servers, err := r.store.ListHypervisors(ctx)
 	if err != nil {
 		r.log.Error("reconciler: listing servers", "error", err)
 		return
@@ -61,7 +61,7 @@ func (r *Reconciler) sweep(ctx context.Context) {
 	for i := range instances {
 		inst := &instances[i]
 		if inst.DriverID != "" {
-			byDriverID[inst.ServerID+"/"+inst.DriverID] = inst
+			byDriverID[inst.HypervisorID+"/"+inst.DriverID] = inst
 		}
 	}
 
@@ -86,7 +86,7 @@ func (r *Reconciler) sweep(ctx context.Context) {
 		}
 		// Instances whose VM vanished from the hypervisor.
 		for _, inst := range instances {
-			if inst.ServerID == server.ID && inst.DriverID != "" && !seen[inst.DriverID] {
+			if inst.HypervisorID == server.ID && inst.DriverID != "" && !seen[inst.DriverID] {
 				r.log.Info("reconciler: instance gone from hypervisor, removing", "name", inst.Name)
 				_ = r.store.DeleteInstance(ctx, inst.ID)
 			}
@@ -99,7 +99,7 @@ func (r *Reconciler) sweep(ctx context.Context) {
 }
 
 // sweepContainers mirrors the instance sweep for LXC containers.
-func (r *Reconciler) sweepContainers(ctx context.Context, server store.Server, cd hypervisor.ContainerDriver) {
+func (r *Reconciler) sweepContainers(ctx context.Context, server store.Hypervisor, cd hypervisor.ContainerDriver) {
 	containers, err := r.store.ListContainers(ctx)
 	if err != nil {
 		r.log.Error("reconciler: listing containers", "error", err)
@@ -108,7 +108,7 @@ func (r *Reconciler) sweepContainers(ctx context.Context, server store.Server, c
 	byDriverID := map[string]*store.Container{}
 	for i := range containers {
 		ct := &containers[i]
-		if ct.ServerID == server.ID && ct.DriverID != "" {
+		if ct.HypervisorID == server.ID && ct.DriverID != "" {
 			byDriverID[ct.DriverID] = ct
 		}
 	}
@@ -127,7 +127,7 @@ func (r *Reconciler) sweepContainers(ctx context.Context, server store.Server, c
 		}
 	}
 	for _, ct := range containers {
-		if ct.ServerID == server.ID && ct.DriverID != "" && !seen[ct.DriverID] {
+		if ct.HypervisorID == server.ID && ct.DriverID != "" && !seen[ct.DriverID] {
 			r.log.Info("reconciler: container gone from hypervisor, removing", "name", ct.Name)
 			_ = r.store.DeleteContainer(ctx, ct.ID)
 		}
@@ -187,11 +187,11 @@ func (r *Reconciler) syncContainerShape(ctx context.Context, ct *store.Container
 
 // adoptContainer records a container found on the hypervisor that this
 // app didn't create; protected by default like adopted instances.
-func (r *Reconciler) adoptContainer(ctx context.Context, server store.Server, state hypervisor.InstanceState) {
+func (r *Reconciler) adoptContainer(ctx context.Context, server store.Hypervisor, state hypervisor.InstanceState) {
 	ct := &store.Container{
 		ID:        uuid.NewString(),
 		Name:      state.Name,
-		ServerID:  server.ID,
+		HypervisorID:  server.ID,
 		Node:      state.Node,
 		CPUs:      state.CPUs,
 		MemoryMB:  state.MemoryMB,
@@ -340,11 +340,11 @@ func firstNonEmpty(a, b string) string {
 // adoptInstance records a VM found on the hypervisor that this app
 // didn't create. Adopted instances get deletion protection by default:
 // deleting them destroys a real VM someone made outside the app.
-func (r *Reconciler) adoptInstance(ctx context.Context, server store.Server, state hypervisor.InstanceState) {
+func (r *Reconciler) adoptInstance(ctx context.Context, server store.Hypervisor, state hypervisor.InstanceState) {
 	inst := &store.Instance{
 		ID:        uuid.NewString(),
 		Name:      state.Name,
-		ServerID:  server.ID,
+		HypervisorID:  server.ID,
 		Node:      state.Node,
 		CPUs:      state.CPUs,
 		MemoryMB:  state.MemoryMB,

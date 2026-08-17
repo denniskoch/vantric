@@ -22,7 +22,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
 import { api } from '../api/client'
 import type { Image } from '../api/client'
-import { useServerNames } from '../useServerNames'
+import { useHypervisorNames } from '../useHypervisorNames'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import PageHeader from '../components/PageHeader'
 import { OSIcon } from '../components/OSName'
@@ -37,7 +37,7 @@ export default function VMTemplatesPage() {
   const { canEdit } = usePermissions()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const serverName = useServerNames()
+  const hypervisorName = useHypervisorNames()
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
   const [menuTemplate, setMenuTemplate] = useState<Image | null>(null)
   const [confirming, setConfirming] = useState<Image | null>(null)
@@ -55,10 +55,10 @@ export default function VMTemplatesPage() {
   // Instances record the template they were cloned from; surface that
   // count so a template isn't deleted blind.
   const clonesOf = (tpl: Image) =>
-    instances.filter((i) => i.serverId === tpl.serverId && i.imageId === tpl.id).length
+    instances.filter((i) => i.hypervisorId === tpl.hypervisorId && i.imageId === tpl.id).length
 
   const remove = useMutation({
-    mutationFn: (tpl: Image) => api.deleteImage(tpl.serverId, tpl.id),
+    mutationFn: (tpl: Image) => api.deleteImage(tpl.hypervisorId, tpl.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['images'] })
       setConfirming(null)
@@ -112,7 +112,7 @@ export default function VMTemplatesPage() {
             {templates.map((tpl) => {
               const id = templateIdentity(tpl)
               return (
-              <TableRow key={`${tpl.serverId}/${tpl.id}`} hover>
+              <TableRow key={`${tpl.hypervisorId}/${tpl.id}`} hover>
                 <TableCell>
                   {/* What it is, then what it's called. The raw name
                       stays visible because it's what Proxmox shows and
@@ -175,7 +175,7 @@ export default function VMTemplatesPage() {
         <MenuItem
           onClick={() => {
             if (menuTemplate) {
-              navigate(`/compute/vm-templates/${menuTemplate.serverId}/${menuTemplate.id}/description`)
+              navigate(`/compute/vm-templates/${menuTemplate.hypervisorId}/${menuTemplate.id}/description`)
             }
             setMenuAnchor(null)
           }}
@@ -199,7 +199,7 @@ export default function VMTemplatesPage() {
         body={
           <>
             This destroys template VM {confirming?.id} and its disks on{' '}
-            {confirming ? serverName(confirming.serverId) : ''}. Instances already
+            {confirming ? hypervisorName(confirming.hypervisorId) : ''}. Instances already
             created from it keep running — they are full clones — but no new ones
             can be created from this template.
             {confirming && clonesOf(confirming) > 0 && (

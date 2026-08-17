@@ -7,9 +7,9 @@ import (
 	"time"
 )
 
-// Server is a registered virtualization host (hypervisor endpoint).
+// Hypervisor is a registered virtualization host (hypervisor endpoint).
 // Secret is never serialized; API responses use a sanitized view.
-type Server struct {
+type Hypervisor struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
 	Type        string    `json:"type"` // "proxmox" or "mock"
@@ -20,10 +20,10 @@ type Server struct {
 	CreatedAt   time.Time `json:"createdAt"`
 }
 
-const serverCols = `id, name, type, base_url, token_id, secret, insecure_tls, created_at`
+const hypervisorCols = `id, name, type, base_url, token_id, secret, insecure_tls, created_at`
 
-func scanServer(scan func(dest ...any) error) (*Server, error) {
-	var s Server
+func scanHypervisor(scan func(dest ...any) error) (*Hypervisor, error) {
+	var s Hypervisor
 	var insecure int
 	var created string
 	err := scan(&s.ID, &s.Name, &s.Type, &s.BaseURL, &s.TokenID, &s.Secret, &insecure, &created)
@@ -42,53 +42,53 @@ func boolInt(b bool) int {
 	return 0
 }
 
-func (s *Store) ListServers(ctx context.Context) ([]Server, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT `+serverCols+` FROM servers ORDER BY name`)
+func (s *Store) ListHypervisors(ctx context.Context) ([]Hypervisor, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+hypervisorCols+` FROM hypervisors ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	servers := []Server{}
+	hypervisors := []Hypervisor{}
 	for rows.Next() {
-		sv, err := scanServer(rows.Scan)
+		sv, err := scanHypervisor(rows.Scan)
 		if err != nil {
 			return nil, err
 		}
-		servers = append(servers, *sv)
+		hypervisors = append(hypervisors, *sv)
 	}
-	return servers, rows.Err()
+	return hypervisors, rows.Err()
 }
 
-func (s *Store) GetServer(ctx context.Context, id string) (*Server, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT `+serverCols+` FROM servers WHERE id = ?`, id)
-	sv, err := scanServer(row.Scan)
+func (s *Store) GetHypervisor(ctx context.Context, id string) (*Hypervisor, error) {
+	row := s.db.QueryRowContext(ctx, `SELECT `+hypervisorCols+` FROM hypervisors WHERE id = ?`, id)
+	sv, err := scanHypervisor(row.Scan)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
 	return sv, err
 }
 
-func (s *Store) GetServerByName(ctx context.Context, name string) (*Server, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT `+serverCols+` FROM servers WHERE name = ?`, name)
-	sv, err := scanServer(row.Scan)
+func (s *Store) GetHypervisorByName(ctx context.Context, name string) (*Hypervisor, error) {
+	row := s.db.QueryRowContext(ctx, `SELECT `+hypervisorCols+` FROM hypervisors WHERE name = ?`, name)
+	sv, err := scanHypervisor(row.Scan)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
 	return sv, err
 }
 
-func (s *Store) CreateServer(ctx context.Context, sv *Server) error {
+func (s *Store) CreateHypervisor(ctx context.Context, sv *Hypervisor) error {
 	ts := now()
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO servers (`+serverCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO hypervisors (`+hypervisorCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		sv.ID, sv.Name, sv.Type, sv.BaseURL, sv.TokenID, sv.Secret, boolInt(sv.InsecureTLS), ts)
 	sv.CreatedAt = parseTime(ts)
 	return err
 }
 
-func (s *Store) UpdateServer(ctx context.Context, sv *Server) error {
+func (s *Store) UpdateHypervisor(ctx context.Context, sv *Hypervisor) error {
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE servers SET name = ?, type = ?, base_url = ?, token_id = ?, secret = ?, insecure_tls = ?
+		`UPDATE hypervisors SET name = ?, type = ?, base_url = ?, token_id = ?, secret = ?, insecure_tls = ?
 		 WHERE id = ?`,
 		sv.Name, sv.Type, sv.BaseURL, sv.TokenID, sv.Secret, boolInt(sv.InsecureTLS), sv.ID)
 	if err != nil {
@@ -100,14 +100,14 @@ func (s *Store) UpdateServer(ctx context.Context, sv *Server) error {
 	return nil
 }
 
-// DeleteServer forgets a hypervisor and the guests recorded against it.
+// DeleteHypervisor forgets a hypervisor and the guests recorded against it.
 //
 // Those records are a MIRROR of what the driver reports, not the guests
 // themselves — nothing here reaches the hypervisor, and every VM and
 // container on it keeps running. Re-add the server and the reconciler
 // adopts them all back. The alternative, refusing until the guests are
 // gone, would mean destroying a lab to disconnect a credential.
-func (s *Store) DeleteServer(ctx context.Context, id string) error {
+func (s *Store) DeleteHypervisor(ctx context.Context, id string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -120,7 +120,7 @@ func (s *Store) DeleteServer(ctx context.Context, id string) error {
 			return err
 		}
 	}
-	res, err := tx.ExecContext(ctx, `DELETE FROM servers WHERE id = ?`, id)
+	res, err := tx.ExecContext(ctx, `DELETE FROM hypervisors WHERE id = ?`, id)
 	if err != nil {
 		return err
 	}
@@ -132,6 +132,6 @@ func (s *Store) DeleteServer(ctx context.Context, id string) error {
 
 func (s *Store) CountServers(ctx context.Context) (int, error) {
 	var n int
-	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM servers`).Scan(&n)
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM hypervisors`).Scan(&n)
 	return n, err
 }

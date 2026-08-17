@@ -38,7 +38,7 @@ export default function BackupsPage() {
   })
 
   const remove = useMutation({
-    mutationFn: (backup: Backup) => api.deleteBackup(backup.serverId, backup.node, backup.id),
+    mutationFn: (backup: Backup) => api.deleteBackup(backup.hypervisorId, backup.node, backup.id),
     onSuccess: () => {
       // The hypervisor deletes on a task, so the archive lingers for a
       // moment; the poll picks up its disappearance.
@@ -105,7 +105,7 @@ export default function BackupsPage() {
           </TableHead>
           <TableBody>
             {shown.map((backup) => (
-              <TableRow key={`${backup.serverId}/${backup.id}`} hover>
+              <TableRow key={`${backup.hypervisorId}/${backup.id}`} hover>
                 <TableCell>
                   {backup.createdAt ? new Date(backup.createdAt * 1000).toLocaleString() : '—'}
                 </TableCell>

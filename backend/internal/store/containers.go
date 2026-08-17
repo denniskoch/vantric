@@ -12,7 +12,7 @@ import (
 type Container struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
-	ServerID    string    `json:"serverId"`
+	HypervisorID    string    `json:"hypervisorId"`
 	Node        string    `json:"node"`
 	CPUs        int       `json:"cpus"`
 	MemoryMB    int       `json:"memoryMb"`
@@ -26,14 +26,14 @@ type Container struct {
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
-const containerCols = `id, name, server_id, node, cpus, memory_mb, disk_gb,
+const containerCols = `id, name, hypervisor_id, node, cpus, memory_mb, disk_gb,
 	status, driver_id, internal_ip, description, protected, created_at, updated_at`
 
 func scanContainer(scan func(dest ...any) error) (*Container, error) {
 	var c Container
 	var created, updated string
 	var protected int
-	err := scan(&c.ID, &c.Name, &c.ServerID, &c.Node, &c.CPUs, &c.MemoryMB, &c.DiskGB,
+	err := scan(&c.ID, &c.Name, &c.HypervisorID, &c.Node, &c.CPUs, &c.MemoryMB, &c.DiskGB,
 		&c.Status, &c.DriverID, &c.InternalIP, &c.Description, &protected, &created, &updated)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func (s *Store) CreateContainer(ctx context.Context, c *Container) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO containers (`+containerCols+`)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		c.ID, c.Name, c.ServerID, c.Node, c.CPUs, c.MemoryMB, c.DiskGB,
+		c.ID, c.Name, c.HypervisorID, c.Node, c.CPUs, c.MemoryMB, c.DiskGB,
 		c.Status, c.DriverID, c.InternalIP, c.Description, boolInt(c.Protected), ts, ts)
 	c.CreatedAt = parseTime(ts)
 	c.UpdatedAt = c.CreatedAt

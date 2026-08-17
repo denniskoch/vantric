@@ -18,7 +18,7 @@ import { api } from '../api/client'
 import PageHeader from '../components/PageHeader'
 import UsageBar from '../components/UsageBar'
 import { formatUptime } from '../format'
-import { useServerNames } from '../useServerNames'
+import { useHypervisorNames } from '../useHypervisorNames'
 
 /**
  * The hosts everything else runs on.
@@ -29,7 +29,7 @@ import { useServerNames } from '../useServerNames'
  * name for as long as nodes were a dropdown and nothing more.
  */
 export default function NodesPage() {
-  const serverName = useServerNames()
+  const hypervisorName = useHypervisorNames()
   const { data: nodes = [], isLoading } = useQuery({
     queryKey: ['nodes'],
     queryFn: () => api.listNodes(),
@@ -58,7 +58,7 @@ export default function NodesPage() {
           </TableHead>
           <TableBody>
             {nodes.map((node) => (
-              <TableRow key={`${node.serverId}/${node.id}`} hover>
+              <TableRow key={`${node.hypervisorId}/${node.id}`} hover>
                 <TableCell>
                   <Tooltip title={node.status || 'unknown'}>
                     {node.status === 'online' ? (
@@ -71,13 +71,13 @@ export default function NodesPage() {
                 <TableCell>
                   <Link
                     component={RouterLink}
-                    to={`/compute/nodes/${node.serverId}/${encodeURIComponent(node.id)}`}
+                    to={`/compute/nodes/${node.hypervisorId}/${encodeURIComponent(node.id)}`}
                     underline="hover"
                   >
                     {node.name}
                   </Link>
                 </TableCell>
-                <TableCell>{serverName(node.serverId)}</TableCell>
+                <TableCell>{hypervisorName(node.hypervisorId)}</TableCell>
                 <TableCell align="right">{node.cpus || '—'}</TableCell>
                 <TableCell>
                   {/* A rate, not an occupancy: the bar shows how hard

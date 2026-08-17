@@ -98,8 +98,8 @@ export default function InstanceDetailPage() {
     enabled: Boolean(name),
     refetchInterval: 3000,
   })
-  const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
-  const server = servers.find((s) => s.id === inst?.serverId)
+  const { data: servers = [] } = useQuery({ queryKey: ['hypervisors'], queryFn: api.listHypervisors })
+  const server = servers.find((s) => s.id === inst?.hypervisorId)
 
   // Live hypervisor config — on demand, not on the list's poll interval.
   const { data: detail, error: detailError } = useQuery({
@@ -154,7 +154,7 @@ export default function InstanceDetailPage() {
 
   const removeBackup = useMutation({
     mutationFn: (backup: Backup) =>
-      api.deleteBackup(backup.serverId, backup.node, backup.id),
+      api.deleteBackup(backup.hypervisorId, backup.node, backup.id),
     onSuccess: () => {
       // The hypervisor deletes on a task, so the archive lingers for a
       // moment; this tab is read on demand, so re-read it.
@@ -690,7 +690,7 @@ export default function InstanceDetailPage() {
                 rows={[
                   {
                     label: 'Server',
-                    value: server ? `${server.name} (${server.type})` : inst.serverId,
+                    value: server ? `${server.name} (${server.type})` : inst.hypervisorId,
                   },
                   { label: 'Driver instance ID', value: inst.driverId },
                 ]}

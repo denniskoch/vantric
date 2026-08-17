@@ -15,7 +15,7 @@ import (
 // Types lists the supported server types, in display order.
 var Types = []string{"proxmox", "mock"}
 
-func Build(sv *store.Server) (hypervisor.Driver, error) {
+func Build(sv *store.Hypervisor) (hypervisor.Driver, error) {
 	switch sv.Type {
 	case "proxmox":
 		return proxmox.New(proxmox.Config{

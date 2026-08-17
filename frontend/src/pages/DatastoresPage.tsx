@@ -42,7 +42,7 @@ export default function DatastoresPage() {
           </TableHead>
           <TableBody>
             {datastores.map((ds) => (
-              <TableRow key={`${ds.serverId}/${ds.id}`} hover>
+              <TableRow key={`${ds.hypervisorId}/${ds.id}`} hover>
                 <TableCell>
                   <Tooltip title={ds.active ? 'available' : 'unavailable'}>
                     {ds.active ? (

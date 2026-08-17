@@ -24,7 +24,7 @@ import OSName from '../components/OSName'
 import PageHeader from '../components/PageHeader'
 import type { CloudImage } from '../api/client'
 import { formatBytes } from '../format'
-import { useServerNames } from '../useServerNames'
+import { useHypervisorNames } from '../useHypervisorNames'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import { usePermissions } from '../user'
 
@@ -32,7 +32,7 @@ export default function CloudImagesPage() {
   // Offered only where the API would allow it; see rbac.go.
   const { canEdit } = usePermissions()
   const queryClient = useQueryClient()
-  const serverName = useServerNames()
+  const hypervisorName = useHypervisorNames()
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
   const [menuImage, setMenuImage] = useState<CloudImage | null>(null)
   const [confirming, setConfirming] = useState<CloudImage | null>(null)
@@ -44,7 +44,7 @@ export default function CloudImagesPage() {
   })
 
   const remove = useMutation({
-    mutationFn: (image: CloudImage) => api.deleteCloudImage(image.serverId, image.node, image.id),
+    mutationFn: (image: CloudImage) => api.deleteCloudImage(image.hypervisorId, image.node, image.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cloudImages'] })
       setConfirming(null)
@@ -94,7 +94,7 @@ export default function CloudImagesPage() {
           </TableHead>
           <TableBody>
             {images.map((image) => (
-              <TableRow key={`${image.serverId}/${image.id}`} hover>
+              <TableRow key={`${image.hypervisorId}/${image.id}`} hover>
                 <TableCell>
                   <OSName name={image.name} />
                 </TableCell>
@@ -146,7 +146,7 @@ export default function CloudImagesPage() {
         open={Boolean(confirming)}
         title={`Delete ${confirming?.name}?`}
         body={`This permanently removes the image from ${confirming?.storage} on ${
-          confirming ? serverName(confirming.serverId) : ''
+          confirming ? hypervisorName(confirming.hypervisorId) : ''
         }. Templates already built from it are unaffected.`}
         pending={remove.isPending}
         onCancel={() => setConfirming(null)}

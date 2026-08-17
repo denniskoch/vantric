@@ -3,11 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Box, Checkbox, FormControlLabel, MenuItem, TextField, Typography } from '@mui/material'
 import { api } from '../api/client'
-import type { Server, ServerRequest, ServerType } from '../api/client'
+import type { Hypervisor, HypervisorRequest, HypervisorType } from '../api/client'
 import FormPage from '../components/FormPage'
 import { resourceNameError, resourceNameRe, urlError } from '../validation'
 
-const emptyForm: ServerRequest = {
+const emptyForm: HypervisorRequest = {
   name: '',
   type: 'proxmox',
   baseUrl: '',
@@ -18,10 +18,10 @@ const emptyForm: ServerRequest = {
 
 const backTo = '/compute/settings/hypervisors'
 
-function HypervisorForm({ editing }: { editing: Server | null }) {
+function HypervisorForm({ editing }: { editing: Hypervisor | null }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [form, setForm] = useState<ServerRequest>(
+  const [form, setForm] = useState<HypervisorRequest>(
     editing
       ? {
           name: editing.name,
@@ -36,9 +36,9 @@ function HypervisorForm({ editing }: { editing: Server | null }) {
   const [error, setError] = useState<string | null>(null)
 
   const save = useMutation({
-    mutationFn: () => (editing ? api.updateServer(editing.id, form) : api.createServer(form)),
+    mutationFn: () => (editing ? api.updateHypervisor(editing.id, form) : api.createHypervisor(form)),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['servers'] })
+      queryClient.invalidateQueries({ queryKey: ['hypervisors'] })
       navigate(backTo)
     },
     onError: (e: Error) => setError(e.message),
@@ -81,7 +81,7 @@ function HypervisorForm({ editing }: { editing: Server | null }) {
         size="small"
         select
         value={form.type}
-        onChange={(e) => setForm({ ...form, type: e.target.value as ServerType })}
+        onChange={(e) => setForm({ ...form, type: e.target.value as HypervisorType })}
         helperText="More hypervisors (ESXi, libvirt, …) planned"
         fullWidth
       >
@@ -139,9 +139,9 @@ function HypervisorForm({ editing }: { editing: Server | null }) {
 
 export default function HypervisorFormPage() {
   const { id } = useParams()
-  const { data: servers = [], isLoading } = useQuery({
-    queryKey: ['servers'],
-    queryFn: api.listServers,
+  const { data: hypervisors = [], isLoading } = useQuery({
+    queryKey: ['hypervisors'],
+    queryFn: api.listHypervisors,
     enabled: Boolean(id),
   })
 
@@ -152,5 +152,5 @@ export default function HypervisorFormPage() {
       </Box>
     )
   }
-  return <HypervisorForm editing={servers.find((s) => s.id === id) ?? null} />
+  return <HypervisorForm editing={hypervisors.find((s) => s.id === id) ?? null} />
 }

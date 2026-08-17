@@ -17,24 +17,24 @@ import (
 // Catalog handlers list hypervisor-side inventory (nodes, templates,
 // storage). They span every registered server by default so the UI can
 // show one table with a Server column, the way instance lists do.
-// `?server=` narrows to a single server, which the create flows use.
+// `?hypervisor=` narrows to a single server, which the create flows use.
 
-// listAcrossServers concatenates one listing call per registered server,
+// listAcrossHypervisors concatenates one listing call per registered server,
 // stamping each item with the server it came from. A server that fails
 // is logged and skipped rather than failing the whole page: one
 // unreachable host shouldn't blank out the others' inventory.
-func listAcrossServers[T any](
+func listAcrossHypervisors[T any](
 	s *Server,
 	r *http.Request,
 	list func(context.Context, hypervisor.Driver) ([]T, error),
 	stamp func(item *T, serverID string),
 ) ([]T, error) {
-	servers, err := s.store.ListServers(r.Context())
+	servers, err := s.store.ListHypervisors(r.Context())
 	if err != nil {
 		return nil, err
 	}
-	if only := r.URL.Query().Get("server"); only != "" {
-		servers = slices.DeleteFunc(servers, func(sv store.Server) bool { return sv.ID != only })
+	if only := r.URL.Query().Get("hypervisor"); only != "" {
+		servers = slices.DeleteFunc(servers, func(sv store.Hypervisor) bool { return sv.ID != only })
 	}
 	items := []T{}
 	for _, sv := range servers {
@@ -56,14 +56,14 @@ func listAcrossServers[T any](
 }
 
 func (s *Server) listNodes(w http.ResponseWriter, r *http.Request) {
-	nodes, err := listAcrossServers(s, r,
+	nodes, err := listAcrossHypervisors(s, r,
 		func(ctx context.Context, d hypervisor.Driver) ([]hypervisor.Node, error) {
 			return d.Nodes(ctx)
 		},
 		// Stamped like every other catalog listing. A node name is only
 		// unique WITHIN a server — two hypervisors may each call their
 		// host "pve1" — so the pair is what addresses one.
-		func(z *hypervisor.Node, id string) { z.ServerID = id })
+		func(z *hypervisor.Node, id string) { z.HypervisorID = id })
 	if err != nil {
 		s.fail(w, err, "nodes")
 		return
@@ -72,11 +72,11 @@ func (s *Server) listNodes(w http.ResponseWriter, r *http.Request) {
 }
 
 // nodeStatus and nodeMetrics describe one host, read on demand for the
-// node detail view. They take ?server= like every other single-item
+// node detail view. They take ?hypervisor= like every other single-item
 // catalog read, since the name alone doesn't identify a host.
 
 func (s *Server) nodeStatus(w http.ResponseWriter, r *http.Request) {
-	driver := s.driverForServer(w, r)
+	driver := s.driverForHypervisor(w, r)
 	if driver == nil {
 		return
 	}
@@ -85,12 +85,12 @@ func (s *Server) nodeStatus(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err, "node")
 		return
 	}
-	status.ServerID = r.URL.Query().Get("server")
+	status.HypervisorID = r.URL.Query().Get("hypervisor")
 	s.json(w, http.StatusOK, status)
 }
 
 func (s *Server) nodeMetrics(w http.ResponseWriter, r *http.Request) {
-	driver := s.driverForServer(w, r)
+	driver := s.driverForHypervisor(w, r)
 	if driver == nil {
 		return
 	}
@@ -110,11 +110,11 @@ func (s *Server) nodeMetrics(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listBridges(w http.ResponseWriter, r *http.Request) {
-	bridges, err := listAcrossServers(s, r,
+	bridges, err := listAcrossHypervisors(s, r,
 		func(ctx context.Context, d hypervisor.Driver) ([]hypervisor.Bridge, error) {
 			return d.Bridges(ctx)
 		},
-		func(b *hypervisor.Bridge, id string) { b.ServerID = id })
+		func(b *hypervisor.Bridge, id string) { b.HypervisorID = id })
 	if err != nil {
 		s.fail(w, err, "bridges")
 		return
@@ -129,11 +129,11 @@ func (s *Server) listBridges(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listImages(w http.ResponseWriter, r *http.Request) {
-	images, err := listAcrossServers(s, r,
+	images, err := listAcrossHypervisors(s, r,
 		func(ctx context.Context, d hypervisor.Driver) ([]hypervisor.Image, error) {
 			return d.Images(ctx)
 		},
-		func(i *hypervisor.Image, id string) { i.ServerID = id })
+		func(i *hypervisor.Image, id string) { i.HypervisorID = id })
 	if err != nil {
 		s.fail(w, err, "images")
 		return
@@ -145,11 +145,11 @@ func (s *Server) listImages(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listDisks(w http.ResponseWriter, r *http.Request) {
-	disks, err := listAcrossServers(s, r,
+	disks, err := listAcrossHypervisors(s, r,
 		func(ctx context.Context, d hypervisor.Driver) ([]hypervisor.Disk, error) {
 			return d.Disks(ctx)
 		},
-		func(i *hypervisor.Disk, id string) { i.ServerID = id })
+		func(i *hypervisor.Disk, id string) { i.HypervisorID = id })
 	if err != nil {
 		s.fail(w, err, "disks")
 		return
@@ -164,11 +164,11 @@ func (s *Server) listDisks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listSnapshots(w http.ResponseWriter, r *http.Request) {
-	snapshots, err := listAcrossServers(s, r,
+	snapshots, err := listAcrossHypervisors(s, r,
 		func(ctx context.Context, d hypervisor.Driver) ([]hypervisor.Snapshot, error) {
 			return d.Snapshots(ctx)
 		},
-		func(i *hypervisor.Snapshot, id string) { i.ServerID = id })
+		func(i *hypervisor.Snapshot, id string) { i.HypervisorID = id })
 	if err != nil {
 		s.fail(w, err, "snapshots")
 		return
@@ -180,11 +180,11 @@ func (s *Server) listSnapshots(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listISOs(w http.ResponseWriter, r *http.Request) {
-	isos, err := listAcrossServers(s, r,
+	isos, err := listAcrossHypervisors(s, r,
 		func(ctx context.Context, d hypervisor.Driver) ([]hypervisor.ISO, error) {
 			return d.ISOs(ctx)
 		},
-		func(i *hypervisor.ISO, id string) { i.ServerID = id })
+		func(i *hypervisor.ISO, id string) { i.HypervisorID = id })
 	if err != nil {
 		s.fail(w, err, "isos")
 		return
@@ -199,7 +199,7 @@ func (s *Server) listISOs(w http.ResponseWriter, r *http.Request) {
 // first — a backup list is read to answer "what can I restore right
 // now", so recency beats alphabetical order here.
 func (s *Server) listBackups(w http.ResponseWriter, r *http.Request) {
-	backups, err := listAcrossServers(s, r,
+	backups, err := listAcrossHypervisors(s, r,
 		func(ctx context.Context, d hypervisor.Driver) ([]hypervisor.Backup, error) {
 			bd, ok := d.(hypervisor.BackupDriver)
 			if !ok {
@@ -207,7 +207,7 @@ func (s *Server) listBackups(w http.ResponseWriter, r *http.Request) {
 			}
 			return bd.Backups(ctx)
 		},
-		func(b *hypervisor.Backup, id string) { b.ServerID = id })
+		func(b *hypervisor.Backup, id string) { b.HypervisorID = id })
 	if err != nil {
 		s.fail(w, err, "backups")
 		return
@@ -278,7 +278,7 @@ func (s *Server) instanceBackups(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, b := range all {
 		if b.VMID == vmid {
-			b.ServerID = inst.ServerID
+			b.HypervisorID = inst.HypervisorID
 			view.Backups = append(view.Backups, b)
 		}
 	}
@@ -295,7 +295,7 @@ func (s *Server) instanceBackups(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listCTTemplates(w http.ResponseWriter, r *http.Request) {
-	templates, err := listAcrossServers(s, r,
+	templates, err := listAcrossHypervisors(s, r,
 		func(ctx context.Context, d hypervisor.Driver) ([]hypervisor.CTTemplate, error) {
 			// Servers whose hypervisor has no container support simply
 			// contribute nothing.
@@ -305,7 +305,7 @@ func (s *Server) listCTTemplates(w http.ResponseWriter, r *http.Request) {
 			}
 			return cd.CTTemplates(ctx)
 		},
-		func(i *hypervisor.CTTemplate, id string) { i.ServerID = id })
+		func(i *hypervisor.CTTemplate, id string) { i.HypervisorID = id })
 	if err != nil {
 		s.fail(w, err, "ct templates")
 		return
@@ -317,11 +317,11 @@ func (s *Server) listCTTemplates(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listDatastores(w http.ResponseWriter, r *http.Request) {
-	datastores, err := listAcrossServers(s, r,
+	datastores, err := listAcrossHypervisors(s, r,
 		func(ctx context.Context, d hypervisor.Driver) ([]hypervisor.Datastore, error) {
 			return d.Datastores(ctx)
 		},
-		func(i *hypervisor.Datastore, id string) { i.ServerID = id })
+		func(i *hypervisor.Datastore, id string) { i.HypervisorID = id })
 	if err != nil {
 		s.fail(w, err, "datastores")
 		return

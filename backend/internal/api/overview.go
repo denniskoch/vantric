@@ -84,7 +84,7 @@ type counts struct {
 type datastoreUsage struct {
 	Name       string  `json:"name"`
 	Node       string  `json:"node"`
-	ServerID   string  `json:"serverId"`
+	HypervisorID   string  `json:"hypervisorId"`
 	UsedBytes  int64   `json:"usedBytes"`
 	TotalBytes int64   `json:"totalBytes"`
 	Percent    float64 `json:"percent"`
@@ -184,7 +184,7 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 
 	// Every backend, asked whether it's still there.
 	run(func() {
-		servers, err := s.store.ListServers(ctx)
+		servers, err := s.store.ListHypervisors(ctx)
 		if err != nil {
 			return
 		}
@@ -196,7 +196,7 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 			inner.Add(1)
 			go func(i int) {
 				defer inner.Done()
-				view := s.probeServer(ctx, servers[i])
+				view := s.probeHypervisor(ctx, servers[i])
 				if detail, bad := unhealthy(view.Status, view.Error); bad {
 					add(problem{
 						Severity: "error",
@@ -320,7 +320,7 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 			func(ctx context.Context, d hypervisor.Driver) ([]hypervisor.Datastore, error) {
 				return d.Datastores(ctx)
 			},
-			func(ds *hypervisor.Datastore, serverID string) { ds.ServerID = serverID })
+			func(ds *hypervisor.Datastore, serverID string) { ds.HypervisorID = serverID })
 		if err != nil {
 			return
 		}
@@ -333,7 +333,7 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 			if ds.TotalBytes <= 0 {
 				continue
 			}
-			key := ds.ServerID + "/" + ds.Name
+			key := ds.HypervisorID + "/" + ds.Name
 			if !ds.Shared {
 				key += "/" + ds.Node
 			}
@@ -344,7 +344,7 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 			pct := float64(ds.UsedBytes) / float64(ds.TotalBytes) * 100
 			mu.Lock()
 			stores = append(stores, datastoreUsage{
-				Name: ds.Name, Node: ds.Node, ServerID: ds.ServerID,
+				Name: ds.Name, Node: ds.Node, HypervisorID: ds.HypervisorID,
 				UsedBytes: ds.UsedBytes, TotalBytes: ds.TotalBytes, Percent: pct,
 			})
 			mu.Unlock()
@@ -378,7 +378,7 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 				}
 				return bd.Backups(ctx)
 			},
-			func(b *hypervisor.Backup, serverID string) { b.ServerID = serverID })
+			func(b *hypervisor.Backup, serverID string) { b.HypervisorID = serverID })
 		if err != nil || len(backups) == 0 {
 			return
 		}
@@ -434,7 +434,7 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 	s.json(w, http.StatusOK, overviewResponse{Problems: problems, Counts: out, Datastores: stores})
 }
 
-// eachDriver is listAcrossServers without a request to read a filter
+// eachDriver is listAcrossHypervisors without a request to read a filter
 // from — the overview always wants everything.
 func eachDriver[T any](
 	s *Server,
@@ -442,7 +442,7 @@ func eachDriver[T any](
 	list func(context.Context, hypervisor.Driver) ([]T, error),
 	stamp func(item *T, serverID string),
 ) ([]T, error) {
-	servers, err := s.store.ListServers(ctx)
+	servers, err := s.store.ListHypervisors(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -25,8 +25,8 @@ var ErrNotFound = errors.New("hypervisor: instance not found")
 // Node is a placement target. On Proxmox this is a cluster node — a
 // real machine, which is why it carries usage as well as a name.
 type Node struct {
-	// ServerID is filled in by the API layer, not the driver.
-	ServerID string `json:"serverId"`
+	// HypervisorID is filled in by the API layer, not the driver.
+	HypervisorID string `json:"hypervisorId"`
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Status   string `json:"status"`
@@ -54,8 +54,8 @@ type Node struct {
 // reported" rather than "zero" — the UI says so rather than printing
 // a confident 0.
 type NodeStatus struct {
-	// ServerID is filled in by the API layer, not the driver.
-	ServerID      string `json:"serverId"`
+	// HypervisorID is filled in by the API layer, not the driver.
+	HypervisorID      string `json:"hypervisorId"`
 	ID            string `json:"id"`
 	Name          string `json:"name"`
 	UptimeSeconds int64  `json:"uptimeSeconds"`
@@ -104,8 +104,8 @@ type NodeStatus struct {
 // Image is a bootable source for new instances. On Proxmox this is a
 // template VM identified by its VMID.
 type Image struct {
-	// ServerID is filled in by the API layer, not the driver.
-	ServerID string `json:"serverId"`
+	// HypervisorID is filled in by the API layer, not the driver.
+	HypervisorID string `json:"hypervisorId"`
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Node     string `json:"node"`
@@ -125,8 +125,8 @@ type Image struct {
 
 // Disk is a virtual disk attached to an instance.
 type Disk struct {
-	// ServerID is filled in by the API layer, not the driver.
-	ServerID string `json:"serverId"`
+	// HypervisorID is filled in by the API layer, not the driver.
+	HypervisorID string `json:"hypervisorId"`
 	ID       string `json:"id"`      // driver-scoped, e.g. "101/scsi0"
 	Name     string `json:"name"`    // volume name, e.g. "vm-101-disk-0"
 	InUseBy  string `json:"inUseBy"` // VM name the disk is attached to
@@ -138,8 +138,8 @@ type Disk struct {
 // Volume is a file on a datastore. ISOs, container templates and cloud
 // images differ only in content type, so they share this shape.
 type Volume struct {
-	// ServerID is filled in by the API layer, not the driver.
-	ServerID  string `json:"serverId"`
+	// HypervisorID is filled in by the API layer, not the driver.
+	HypervisorID  string `json:"hypervisorId"`
 	ID        string `json:"id"` // volume ID, e.g. "local:iso/debian-12.iso"
 	Name      string `json:"name"`
 	Node      string `json:"node"`
@@ -160,8 +160,8 @@ type CloudImage = Volume
 // more than a plain volume: a backup outlives the guest it came from,
 // so what it restores to has to travel with it.
 type Backup struct {
-	// ServerID is filled in by the API layer, not the driver.
-	ServerID  string `json:"serverId"`
+	// HypervisorID is filled in by the API layer, not the driver.
+	HypervisorID  string `json:"hypervisorId"`
 	ID        string `json:"id"` // volume ID
 	Name      string `json:"name"`
 	Node      string `json:"node"`
@@ -231,8 +231,8 @@ type CTTemplate = Volume
 
 // Bridge is a network bridge a NIC can attach to. Bridges are per-node.
 type Bridge struct {
-	// ServerID is filled in by the API layer, not the driver.
-	ServerID string `json:"serverId"`
+	// HypervisorID is filled in by the API layer, not the driver.
+	HypervisorID string `json:"hypervisorId"`
 	Name     string `json:"name"` // vmbr0
 	Node     string `json:"node"`
 	// CIDR is the bridge's own address, when it has one.
@@ -245,8 +245,8 @@ type Bridge struct {
 
 // Datastore is a storage pool VMs and media live on.
 type Datastore struct {
-	// ServerID is filled in by the API layer, not the driver.
-	ServerID   string `json:"serverId"`
+	// HypervisorID is filled in by the API layer, not the driver.
+	HypervisorID   string `json:"hypervisorId"`
 	ID         string `json:"id"` // e.g. "pve1/local-lvm"
 	Name       string `json:"name"`
 	Node       string `json:"node"`
@@ -260,8 +260,8 @@ type Datastore struct {
 
 // Snapshot is a point-in-time VM snapshot.
 type Snapshot struct {
-	// ServerID is filled in by the API layer, not the driver.
-	ServerID    string `json:"serverId"`
+	// HypervisorID is filled in by the API layer, not the driver.
+	HypervisorID    string `json:"hypervisorId"`
 	ID          string `json:"id"` // driver-scoped, e.g. "101/pre-upgrade"
 	Name        string `json:"name"`
 	VMName      string `json:"vmName"`

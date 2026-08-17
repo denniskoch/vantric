@@ -19,8 +19,8 @@ func TestClaimAdoptedInstance(t *testing.T) {
 	st := testStore(t)
 	ctx := context.Background()
 
-	server := &Server{ID: "srv", Name: "pve", Type: "mock"}
-	if err := st.CreateServer(ctx, server); err != nil {
+	server := &Hypervisor{ID: "srv", Name: "pve", Type: "mock"}
+	if err := st.CreateHypervisor(ctx, server); err != nil {
 		t.Fatal(err)
 	}
 
@@ -28,7 +28,7 @@ func TestClaimAdoptedInstance(t *testing.T) {
 	// worth having, no sizing, and protected, because an adopted guest
 	// is one this console didn't create.
 	adopted := &Instance{
-		ID: "adopted", Name: "vm-101", ServerID: "srv", Node: "pve1",
+		ID: "adopted", Name: "vm-101", HypervisorID: "srv", Node: "pve1",
 		Status: "RUNNING", DriverID: "101", Protected: true,
 	}
 	if err := st.CreateInstance(ctx, adopted); err != nil {
@@ -45,7 +45,7 @@ func TestClaimAdoptedInstance(t *testing.T) {
 
 	// What the create flow knows and adoption couldn't.
 	claim := &Instance{
-		ID: found.ID, Name: "web-1", ServerID: "srv", Node: "pve1",
+		ID: found.ID, Name: "web-1", HypervisorID: "srv", Node: "pve1",
 		CPUs: 4, MemoryMB: 8192, DiskGB: 40, ImageID: "9000",
 		DriverID: "101", NetBridge: "vmbr0", Description: "the real one",
 		Protected: false,

@@ -404,7 +404,7 @@ func (s *Server) provisionConsoleUser(
 	if strings.HasPrefix(strings.ToLower(inst.OSType), "w") {
 		return errNoProvisioner
 	}
-	driver, ok := s.registry.Get(inst.ServerID)
+	driver, ok := s.registry.Get(inst.HypervisorID)
 	if !ok {
 		return errNoProvisioner
 	}

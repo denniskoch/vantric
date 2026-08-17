@@ -38,7 +38,7 @@ func Open(driver, dsn string) (*Store, error) {
 func (s *Store) Close() error { return s.db.Close() }
 
 var migrations = []string{
-	`CREATE TABLE IF NOT EXISTS servers (
+	`CREATE TABLE IF NOT EXISTS hypervisors (
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL UNIQUE,
 		type TEXT NOT NULL,
@@ -51,7 +51,7 @@ var migrations = []string{
 	`CREATE TABLE IF NOT EXISTS instances (
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL UNIQUE,
-		server_id TEXT NOT NULL REFERENCES servers(id),
+		hypervisor_id TEXT NOT NULL REFERENCES hypervisors(id),
 		node TEXT NOT NULL,
 		cpus INTEGER NOT NULL,
 		memory_mb INTEGER NOT NULL,
@@ -71,7 +71,7 @@ var migrations = []string{
 	`CREATE TABLE IF NOT EXISTS containers (
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL UNIQUE,
-		server_id TEXT NOT NULL REFERENCES servers(id),
+		hypervisor_id TEXT NOT NULL REFERENCES hypervisors(id),
 		node TEXT NOT NULL,
 		cpus INTEGER NOT NULL,
 		memory_mb INTEGER NOT NULL,
@@ -304,9 +304,15 @@ func (s *Store) migrate() error {
 // A placement target is a NODE — the machine a guest runs on. It was
 // "zone", borrowed from a cloud where a zone is a datacenter holding
 // thousands of machines rather than the one box this names.
+// A hypervisor record was a "server", which is vague and was already
+// three things here — a virtualization host, a database server, and
+// this app's own HTTP server. The UI has always called it a hypervisor.
 var renameMigrations = []string{
 	`ALTER TABLE instances RENAME COLUMN zone TO node`,
 	`ALTER TABLE containers RENAME COLUMN zone TO node`,
+	`ALTER TABLE servers RENAME TO hypervisors`,
+	`ALTER TABLE instances RENAME COLUMN server_id TO hypervisor_id`,
+	`ALTER TABLE containers RENAME COLUMN server_id TO hypervisor_id`,
 }
 
 var columnMigrations = []string{

@@ -18,11 +18,11 @@ import (
 var cloudImageExtensions = []string{".qcow2", ".raw", ".img", ".vmdk"}
 
 func (s *Server) listCloudImages(w http.ResponseWriter, r *http.Request) {
-	images, err := listAcrossServers(s, r,
+	images, err := listAcrossHypervisors(s, r,
 		func(ctx context.Context, d hypervisor.Driver) ([]hypervisor.CloudImage, error) {
 			return d.CloudImages(ctx)
 		},
-		func(i *hypervisor.CloudImage, id string) { i.ServerID = id })
+		func(i *hypervisor.CloudImage, id string) { i.HypervisorID = id })
 	if err != nil {
 		s.fail(w, err, "cloud images")
 		return
@@ -36,7 +36,7 @@ func (s *Server) listCloudImages(w http.ResponseWriter, r *http.Request) {
 // downloadCloudImage fetches a disk image into a datastore's import
 // content, from where a template can be built.
 func (s *Server) downloadCloudImage(w http.ResponseWriter, r *http.Request) {
-	driver := s.driverForServer(w, r)
+	driver := s.driverForHypervisor(w, r)
 	if driver == nil {
 		return
 	}
@@ -89,17 +89,17 @@ func (s *Server) downloadCloudImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	op := s.ops.start("Downloading cloud image "+filename, "cloudImage", filename,
-		r.URL.Query().Get("server"), "/compute/cloud-images")
+		r.URL.Query().Get("hypervisor"), "/compute/cloud-images")
 	s.watchTask(op, driver, taskID, "Downloaded to "+req.Storage)
 	s.json(w, http.StatusAccepted, op)
 }
 
 func (s *Server) buildTemplate(w http.ResponseWriter, r *http.Request) {
-	driver := s.driverForServer(w, r)
+	driver := s.driverForHypervisor(w, r)
 	if driver == nil {
 		return
 	}
-	serverID := r.URL.Query().Get("server")
+	hypervisorID := r.URL.Query().Get("hypervisor")
 	var req struct {
 		Name          string           `json:"name"`
 		Node          string           `json:"node"`
@@ -169,7 +169,7 @@ func (s *Server) buildTemplate(w http.ResponseWriter, r *http.Request) {
 	// interrupted by a restart leaves a VM rather than a template, which
 	// the VM instances list surfaces.
 	op := s.ops.start("Building template "+req.Name, "image", req.Name,
-		serverID, "/compute/vm-templates")
+		hypervisorID, "/compute/vm-templates")
 	s.run(op, "Template ready", func(ctx context.Context, step func(string)) error {
 		_, err := driver.BuildTemplate(ctx, spec, step)
 		return err

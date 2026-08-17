@@ -24,7 +24,7 @@ import OSName from '../components/OSName'
 import PageHeader from '../components/PageHeader'
 import type { ISO } from '../api/client'
 import { formatBytes } from '../format'
-import { useServerNames } from '../useServerNames'
+import { useHypervisorNames } from '../useHypervisorNames'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import { usePermissions } from '../user'
 
@@ -32,7 +32,7 @@ export default function ISOsPage() {
   // Offered only where the API would allow it; see rbac.go.
   const { canEdit } = usePermissions()
   const queryClient = useQueryClient()
-  const serverName = useServerNames()
+  const hypervisorName = useHypervisorNames()
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
   const [menuISO, setMenuISO] = useState<ISO | null>(null)
   const [confirming, setConfirming] = useState<ISO | null>(null)
@@ -44,7 +44,7 @@ export default function ISOsPage() {
   })
 
   const remove = useMutation({
-    mutationFn: (iso: ISO) => api.deleteISO(iso.serverId, iso.node, iso.id),
+    mutationFn: (iso: ISO) => api.deleteISO(iso.hypervisorId, iso.node, iso.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['isos'] })
       setConfirming(null)
@@ -94,7 +94,7 @@ export default function ISOsPage() {
           </TableHead>
           <TableBody>
             {isos.map((iso) => (
-              <TableRow key={`${iso.serverId}/${iso.id}`} hover>
+              <TableRow key={`${iso.hypervisorId}/${iso.id}`} hover>
                 <TableCell>
                   <OSName name={iso.name} />
                 </TableCell>
@@ -146,7 +146,7 @@ export default function ISOsPage() {
         open={Boolean(confirming)}
         title={`Delete ${confirming?.name}?`}
         body={`This permanently removes the image from ${confirming?.storage} on ${
-          confirming ? serverName(confirming.serverId) : ''
+          confirming ? hypervisorName(confirming.hypervisorId) : ''
         }. Instances currently booting from it will lose the media.`}
         pending={remove.isPending}
         onCancel={() => setConfirming(null)}

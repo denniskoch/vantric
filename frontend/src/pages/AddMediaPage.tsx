@@ -87,7 +87,7 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
   const [url, setUrl] = useState('')
   const [filename, setFilename] = useState('')
   const [file, setFile] = useState<File | null>(null)
-  const [serverId, setServerId] = useState('')
+  const [hypervisorId, setServerId] = useState('')
   const [datastore, setDatastore] = useState('')
   const [checksum, setChecksum] = useState('')
   const [checksumAlgorithm, setChecksumAlgorithm] = useState('sha256')
@@ -96,18 +96,18 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
   const [error, setError] = useState<string | null>(null)
   const [uploadFraction, setUploadFraction] = useState(0)
 
-  const { data: servers = [] } = useQuery({ queryKey: ['servers'], queryFn: api.listServers })
+  const { data: servers = [] } = useQuery({ queryKey: ['hypervisors'], queryFn: api.listHypervisors })
   const { data: datastores = [] } = useQuery({
     queryKey: ['datastores'],
     queryFn: api.listDatastores,
   })
 
   const connected = servers.filter((s) => s.status === 'connected')
-  if (!serverId && connected.length > 0) setServerId(connected[0].id)
+  if (!hypervisorId && connected.length > 0) setServerId(connected[0].id)
 
   // Only datastores on the chosen server that accept images.
   const targets = datastores.filter(
-    (d) => d.serverId === serverId && d.active && d.content.includes(kind.content),
+    (d) => d.hypervisorId === hypervisorId && d.active && d.content.includes(kind.content),
   )
   const target = targets.find((d) => `${d.node}/${d.name}` === datastore)
 
@@ -117,14 +117,14 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
       if (method === 'upload') {
         if (!file) throw new Error('choose a file to upload')
         await kind.upload(
-          serverId,
+          hypervisorId,
           { node: target.node, storage: target.name, filename: filename || file.name },
           file,
           setUploadFraction,
         )
         return
       }
-      await kind.download(serverId, {
+      await kind.download(hypervisorId, {
         node: target.node,
         storage: target.name,
         filename,
@@ -190,7 +190,7 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
         <PageHeader title={`Uploading ${filename || file?.name}`} />
         <Paper variant="outlined" sx={{ p: 3 }}>
           <Typography variant="body2" sx={{ mb: 1 }}>
-            Transferring to {servers.find((s) => s.id === serverId)?.name}…
+            Transferring to {servers.find((s) => s.id === hypervisorId)?.name}…
           </Typography>
           <LinearProgress variant="determinate" value={uploadFraction * 100} />
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -338,7 +338,7 @@ export default function AddMediaPage({ kind }: { kind: MediaKind }) {
                 label="Server"
                 size="small"
                 select
-                value={serverId}
+                value={hypervisorId}
                 onChange={(e) => {
                   setServerId(e.target.value)
                   setDatastore('')

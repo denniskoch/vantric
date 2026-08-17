@@ -15,39 +15,39 @@ import (
 	"vantric/internal/store"
 )
 
-// serverView is the API shape of a server: everything but the secret,
+// hypervisorView is the API shape of a server: everything but the secret,
 // plus live connection state from a quick probe.
-type serverView struct {
-	store.Server
+type hypervisorView struct {
+	store.Hypervisor
 	HasSecret bool   `json:"hasSecret"`
 	Status    string `json:"status"` // connected | unreachable | unknown
 	Nodes     int    `json:"nodes"`
 	Error     string `json:"error,omitempty"`
 }
 
-func (s *Server) listServers(w http.ResponseWriter, r *http.Request) {
-	servers, err := s.store.ListServers(r.Context())
+func (s *Server) listHypervisors(w http.ResponseWriter, r *http.Request) {
+	servers, err := s.store.ListHypervisors(r.Context())
 	if err != nil {
 		s.fail(w, err, "servers")
 		return
 	}
-	views := make([]serverView, len(servers))
+	views := make([]hypervisorView, len(servers))
 	var wg sync.WaitGroup
 	for i := range servers {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			views[i] = s.probeServer(r.Context(), servers[i])
+			views[i] = s.probeHypervisor(r.Context(), servers[i])
 		}(i)
 	}
 	wg.Wait()
 	s.json(w, http.StatusOK, views)
 }
 
-// probeServer asks the driver for its nodes with a short timeout to
+// probeHypervisor asks the driver for its nodes with a short timeout to
 // report connectivity and node count.
-func (s *Server) probeServer(ctx context.Context, sv store.Server) serverView {
-	view := serverView{Server: sv, HasSecret: sv.Secret != "", Status: "unknown"}
+func (s *Server) probeHypervisor(ctx context.Context, sv store.Hypervisor) hypervisorView {
+	view := hypervisorView{Hypervisor: sv, HasSecret: sv.Secret != "", Status: "unknown"}
 	driver, ok := s.registry.Get(sv.ID)
 	if !ok {
 		view.Error = "no driver loaded"
@@ -66,7 +66,7 @@ func (s *Server) probeServer(ctx context.Context, sv store.Server) serverView {
 	return view
 }
 
-type serverRequest struct {
+type hypervisorRequest struct {
 	Name        string `json:"name"`
 	Type        string `json:"type"`
 	BaseURL     string `json:"baseUrl"`
@@ -75,7 +75,7 @@ type serverRequest struct {
 	InsecureTLS bool   `json:"insecureTls"`
 }
 
-func (s *Server) validateServerRequest(w http.ResponseWriter, req *serverRequest) bool {
+func (s *Server) validateServerRequest(w http.ResponseWriter, req *hypervisorRequest) bool {
 	if !nameRe.MatchString(req.Name) {
 		s.err(w, http.StatusBadRequest, "name must be lowercase letters, digits, hyphens (start with a letter)")
 		return false
@@ -91,8 +91,8 @@ func (s *Server) validateServerRequest(w http.ResponseWriter, req *serverRequest
 	return true
 }
 
-func (s *Server) createServer(w http.ResponseWriter, r *http.Request) {
-	var req serverRequest
+func (s *Server) createHypervisor(w http.ResponseWriter, r *http.Request) {
+	var req hypervisorRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		s.err(w, http.StatusBadRequest, "invalid JSON body")
 		return
@@ -104,11 +104,11 @@ func (s *Server) createServer(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, "tokenId and secret are required for Proxmox servers")
 		return
 	}
-	if existing, err := s.store.GetServerByName(r.Context(), req.Name); err == nil && existing != nil {
+	if existing, err := s.store.GetHypervisorByName(r.Context(), req.Name); err == nil && existing != nil {
 		s.err(w, http.StatusConflict, "a server with this name already exists")
 		return
 	}
-	sv := &store.Server{
+	sv := &store.Hypervisor{
 		ID:          uuid.NewString(),
 		Name:        req.Name,
 		Type:        req.Type,
@@ -122,21 +122,21 @@ func (s *Server) createServer(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err := s.store.CreateServer(r.Context(), sv); err != nil {
+	if err := s.store.CreateHypervisor(r.Context(), sv); err != nil {
 		s.fail(w, err, "creating server")
 		return
 	}
 	s.registry.Set(sv.ID, driver)
-	s.json(w, http.StatusCreated, s.probeServer(r.Context(), *sv))
+	s.json(w, http.StatusCreated, s.probeHypervisor(r.Context(), *sv))
 }
 
-func (s *Server) updateServer(w http.ResponseWriter, r *http.Request) {
-	sv, err := s.store.GetServer(r.Context(), chi.URLParam(r, "id"))
+func (s *Server) updateHypervisor(w http.ResponseWriter, r *http.Request) {
+	sv, err := s.store.GetHypervisor(r.Context(), chi.URLParam(r, "id"))
 	if err != nil {
 		s.fail(w, err, "server")
 		return
 	}
-	var req serverRequest
+	var req hypervisorRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		s.err(w, http.StatusBadRequest, "invalid JSON body")
 		return
@@ -145,7 +145,7 @@ func (s *Server) updateServer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Name != sv.Name {
-		if existing, err := s.store.GetServerByName(r.Context(), req.Name); err == nil && existing != nil {
+		if existing, err := s.store.GetHypervisorByName(r.Context(), req.Name); err == nil && existing != nil {
 			s.err(w, http.StatusConflict, "a server with this name already exists")
 			return
 		}
@@ -163,22 +163,22 @@ func (s *Server) updateServer(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err := s.store.UpdateServer(r.Context(), sv); err != nil {
+	if err := s.store.UpdateHypervisor(r.Context(), sv); err != nil {
 		s.fail(w, err, "updating server")
 		return
 	}
 	s.registry.Set(sv.ID, driver)
-	s.json(w, http.StatusOK, s.probeServer(r.Context(), *sv))
+	s.json(w, http.StatusOK, s.probeHypervisor(r.Context(), *sv))
 }
 
-func (s *Server) deleteServer(w http.ResponseWriter, r *http.Request) {
+func (s *Server) deleteHypervisor(w http.ResponseWriter, r *http.Request) {
 	// Removing a hypervisor takes its guest records with it. That is a
 	// disconnect, not a deletion: the VMs and containers themselves are
 	// untouched and come back if the server is re-added. Requiring them
 	// to be destroyed first would make forgetting a credential the most
 	// dangerous button in the app.
 	id := chi.URLParam(r, "id")
-	if err := s.store.DeleteServer(r.Context(), id); err != nil {
+	if err := s.store.DeleteHypervisor(r.Context(), id); err != nil {
 		s.fail(w, err, "deleting server")
 		return
 	}
@@ -186,6 +186,6 @@ func (s *Server) deleteServer(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) listServerTypes(w http.ResponseWriter, r *http.Request) {
+func (s *Server) listHypervisorTypes(w http.ResponseWriter, r *http.Request) {
 	s.json(w, http.StatusOK, factory.Types)
 }

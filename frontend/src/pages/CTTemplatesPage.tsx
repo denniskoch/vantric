@@ -21,7 +21,7 @@ import OSName from '../components/OSName'
 import PageHeader from '../components/PageHeader'
 import type { CTTemplate } from '../api/client'
 import { formatBytes } from '../format'
-import { useServerNames } from '../useServerNames'
+import { useHypervisorNames } from '../useHypervisorNames'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import { usePermissions } from '../user'
 
@@ -31,7 +31,7 @@ export default function CTTemplatesPage() {
   // Offered only where the API would allow it; see rbac.go.
   const { canEdit } = usePermissions()
   const queryClient = useQueryClient()
-  const serverName = useServerNames()
+  const hypervisorName = useHypervisorNames()
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
   const [menuTemplate, setMenuTemplate] = useState<CTTemplate | null>(null)
   const [confirming, setConfirming] = useState<CTTemplate | null>(null)
@@ -43,7 +43,7 @@ export default function CTTemplatesPage() {
   })
 
   const remove = useMutation({
-    mutationFn: (tpl: CTTemplate) => api.deleteCTTemplate(tpl.serverId, tpl.node, tpl.id),
+    mutationFn: (tpl: CTTemplate) => api.deleteCTTemplate(tpl.hypervisorId, tpl.node, tpl.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ctTemplates'] })
       setConfirming(null)
@@ -78,7 +78,7 @@ export default function CTTemplatesPage() {
           </TableHead>
           <TableBody>
             {templates.map((tpl) => (
-              <TableRow key={`${tpl.serverId}/${tpl.id}`} hover>
+              <TableRow key={`${tpl.hypervisorId}/${tpl.id}`} hover>
                 <TableCell>
                   <OSName name={tpl.name} />
                 </TableCell>
@@ -130,7 +130,7 @@ export default function CTTemplatesPage() {
         open={Boolean(confirming)}
         title={`Delete ${confirming?.name}?`}
         body={`This permanently removes the template from ${confirming?.storage} on ${
-          confirming ? serverName(confirming.serverId) : ''
+          confirming ? hypervisorName(confirming.hypervisorId) : ''
         }. Existing containers are unaffected; new ones can no longer be created from it.`}
         pending={remove.isPending}
         onCancel={() => setConfirming(null)}

@@ -57,7 +57,7 @@ type Operation struct {
 	// knows which lists to refresh when this finishes.
 	Resource     string `json:"resource"`
 	ResourceType string `json:"resourceType"`
-	ServerID     string `json:"serverId,omitempty"`
+	HypervisorID     string `json:"serverId,omitempty"`
 	Status       string `json:"status"`
 	// Step is the latest thing the work reported; Steps is all of them,
 	// in order, for the flows that narrate themselves (template builds).
@@ -82,7 +82,7 @@ func newOpRegistry() *opRegistry { return &opRegistry{} }
 func (o *opRegistry) start(title, resourceType, resource, serverID, to string) *Operation {
 	op := &Operation{
 		ID: uuid.NewString(), Title: title,
-		Resource: resource, ResourceType: resourceType, ServerID: serverID,
+		Resource: resource, ResourceType: resourceType, HypervisorID: serverID,
 		Status: opRunning, To: to, StartedAt: time.Now(),
 	}
 	o.mu.Lock()

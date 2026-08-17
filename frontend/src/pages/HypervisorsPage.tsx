@@ -27,42 +27,42 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import HelpIcon from '@mui/icons-material/Help'
 import { api } from '../api/client'
-import type { Server, ServerType } from '../api/client'
+import type { Hypervisor, HypervisorType } from '../api/client'
 import { BrandLabel } from '../components/BrandIcon'
 import PageHeader from '../components/PageHeader'
 import { hypervisorBrand } from '../brands'
 
-const typeLabels: Record<ServerType, string> = {
+const typeLabels: Record<HypervisorType, string> = {
   proxmox: 'Proxmox VE',
   mock: 'Mock (development)',
 }
 
-function StatusGlyph({ server }: { server: Server }) {
+function StatusGlyph({ hypervisor }: { hypervisor: Hypervisor }) {
   const icon =
-    server.status === 'connected' ? (
+    hypervisor.status === 'connected' ? (
       <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} />
-    ) : server.status === 'unreachable' ? (
+    ) : hypervisor.status === 'unreachable' ? (
       <ErrorIcon sx={{ color: 'error.main', fontSize: 18 }} />
     ) : (
       <HelpIcon sx={{ color: 'text.secondary', fontSize: 18 }} />
     )
   return (
-    <Tooltip title={server.error ? `${server.status}: ${server.error}` : server.status}>
+    <Tooltip title={hypervisor.error ? `${hypervisor.status}: ${hypervisor.error}` : hypervisor.status}>
       <span style={{ display: 'inline-flex', verticalAlign: 'middle' }}>{icon}</span>
     </Tooltip>
   )
 }
 
-export default function ServersPage() {
+export default function HypervisorsPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
 
-  const [pendingRemoval, setPendingRemoval] = useState<Server | null>(null)
+  const [pendingRemoval, setPendingRemoval] = useState<Hypervisor | null>(null)
 
-  const { data: servers = [], isLoading } = useQuery({
-    queryKey: ['servers'],
-    queryFn: api.listServers,
+  const { data: hypervisors = [], isLoading } = useQuery({
+    queryKey: ['hypervisors'],
+    queryFn: api.listHypervisors,
     refetchInterval: 10000,
   })
 
@@ -76,19 +76,19 @@ export default function ServersPage() {
     queryKey: ['containers'],
     queryFn: api.listContainers,
   })
-  const guestCount = (serverId: string) => ({
-    instances: instances.filter((i) => i.serverId === serverId).length,
-    containers: containers.filter((c) => c.serverId === serverId).length,
+  const guestCount = (hypervisorId: string) => ({
+    instances: instances.filter((i) => i.hypervisorId === hypervisorId).length,
+    containers: containers.filter((c) => c.hypervisorId === hypervisorId).length,
   })
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['servers'] })
+    queryClient.invalidateQueries({ queryKey: ['hypervisors'] })
     queryClient.invalidateQueries({ queryKey: ['instances'] })
     queryClient.invalidateQueries({ queryKey: ['containers'] })
   }
 
   const remove = useMutation({
-    mutationFn: (id: string) => api.deleteServer(id),
+    mutationFn: (id: string) => api.deleteHypervisor(id),
     onSuccess: () => {
       setPendingRemoval(null)
       invalidate()
@@ -136,29 +136,29 @@ export default function ServersPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {servers.map((server) => (
-              <TableRow key={server.id} hover>
+            {hypervisors.map((hypervisor) => (
+              <TableRow key={hypervisor.id} hover>
                 <TableCell>
-                  <StatusGlyph server={server} />
+                  <StatusGlyph hypervisor={hypervisor} />
                 </TableCell>
-                <TableCell>{server.name}</TableCell>
+                <TableCell>{hypervisor.name}</TableCell>
                 <TableCell>
                   <BrandLabel
-                    icon={hypervisorBrand(server.type)}
-                    label={typeLabels[server.type] ?? server.type}
+                    icon={hypervisorBrand(hypervisor.type)}
+                    label={typeLabels[hypervisor.type] ?? hypervisor.type}
                   />
                 </TableCell>
-                <TableCell>{server.baseUrl || '—'}</TableCell>
+                <TableCell>{hypervisor.baseUrl || '—'}</TableCell>
                 <TableCell align="right">
-                  {server.status === 'connected' ? server.nodes : '—'}
+                  {hypervisor.status === 'connected' ? hypervisor.nodes : '—'}
                 </TableCell>
                 <TableCell align="right">
-                  <IconButton size="small" onClick={() => navigate(`/compute/settings/hypervisors/${server.id}/edit`)}>
+                  <IconButton size="small" onClick={() => navigate(`/compute/settings/hypervisors/${hypervisor.id}/edit`)}>
                     <EditIcon fontSize="small" />
                   </IconButton>
                   <IconButton
                     size="small"
-                    onClick={() => setPendingRemoval(server)}
+                    onClick={() => setPendingRemoval(hypervisor)}
                     disabled={remove.isPending}
                   >
                     <DeleteIcon fontSize="small" />
@@ -166,7 +166,7 @@ export default function ServersPage() {
                 </TableCell>
               </TableRow>
             ))}
-            {servers.length === 0 && (
+            {hypervisors.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading
@@ -215,5 +215,5 @@ function describeRemoval({ instances, containers }: { instances: number; contain
   if (guests.length === 0) {
     return 'Its credentials are forgotten and it disappears from the catalogs. Nothing on the hypervisor changes.'
   }
-  return `${guests.join(' and ')} will disappear from this console along with it. They keep running on the hypervisor — nothing is deleted there, and adding this server back adopts them again.`
+  return `${guests.join(' and ')} will disappear from this console along with it. They keep running on the hypervisor — nothing is deleted there, and adding this hypervisor back adopts them again.`
 }

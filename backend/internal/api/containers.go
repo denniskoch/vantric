@@ -66,7 +66,7 @@ func (s *Server) containerAction(action string) http.HandlerFunc {
 			s.fail(w, err, "container")
 			return
 		}
-		cd := s.containerDriver(w, ct.ServerID)
+		cd := s.containerDriver(w, ct.HypervisorID)
 		if cd == nil {
 			return
 		}
@@ -123,7 +123,7 @@ func (s *Server) deleteContainerHandler(w http.ResponseWriter, r *http.Request) 
 		s.err(w, http.StatusConflict, "deletion protection is enabled on this container")
 		return
 	}
-	cd := s.containerDriver(w, ct.ServerID)
+	cd := s.containerDriver(w, ct.HypervisorID)
 	if cd == nil {
 		return
 	}
