@@ -67,6 +67,15 @@ export default function SecurityOverviewPage() {
 
       {isLoading && <Typography color="text.secondary">Checking…</Typography>}
 
+      {data?.supported && data.tracked > 0 && (
+        <Box sx={{ mb: 3 }}>
+          <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Vulnerabilities</Typography>
+          <Typography sx={{ fontSize: 24, lineHeight: 1.3 }}>
+            {data.tracked.toLocaleString()}
+          </Typography>
+        </Box>
+      )}
+
       {data?.configured && data.supported && !data.error && exploited.length === 0 && (
         <Alert severity="success" icon={<LockIcon />}>
           None of the {data.tracked.toLocaleString()} vulnerabilities on your machines are in
