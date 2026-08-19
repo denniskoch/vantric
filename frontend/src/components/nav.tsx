@@ -116,15 +116,15 @@ export const sections: Section[] = [
     // the machines it reports on stay in Devices, what those findings
     // MEAN lives here — including where the scores come from.
     //
-    // The Overview leads with the KEV-and-present intersection —
-    // see SecurityOverviewPage.
+    // Vulnerabilities are what it holds TODAY, not what it is for. The
+    // copy stays generic so the next kind of finding doesn't arrive to
+    // a section describing itself as something else.
     id: 'security',
     label: 'Security',
     icon: ShieldIcon,
     prefix: '/security',
     home: '/security/overview',
-    description:
-      'Known vulnerabilities across the lab, and where their scores come from. Findings across the other backends will land here too.',
+    description: 'Security findings across the lab.',
     items: [],
     groups: [
       {

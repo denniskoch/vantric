@@ -41,14 +41,11 @@ export default function SecurityOverviewPage() {
 
   return (
     <Box sx={{ p: 3, maxWidth: 1000 }}>
-      <PageHeader
-        title="Security Command Center"
-        description="What to deal with first: known-exploited vulnerabilities that are actually on your machines."
-      />
+      <PageHeader title="Security Command Center" />
 
       {data && !data.configured && (
         <Alert severity="info">
-          No inventory service is connected, so nothing here knows what your machines are running.{' '}
+          No inventory service is connected.{' '}
           <Link component={RouterLink} to="/devices/settings/inventory" underline="hover">
             Connect one
           </Link>{' '}
@@ -58,8 +55,8 @@ export default function SecurityOverviewPage() {
 
       {data?.configured && !data.supported && (
         <Alert severity="info">
-          This inventory service can't produce an estate-wide vulnerability list — on Fleet that's
-          a paid feature. Each machine still lists its own under Devices.
+          This inventory service can't produce an estate-wide vulnerability list. Each machine
+          still lists its own under Devices.
         </Alert>
       )}
 
@@ -72,9 +69,8 @@ export default function SecurityOverviewPage() {
 
       {data?.configured && data.supported && !data.error && exploited.length === 0 && (
         <Alert severity="success" icon={<LockIcon />}>
-          <strong>Nothing here is being actively exploited.</strong> None of the{' '}
-          {data.tracked.toLocaleString()} vulnerabilities on your machines appear in CISA's
-          catalogue of {data.catalogued.toLocaleString()} known-exploited flaws.
+          None of the {data.tracked.toLocaleString()} vulnerabilities on your machines are in
+          CISA's catalogue of {data.catalogued.toLocaleString()} known-exploited flaws.
         </Alert>
       )}
 
@@ -85,9 +81,7 @@ export default function SecurityOverviewPage() {
               {exploited.length === 1
                 ? '1 vulnerability on your machines is being actively exploited.'
                 : `${exploited.length} vulnerabilities on your machines are being actively exploited.`}
-            </strong>{' '}
-            These are in CISA's catalogue, which means attacks using them have been seen in the
-            wild — not that they might be.
+            </strong>
           </Alert>
           <Stack spacing={1.5}>
             {exploited.map((f) => (
@@ -97,14 +91,10 @@ export default function SecurityOverviewPage() {
         </>
       )}
 
-      {/* The denominator, small and last: it's context for the list
-          above, not a headline of its own. */}
       {data?.supported && data.tracked > 0 && (
         <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 3 }}>
-          {data.tracked.toLocaleString()} vulnerabilities tracked across your machines, checked
-          against CISA's {data.catalogued.toLocaleString()} known-exploited flaws.{' '}
           <Link component={RouterLink} to="/security/vulnerabilities" underline="hover">
-            See all
+            All {data.tracked.toLocaleString()} vulnerabilities
           </Link>
         </Typography>
       )}
