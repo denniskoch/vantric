@@ -476,6 +476,9 @@ export interface Overview {
  *  reports it. */
 export interface Vulnerability {
   cve: string
+  /** A flaw in the OS itself: no package to upgrade, fixed by a system
+   *  update. */
+  operatingSystem: boolean
   package: string
   installedVersion: string
   /** Empty when nothing has scored it — see src/severity.ts. */

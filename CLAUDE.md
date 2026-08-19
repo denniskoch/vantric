@@ -529,6 +529,21 @@ Surface the daily 90% here and link out for the rest.
   because Fleet reports the number and leaves the naming to whoever
   displays it, worst is sorted first, and "no fix published" is
   spelled out — the difference between patch this and wait.
+- A HOST'S OWN VULNERABILITIES INCLUDE ITS OS'S. Fleet keeps those
+  apart — the host endpoint returns only software, and OS flaws hang
+  off `/os_versions` — so a machine's page listed every flaw in its
+  packages and none in its operating system. On Linux that went
+  unnoticed, because the kernel IS a package and carries them anyway;
+  on macOS and Windows nothing stands in for the OS and they were
+  simply absent. A MacBook four minor versions behind showed one
+  vulnerability on its page while the estate list counted 403 for it,
+  two of them in CISA's exploited catalogue. The page was not
+  disagreeing with the list; it had never been shown that half.
+  The table is fetched WHOLE and cached, because a host reports its OS
+  as a bare string with no id — the only route from a machine to its OS
+  vulnerabilities is to hold the table and look the name up. Merging
+  DEDUPES BY CVE and lets the software row win: it names a package you
+  can upgrade, where the OS row can only say update the system.
 - A HOST'S NAME IS THE ONE SOMEBODY CHOSE, not the one the machine
   answers to. Fleet publishes `display_name` — the computer name where
   one is set, the hostname otherwise — and it is what Fleet's own UI

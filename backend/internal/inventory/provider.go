@@ -102,6 +102,11 @@ type Vulnerability struct {
 	// stands on its own.
 	Package          string `json:"package"`
 	InstalledVersion string `json:"installedVersion"`
+	// OperatingSystem marks a flaw in the OS itself rather than in
+	// something installed on it. It has no package to upgrade and no
+	// installed version — the fix is a system update — so a row saying
+	// "no fix published" about one would be describing the wrong thing.
+	OperatingSystem bool `json:"operatingSystem"`
 	// Severity is the provider's own word where it has one, otherwise
 	// derived from the CVSS score.
 	Severity  string  `json:"severity"`

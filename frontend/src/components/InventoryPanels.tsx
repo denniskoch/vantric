@@ -248,13 +248,22 @@ function VulnerabilityTable({
                     </TableCell>
                   )}
                   <TableCell>
-                    {row.entries.length === 1
-                      ? `${row.first.package} ${row.first.installedVersion}`
-                      : `${row.entries.length} packages`}
+                    {/* An OS flaw has no package: it's the system that's
+                        behind, so the version IS the answer rather than
+                        something missing from the row. */}
+                    {row.first.operatingSystem
+                      ? row.first.package
+                      : row.entries.length === 1
+                        ? `${row.first.package} ${row.first.installedVersion}`
+                        : `${row.entries.length} packages`}
                   </TableCell>
                   {/* The difference between "patch this" and "wait". */}
                   <TableCell>
-                    {row.fixes.length === 0 ? (
+                    {row.first.operatingSystem && row.fixes.length === 0 ? (
+                      <Box component="span" sx={{ color: "text.secondary" }}>
+                        System update
+                      </Box>
+                    ) : row.fixes.length === 0 ? (
                       <Box component="span" sx={{ color: "text.secondary" }}>
                         No fix published
                       </Box>

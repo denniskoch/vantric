@@ -34,8 +34,10 @@ type Config struct {
 }
 
 type Provider struct {
-	cfg    Config
-	client *http.Client
+	// osVulns caches the OS-vulnerability table — see osvulns.go.
+	osVulns osVulnCache
+	cfg     Config
+	client  *http.Client
 }
 
 func New(cfg Config) *Provider {
@@ -308,6 +310,25 @@ func (p *Provider) hostDetail(ctx context.Context, path string) (*inventory.Host
 			detail.Vulnerabilities = append(detail.Vulnerabilities, vuln)
 		}
 		detail.Packages = append(detail.Packages, pkg)
+	}
+
+	// The OS's own flaws, which the host endpoint doesn't return.
+	//
+	// DEDUPED BY CVE, because on Linux they arrive twice: the kernel is
+	// a package, so Ubuntu's OS list and the linux-image package list
+	// are largely the same CVEs. The software row wins where both
+	// exist — it names a package you can actually upgrade, where the OS
+	// row can only say "update the system".
+	seen := make(map[string]bool, len(detail.Vulnerabilities))
+	for _, v := range detail.Vulnerabilities {
+		seen[v.CVE] = true
+	}
+	for _, v := range p.osVulnerabilities(ctx, detail.Host.OSVersion) {
+		if seen[v.CVE] {
+			continue
+		}
+		seen[v.CVE] = true
+		detail.Vulnerabilities = append(detail.Vulnerabilities, v)
 	}
 	return detail, nil
 }
