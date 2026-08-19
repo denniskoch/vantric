@@ -578,7 +578,14 @@ export interface VulnerabilitySummary {
   cvssScore: number
   severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'MINIMAL'
   epss: number
+  /** NVD's summary, from the console's CVE cache. Empty until the
+   *  enricher has reached this one — which is not the same as there
+   *  being none, so the column says so rather than showing a blank. */
+  description: string
   knownExploited: boolean
+  /** CISA's own name for it, e.g. "Apache Log4j2 Remote Code Execution
+   *  Vulnerability". Empty unless knownExploited. */
+  exploitedName: string
   publishedAt: number
   detailsUrl: string
 }

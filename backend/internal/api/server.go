@@ -21,6 +21,7 @@ import (
 	"vantric/internal/hypervisor"
 	"vantric/internal/identity"
 	"vantric/internal/inventory"
+	"vantric/internal/kev"
 	"vantric/internal/network"
 	"vantric/internal/nvd"
 	"vantric/internal/storage"
@@ -55,6 +56,9 @@ type Server struct {
 	// nvd looks CVEs up in the public vulnerability database. No
 	// credential, cached, and never fatal — see internal/nvd.
 	nvd *nvd.Client
+	// kev is CISA's catalogue of what is actually being exploited.
+	// Same shape as nvd: a public reference, not a configured backend.
+	kev *kev.Client
 	// enrich fills the CVE cache in the background — see enricher.go.
 	enrich    *enricher
 	log       *slog.Logger
@@ -99,6 +103,7 @@ func New(
 		inventoryRegistry: inventoryRegistry,
 		storageRegistry:   storageRegistry,
 		nvd:               client,
+		kev:               kev.New(),
 		log:               log, staticDir: staticDir, dataDir: dataDir, siteURL: siteURL, ssh: sshOpts,
 		ops: newOpRegistry(),
 	}

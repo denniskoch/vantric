@@ -116,13 +116,23 @@ type VulnerabilitySummary struct {
 	// DetectedAt is when the service first saw it here — unix seconds.
 	// Unlike a CVSS score, every tier reports this, which makes it the
 	// column a list can rely on.
-	DetectedAt     int64   `json:"detectedAt"`
-	CVSSScore      float64 `json:"cvssScore"`
-	Severity       string  `json:"severity"`
-	EPSS           float64 `json:"epss"`
-	KnownExploited bool    `json:"knownExploited"`
-	PublishedAt    int64   `json:"publishedAt"`
-	DetailsURL     string  `json:"detailsUrl"`
+	DetectedAt int64   `json:"detectedAt"`
+	CVSSScore  float64 `json:"cvssScore"`
+	Severity   string  `json:"severity"`
+	EPSS       float64 `json:"epss"`
+	// Description is NVD's summary of the flaw, filled from the console's
+	// CVE cache rather than by the inventory service, which doesn't carry
+	// one. It's what turns a wall of identifiers into a readable list.
+	Description string `json:"description"`
+	// KnownExploited means CISA lists it as exploited in the wild. The
+	// inventory service has a field for this and only fills it on a paid
+	// tier, so it is joined from the catalogue itself — see internal/kev.
+	KnownExploited bool `json:"knownExploited"`
+	// ExploitedName is CISA's own name for it, e.g. "Apache Log4j2
+	// Remote Code Execution Vulnerability". Empty unless KnownExploited.
+	ExploitedName string `json:"exploitedName"`
+	PublishedAt   int64  `json:"publishedAt"`
+	DetailsURL    string `json:"detailsUrl"`
 }
 
 // VulnerableSoftware is one package version carrying a CVE, and how

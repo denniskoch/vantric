@@ -599,6 +599,28 @@ Surface the daily 90% here and link out for the rest.
   SOURCE, since NVD's own analysis and the vendor's routinely disagree
   (CVE-2025-12781 is 5.3 to NVD and 6.3 to python.org), and a number
   with no provenance is a number to argue about.
+- WHAT A CVE *IS* COMES FROM TWO PUBLIC REFERENCES, and neither is the
+  inventory service. A list of four thousand identifiers is unreadable,
+  and Fleet carries no description at all — so the estate list joins
+  NVD's, which the enricher has already cached. That join cost nothing
+  to add: the query behind it (`CVEScores`) always returned the whole
+  record and used only the score. The column replaced "Detected", which
+  was true of every row and the reason nobody opened the page.
+- WHETHER ANYONE IS ACTUALLY EXPLOITING IT COMES FROM CISA, not from
+  Fleet's `cisa_known_exploit` — that field is gated behind a paid tier
+  and arrives EMPTY, so a column wired to it would read "not exploited"
+  for every CVE in the estate, which is the most confident kind of wrong
+  answer on the one question where a false negative matters.
+  `internal/kev` fetches the catalogue itself: a public file, no
+  credential, cached 12 hours, and never fatal — a failure keeps the
+  last copy, because a day-old answer about live exploitation beats
+  none. It is one request for the whole catalogue, where NVD's
+  equivalent field arrives one CVE at a time as the enricher walks, so
+  the badge is complete the moment it lands instead of filling in.
+  Expect it to be RARE and that is the point: 3 of this lab's 4004.
+  CISA's `vulnerabilityName` is shown where it exists, because "Apache
+  Log4j2 Remote Code Execution Vulnerability" says more in six words
+  than any description does in sixty.
 - INSTALLERS ARE THE ONE THING THIS CONSOLE OWNS. Everywhere else it
   is a view onto somebody else's source of truth; agent packages are
   files it holds, because Fleet builds installers without hosting them

@@ -376,14 +376,39 @@ func (s *Server) listInventoryVulnerabilities(w http.ResponseWriter, r *http.Req
 		s.json(w, http.StatusOK, out)
 		return
 	}
-	// Scores from the cache, where the worker has put them. Fleet's own
-	// are kept when it has them — a paid tier knows things NVD doesn't,
-	// like whether the flaw is being exploited.
+	// Scores and descriptions from the cache, where the worker has put
+	// them. Fleet's own score is kept when it has one — a paid tier
+	// knows things NVD doesn't — but the DESCRIPTION is always the
+	// cache's, because the inventory service has none at all. It is the
+	// column that turns four thousand identifiers into a list somebody
+	// can read, and it costs nothing here: this query already returned
+	// the whole record and threw everything but the score away.
 	if enriched, err := s.store.CVEScores(r.Context()); err == nil {
 		for i := range vulns {
-			if c, ok := enriched[vulns[i].CVE]; ok && vulns[i].CVSSScore == 0 {
+			c, ok := enriched[vulns[i].CVE]
+			if !ok {
+				continue
+			}
+			if vulns[i].CVSSScore == 0 {
 				vulns[i].CVSSScore = c.Score
 				vulns[i].Severity = c.Severity
+			}
+			vulns[i].Description = c.Description
+		}
+	}
+
+	// Whether anyone is actually exploiting it, from CISA rather than
+	// from the inventory service — whose field for this is gated behind
+	// a paid tier and arrives empty, which would make every CVE read as
+	// "not exploited". A failure leaves the flags off and the page
+	// otherwise intact; it is a public file and never worth a 500.
+	if catalogue, err := s.kev.Catalogue(r.Context()); err != nil {
+		s.log.Warn("kev catalogue unavailable", "error", err)
+	} else {
+		for i := range vulns {
+			if e, ok := catalogue[vulns[i].CVE]; ok {
+				vulns[i].KnownExploited = true
+				vulns[i].ExploitedName = e.VulnerabilityName
 			}
 		}
 	}
@@ -501,6 +526,16 @@ func (s *Server) getInventoryVulnerability(w http.ResponseWriter, r *http.Reques
 	for _, inst := range instances {
 		if inst.UUID != "" {
 			byUUID[strings.ToLower(inst.UUID)] = inst.Name
+		}
+	}
+	// The same CISA join the list does, or the two pages would disagree
+	// about one CVE — which is the shape of bug that had the Devices
+	// page calling a machine managed while its own instance page called
+	// it unenrolled.
+	if catalogue, err := s.kev.Catalogue(r.Context()); err == nil {
+		if e, ok := catalogue[strings.ToUpper(cve)]; ok {
+			detail.Summary.KnownExploited = true
+			detail.Summary.ExploitedName = e.VulnerabilityName
 		}
 	}
 	out := vulnerabilityDetailView{

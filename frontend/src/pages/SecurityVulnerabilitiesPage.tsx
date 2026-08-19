@@ -14,10 +14,11 @@ import {
   TableHead,
   TablePagination,
   TableRow,
+  Tooltip,
 } from '@mui/material'
 import { api } from '../api/client'
+import type { VulnerabilitySummary } from '../api/client'
 import PageHeader from '../components/PageHeader'
-import { timeAgo } from '../format'
 
 /**
  * Every CVE across the estate, worst first.
@@ -46,7 +47,6 @@ export default function SecurityVulnerabilitiesPage() {
   // Only render what the service actually fills in.
   const hasScores = all.some((v) => v.cvssScore > 0)
   const hasEPSS = all.some((v) => v.epss > 0)
-  const hasExploited = all.some((v) => v.knownExploited)
 
   const rows = [...all].sort(
     (a, b) =>
@@ -97,8 +97,11 @@ export default function SecurityVulnerabilitiesPage() {
           <TableHead>
             <TableRow>
               <TableCell>CVE</TableCell>
+              {/* Replaces Detected, which answered "when did Fleet
+                  first see this" — true of every row, useful on almost
+                  none, and never the reason anyone opened this page. */}
+              <TableCell>What it is</TableCell>
               <TableCell align="right">Affected hosts</TableCell>
-              <TableCell>Detected</TableCell>
               {hasScores && <TableCell>Severity</TableCell>}
               {hasEPSS && <TableCell align="right">Exploit probability</TableCell>}
             </TableRow>
@@ -106,7 +109,10 @@ export default function SecurityVulnerabilitiesPage() {
           <TableBody>
             {shown.map((v) => (
               <TableRow key={v.cve} hover>
-                <TableCell>
+                {/* An identifier must not wrap: broken across two
+                    lines it stops being scannable, which is the only
+                    thing it's good for. */}
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>
                   {/* Stays in the console: who has it and what to
                       upgrade is the question, and NVD is a click away
                       from there. */}
@@ -118,17 +124,21 @@ export default function SecurityVulnerabilitiesPage() {
                     >
                       {v.cve}
                     </Link>
-                    {hasExploited && v.knownExploited && (
-                      <Chip
-                        label="Exploited"
-                        size="small"
-                        sx={{ fontSize: 10, height: 18, bgcolor: 'surface.errorTint', color: 'error.main' }}
-                      />
+                    {v.knownExploited && (
+                      <Tooltip title={v.exploitedName || "In CISA's catalogue of exploited vulnerabilities"}>
+                        <Chip
+                          label="Exploited"
+                          size="small"
+                          sx={{ fontSize: 10, height: 18, bgcolor: 'surface.errorTint', color: 'error.main' }}
+                        />
+                      </Tooltip>
                     )}
                   </Box>
                 </TableCell>
+                <TableCell sx={{ maxWidth: 460 }}>
+                  <Describe v={v} />
+                </TableCell>
                 <TableCell align="right">{v.hosts || '—'}</TableCell>
-                <TableCell sx={{ color: 'text.secondary' }}>{timeAgo(v.detectedAt)}</TableCell>
                 {hasScores && (
                   <TableCell>
                     <Box
@@ -182,5 +192,46 @@ export default function SecurityVulnerabilitiesPage() {
         />
       )}
     </Box>
+  )
+}
+
+/**
+ * What the flaw actually is, in one line.
+ *
+ * CISA's name where there is one — "Apache Log4j2 Remote Code Execution
+ * Vulnerability" is six words that beat any amount of prose — otherwise
+ * NVD's description, clamped to the row with the whole thing on hover.
+ * Clamped rather than truncated in code: a table row is the wrong place
+ * to guess where a sentence ends, and the browser already does this.
+ *
+ * A CVE the enricher hasn't reached says so. Blank would read as "no
+ * description exists", which is a different and wrong answer — the same
+ * distinction the bucket scanner's "—" makes.
+ */
+function Describe({ v }: { v: VulnerabilitySummary }) {
+  const text = v.exploitedName || v.description
+  if (!text) {
+    return (
+      <Tooltip title="Descriptions are filled in by the background pass over the vulnerability database. This one hasn't been reached yet.">
+        <Box component="span" sx={{ color: 'text.disabled', fontSize: 13 }}>
+          Not looked up yet
+        </Box>
+      </Tooltip>
+    )
+  }
+  return (
+    <Tooltip title={text}>
+      <Box
+        sx={{
+          fontSize: 13,
+          color: 'text.secondary',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {text}
+      </Box>
+    </Tooltip>
   )
 }
