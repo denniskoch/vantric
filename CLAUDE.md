@@ -485,6 +485,35 @@ Surface the daily 90% here and link out for the rest.
   and more strictly than Network: this reports what the agents found.
   Live queries and policies stay in the tool whose blast radius they
   are.
+- PHYSICAL AND VIRTUAL HOSTS ARE TWO PAGES, not one list with a
+  filter, for the reason VM instances and container instances are two:
+  they LIST differently. A physical machine is identified by its serial
+  — every one here reports a real one — and has no instance to open; a
+  guest is identified by the VM it is, which its hostname will not tell
+  you (a guest called `debian` is the WireGuard VM, `ci-agent-lnx-01`
+  is woodpecker-runner-1). One table holding both spends half its
+  columns on dashes. The databases rule — engines share a nav item, the
+  engine is a column — does not govern, because engines answer the same
+  questions with the same actions and these do not. Instances with no
+  agent belong to the VIRTUAL page: they're guests, and on the physical
+  one they'd be noise.
+- WHICH KIND A MACHINE IS, IS DERIVED, never stored (`inventory.IsVirtual`,
+  on the boundary rather than in a driver, because the strings are the
+  HYPERVISOR's — osquery reports "QEMU" because QEMU wrote it into
+  SMBIOS, so a second provider reading the same machine must reach the
+  same answer). Vendor alone is not enough: Microsoft, Apple and Oracle
+  all ship metal AND hypervisors, so the MODEL is checked first —
+  "Microsoft Corporation" is a Surface or Hyper-V depending on whether
+  the model says "Virtual Machine". And a guest THIS CONSOLE RUNS is
+  virtual whatever SMBIOS claims: the correlation is not a judgement
+  call, and it keeps such a guest off the physical list rather than in
+  a bucket nobody searches.
+- A DMI PLACEHOLDER IS NOT A SERIAL. Both MSI boards here report "To be
+  filled by O.E.M.", alongside "Default string" and "System Serial
+  Number" from other vendors — fields left blank in a way that looks
+  like data. The column exists to identify one specific machine, and a
+  string six of them share identifies none, so those render as "not
+  set" like an empty one. Same rule as a VM's unset SMBIOS serial.
 - THE JOIN IS THE SMBIOS UUID, which is the whole reason it was
   pulled. The hypervisor knows a guest's UUID and the agent inside
   reports the same value, so `/instances/{name}/inventory` looks the

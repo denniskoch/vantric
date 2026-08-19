@@ -208,10 +208,21 @@ export const sections: Section[] = [
         label: 'Inventory',
         items: [
           {
-            label: 'Hosts',
+            // Split rather than filtered, for the reason VM instances
+            // and container instances are: they list differently. A
+            // laptop is identified by its serial and has no instance to
+            // open; a guest is identified by the VM it is, which its
+            // hostname won't tell you.
+            label: 'Physical hosts',
+            icon: DevicesIcon,
+            to: '/devices/physical-hosts',
+            hint: 'Laptops, desktops and bare metal — machines this console does not run',
+          },
+          {
+            label: 'Virtual hosts',
             icon: FactCheckIcon,
-            to: '/devices/hosts',
-            hint: 'Every machine an agent reports on, and which are guests here',
+            to: '/devices/virtual-hosts',
+            hint: 'Guests running an agent, matched to instances by system UUID',
           },
           {
             label: 'Vulnerabilities',

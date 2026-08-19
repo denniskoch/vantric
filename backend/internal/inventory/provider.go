@@ -46,6 +46,15 @@ type Host struct {
 	// this console correlates on.
 	UUID   string `json:"uuid"`
 	Serial string `json:"serial"`
+	// Vendor and Model are the hardware as the agent read it. They are
+	// carried rather than reduced to Virtual alone because the physical
+	// listing shows the model — "Macmini9,1" is what that machine IS.
+	Vendor string `json:"vendor"`
+	Model  string `json:"model"`
+	// Virtual is derived from the two above by IsVirtual. It is what
+	// separates the laptops from the guests, and it is a derivation
+	// rather than a stored flag on purpose.
+	Virtual bool `json:"virtual"`
 	// Platform and OSVersion are the agent's own words for the guest.
 	Platform  string `json:"platform"`
 	OSVersion string `json:"osVersion"`

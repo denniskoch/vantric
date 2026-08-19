@@ -500,6 +500,11 @@ export interface InventoryHost {
   hostname: string
   uuid: string
   serial: string
+  /** Hardware as the agent read it; what `virtual` is derived from. */
+  vendor: string
+  model: string
+  /** Emulated hardware — or a guest this console demonstrably runs. */
+  virtual: boolean
   platform: string
   osVersion: string
   status: string

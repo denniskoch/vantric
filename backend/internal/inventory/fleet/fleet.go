@@ -108,6 +108,8 @@ type wireHost struct {
 	ComputerName    string `json:"computer_name"`
 	UUID            string `json:"uuid"`
 	HardwareSerial  string `json:"hardware_serial"`
+	HardwareVendor  string `json:"hardware_vendor"`
+	HardwareModel   string `json:"hardware_model"`
 	Platform        string `json:"platform"`
 	OSVersion       string `json:"os_version"`
 	Status          string `json:"status"`
@@ -144,6 +146,9 @@ func (h wireHost) toHost() inventory.Host {
 		Hostname:      name,
 		UUID:          strings.ToLower(h.UUID),
 		Serial:        h.HardwareSerial,
+		Vendor:        h.HardwareVendor,
+		Model:         h.HardwareModel,
+		Virtual:       inventory.IsVirtual(h.HardwareVendor, h.HardwareModel),
 		Platform:      h.Platform,
 		OSVersion:     h.OSVersion,
 		Status:        h.Status,

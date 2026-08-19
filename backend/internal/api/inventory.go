@@ -325,6 +325,13 @@ func (s *Server) listInventoryHosts(w http.ResponseWriter, r *http.Request) {
 			view.Instance = name
 			view.Managed = true
 			seen[name] = true
+			// A GUEST THIS CONSOLE RUNS IS VIRTUAL whatever SMBIOS said.
+			// The vendor string is the general answer, but it is the
+			// hypervisor's to write and can be absent or unfamiliar; a
+			// machine we are demonstrably running is not a judgement
+			// call, and this keeps such a guest off the physical list
+			// rather than in a bucket where nobody is looking for it.
+			view.Virtual = true
 		}
 		out.Hosts = append(out.Hosts, view)
 	}

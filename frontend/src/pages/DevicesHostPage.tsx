@@ -45,8 +45,8 @@ export default function DevicesHostPage() {
   if (error || !data) {
     return (
       <Box sx={{ p: 3 }}>
-        <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate('/devices/hosts')}>
-          Hosts
+        <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate('/devices/virtual-hosts')}>
+          Virtual hosts
         </Button>
         <Alert severity="error" sx={{ mt: 2 }}>
           {(error as Error)?.message ?? 'This host is no longer in your inventory service.'}
@@ -69,8 +69,17 @@ export default function DevicesHostPage() {
           flexWrap: 'wrap',
         }}
       >
-        <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate('/devices/hosts')}>
-          Hosts
+        {/* Back to the list this host is actually on: the two are
+            separate pages, so a single "Hosts" link would land half of
+            them somewhere they aren't. */}
+        <Button
+          size="small"
+          startIcon={<ArrowBackIcon />}
+          onClick={() =>
+            navigate(host.virtual ? '/devices/virtual-hosts' : '/devices/physical-hosts')
+          }
+        >
+          {host.virtual ? 'Virtual hosts' : 'Physical hosts'}
         </Button>
         <StatusIcon status={host.status === 'online' ? 'RUNNING' : 'TERMINATED'} />
         <Typography variant="h5">{host.hostname || 'Unnamed host'}</Typography>

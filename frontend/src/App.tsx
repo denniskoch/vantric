@@ -64,7 +64,10 @@ import AddIdentityProviderPage from './pages/AddIdentityProviderPage'
 import DNSProvidersPage from './pages/DNSProvidersPage'
 import HypervisorsPage from './pages/HypervisorsPage'
 import InventoryProvidersPage from './pages/InventoryProvidersPage'
-import DevicesHostsPage from './pages/DevicesHostsPage'
+import {
+  DevicesPhysicalHostsPage,
+  DevicesVirtualHostsPage,
+} from './pages/DevicesHostsPage'
 import DevicesHostPage from './pages/DevicesHostPage'
 import DevicesVulnerabilitiesPage from './pages/DevicesVulnerabilitiesPage'
 import DevicesInstallersPage from './pages/DevicesInstallersPage'
@@ -108,7 +111,10 @@ export default function App() {
         <Route path="/overview" element={<CloudOverviewPage />} />
         <Route path="/compute/overview" element={<OverviewPage />} />
         <Route path="/devices/overview" element={<SectionLandingPage />} />
-        <Route path="/devices/hosts" element={<DevicesHostsPage />} />
+        <Route path="/devices/physical-hosts" element={<DevicesPhysicalHostsPage />} />
+        <Route path="/devices/virtual-hosts" element={<DevicesVirtualHostsPage />} />
+        {/* The list was one page before the split; keep the old path working. */}
+        <Route path="/devices/hosts" element={<Navigate to="/devices/virtual-hosts" replace />} />
         <Route path="/devices/hosts/:id" element={<DevicesHostPage />} />
         <Route path="/devices/vulnerabilities" element={<DevicesVulnerabilitiesPage />} />
         <Route path="/devices/vulnerabilities/:cve" element={<DevicesVulnerabilityPage />} />
