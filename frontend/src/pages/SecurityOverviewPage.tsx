@@ -67,12 +67,35 @@ export default function SecurityOverviewPage() {
 
       {isLoading && <Typography color="text.secondary">Checking…</Typography>}
 
+      {/* The same count cell the Cloud overview uses, down to being a
+          link into the list it counts — one grid slot wide, so more can
+          sit beside it as the section grows. */}
       {data?.supported && data.tracked > 0 && (
-        <Box sx={{ mb: 3 }}>
-          <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Vulnerabilities</Typography>
-          <Typography sx={{ fontSize: 24, lineHeight: 1.3 }}>
-            {data.tracked.toLocaleString()}
-          </Typography>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' },
+            gap: 2,
+            mb: 3,
+          }}
+        >
+          <Paper
+            component={RouterLink}
+            to="/security/vulnerabilities"
+            variant="outlined"
+            sx={{
+              p: 2,
+              display: 'block',
+              textDecoration: 'none',
+              color: 'inherit',
+              '&:hover': { bgcolor: 'surface.subtle', borderColor: 'primary.main' },
+            }}
+          >
+            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Vulnerabilities</Typography>
+            <Typography sx={{ fontSize: 28, color: 'text.primary', lineHeight: 1.3 }}>
+              {data.tracked.toLocaleString()}
+            </Typography>
+          </Paper>
         </Box>
       )}
 
