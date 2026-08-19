@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Alert,
   Box,
-  Chip,
   Link,
   Paper,
   Table,
@@ -214,12 +213,15 @@ function HostsPage({ virtual }: { virtual: boolean }) {
 /**
  * Which VM a guest is — the column the hostname can't answer.
  *
- * A guest that reports as virtual but matches no instance is not a
- * fault: it's a VM something else runs, which is worth saying rather
- * than leaving blank, because blank reads as missing data.
+ * No match gets a dash, not a label. This column asks "which instance
+ * is this", and for a machine that isn't one, "none" is the whole
+ * answer; "External" was the console editorialising about a machine
+ * that is just as much the owner's as the VM beside it.
  */
 function InstanceCell({ host }: { host: InventoryHostView }) {
-  if (!host.managed) return <Chip label="External" size="small" />
+  if (!host.managed) {
+    return <Box component="span" sx={{ color: 'text.secondary' }}>—</Box>
+  }
   return (
     <Link
       component={RouterLink}

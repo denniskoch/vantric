@@ -120,7 +120,7 @@ export default function DevicesHostPage() {
                 ) : (
                   // Not a gap: this is what a laptop looks like.
                   <Box component="span" sx={{ color: 'text.secondary' }}>
-                    External — not a guest this console runs
+                    Not a guest this console runs
                   </Box>
                 ),
               },
