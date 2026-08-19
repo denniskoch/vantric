@@ -79,8 +79,8 @@ export default function SecurityOverviewPage() {
           <Alert severity="error" icon={<LocalFireDepartmentIcon />} sx={{ mb: 2 }}>
             <strong>
               {exploited.length === 1
-                ? '1 known-exploited vulnerability is present on your machines.'
-                : `${exploited.length} known-exploited vulnerabilities are present on your machines.`}
+                ? '1 exploitable vulnerability exists in your environment.'
+                : `${exploited.length} exploitable vulnerabilities exist in your environment.`}
             </strong>
           </Alert>
           <Stack spacing={1.5}>
