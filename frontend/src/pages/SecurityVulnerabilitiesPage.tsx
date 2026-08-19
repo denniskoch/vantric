@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Alert,
   Box,
-  Chip,
   Link,
   Paper,
   Table,
@@ -18,6 +17,7 @@ import {
 } from '@mui/material'
 import { api } from '../api/client'
 import type { VulnerabilitySummary } from '../api/client'
+import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import PageHeader from '../components/PageHeader'
 import { severityColor, severityLabel } from '../severity'
 
@@ -127,12 +127,27 @@ export default function SecurityVulnerabilitiesPage() {
                     >
                       {v.cve}
                     </Link>
+                    {/* A flame rather than the word: this is the one
+                        mark on the page that means "someone is using
+                        this right now", and at a glance a shape carries
+                        that faster than a chip full of text. The tooltip
+                        keeps the meaning available, and carries CISA's
+                        own name for the flaw where there is one — so
+                        the icon is a pointer, never the only telling.
+                        display:block because an inline SVG drags
+                        descender space into a 28px row. */}
                     {v.knownExploited && (
-                      <Tooltip title={v.exploitedName || "In CISA's catalogue of exploited vulnerabilities"}>
-                        <Chip
-                          label="Exploited"
-                          size="small"
-                          sx={{ fontSize: 10, height: 18, bgcolor: 'surface.errorTint', color: 'error.main' }}
+                      <Tooltip
+                        title={
+                          v.exploitedName
+                            ? `Actively exploited — ${v.exploitedName}`
+                            : "Actively exploited, per CISA's catalogue"
+                        }
+                      >
+                        <LocalFireDepartmentIcon
+                          fontSize="small"
+                          aria-label="Actively exploited"
+                          sx={{ color: 'error.main', display: 'block' }}
                         />
                       </Tooltip>
                     )}
