@@ -120,13 +120,6 @@ export default function SecurityVulnerabilitiesPage() {
                       upgrade is the question, and NVD is a click away
                       from there. */}
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Link
-                      component={RouterLink}
-                      to={`/security/vulnerabilities/${encodeURIComponent(v.cve)}`}
-                      underline="hover"
-                    >
-                      {v.cve}
-                    </Link>
                     {/* A flame rather than the word: this is the one
                         mark on the page that means "someone is using
                         this right now", and at a glance a shape carries
@@ -134,23 +127,40 @@ export default function SecurityVulnerabilitiesPage() {
                         keeps the meaning available, and carries CISA's
                         own name for the flaw where there is one — so
                         the icon is a pointer, never the only telling.
+
+                        LEADING, IN A FIXED SLOT that's empty when there
+                        is no flame — the same spacer the OS marks use.
+                        Trailing the id, it landed wherever that id
+                        happened to end, so three flames sat at three
+                        different offsets and the ids they belonged to
+                        jogged left and right. Both line up now.
+
                         display:block because an inline SVG drags
                         descender space into a 28px row. */}
-                    {v.knownExploited && (
-                      <Tooltip
-                        title={
-                          v.exploitedName
-                            ? `Actively exploited — ${v.exploitedName}`
-                            : "Actively exploited, per CISA's catalogue"
-                        }
-                      >
-                        <LocalFireDepartmentIcon
-                          fontSize="small"
-                          aria-label="Actively exploited"
-                          sx={{ color: 'error.main', display: 'block' }}
-                        />
-                      </Tooltip>
-                    )}
+                    <Box sx={{ width: 18, flexShrink: 0 }}>
+                      {v.knownExploited && (
+                        <Tooltip
+                          title={
+                            v.exploitedName
+                              ? `Actively exploited — ${v.exploitedName}`
+                              : "Actively exploited, per CISA's catalogue"
+                          }
+                        >
+                          <LocalFireDepartmentIcon
+                            fontSize="small"
+                            aria-label="Actively exploited"
+                            sx={{ color: 'error.main', display: 'block' }}
+                          />
+                        </Tooltip>
+                      )}
+                    </Box>
+                    <Link
+                      component={RouterLink}
+                      to={`/security/vulnerabilities/${encodeURIComponent(v.cve)}`}
+                      underline="hover"
+                    >
+                      {v.cve}
+                    </Link>
                   </Box>
                 </TableCell>
                 {hasScores && (
