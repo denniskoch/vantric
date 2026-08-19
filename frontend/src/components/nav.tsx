@@ -146,6 +146,12 @@ export const sections: Section[] = [
             to: '/security/vulnerabilities',
             hint: 'Known CVEs across the estate, exploited ones first',
           },
+          {
+            label: 'Host assessment',
+            icon: FactCheckIcon,
+            to: '/security/host-assessment',
+            hint: 'One endpoint at a time',
+          },
         ],
       },
       {

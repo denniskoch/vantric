@@ -20,6 +20,7 @@ import CTTemplatesPage from './pages/CTTemplatesPage'
 import OverviewPage from './pages/OverviewPage'
 import CloudOverviewPage from './pages/CloudOverviewPage'
 import SecurityOverviewPage from './pages/SecurityOverviewPage'
+import SecurityHostAssessmentPage from './pages/SecurityHostAssessmentPage'
 import NotFoundPage from './pages/NotFoundPage'
 import RenameInstancePage from './pages/RenameInstancePage'
 import EditDescriptionPage, {
@@ -119,6 +120,7 @@ export default function App() {
         {/* The list was one page before the split; keep the old path working. */}
         <Route path="/devices/hosts" element={<Navigate to="/devices/virtual-hosts" replace />} />
         <Route path="/devices/hosts/:id" element={<DevicesHostPage />} />
+        <Route path="/security/host-assessment" element={<SecurityHostAssessmentPage />} />
         <Route path="/security/vulnerabilities" element={<SecurityVulnerabilitiesPage />} />
         <Route path="/security/vulnerabilities/:cve" element={<SecurityVulnerabilityPage />} />
         <Route path="/devices/installers" element={<DevicesInstallersPage />} />
