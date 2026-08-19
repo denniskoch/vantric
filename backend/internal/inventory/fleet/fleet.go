@@ -206,11 +206,46 @@ func (p *Provider) Hosts(ctx context.Context) ([]inventory.Host, error) {
 // the uuid is used deliberately: it's the one value the hypervisor and
 // the agent both derive from the same place, so a match means the same
 // machine rather than two machines with the same name.
+// HostByUUID finds a machine by the SMBIOS UUID both sides can see.
+//
+// FLEET'S LOOKUP IS CASE-SENSITIVE AND FLEET'S CASE IS THE GUEST'S, not
+// a canonical one: it stores whatever osquery reported, and osquery
+// reads WMI on Windows and IOKit on macOS (uppercase) but
+// /sys/class/dmi/id/product_uuid on Linux (lowercase). In this lab that
+// is 7 hosts uppercase and 12 lowercase.
+//
+// The hypervisor reports lowercase for all of them. So a lowercase
+// lookup matched every Linux guest and silently missed every Windows
+// and macOS one — and it missed them by 404, which reads as "this guest
+// isn't enrolled" rather than as a failed match. The console said so on
+// the instance page while the Devices page, which compares in Go with
+// both sides lowercased, correctly showed the very same machine as
+// managed here. Two pages, one UUID, opposite answers.
+//
+// Trying both cases costs one extra request on a miss and none on a
+// hit. Normalising to one case would only move the bug to the other
+// platform, since neither case is Fleet's.
 func (p *Provider) HostByUUID(ctx context.Context, uuid string) (*inventory.HostDetail, error) {
 	if uuid == "" {
 		return nil, inventory.ErrNotFound
 	}
-	return p.hostDetail(ctx, "/hosts/identifier/"+url.PathEscape(uuid))
+	tried := map[string]bool{}
+	for _, candidate := range []string{uuid, strings.ToUpper(uuid), strings.ToLower(uuid)} {
+		if tried[candidate] {
+			continue
+		}
+		tried[candidate] = true
+		detail, err := p.hostDetail(ctx, "/hosts/identifier/"+url.PathEscape(candidate))
+		if err == nil {
+			return detail, nil
+		}
+		// Only a miss is worth retrying in another case; an auth or
+		// transport failure means the next call fails the same way.
+		if !errors.Is(err, inventory.ErrNotFound) {
+			return nil, err
+		}
+	}
+	return nil, inventory.ErrNotFound
 }
 
 // HostByID is the same host by Fleet's own id, which is what a drill-in

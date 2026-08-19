@@ -500,6 +500,22 @@ Surface the daily 90% here and link out for the rest.
   because Fleet reports the number and leaves the naming to whoever
   displays it, worst is sorted first, and "no fix published" is
   spelled out — the difference between patch this and wait.
+- FLEET'S UUID CASE IS THE GUEST'S, and its lookup is case-sensitive.
+  Fleet stores whatever osquery reported — uppercase from WMI on
+  Windows and IOKit on macOS, lowercase from
+  /sys/class/dmi/id/product_uuid on Linux — while the hypervisor
+  reports lowercase for all of them. So `/hosts/identifier/<uuid>`
+  matched every Linux guest and 404'd on every Windows and macOS one,
+  and a 404 there is indistinguishable from "no such host": the
+  instance page said "this guest isn't enrolled in your inventory
+  service" about a machine Fleet was actively reporting on, while the
+  Devices page showed the very same machine as managed here, because
+  that side compares in Go with both sides lowercased. Two pages, one
+  UUID, opposite answers. `HostByUUID` now tries both cases — one extra
+  request on a miss, none on a hit. Normalising to one case would only
+  move the bug to the other platform, since neither case is canonical;
+  the DRIVER lowercases on read, which is why displays agreed while the
+  lookup didn't.
 - ENRICHMENT IS A BACKGROUND PASS, NOT A PAGE VIEW. Fetching NVD when
   somebody opens a CVE only helps that CVE: a list can't sort by
   severity and the overview can't count what's critical if the score
