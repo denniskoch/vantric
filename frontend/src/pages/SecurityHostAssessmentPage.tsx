@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Alert, Box, MenuItem, Paper, Typography } from '@mui/material'
 import { api } from '../api/client'
+import type { InventoryHost, InventoryHostDetail } from '../api/client'
 import PageHeader from '../components/PageHeader'
 import SelectField from '../components/SelectField'
 import DetailTable from '../components/DetailTable'
 import { severityColor } from '../severity'
+import { newestOSInEstate, updateRoute } from '../remediation'
 import { OSIcon } from '../components/OSName'
 
 /**
@@ -105,6 +107,88 @@ export default function SecurityHostAssessmentPage() {
           ))}
         </Box>
       )}
+
+      {host && detail && <WhatToDo host={host} hosts={hosts} detail={detail} />}
+    </Box>
+  )
+}
+
+/**
+ * The short list. Four hundred vulnerabilities are half a dozen
+ * actions, and this is that collapse — every number below comes from
+ * the inventory service, and no version is suggested that nobody
+ * reported.
+ */
+function WhatToDo({
+  host,
+  hosts,
+  detail,
+}: {
+  host: InventoryHost
+  hosts: InventoryHost[]
+  detail: InventoryHostDetail
+}) {
+  const vulns = detail.vulnerabilities ?? []
+  const osVulns = vulns.filter((v) => v.operatingSystem)
+  const osExploited = osVulns.filter((v) => v.knownExploited).length
+  // The newest of this machine's own OS family that something here is
+  // already running — an upgrade this estate has demonstrably managed,
+  // rather than whatever the vendor's website claims today.
+  const newer = newestOSInEstate(host.osVersion, hosts)
+
+  const apps = (detail.packages ?? [])
+    .filter((p) => (p.vulnerabilities ?? []).length > 0)
+    .map((p) => ({
+      name: p.name,
+      version: p.version,
+      count: (p.vulnerabilities ?? []).length,
+      route: updateRoute(host.platform, p.name),
+    }))
+    .sort((a, b) => b.count - a.count)
+
+  const groups = new Map<string, typeof apps>()
+  for (const a of apps) {
+    groups.set(a.route.key, [...(groups.get(a.route.key) ?? []), a])
+  }
+
+  if (!newer && apps.length === 0) return null
+
+  return (
+    <Box sx={{ mt: 3 }}>
+      <Typography sx={{ fontSize: 16, mb: 1.5 }}>What to do</Typography>
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        {newer && (
+          <Box sx={{ mb: apps.length ? 2 : 0 }}>
+            <Typography sx={{ fontSize: 14 }}>
+              Update {host.osVersion} to <strong>{newer}</strong>
+            </Typography>
+            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+              {osVulns.length > 0
+                ? `Clears ${osVulns.length} vulnerabilities in the operating system` +
+                  (osExploited > 0
+                    ? `, ${osExploited} of them known-exploited.`
+                    : '.')
+                : 'Already running here on another machine.'}
+            </Typography>
+          </Box>
+        )}
+
+        {[...groups.entries()].map(([key, list]) => (
+          <Box key={key} sx={{ mb: 1.5, '&:last-child': { mb: 0 } }}>
+            <Typography sx={{ fontSize: 14 }}>{list[0].route.label}</Typography>
+            <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+              {list
+                .map((a) => `${a.name} ${a.version} (${a.count})`)
+                .join(', ')}
+            </Typography>
+            {list[0].route.note && (
+              <Typography sx={{ fontSize: 12, color: 'text.disabled' }}>
+                {list[0].route.note}
+              </Typography>
+            )}
+          </Box>
+        ))}
+      </Paper>
     </Box>
   )
 }
