@@ -69,10 +69,10 @@ import {
   DevicesVirtualHostsPage,
 } from './pages/DevicesHostsPage'
 import DevicesHostPage from './pages/DevicesHostPage'
-import DevicesVulnerabilitiesPage from './pages/DevicesVulnerabilitiesPage'
+import SecurityVulnerabilitiesPage from './pages/SecurityVulnerabilitiesPage'
 import DevicesInstallersPage from './pages/DevicesInstallersPage'
-import DevicesVulnerabilityPage from './pages/DevicesVulnerabilityPage'
-import DevicesEnrichmentPage from './pages/DevicesEnrichmentPage'
+import SecurityVulnerabilityPage from './pages/SecurityVulnerabilityPage'
+import SecurityVulnerabilityDataPage from './pages/SecurityVulnerabilityDataPage'
 import InventoryProviderFormPage from './pages/InventoryProviderFormPage'
 import DisksPage from './pages/DisksPage'
 import SnapshotsPage from './pages/SnapshotsPage'
@@ -109,6 +109,7 @@ export default function App() {
         {/* The console opens on the overview, not on a resource list. */}
         <Route path="/" element={<Navigate to="/overview" replace />} />
         <Route path="/overview" element={<CloudOverviewPage />} />
+        <Route path="/security/overview" element={<SectionLandingPage />} />
         <Route path="/compute/overview" element={<OverviewPage />} />
         <Route path="/devices/overview" element={<SectionLandingPage />} />
         <Route path="/devices/physical-hosts" element={<DevicesPhysicalHostsPage />} />
@@ -116,10 +117,10 @@ export default function App() {
         {/* The list was one page before the split; keep the old path working. */}
         <Route path="/devices/hosts" element={<Navigate to="/devices/virtual-hosts" replace />} />
         <Route path="/devices/hosts/:id" element={<DevicesHostPage />} />
-        <Route path="/devices/vulnerabilities" element={<DevicesVulnerabilitiesPage />} />
-        <Route path="/devices/vulnerabilities/:cve" element={<DevicesVulnerabilityPage />} />
+        <Route path="/security/vulnerabilities" element={<SecurityVulnerabilitiesPage />} />
+        <Route path="/security/vulnerabilities/:cve" element={<SecurityVulnerabilityPage />} />
         <Route path="/devices/installers" element={<DevicesInstallersPage />} />
-        <Route path="/devices/settings/enrichment" element={<RequireRole admin><DevicesEnrichmentPage /></RequireRole>} />
+        <Route path="/security/settings/vulnerability-data" element={<RequireRole admin><SecurityVulnerabilityDataPage /></RequireRole>} />
         <Route path="/devices/settings/inventory" element={<RequireRole admin><InventoryProvidersPage /></RequireRole>} />
         <Route path="/devices/settings/inventory/add" element={<RequireRole admin><InventoryProviderFormPage /></RequireRole>} />
         <Route

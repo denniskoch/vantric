@@ -217,7 +217,7 @@ function VulnerabilityTable({
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <Link
                         component={RouterLink}
-                        to={`/devices/vulnerabilities/${encodeURIComponent(row.cve)}`}
+                        to={`/security/vulnerabilities/${encodeURIComponent(row.cve)}`}
                         underline="hover"
                       >
                         {row.cve}

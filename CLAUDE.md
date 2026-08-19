@@ -622,6 +622,22 @@ Surface the daily 90% here and link out for the rest.
   about which files exist. The copy-paste commands are built from
   `siteOrigin`, the SERVER's idea of its address — behind a tunnel the
   browser's is wrong and only the server's is reachable.
+- SECURITY IS ITS OWN SECTION, and it takes Google's name: Security
+  Command Center. Every other section here is named for what it holds
+  and this one for what it is, which is the phrase anyone who has used
+  a cloud console already recognises. It sits second, above Compute:
+  the Cloud Overview answers "is anything broken", this answers "is
+  anything exposed".
+- VULNERABILITIES LIVE UNDER SECURITY, NOT DEVICES, because nobody
+  looking for a CVE thinks to check a page about laptops. The line is
+  AGENT VS MEANING: the inventory service, the machines it reports on
+  and its credential stay in Devices, since that is what they are;
+  what its findings mean — the CVE list, and the NVD key and
+  enrichment pace behind their scores — is a security question and
+  lives here. The moved pages were renamed to match, because a
+  component called Devices* under /security is the drift that put a
+  stale `/servers` in `ownerOnly`. The cross-section links stay and are
+  correct: a CVE names the host that carries it, over in Devices.
 - DEVICES IS ITS OWN SECTION, NOT A COMPUTE PAGE. Compute means
   machines this console RUNS; an inventory service holds laptops and
   bare metal too, and filing a MacBook under Compute would make the

@@ -27,6 +27,7 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle'
 import GroupIcon from '@mui/icons-material/Group'
 import AppsIcon from '@mui/icons-material/Apps'
 import DevicesIcon from '@mui/icons-material/Devices'
+import ShieldIcon from '@mui/icons-material/Shield'
 import HubIcon from '@mui/icons-material/Hub'
 import HistoryIcon from '@mui/icons-material/History'
 import FactCheckIcon from '@mui/icons-material/FactCheck'
@@ -101,6 +102,62 @@ export const sections: Section[] = [
       'Problems worth your attention, and how much of everything the lab is running.',
     items: [],
     groups: [],
+  },
+  {
+    // Second, above Compute: the overview answers "is anything broken",
+    // this is where "is anything exposed" will go.
+    //
+    // Google's name, kept deliberately — every other section here is
+    // named for what it holds and this one for what it is, and it's the
+    // phrase anyone who has used a cloud console already knows.
+    //
+    // Vulnerabilities moved here from Devices, where nobody would
+    // think to look for a CVE. The split is agent vs meaning: Fleet and
+    // the machines it reports on stay in Devices, what those findings
+    // MEAN lives here — including where the scores come from.
+    //
+    // Overview is still a shell.
+    id: 'security',
+    label: 'Security',
+    icon: ShieldIcon,
+    prefix: '/security',
+    home: '/security/overview',
+    description:
+      'Known vulnerabilities across the lab, and where their scores come from. Findings across the other backends will land here too.',
+    items: [],
+    groups: [
+      {
+        label: 'Security Command Center',
+        items: [
+          {
+            label: 'Overview',
+            icon: DashboardIcon,
+            to: '/security/overview',
+          },
+          {
+            // Moved out of Devices, where nobody looked for it: a CVE
+            // is a security question that happens to be answered by
+            // asking the machines. The agent that finds them stays in
+            // Devices; what they MEAN lives here.
+            label: 'Vulnerabilities',
+            icon: BugReportIcon,
+            to: '/security/vulnerabilities',
+            hint: 'Known CVEs across the estate, exploited ones first',
+          },
+        ],
+      },
+      {
+        label: 'Settings',
+        items: [
+          {
+            label: 'Vulnerability data',
+            icon: BugReportIcon,
+            to: '/security/settings/vulnerability-data',
+            hint: 'Where CVE descriptions and scores come from, and how fast',
+          },
+        ],
+      },
+    ],
   },
   {
     id: 'compute',
@@ -225,12 +282,6 @@ export const sections: Section[] = [
             hint: 'Guests running an agent, matched to instances by system UUID',
           },
           {
-            label: 'Vulnerabilities',
-            icon: BugReportIcon,
-            to: '/devices/vulnerabilities',
-            hint: 'Known CVEs across the estate, exploited ones first',
-          },
-          {
             label: 'Installers',
             icon: DownloadIcon,
             to: '/devices/installers',
@@ -246,12 +297,6 @@ export const sections: Section[] = [
             icon: DnsIcon,
             to: '/devices/settings/inventory',
             hint: 'The agent fleet this section reads (FleetDM)',
-          },
-          {
-            label: 'Vulnerability data',
-            icon: BugReportIcon,
-            to: '/devices/settings/enrichment',
-            hint: 'Where CVE descriptions and scores come from, and how fast',
           },
         ],
       },

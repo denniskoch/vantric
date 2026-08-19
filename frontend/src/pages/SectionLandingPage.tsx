@@ -16,9 +16,11 @@ export default function SectionLandingPage({ children }: { children?: ReactNode 
 
   // The landing page links to everything except itself.
   const groups = [
-    { label: '', items: section.items.filter((i) => i.to !== section.home) },
+    { label: '', items: section.items },
     ...section.groups,
-  ].filter((g) => g.items.length > 0)
+  ]
+    .map((g) => ({ ...g, items: g.items.filter((i) => i.to !== section.home) }))
+    .filter((g) => g.items.length > 0)
 
   return (
     <Box sx={{ p: 3, maxWidth: 1100 }}>

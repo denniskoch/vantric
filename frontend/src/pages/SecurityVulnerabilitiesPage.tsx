@@ -32,7 +32,7 @@ import { timeAgo } from '../format'
  * which reads as a judgement rather than as an absence. On a tier that
  * scores, the columns come back on their own.
  */
-export default function DevicesVulnerabilitiesPage() {
+export default function SecurityVulnerabilitiesPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['inventoryVulnerabilities'],
     queryFn: api.listInventoryVulnerabilities,
@@ -113,7 +113,7 @@ export default function DevicesVulnerabilitiesPage() {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Link
                       component={RouterLink}
-                      to={`/devices/vulnerabilities/${encodeURIComponent(v.cve)}`}
+                      to={`/security/vulnerabilities/${encodeURIComponent(v.cve)}`}
                       underline="hover"
                     >
                       {v.cve}
