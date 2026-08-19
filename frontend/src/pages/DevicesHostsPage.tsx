@@ -146,7 +146,7 @@ function HostsPage({ virtual }: { virtual: boolean }) {
                 </TableCell>
                 <TableCell>
                   <Link component={RouterLink} to={`/devices/hosts/${host.id}`} underline="hover">
-                    {host.hostname || 'Unnamed host'}
+                    {host.name || host.hostname || 'Unnamed host'}
                   </Link>
                 </TableCell>
                 <TableCell>{virtual ? <InstanceCell host={host} /> : host.model || '—'}</TableCell>

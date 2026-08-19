@@ -498,6 +498,10 @@ export interface InventoryPackage {
 
 export interface InventoryHost {
   id: string
+  /** What the inventory service calls it — Fleet's display_name. This
+   *  is what lists show; "Diane's MacBook Air", not "mac.localdomain". */
+  name: string
+  /** The machine's own hostname, which is how you'd reach it. */
   hostname: string
   uuid: string
   serial: string

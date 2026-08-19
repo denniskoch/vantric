@@ -106,6 +106,7 @@ type wireHost struct {
 	ID              int    `json:"id"`
 	Hostname        string `json:"hostname"`
 	ComputerName    string `json:"computer_name"`
+	DisplayName     string `json:"display_name"`
 	UUID            string `json:"uuid"`
 	HardwareSerial  string `json:"hardware_serial"`
 	HardwareVendor  string `json:"hardware_vendor"`
@@ -137,13 +138,20 @@ type wireSoftware struct {
 }
 
 func (h wireHost) toHost() inventory.Host {
-	name := h.Hostname
+	// Fleet's own order, not a guess: display_name is what it shows,
+	// and it already resolves to the computer name where one is set.
+	// The fallbacks are for a host detailed enough to lack it.
+	name := h.DisplayName
 	if name == "" {
 		name = h.ComputerName
 	}
+	if name == "" {
+		name = h.Hostname
+	}
 	return inventory.Host{
 		ID:            strconv.Itoa(h.ID),
-		Hostname:      name,
+		Name:          name,
+		Hostname:      h.Hostname,
 		UUID:          strings.ToLower(h.UUID),
 		Serial:        h.HardwareSerial,
 		Vendor:        h.HardwareVendor,

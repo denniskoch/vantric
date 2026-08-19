@@ -82,7 +82,7 @@ export default function DevicesHostPage() {
           {host.virtual ? 'Virtual hosts' : 'Physical hosts'}
         </Button>
         <StatusIcon status={host.status === 'online' ? 'RUNNING' : 'TERMINATED'} />
-        <Typography variant="h5">{host.hostname || 'Unnamed host'}</Typography>
+        <Typography variant="h5">{host.name || host.hostname || 'Unnamed host'}</Typography>
         <Box sx={{ flex: 1 }} />
         {/* The way through to the other half of the machine, where
             there is one. */}

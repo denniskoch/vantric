@@ -529,6 +529,19 @@ Surface the daily 90% here and link out for the rest.
   because Fleet reports the number and leaves the naming to whoever
   displays it, worst is sorted first, and "no fix published" is
   spelled out — the difference between patch this and wait.
+- A HOST'S NAME IS THE ONE SOMEBODY CHOSE, not the one the machine
+  answers to. Fleet publishes `display_name` — the computer name where
+  one is set, the hostname otherwise — and it is what Fleet's own UI
+  shows. The driver preferred `hostname` and kept `computer_name` only
+  as a fallback, which is backwards, and differs on 15 of this lab's 21
+  hosts: `mac.localdomain` is "Diane's MacBook Air", `debian` is
+  "wireguard", `waldorf.local` is "Waldorf". The first of those is
+  unidentifiable as a hostname, and it is the same mistake as matching
+  guests by hostname instead of UUID — trusting what a machine calls
+  itself over what a person deliberately named it. BOTH ARE CARRIED
+  now: `Name` for lists and titles, `Hostname` for the detail page,
+  because a display name is for finding a machine and an FQDN is for
+  reaching it.
 - FLEET'S UUID CASE IS THE GUEST'S, and its lookup is case-sensitive.
   Fleet stores whatever osquery reported — uppercase from WMI on
   Windows and IOKit on macOS, lowercase from

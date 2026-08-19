@@ -40,7 +40,21 @@ type Info struct {
 
 // Host is a machine the inventory service knows about.
 type Host struct {
-	ID       string `json:"id"`
+	ID string `json:"id"`
+	// Name is what the inventory service CALLS this machine — Fleet's
+	// display_name, which is the computer name where one is set and the
+	// hostname otherwise. It is what its own UI shows, and it is what a
+	// person recognises: "Diane's MacBook Air" rather than
+	// "mac.localdomain", "wireguard" rather than "debian".
+	//
+	// Choosing the hostname over this was the same mistake as matching
+	// guests by hostname instead of UUID — preferring what the machine
+	// calls itself over what somebody deliberately named it. Fifteen of
+	// this lab's twenty-one hosts differ between the two.
+	Name string `json:"name"`
+	// Hostname is the machine's own, kept because it's how you'd reach
+	// the thing — a display name is for finding it in a list, not for
+	// typing into ssh.
 	Hostname string `json:"hostname"`
 	// UUID is the hardware/system UUID the agent reports, and the key
 	// this console correlates on.
