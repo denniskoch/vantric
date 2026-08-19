@@ -104,3 +104,64 @@ export function newestOSInEstate(
   }
   return newest === osVersion ? null : newest
 }
+
+/**
+ * One piece of software that needs updating, however many rows the
+ * inventory service split it into.
+ */
+export interface Installed {
+  name: string
+  version: string
+  /** Distinct CVEs across every row that is this same software. */
+  count: number
+  route: UpdateRoute
+}
+
+/** cpe:2.3:a:vendor:product:version:… — the product field, or "". */
+function cpeProduct(cpe: string): string {
+  const parts = cpe.split(':')
+  return parts.length > 5 ? parts[4] : ''
+}
+
+/**
+ * Collapses a host's vulnerable packages into the things you'd actually
+ * update.
+ *
+ * A WINDOWS INSTALLER REGISTERS ITS COMPONENTS SEPARATELY, so one
+ * Python shows up as ten rows — "Core Interpreter", "pip Bootstrap",
+ * "Tcl/Tk Support" — each carrying the same CVEs. Listed raw that's
+ * forty lines saying four things, and the counts read as ten times the
+ * flaws that exist. Their names share nothing a string comparison could
+ * use, but their CPEs all name the same product, which is what this
+ * groups on.
+ *
+ * Keyed by product AND version, because three Pythons installed side by
+ * side are three things to update, not one. Where no CPE matched, the
+ * name stands in — an unrecognised package stays its own row rather
+ * than being merged into something it might not be.
+ */
+export function installedNeedingUpdate(
+  platform: string,
+  packages: { name: string; version: string; cpe: string; vulnerabilities: { cve: string }[] | null }[],
+): Installed[] {
+  const groups = new Map<string, { names: string[]; version: string; cves: Set<string> }>()
+  for (const p of packages) {
+    const vulns = p.vulnerabilities ?? []
+    if (vulns.length === 0) continue
+    const product = cpeProduct(p.cpe) || p.name
+    const key = `${product}\u0000${p.version}`
+    const group = groups.get(key) ?? { names: [], version: p.version, cves: new Set<string>() }
+    group.names.push(p.name)
+    for (const v of vulns) group.cves.add(v.cve)
+    groups.set(key, group)
+  }
+  return [...groups.values()]
+    .map((g) => {
+      // The shortest name is the product itself; the longer ones are
+      // its components ("Python 3.13.3 (64-bit)" over "… Core
+      // Interpreter (64-bit)").
+      const name = g.names.reduce((a, b) => (b.length < a.length ? b : a))
+      return { name, version: g.version, count: g.cves.size, route: updateRoute(platform, name) }
+    })
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+}

@@ -128,6 +128,7 @@ type wireSoftware struct {
 	Name            string `json:"name"`
 	Version         string `json:"version"`
 	Source          string `json:"source"`
+	GeneratedCPE    string `json:"generated_cpe"`
 	Vulnerabilities []struct {
 		CVE               string  `json:"cve"`
 		DetailsLink       string  `json:"details_link"`
@@ -290,7 +291,7 @@ func (p *Provider) hostDetail(ctx context.Context, path string) (*inventory.Host
 	}
 	for _, s := range out.Host.Software {
 		pkg := inventory.Package{
-			Name: s.Name, Version: s.Version, Source: s.Source,
+			Name: s.Name, Version: s.Version, Source: s.Source, CPE: s.GeneratedCPE,
 			Vulnerabilities: []inventory.Vulnerability{},
 		}
 		for _, v := range s.Vulnerabilities {

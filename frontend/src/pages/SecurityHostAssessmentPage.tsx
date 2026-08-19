@@ -7,7 +7,7 @@ import PageHeader from '../components/PageHeader'
 import SelectField from '../components/SelectField'
 import DetailTable from '../components/DetailTable'
 import { severityColor } from '../severity'
-import { newestOSInEstate, updateRoute } from '../remediation'
+import { installedNeedingUpdate, newestOSInEstate } from '../remediation'
 import { OSIcon } from '../components/OSName'
 
 /**
@@ -136,15 +136,7 @@ function WhatToDo({
   // rather than whatever the vendor's website claims today.
   const newer = newestOSInEstate(host.osVersion, hosts)
 
-  const apps = (detail.packages ?? [])
-    .filter((p) => (p.vulnerabilities ?? []).length > 0)
-    .map((p) => ({
-      name: p.name,
-      version: p.version,
-      count: (p.vulnerabilities ?? []).length,
-      route: updateRoute(host.platform, p.name),
-    }))
-    .sort((a, b) => b.count - a.count)
+  const apps = installedNeedingUpdate(host.platform, detail.packages ?? [])
 
   const groups = new Map<string, typeof apps>()
   for (const a of apps) {
@@ -176,11 +168,21 @@ function WhatToDo({
         {[...groups.entries()].map(([key, list]) => (
           <Box key={key} sx={{ mb: 1.5, '&:last-child': { mb: 0 } }}>
             <Typography sx={{ fontSize: 14 }}>{list[0].route.label}</Typography>
-            <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-              {list
-                .map((a) => `${a.name} ${a.version} (${a.count})`)
-                .join(', ')}
-            </Typography>
+            <Box component="ul" sx={{ m: 0, mt: 0.5, pl: 2.5 }}>
+              {list.map((a) => (
+                <Box
+                  component="li"
+                  key={`${a.name}-${a.version}`}
+                  sx={{ fontSize: 13, color: 'text.secondary', py: 0.15 }}
+                >
+                  {a.name} {a.version}
+                  <Box component="span" sx={{ color: 'text.disabled' }}>
+                    {' '}
+                    — {a.count} {a.count === 1 ? 'vulnerability' : 'vulnerabilities'}
+                  </Box>
+                </Box>
+              ))}
+            </Box>
             {list[0].route.note && (
               <Typography sx={{ fontSize: 12, color: 'text.disabled' }}>
                 {list[0].route.note}

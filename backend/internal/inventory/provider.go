@@ -85,6 +85,13 @@ type Host struct {
 
 // Package is one piece of software installed on a host.
 type Package struct {
+	// CPE is the platform identifier the inventory service matched this
+	// against, e.g. cpe:2.3:a:python:python:3.13.3:… Its product field
+	// is what makes a WINDOWS INSTALLER'S COMPONENTS one thing again:
+	// "Python 3.13.3 Core Interpreter (64-bit)" and its nine siblings
+	// all carry the same product, where their names share nothing a
+	// string comparison could use. Empty where nothing matched.
+	CPE     string `json:"cpe"`
 	Name    string `json:"name"`
 	Version string `json:"version"`
 	// Source is the package manager it came from: deb_packages,

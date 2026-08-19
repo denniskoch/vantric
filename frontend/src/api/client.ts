@@ -494,6 +494,9 @@ export interface Vulnerability {
 
 export interface InventoryPackage {
   name: string
+  /** The matched CPE; its product field is what collapses a Windows
+   *  installer's components back into one piece of software. */
+  cpe: string
   version: string
   source: string
   vulnerabilities: Vulnerability[] | null
