@@ -3,7 +3,7 @@ import { Link as RouterLink } from "react-router-dom";
 import {
   Box,
   IconButton,
-  Chip,
+  Tooltip,
   Link,
   Paper,
   Table,
@@ -16,6 +16,7 @@ import {
   Typography,
 } from "@mui/material";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import type { InventoryPackage, Vulnerability } from "../api/client";
 import { severityLabel } from "../severity";
@@ -186,9 +187,9 @@ function VulnerabilityTable({
             <TableRow>
               <TableCell sx={{ width: 36 }} />
               <TableCell>CVE</TableCell>
+              {hasScores && <TableCell>Severity</TableCell>}
               <TableCell>Affected packages</TableCell>
               <TableCell>Fixed in</TableCell>
-              {hasScores && <TableCell>Severity</TableCell>}
               {hasPublished && <TableCell>Published</TableCell>}
             </TableRow>
           </TableHead>
@@ -216,6 +217,20 @@ function VulnerabilityTable({
                       same destination whether you got here from a guest,
                       a host, or the estate-wide list. */}
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      {/* Same mark, same leading slot as the estate
+                          list — one vocabulary for one fact, and the
+                          ids stay aligned whether a row has one. */}
+                      <Box sx={{ width: 18, flexShrink: 0 }}>
+                        {row.first.knownExploited && (
+                          <Tooltip title="Actively exploited, per CISA's catalogue">
+                            <LocalFireDepartmentIcon
+                              fontSize="small"
+                              aria-label="Actively exploited"
+                              sx={{ color: "error.main", display: "block" }}
+                            />
+                          </Tooltip>
+                        )}
+                      </Box>
                       <Link
                         component={RouterLink}
                         to={`/security/vulnerabilities/${encodeURIComponent(row.cve)}`}
@@ -223,20 +238,15 @@ function VulnerabilityTable({
                       >
                         {row.cve}
                       </Link>
-                      {row.first.knownExploited && (
-                        <Chip
-                          label="Exploited"
-                          size="small"
-                          sx={{
-                            fontSize: 10,
-                            height: 18,
-                            bgcolor: "surface.errorTint",
-                            color: "error.main",
-                          }}
-                        />
-                      )}
                     </Box>
                   </TableCell>
+                  {hasScores && (
+                    <TableCell sx={{ whiteSpace: "nowrap" }}>
+                      <Box component="span" sx={{ color: severityColor[row.first.severity] ?? "#5f6368" }}>
+                        {severityLabel(row.first.severity, row.first.cvssScore) ?? "Not scored"}
+                      </Box>
+                    </TableCell>
+                  )}
                   <TableCell>
                     {row.entries.length === 1
                       ? `${row.first.package} ${row.first.installedVersion}`
@@ -254,13 +264,6 @@ function VulnerabilityTable({
                       `${row.fixes.length} versions${row.unfixed ? ", some unfixed" : ""}`
                     )}
                   </TableCell>
-                  {hasScores && (
-                    <TableCell>
-                      <Box component="span" sx={{ color: severityColor[row.first.severity] ?? "#5f6368" }}>
-                        {severityLabel(row.first.severity, row.first.cvssScore) ?? "Not scored"}
-                      </Box>
-                    </TableCell>
-                  )}
                   {hasPublished && (
                     <TableCell>
                       {row.first.publishedAt

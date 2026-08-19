@@ -262,6 +262,7 @@ func (s *Server) instanceInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	view.Enrolled = true
+	s.enrichHostVulnerabilities(r.Context(), detail.Vulnerabilities)
 	view.Detail = detail
 	s.json(w, http.StatusOK, view)
 }
@@ -438,6 +439,7 @@ func (s *Server) getInventoryHost(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err, "host")
 		return
 	}
+	s.enrichHostVulnerabilities(r.Context(), detail.Vulnerabilities)
 	view := inventoryHostDetailView{HostDetail: detail}
 	// The correlation again, from the other end: this page knows the
 	// host and wants the guest, where the list knew the guests.
@@ -699,4 +701,47 @@ func (s *Server) setEnrichmentEnabled(w http.ResponseWriter, r *http.Request) {
 	s.enrich.SetEnabled(req.Enabled)
 	s.log.Info("cve enrichment toggled", "enabled", req.Enabled)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// enrichHostVulnerabilities fills in what the inventory service can't
+// tell you about a CVE on a specific machine: how bad it is, and
+// whether anyone is exploiting it.
+//
+// Both come from elsewhere — the score from the console's own CVE
+// cache, the exploited flag from CISA — because Fleet supplies neither
+// on a free tier. Without this a host's vulnerability table is a list
+// of identifiers with no way to tell the urgent from the ancient, and
+// on a machine carrying three thousand of them that is the same as no
+// list at all.
+//
+// It runs for BOTH places that table appears — the host detail page and
+// a guest's OS Info tab — because they render the same component, and a
+// panel that means different things depending on which page it's on is
+// worse than one that means nothing.
+//
+// Neither lookup is fatal: a missing score leaves "not scored", a
+// missing catalogue leaves the flames off. The packages and the CVE
+// list are the page; these are columns.
+func (s *Server) enrichHostVulnerabilities(ctx context.Context, vulns []inventory.Vulnerability) {
+	if len(vulns) == 0 {
+		return
+	}
+	if scores, err := s.store.CVEScores(ctx); err == nil {
+		for i := range vulns {
+			if c, ok := scores[vulns[i].CVE]; ok && vulns[i].CVSSScore == 0 {
+				vulns[i].CVSSScore = c.Score
+				vulns[i].Severity = c.Severity
+			}
+		}
+	}
+	catalogue, err := s.kev.Catalogue(ctx)
+	if err != nil {
+		s.log.Warn("kev catalogue unavailable", "error", err)
+		return
+	}
+	for i := range vulns {
+		if _, listed := catalogue[strings.ToUpper(vulns[i].CVE)]; listed {
+			vulns[i].KnownExploited = true
+		}
+	}
 }
