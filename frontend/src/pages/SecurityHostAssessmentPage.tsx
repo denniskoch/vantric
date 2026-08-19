@@ -93,7 +93,9 @@ export default function SecurityHostAssessmentPage() {
         >
           {bands.map((band) => (
             <Paper key={band.severity} variant="outlined" sx={{ p: 2 }}>
-              <Typography sx={{ fontSize: 13, color: band.color }}>{band.label}</Typography>
+              <Typography sx={{ fontSize: 20, lineHeight: 1.3, color: band.color }}>
+                {band.label}
+              </Typography>
               <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>{band.range}</Typography>
               <Typography sx={{ fontSize: 28, lineHeight: 1.4, color: 'text.primary' }}>
                 {counts[band.severity]}
