@@ -631,6 +631,22 @@ export interface VulnerabilityDetail {
    *  nothing or couldn't be reached. */
   nvd?: NVDRecord
   nvdError?: string
+  /** CISA's record, present only when this is actively exploited. */
+  kev?: KEVEntry
+}
+
+/** One record from CISA's Known Exploited Vulnerabilities catalogue. */
+export interface KEVEntry {
+  cve: string
+  vendorProject: string
+  product: string
+  vulnerabilityName: string
+  /** Unix seconds; 0 when the catalogue's date wouldn't parse. */
+  dateAdded: number
+  dueDate: number
+  /** Seen in ransomware campaigns, per CISA. */
+  knownRansomware: boolean
+  requiredAction: string
 }
 
 export interface InventoryVulnerabilities {

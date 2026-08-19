@@ -15,6 +15,7 @@ import (
 
 	"vantric/internal/inventory"
 	inventoryfactory "vantric/internal/inventory/factory"
+	"vantric/internal/kev"
 	"vantric/internal/nvd"
 	"vantric/internal/store"
 )
@@ -477,6 +478,12 @@ type vulnerabilityDetailView struct {
 	// is a page with less on it rather than a page that failed.
 	NVD      *nvd.Record `json:"nvd,omitempty"`
 	NVDError string      `json:"nvdError,omitempty"`
+	// KEV is CISA's whole record when this is one they list as actively
+	// exploited. The list only needs a flag and a name; a page with room
+	// carries the rest — when it was catalogued, the action CISA calls
+	// for, and whether it's been seen in ransomware — because that is
+	// the difference between "patch this eventually" and "patch this".
+	KEV *kev.Entry `json:"kev,omitempty"`
 }
 
 func (s *Server) getInventoryVulnerability(w http.ResponseWriter, r *http.Request) {
@@ -532,10 +539,13 @@ func (s *Server) getInventoryVulnerability(w http.ResponseWriter, r *http.Reques
 	// about one CVE — which is the shape of bug that had the Devices
 	// page calling a machine managed while its own instance page called
 	// it unenrolled.
+	var exploited *kev.Entry
 	if catalogue, err := s.kev.Catalogue(r.Context()); err == nil {
 		if e, ok := catalogue[strings.ToUpper(cve)]; ok {
 			detail.Summary.KnownExploited = true
 			detail.Summary.ExploitedName = e.VulnerabilityName
+			entry := e
+			exploited = &entry
 		}
 	}
 	out := vulnerabilityDetailView{
@@ -545,6 +555,7 @@ func (s *Server) getInventoryVulnerability(w http.ResponseWriter, r *http.Reques
 		DetectedAt:     detail.DetectedAt,
 		HostsCountedAt: detail.HostsCountedAt,
 		NVD:            record,
+		KEV:            exploited,
 	}
 	if lookupErr != nil {
 		// Said out loud rather than swallowed: "no description" and
