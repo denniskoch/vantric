@@ -18,6 +18,7 @@ import {
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import type { InventoryPackage, Vulnerability } from "../api/client";
+import { severityLabel } from "../severity";
 
 /**
  * The two tables an inventory service gives you about one machine:
@@ -256,7 +257,7 @@ function VulnerabilityTable({
                   {hasScores && (
                     <TableCell>
                       <Box component="span" sx={{ color: severityColor[row.first.severity] ?? "#5f6368" }}>
-                        {row.first.severity} {row.first.cvssScore.toFixed(1)}
+                        {severityLabel(row.first.severity, row.first.cvssScore) ?? "Not scored"}
                       </Box>
                     </TableCell>
                   )}

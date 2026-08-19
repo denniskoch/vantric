@@ -478,7 +478,8 @@ export interface Vulnerability {
   cve: string
   package: string
   installedVersion: string
-  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'MINIMAL'
+  /** Empty when nothing has scored it — see src/severity.ts. */
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'MINIMAL' | ''
   cvssScore: number
   epss: number
   knownExploited: boolean
@@ -576,7 +577,8 @@ export interface VulnerabilitySummary {
   /** When the service first saw it. Every Fleet tier reports this. */
   detectedAt: number
   cvssScore: number
-  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'MINIMAL'
+  /** Empty when nothing has scored it — see src/severity.ts. */
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'MINIMAL' | ''
   epss: number
   /** NVD's summary, from the console's CVE cache. Empty until the
    *  enricher has reached this one — which is not the same as there

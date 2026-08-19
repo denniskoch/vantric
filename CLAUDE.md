@@ -606,6 +606,19 @@ Surface the daily 90% here and link out for the rest.
   to add: the query behind it (`CVEScores`) always returned the whole
   record and used only the score. The column replaced "Detected", which
   was true of every row and the reason nobody opened the page.
+- NO SCORE IS NOT A LOW SCORE. `severity(0)` returned "MINIMAL", with a
+  comment noting that 0.0 is what Fleet sends when it has no score at
+  all — so the least alarming word in the vocabulary was printed over
+  every CVE nobody had assessed. It stayed invisible while Severity sat
+  in a far column, and showed its teeth the moment it moved next to the
+  CVE: the three flaws CISA lists as ACTIVELY EXPLOITED sat at the top
+  of the page labelled MINIMAL 0.0. Unscored now says "Not scored" and
+  sorts after everything real rather than below LOW. A genuine CVSS 0.0
+  (NONE) exists and is indistinguishable from absent here, which is a
+  trade worth making: of the two possible mistakes, only one tells you
+  something dangerous is harmless. `src/severity.ts` holds the bands,
+  colours and this rule, because two tables render it and were free to
+  disagree.
 - WHETHER ANYONE IS ACTUALLY EXPLOITING IT COMES FROM CISA, not from
   Fleet's `cisa_known_exploit` — that field is gated behind a paid tier
   and arrives EMPTY, so a column wired to it would read "not exploited"

@@ -19,6 +19,7 @@ import {
 import { api } from '../api/client'
 import type { VulnerabilitySummary } from '../api/client'
 import PageHeader from '../components/PageHeader'
+import { severityColor, severityLabel } from '../severity'
 
 /**
  * Every CVE across the estate, worst first.
@@ -97,12 +98,14 @@ export default function SecurityVulnerabilitiesPage() {
           <TableHead>
             <TableRow>
               <TableCell>CVE</TableCell>
+              {/* Ahead of the description: how bad it is decides
+                  whether you read the sentence next to it. */}
+              {hasScores && <TableCell>Severity</TableCell>}
               {/* Replaces Detected, which answered "when did Fleet
                   first see this" — true of every row, useful on almost
                   none, and never the reason anyone opened this page. */}
-              <TableCell>What it is</TableCell>
+              <TableCell>Description</TableCell>
               <TableCell align="right">Affected hosts</TableCell>
-              {hasScores && <TableCell>Severity</TableCell>}
               {hasEPSS && <TableCell align="right">Exploit probability</TableCell>}
             </TableRow>
           </TableHead>
@@ -135,27 +138,25 @@ export default function SecurityVulnerabilitiesPage() {
                     )}
                   </Box>
                 </TableCell>
+                {hasScores && (
+                  <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                    {severityLabel(v.severity, v.cvssScore) ? (
+                      <Box component="span" sx={{ color: severityColor[v.severity] ?? '#5f6368' }}>
+                        {severityLabel(v.severity, v.cvssScore)}
+                      </Box>
+                    ) : (
+                      <Tooltip title="No score from the inventory service, and the vulnerability database hasn't been asked yet.">
+                        <Box component="span" sx={{ color: 'text.disabled' }}>
+                          Not scored
+                        </Box>
+                      </Tooltip>
+                    )}
+                  </TableCell>
+                )}
                 <TableCell sx={{ maxWidth: 460 }}>
                   <Describe v={v} />
                 </TableCell>
                 <TableCell align="right">{v.hosts || '—'}</TableCell>
-                {hasScores && (
-                  <TableCell>
-                    <Box
-                      component="span"
-                      sx={{
-                        color:
-                          v.severity === 'CRITICAL' || v.severity === 'HIGH'
-                            ? '#d93025'
-                            : v.severity === 'MEDIUM'
-                              ? '#e37400'
-                              : '#5f6368',
-                      }}
-                    >
-                      {v.severity} {v.cvssScore.toFixed(1)}
-                    </Box>
-                  </TableCell>
-                )}
                 {hasEPSS && (
                   <TableCell align="right">
                     {v.epss > 0 ? `${(v.epss * 100).toFixed(1)}%` : '—'}

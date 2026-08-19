@@ -304,10 +304,20 @@ func (p *Provider) hostDetail(ctx context.Context, path string) (*inventory.Host
 	return detail, nil
 }
 
-// severity puts a CVSS score into the words people sort by. Fleet
-// reports the score and leaves the naming to whoever displays it;
-// these are the NVD v3 bands, with "minimal" for the 0.0 case Fleet
-// uses when it has no score at all.
+// severity puts a CVSS score into the words people sort by — the NVD
+// v3 bands.
+//
+// NO SCORE RETURNS NOTHING, and that used to be "MINIMAL". Fleet sends
+// 0.0 when it has no score at all, which on a free tier is most rows,
+// so the least dangerous word in the vocabulary was being printed over
+// the CVEs nobody had assessed yet. It showed its teeth when Severity
+// moved next to the CVE column: the three flaws CISA lists as actively
+// exploited sat at the top of the page labelled MINIMAL 0.0.
+//
+// A CVSS 0.0 does exist and means NONE, but no store here can tell it
+// from absent, and vanishingly few CVEs score zero. Between mislabelling
+// a real 0.0 as unknown and mislabelling every unassessed CVE as
+// harmless, only one of those is dangerous.
 func severity(score float64) string {
 	switch {
 	case score >= 9.0:
@@ -319,7 +329,7 @@ func severity(score float64) string {
 	case score > 0:
 		return "LOW"
 	default:
-		return "MINIMAL"
+		return ""
 	}
 }
 
