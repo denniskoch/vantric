@@ -19,6 +19,7 @@ import BuildTemplatePage from './pages/BuildTemplatePage'
 import CTTemplatesPage from './pages/CTTemplatesPage'
 import OverviewPage from './pages/OverviewPage'
 import CloudOverviewPage from './pages/CloudOverviewPage'
+import NotFoundPage from './pages/NotFoundPage'
 import RenameInstancePage from './pages/RenameInstancePage'
 import EditDescriptionPage, {
   instanceDescription,
@@ -282,6 +283,9 @@ export default function App() {
         <Route path="/compute/hypervisors/:id/edit" element={<RequireRole admin><HypervisorFormPage /></RequireRole>} />
         {/* The old address, from when this lived under Settings. */}
         <Route path="/compute/settings/hypervisors" element={<Navigate to="/compute/hypervisors" replace />} />
+        {/* Last, and inside the shell: an address that matches nothing
+            was a white page until now. */}
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
   )
