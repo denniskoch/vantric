@@ -79,8 +79,8 @@ export default function SecurityOverviewPage() {
           <Alert severity="error" icon={<LocalFireDepartmentIcon />} sx={{ mb: 2 }}>
             <strong>
               {exploited.length === 1
-                ? '1 vulnerability on your machines is being actively exploited.'
-                : `${exploited.length} vulnerabilities on your machines are being actively exploited.`}
+                ? '1 known-exploited vulnerability is present on your machines.'
+                : `${exploited.length} known-exploited vulnerabilities are present on your machines.`}
             </strong>
           </Alert>
           <Stack spacing={1.5}>
@@ -91,13 +91,6 @@ export default function SecurityOverviewPage() {
         </>
       )}
 
-      {data?.supported && data.tracked > 0 && (
-        <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 3 }}>
-          <Link component={RouterLink} to="/security/vulnerabilities" underline="hover">
-            All {data.tracked.toLocaleString()} vulnerabilities
-          </Link>
-        </Typography>
-      )}
     </Box>
   )
 }
