@@ -599,6 +599,19 @@ Surface the daily 90% here and link out for the rest.
   SOURCE, since NVD's own analysis and the vendor's routinely disagree
   (CVE-2025-12781 is 5.3 to NVD and 6.3 to python.org), and a number
   with no provenance is a number to argue about.
+- THE SECURITY OVERVIEW LEADS WITH AN INTERSECTION, not a list and not
+  a score: vulnerabilities CISA says are being exploited RIGHT NOW that
+  are also present on machines here. Either half alone is noise — the
+  catalogue is 1,670 CVEs almost none of which you run, the estate is
+  4,004 almost none of which anyone is exploiting — and the overlap is
+  three, which is a list somebody finishes on a Tuesday. It computes
+  from what the console already holds (the estate list, the catalogue,
+  the CVE cache) and adds no integration, the same rule the Cloud
+  Overview follows. There is deliberately NO SCORE OR GRADE: a number
+  that improves when you disconnect a backend measures the console
+  rather than the lab. And an unreadable catalogue is SAID, never
+  rendered as an empty list — "nothing is being exploited" is the one
+  wrong answer this page must never give by accident.
 - WHAT A CVE *IS* COMES FROM TWO PUBLIC REFERENCES, and neither is the
   inventory service. A list of four thousand identifiers is unreadable,
   and Fleet carries no description at all — so the estate list joins

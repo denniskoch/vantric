@@ -168,6 +168,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		s.iamRoutes(r)
 
 		r.Get("/overview", s.overview)
+		r.Get("/security/overview", s.securityOverview)
 		r.Get("/nodes", s.listNodes)
 		r.Get("/nodes/{node}", s.nodeStatus)
 		r.Get("/nodes/{node}/metrics", s.nodeMetrics)

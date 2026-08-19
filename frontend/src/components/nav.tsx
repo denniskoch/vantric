@@ -116,7 +116,8 @@ export const sections: Section[] = [
     // the machines it reports on stay in Devices, what those findings
     // MEAN lives here — including where the scores come from.
     //
-    // Overview is still a shell.
+    // The Overview leads with the KEV-and-present intersection —
+    // see SecurityOverviewPage.
     id: 'security',
     label: 'Security',
     icon: ShieldIcon,
@@ -133,6 +134,7 @@ export const sections: Section[] = [
             label: 'Overview',
             icon: DashboardIcon,
             to: '/security/overview',
+            hint: 'Known-exploited vulnerabilities that are actually on your machines',
           },
           {
             // Moved out of Devices, where nobody looked for it: a CVE

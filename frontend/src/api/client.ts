@@ -538,6 +538,31 @@ export interface InventoryHostView extends InventoryHost {
   managed: boolean
 }
 
+/** A CVE that is both in CISA's catalogue and present on machines here. */
+export interface ExploitedFinding {
+  cve: string
+  /** CISA's name for the flaw. */
+  name: string
+  /** CISA's naming of what carries it, e.g. "Google Chromium WebP". */
+  product: string
+  hosts: number
+  severity: string
+  cvssScore: number
+  addedAt: number
+  ransomware: boolean
+}
+
+export interface SecurityOverview {
+  configured: boolean
+  /** False where the service can't produce an estate-wide CVE list. */
+  supported: boolean
+  exploited: ExploitedFinding[]
+  /** Totals, so the short list has a denominator. */
+  tracked: number
+  catalogued: number
+  error?: string
+}
+
 export interface Installer {
   name: string
   size: number
@@ -1633,6 +1658,7 @@ export const api = {
   rotateInstallerToken: () =>
     request<{ token: string }>('/installers/token/rotate', { method: 'POST' }),
 
+  securityOverview: () => request<SecurityOverview>('/security/overview'),
   listInventoryHosts: () => request<InventoryHosts>('/inventory/hosts'),
   /** One machine in full: its facts, packages and CVEs. */
   inventoryHost: (id: string) => request<InventoryHostDetail>(`/inventory/hosts/${id}`),

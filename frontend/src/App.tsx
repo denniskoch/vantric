@@ -19,6 +19,7 @@ import BuildTemplatePage from './pages/BuildTemplatePage'
 import CTTemplatesPage from './pages/CTTemplatesPage'
 import OverviewPage from './pages/OverviewPage'
 import CloudOverviewPage from './pages/CloudOverviewPage'
+import SecurityOverviewPage from './pages/SecurityOverviewPage'
 import NotFoundPage from './pages/NotFoundPage'
 import RenameInstancePage from './pages/RenameInstancePage'
 import EditDescriptionPage, {
@@ -110,7 +111,7 @@ export default function App() {
         {/* The console opens on the overview, not on a resource list. */}
         <Route path="/" element={<Navigate to="/overview" replace />} />
         <Route path="/overview" element={<CloudOverviewPage />} />
-        <Route path="/security/overview" element={<SectionLandingPage />} />
+        <Route path="/security/overview" element={<SecurityOverviewPage />} />
         <Route path="/compute/overview" element={<OverviewPage />} />
         <Route path="/devices/overview" element={<SectionLandingPage />} />
         <Route path="/devices/physical-hosts" element={<DevicesPhysicalHostsPage />} />
