@@ -51,7 +51,18 @@ services:
   # public internet.
   cloudflared:
     container_name: cloud-console-tunnel
-    image: cloudflare/cloudflared:latest
+    # PINNED, because :latest on the service that terminates your public
+    # entry point means a `docker compose pull` can swap it for something
+    # nobody looked at. The tag is there to be read, the digest is what
+    # actually binds — and it is the MULTI-ARCH manifest digest, not one
+    # of the per-architecture ones, so this still runs on an arm64 host
+    # and an amd64 one.
+    #
+    # Bump it deliberately: cloudflared does get deprecated by Cloudflare
+    # eventually, and a pin nobody revisits is how the tunnel stops one
+    # day for reasons that look like anything but this line. Newest tag
+    # and digest: https://hub.docker.com/r/cloudflare/cloudflared/tags
+    image: cloudflare/cloudflared:2026.8.2@sha256:0aa26e284f05e6c77ae375b8c9c11d9eb6a448fb7bcd8d40f31cb6176189eb38
     command: tunnel --no-autoupdate run
     environment:
       TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}

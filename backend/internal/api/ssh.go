@@ -605,12 +605,6 @@ func dialSSH(host string, auth sshAuth, signer ssh.Signer) (*ssh.Client, error) 
 	return client, nil
 }
 
-// encodePEM renders a PEM block without pulling in the whole
-// encoding/pem surface at the call site.
-func encodePEM(block *pem.Block) []byte {
-	return pem.EncodeToMemory(block)
-}
-
 type writerFunc func(p []byte) (int, error)
 
 func (f writerFunc) Write(p []byte) (int, error) { return f(p) }

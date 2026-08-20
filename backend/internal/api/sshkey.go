@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"encoding/pem"
 	"net/http"
 	"strings"
 
@@ -112,7 +113,7 @@ func (s *Server) importMySSHKey(w http.ResponseWriter, r *http.Request) {
 				"the console can't store a key of that type: "+marshalErr.Error())
 			return
 		}
-		stored = string(encodePEM(block))
+		stored = string(pem.EncodeToMemory(block))
 	}
 	public := authorizedKey(signer.PublicKey(), me.Email)
 	if err := s.store.SetUserSSHKey(r.Context(), me.ID, stored, public, true); err != nil {
