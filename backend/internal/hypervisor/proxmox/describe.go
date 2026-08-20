@@ -3,7 +3,6 @@ package proxmox
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -195,7 +194,7 @@ func (d *Driver) Describe(ctx context.Context, driverID string) (*hypervisor.Ins
 		return nil, err
 	}
 	var cfg map[string]any
-	cfgPath := fmt.Sprintf("/nodes/%s/qemu/%s/config", node, driverID)
+	cfgPath := apiPath("/nodes/%s/qemu/%s/config", node, driverID)
 	if err := d.do(ctx, http.MethodGet, cfgPath, nil, &cfg); err != nil {
 		return nil, err
 	}
@@ -319,7 +318,7 @@ func (d *Driver) guestIPsByMAC(ctx context.Context, node, vmid string) map[strin
 			} `json:"ip-addresses"`
 		} `json:"result"`
 	}
-	path := fmt.Sprintf("/nodes/%s/qemu/%s/agent/network-get-interfaces", node, vmid)
+	path := apiPath("/nodes/%s/qemu/%s/agent/network-get-interfaces", node, vmid)
 	if err := d.do(ctx, http.MethodGet, path, nil, &res); err != nil {
 		return nil
 	}

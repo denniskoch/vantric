@@ -199,6 +199,10 @@ func (s *Server) createContainer(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, "a container template is required")
 		return
 	}
+	if msg := placementError(req.Node, req.Storage); msg != "" {
+		s.err(w, http.StatusBadRequest, msg)
+		return
+	}
 	if req.Storage == "" {
 		s.err(w, http.StatusBadRequest, "a storage pool for the root filesystem is required")
 		return

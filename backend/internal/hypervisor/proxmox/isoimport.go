@@ -33,7 +33,7 @@ func (d *Driver) DownloadISO(ctx context.Context, spec hypervisor.ISODownloadSpe
 		form.Set("verify-certificates", "0")
 	}
 	var upid string
-	path := fmt.Sprintf("/nodes/%s/storage/%s/download-url", spec.Node, spec.Storage)
+	path := apiPath("/nodes/%s/storage/%s/download-url", spec.Node, spec.Storage)
 	if err := d.do(ctx, http.MethodPost, path, form, &upid); err != nil {
 		return "", err
 	}
@@ -73,7 +73,7 @@ func (d *Driver) UploadISO(ctx context.Context, spec hypervisor.ISOUploadSpec, c
 		strings.NewReader(epilogue),
 	)
 
-	path := fmt.Sprintf("/nodes/%s/storage/%s/upload", spec.Node, spec.Storage)
+	path := apiPath("/nodes/%s/storage/%s/upload", spec.Node, spec.Storage)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, d.cfg.BaseURL+"/api2/json"+path, body)
 	if err != nil {
 		return "", err
@@ -111,8 +111,8 @@ func (d *Driver) DeleteVolume(ctx context.Context, node, volumeID string) (strin
 	// Deleting can return a task id or null depending on the storage
 	// backend, so decode into a nullable string.
 	var upid *string
-	path := fmt.Sprintf("/nodes/%s/storage/%s/content/%s",
-		node, storage, url.PathEscape(volumeID))
+	path := apiPath("/nodes/%s/storage/%s/content/%s",
+		node, storage, volumeID)
 	if err := d.do(ctx, http.MethodDelete, path, nil, &upid); err != nil {
 		return "", err
 	}
@@ -130,7 +130,7 @@ func (d *Driver) DeleteImage(ctx context.Context, imageID string) (string, error
 		return "", err
 	}
 	var upid *string
-	path := fmt.Sprintf("/nodes/%s/qemu/%s?purge=1&destroy-unreferenced-disks=1", node, imageID)
+	path := apiPath("/nodes/%s/qemu/%s?purge=1&destroy-unreferenced-disks=1", node, imageID)
 	if err := d.do(ctx, http.MethodDelete, path, nil, &upid); err != nil {
 		return "", err
 	}
@@ -155,7 +155,7 @@ func (d *Driver) TaskStatus(ctx context.Context, taskID string) (*hypervisor.Tas
 		Status     string `json:"status"`
 		ExitStatus string `json:"exitstatus"`
 	}
-	path := fmt.Sprintf("/nodes/%s/tasks/%s/status", node, url.PathEscape(taskID))
+	path := apiPath("/nodes/%s/tasks/%s/status", node, taskID)
 	if err := d.do(ctx, http.MethodGet, path, nil, &res); err != nil {
 		return nil, err
 	}

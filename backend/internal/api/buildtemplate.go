@@ -57,6 +57,10 @@ func (s *Server) downloadCloudImage(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, "node and storage are required")
 		return
 	}
+	if msg := placementError(req.Node, req.Storage); msg != "" {
+		s.err(w, http.StatusBadRequest, msg)
+		return
+	}
 	if !strings.HasPrefix(req.URL, "http://") && !strings.HasPrefix(req.URL, "https://") {
 		s.err(w, http.StatusBadRequest, "url must be an http(s) address")
 		return
@@ -126,6 +130,10 @@ func (s *Server) buildTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Node == "" || req.SourceVolume == "" || req.DiskStorage == "" {
 		s.err(w, http.StatusBadRequest, "node, sourceVolume and diskStorage are required")
+		return
+	}
+	if msg := placementError(req.Node, req.DiskStorage); msg != "" {
+		s.err(w, http.StatusBadRequest, msg)
 		return
 	}
 	if !strings.Contains(req.SourceVolume, ":import/") {

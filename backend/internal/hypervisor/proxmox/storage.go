@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -28,7 +29,7 @@ func (d *Driver) Disks(ctx context.Context) ([]hypervisor.Disk, error) {
 			continue
 		}
 		var cfg map[string]any
-		path := fmt.Sprintf("/nodes/%s/qemu/%d/config", vm.Node, vm.VMID)
+		path := apiPath("/nodes/%s/qemu/%d/config", vm.Node, vm.VMID)
 		if err := d.do(ctx, http.MethodGet, path, nil, &cfg); err != nil {
 			continue // VM may be mid-migration/deletion; skip
 		}
@@ -166,7 +167,9 @@ func (d *Driver) storageContent(ctx context.Context, contentType string) ([]cont
 			Protected bool   `json:"protected"`
 			Subtype   string `json:"subtype"`
 		}
-		path := fmt.Sprintf("/nodes/%s/storage/%s/content?content=%s", s.Node, s.Storage, contentType)
+		// content is a query value, not a path segment — see apiPath.
+		path := apiPath("/nodes/%s/storage/%s/content", s.Node, s.Storage) +
+			"?content=" + url.QueryEscape(contentType)
 		if err := d.do(ctx, http.MethodGet, path, nil, &content); err != nil {
 			continue
 		}
@@ -271,7 +274,7 @@ func (d *Driver) Snapshots(ctx context.Context) ([]hypervisor.Snapshot, error) {
 			SnapTime    int64  `json:"snaptime"`
 			VMState     int    `json:"vmstate"`
 		}
-		path := fmt.Sprintf("/nodes/%s/qemu/%d/snapshot", vm.Node, vm.VMID)
+		path := apiPath("/nodes/%s/qemu/%d/snapshot", vm.Node, vm.VMID)
 		if err := d.do(ctx, http.MethodGet, path, nil, &snaps); err != nil {
 			continue
 		}

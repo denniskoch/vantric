@@ -206,7 +206,7 @@ func (d *Driver) describeImages(ctx context.Context, images []hypervisor.Image) 
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			var cfg map[string]any
-			path := fmt.Sprintf("/nodes/%s/qemu/%s/config", img.Node, img.ID)
+			path := apiPath("/nodes/%s/qemu/%s/config", img.Node, img.ID)
 			if err := d.do(ctx, http.MethodGet, path, nil, &cfg); err != nil {
 				return
 			}
@@ -260,7 +260,7 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 		"full":   {"1"},
 	}
 	var cloneTask string
-	path := fmt.Sprintf("/nodes/%s/qemu/%s/clone", templateNode, spec.ImageID)
+	path := apiPath("/nodes/%s/qemu/%s/clone", templateNode, spec.ImageID)
 	if err := d.do(ctx, http.MethodPost, path, form, &cloneTask); err != nil {
 		return "", fmt.Errorf("cloning template: %w", err)
 	}
@@ -309,7 +309,7 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 		cfg.Set("net0", net0)
 	}
 	applyCloudInit(cfg, spec.CloudInit)
-	cfgPath := fmt.Sprintf("/nodes/%s/qemu/%s/config", spec.Node, nextID)
+	cfgPath := apiPath("/nodes/%s/qemu/%s/config", spec.Node, nextID)
 	if err := d.do(ctx, http.MethodPost, cfgPath, cfg, nil); err != nil {
 		// REPORTED, NOT SWALLOWED. This is not the serial, whose absence
 		// the detail page states in words; everything in this write
@@ -381,7 +381,7 @@ func (d *Driver) Get(ctx context.Context, driverID string) (*hypervisor.Instance
 		Agent   int    `json:"agent"`
 		Uptime  int64  `json:"uptime"`
 	}
-	path := fmt.Sprintf("/nodes/%s/qemu/%s/status/current", node, driverID)
+	path := apiPath("/nodes/%s/qemu/%s/status/current", node, driverID)
 	if err := d.do(ctx, http.MethodGet, path, nil, &cur); err != nil {
 		return nil, err
 	}
@@ -413,7 +413,7 @@ func (d *Driver) guestIP(ctx context.Context, node, vmid string) string {
 			} `json:"ip-addresses"`
 		} `json:"result"`
 	}
-	path := fmt.Sprintf("/nodes/%s/qemu/%s/agent/network-get-interfaces", node, vmid)
+	path := apiPath("/nodes/%s/qemu/%s/agent/network-get-interfaces", node, vmid)
 	if err := d.do(ctx, http.MethodGet, path, nil, &res); err != nil {
 		return ""
 	}
@@ -520,7 +520,7 @@ func (d *Driver) power(ctx context.Context, driverID, action string) error {
 	if err != nil {
 		return err
 	}
-	path := fmt.Sprintf("/nodes/%s/qemu/%s/status/%s", node, driverID, action)
+	path := apiPath("/nodes/%s/qemu/%s/status/%s", node, driverID, action)
 	return d.do(ctx, http.MethodPost, path, url.Values{}, nil)
 }
 
@@ -540,7 +540,7 @@ func (d *Driver) Start(ctx context.Context, driverID string) error {
 // preserve. base64=1 covers any serial someone types.
 func (d *Driver) setSerial(ctx context.Context, node, vmid, serial string) error {
 	var cfg map[string]any
-	cfgPath := fmt.Sprintf("/nodes/%s/qemu/%s/config", node, vmid)
+	cfgPath := apiPath("/nodes/%s/qemu/%s/config", node, vmid)
 	if err := d.do(ctx, http.MethodGet, cfgPath, nil, &cfg); err != nil {
 		return err
 	}
@@ -561,7 +561,7 @@ func (d *Driver) SetDescription(ctx context.Context, driverID, description strin
 		return err
 	}
 	form := url.Values{"description": {description}}
-	path := fmt.Sprintf("/nodes/%s/qemu/%s/config", node, driverID)
+	path := apiPath("/nodes/%s/qemu/%s/config", node, driverID)
 	return d.do(ctx, http.MethodPost, path, form, nil)
 }
 
@@ -573,7 +573,7 @@ func (d *Driver) SetName(ctx context.Context, driverID, name string) error {
 		return err
 	}
 	form := url.Values{"name": {name}}
-	path := fmt.Sprintf("/nodes/%s/qemu/%s/config", node, driverID)
+	path := apiPath("/nodes/%s/qemu/%s/config", node, driverID)
 	return d.do(ctx, http.MethodPost, path, form, nil)
 }
 
@@ -593,7 +593,7 @@ func (d *Driver) Delete(ctx context.Context, driverID string) error {
 	}
 	// Force-stop first; Proxmox refuses to destroy a running VM.
 	_ = d.power(ctx, driverID, "stop")
-	path := fmt.Sprintf("/nodes/%s/qemu/%s?purge=1&destroy-unreferenced-disks=1", node, driverID)
+	path := apiPath("/nodes/%s/qemu/%s?purge=1&destroy-unreferenced-disks=1", node, driverID)
 	err = d.do(ctx, http.MethodDelete, path, nil, nil)
 	if err == nil {
 		d.mu.Lock()

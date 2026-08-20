@@ -2,8 +2,8 @@ package proxmox
 
 import (
 	"context"
-	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"vantric/internal/hypervisor"
@@ -55,7 +55,7 @@ func cfgFloat(cfg map[string]any, key string) float64 {
 // the page rather than blank a row.
 func (d *Driver) NodeStatus(ctx context.Context, node string) (*hypervisor.NodeStatus, error) {
 	var raw map[string]any
-	path := fmt.Sprintf("/nodes/%s/status", node)
+	path := apiPath("/nodes/%s/status", node)
 	if err := d.do(ctx, http.MethodGet, path, nil, &raw); err != nil {
 		return nil, err
 	}
@@ -126,7 +126,9 @@ func (d *Driver) NodeMetrics(ctx context.Context, node string, timeframe hypervi
 		NetIn    float64 `json:"netin"`
 		NetOut   float64 `json:"netout"`
 	}
-	path := fmt.Sprintf("/nodes/%s/rrddata?timeframe=%s&cf=AVERAGE", node, timeframe)
+	// timeframe is a query value, not a path segment — see apiPath.
+	path := apiPath("/nodes/%s/rrddata", node) +
+		"?timeframe=" + url.QueryEscape(string(timeframe)) + "&cf=AVERAGE"
 	if err := d.do(ctx, http.MethodGet, path, nil, &rows); err != nil {
 		return nil, err
 	}

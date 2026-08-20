@@ -2,8 +2,8 @@ package proxmox
 
 import (
 	"context"
-	"fmt"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 
@@ -22,7 +22,7 @@ func (d *Driver) Metrics(ctx context.Context, driverID string, timeframe hypervi
 	if err != nil {
 		return nil, err
 	}
-	return d.rrdData(ctx, fmt.Sprintf("/nodes/%s/qemu/%s/rrddata", node, driverID), timeframe)
+	return d.rrdData(ctx, apiPath("/nodes/%s/qemu/%s/rrddata", node, driverID), timeframe)
 }
 
 func (d *Driver) rrdData(ctx context.Context, base string, timeframe hypervisor.MetricTimeframe) ([]hypervisor.MetricPoint, error) {
@@ -39,7 +39,8 @@ func (d *Driver) rrdData(ctx context.Context, base string, timeframe hypervisor.
 		NetIn     float64 `json:"netin"`
 		NetOut    float64 `json:"netout"`
 	}
-	path := fmt.Sprintf("%s?timeframe=%s&cf=AVERAGE", base, timeframe)
+	// A query value, not a path segment — see apiPath.
+	path := base + "?timeframe=" + url.QueryEscape(string(timeframe)) + "&cf=AVERAGE"
 	if err := d.do(ctx, http.MethodGet, path, nil, &rows); err != nil {
 		return nil, err
 	}
@@ -69,7 +70,7 @@ func (d *Driver) OSInfo(ctx context.Context, driverID string) (*hypervisor.OSInf
 	info := &hypervisor.OSInfo{}
 
 	var cfg map[string]any
-	cfgPath := fmt.Sprintf("/nodes/%s/qemu/%s/config", node, driverID)
+	cfgPath := apiPath("/nodes/%s/qemu/%s/config", node, driverID)
 	if err := d.do(ctx, http.MethodGet, cfgPath, nil, &cfg); err == nil {
 		info.OSType = cfgString(cfg, "ostype")
 	}
@@ -85,7 +86,7 @@ func (d *Driver) OSInfo(ctx context.Context, driverID string) (*hypervisor.OSInf
 			Version       string `json:"version"`
 		} `json:"result"`
 	}
-	osPath := fmt.Sprintf("/nodes/%s/qemu/%s/agent/get-osinfo", node, driverID)
+	osPath := apiPath("/nodes/%s/qemu/%s/agent/get-osinfo", node, driverID)
 	if err := d.do(ctx, http.MethodGet, osPath, nil, &osRes); err != nil {
 		return info, nil // no agent: Available stays false
 	}
@@ -104,7 +105,7 @@ func (d *Driver) OSInfo(ctx context.Context, driverID string) (*hypervisor.OSInf
 			HostName string `json:"host-name"`
 		} `json:"result"`
 	}
-	hostPath := fmt.Sprintf("/nodes/%s/qemu/%s/agent/get-host-name", node, driverID)
+	hostPath := apiPath("/nodes/%s/qemu/%s/agent/get-host-name", node, driverID)
 	if err := d.do(ctx, http.MethodGet, hostPath, nil, &hostRes); err == nil {
 		info.Hostname = hostRes.Result.HostName
 	}

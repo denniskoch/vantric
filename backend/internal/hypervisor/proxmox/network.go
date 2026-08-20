@@ -2,7 +2,6 @@ package proxmox
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -26,7 +25,7 @@ func (d *Driver) Bridges(ctx context.Context) ([]hypervisor.Bridge, error) {
 			VLANAware int    `json:"bridge_vlan_aware"`
 			Ports     string `json:"bridge_ports"`
 		}
-		path := fmt.Sprintf("/nodes/%s/network?type=any_bridge", node.ID)
+		path := apiPath("/nodes/%s/network?type=any_bridge", node.ID)
 		if err := d.do(ctx, http.MethodGet, path, nil, &ifaces); err != nil {
 			continue // a node that's down shouldn't hide the others
 		}

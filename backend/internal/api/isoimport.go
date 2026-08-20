@@ -73,6 +73,10 @@ func (s *Server) downloadISO(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, "node and storage are required")
 		return
 	}
+	if msg := placementError(req.Node, req.Storage); msg != "" {
+		s.err(w, http.StatusBadRequest, msg)
+		return
+	}
 	if !strings.HasPrefix(req.URL, "http://") && !strings.HasPrefix(req.URL, "https://") {
 		s.err(w, http.StatusBadRequest, "url must be an http(s) address")
 		return
@@ -122,6 +126,10 @@ func (s *Server) uploadVolume(content string, extensions []string) http.HandlerF
 		node, storage := q.Get("node"), q.Get("storage")
 		if node == "" || storage == "" {
 			s.err(w, http.StatusBadRequest, "node and storage are required")
+			return
+		}
+		if msg := placementError(node, storage); msg != "" {
+			s.err(w, http.StatusBadRequest, msg)
 			return
 		}
 		filename, ok := safeFilename(q.Get("filename"), extensions)

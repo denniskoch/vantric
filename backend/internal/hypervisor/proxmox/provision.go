@@ -61,12 +61,12 @@ func (d *Driver) EnsureConsoleUser(ctx context.Context, driverID string, user hy
 	var started struct {
 		PID int `json:"pid"`
 	}
-	path := fmt.Sprintf("/nodes/%s/qemu/%s/agent/exec", node, driverID)
+	path := apiPath("/nodes/%s/qemu/%s/agent/exec", node, driverID)
 	if err := d.do(ctx, http.MethodPost, path, form, &started); err != nil {
 		return execError(err)
 	}
 
-	statusPath := fmt.Sprintf("/nodes/%s/qemu/%s/agent/exec-status?pid=%d", node, driverID, started.PID)
+	statusPath := apiPath("/nodes/%s/qemu/%s/agent/exec-status?pid=%d", node, driverID, started.PID)
 	deadline := time.Now().Add(execTimeout)
 	for {
 		var status struct {

@@ -51,7 +51,7 @@ func (d *Driver) GetContainer(ctx context.Context, driverID string) (*hypervisor
 		MaxMem  int64  `json:"maxmem"`
 		MaxDisk int64  `json:"maxdisk"`
 	}
-	path := fmt.Sprintf("/nodes/%s/lxc/%s/status/current", node, driverID)
+	path := apiPath("/nodes/%s/lxc/%s/status/current", node, driverID)
 	if err := d.do(ctx, http.MethodGet, path, nil, &cur); err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func (d *Driver) containerIP(ctx context.Context, node, vmid string) string {
 		// inet is CIDR notation, e.g. "192.168.80.7/24"
 		Inet string `json:"inet"`
 	}
-	path := fmt.Sprintf("/nodes/%s/lxc/%s/interfaces", node, vmid)
+	path := apiPath("/nodes/%s/lxc/%s/interfaces", node, vmid)
 	if err := d.do(ctx, http.MethodGet, path, nil, &ifaces); err != nil {
 		return ""
 	}
@@ -103,7 +103,7 @@ func (d *Driver) containerPower(ctx context.Context, driverID, action string) er
 	if err != nil {
 		return err
 	}
-	path := fmt.Sprintf("/nodes/%s/lxc/%s/status/%s", node, driverID, action)
+	path := apiPath("/nodes/%s/lxc/%s/status/%s", node, driverID, action)
 	return d.do(ctx, http.MethodPost, path, url.Values{}, nil)
 }
 
@@ -127,7 +127,7 @@ func (d *Driver) DeleteContainer(ctx context.Context, driverID string) error {
 	}
 	// Force-stop first; Proxmox refuses to destroy a running container.
 	_ = d.containerPower(ctx, driverID, "stop")
-	path := fmt.Sprintf("/nodes/%s/lxc/%s?purge=1&destroy-unreferenced-disks=1", node, driverID)
+	path := apiPath("/nodes/%s/lxc/%s?purge=1&destroy-unreferenced-disks=1", node, driverID)
 	err = d.do(ctx, http.MethodDelete, path, nil, nil)
 	if err == nil {
 		d.mu.Lock()
@@ -196,7 +196,7 @@ func (d *Driver) CreateContainer(ctx context.Context, spec hypervisor.ContainerS
 		form.Set("net0", net)
 	}
 
-	path := fmt.Sprintf("/nodes/%s/lxc", spec.Node)
+	path := apiPath("/nodes/%s/lxc", spec.Node)
 	if err := d.do(ctx, http.MethodPost, path, form, nil); err != nil {
 		return "", err
 	}

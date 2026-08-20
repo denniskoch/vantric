@@ -30,6 +30,33 @@ import (
 
 var nameRe = regexp.MustCompile(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`)
 
+// pveIDRe is what a node or a storage may be called.
+//
+// Nothing SECURITY rests on it: internal/hypervisor/proxmox escapes
+// every value it interpolates into a path, which is what makes a
+// hostile one harmless. This is so a typo is a 400 from the console
+// rather than a puzzling error from the hypervisor three calls later.
+//
+// It is looser than nameRe deliberately. nameRe is what THIS console
+// names a guest, and it forbids dots, underscores and capitals — while
+// Proxmox happily calls a storage local_zfs or pbs.backup, and refusing
+// a name the hypervisor accepts would make the console unusable on a
+// lab that already has one.
+var pveIDRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$`)
+
+// placementError names the first unusable placement field, or "".
+// Blank passes: the field is optional in some of these flows, and the
+// handlers that require it say so themselves.
+func placementError(node, storage string) string {
+	if node != "" && !pveIDRe.MatchString(node) {
+		return "that isn't a valid node name"
+	}
+	if storage != "" && !pveIDRe.MatchString(storage) {
+		return "that isn't a valid storage name"
+	}
+	return ""
+}
+
 // How long to keep trying to boot a freshly created instance, and how
 // often. A full clone of a large template holds the VM lock for as long
 // as the copy takes, so this has to outlast a slow disk rather than a
@@ -418,6 +445,10 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.HypervisorID == "" || req.Node == "" || req.ImageID == "" {
 		s.err(w, http.StatusBadRequest, "serverId, node and imageId are required")
+		return
+	}
+	if msg := placementError(req.Node, ""); msg != "" {
+		s.err(w, http.StatusBadRequest, msg)
 		return
 	}
 	driver, ok := s.registry.Get(req.HypervisorID)
