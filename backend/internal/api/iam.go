@@ -38,9 +38,14 @@ type roleInfo struct {
 }
 
 // Roles are described here rather than in the UI so the vocabulary has
-// one home. They are recorded and shown; enforcing them per-endpoint is
-// the next piece of work, and the UI says so rather than implying a
-// guard that isn't there.
+// one home. ENFORCEMENT IS IN rbac.go, as middleware — this list is the
+// words, not the guard.
+//
+// This comment said the opposite for a while: that enforcement was "the
+// next piece of work". It understated the code, which is the safer
+// direction to be wrong in and still the wrong direction, because the
+// reader it misleads is the one deciding whether their new endpoint
+// needs a check of its own.
 var roleCatalog = []roleInfo{
 	{store.RoleOwner, "Owner", "Full control, including managing accounts and backends"},
 	{store.RoleEditor, "Editor", "Create and change resources, but not accounts"},
@@ -139,6 +144,22 @@ func (s *Server) updateUser(w http.ResponseWriter, r *http.Request) {
 	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 	if err := validateUser(req); err != nil {
 		s.err(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	// You can't disable the account you're signed in as, which is what
+	// the form already says on the switch it greys out — and the API
+	// didn't check, so anything that wasn't that form could do it. The
+	// last-owner guard below doesn't catch it: with a colleague who is
+	// also an owner it passes, the sessions are deleted, and the click
+	// signs you out. Deleting yourself was refused all along; this is
+	// the other half of the same sentence.
+	//
+	// Demotion is deliberately still allowed. Standing down when there
+	// is another owner is a real thing to want, and the guard below
+	// already refuses it when you are the last one.
+	if me := userFrom(r.Context()); me != nil && me.ID == id && !req.Active {
+		s.err(w, http.StatusConflict,
+			"you can't disable the account you're signed in as")
 		return
 	}
 	// Don't let the console lose its last administrator — by demotion or
