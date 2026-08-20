@@ -57,6 +57,11 @@ export default function CreateInstancePage() {
   const [memoryMb, setMemoryMb] = useState(2048)
   // OS and storage
   const [imageId, setImageId] = useState('')
+  // Blank means "wherever the template's disks are", which is what a
+  // clone does by itself and what this form used to do without saying
+  // so. It stays the default: a lab with one pool should not have to
+  // answer this, and the answer it would give is the same one.
+  const [storage, setStorage] = useState('')
   // Empty until someone picks: the family otherwise follows whichever
   // template is selected, which is what makes a prefilled image show
   // its own family without a second piece of state to keep in step.
@@ -124,6 +129,17 @@ export default function CreateInstancePage() {
     enabled: Boolean(hypervisorId),
   })
   const { data: bridges = [] } = useQuery({ queryKey: ['bridges'], queryFn: api.listBridges })
+  const { data: datastores = [] } = useQuery({
+    queryKey: ['datastores'],
+    queryFn: api.listDatastores,
+    enabled: Boolean(hypervisorId),
+  })
+  // A VM disk needs a pool that takes `images` content; a backup- or
+  // iso-only datastore would be offered here and refused by the
+  // hypervisor. Same rule the container form applies for `rootdir`.
+  const diskPools = datastores.filter(
+    (d) => d.hypervisorId === hypervisorId && d.node === node && d.content.includes('images'),
+  )
 
   // Bridges are per-node, so only the chosen node's are attachable.
   const zoneBridges = bridges.filter((b) => b.hypervisorId === hypervisorId && b.node === node)
@@ -138,6 +154,15 @@ export default function CreateInstancePage() {
     setHypervisorId(id)
     setZone('')
     setImageId('')
+    setStorage('')
+  }
+
+  // A datastore belongs to a node, so a pool picked against the old one
+  // is not a choice any more — it's a name the hypervisor will refuse.
+  // Back to inheriting, which is always valid.
+  const selectNode = (id: string) => {
+    setZone(id)
+    setStorage('')
   }
 
   const create = useMutation({
@@ -147,6 +172,7 @@ export default function CreateInstancePage() {
         name,
         hypervisorId,
         node,
+        storage: storage || undefined,
         cpus,
         memoryMb,
         diskGb,
@@ -337,7 +363,7 @@ export default function CreateInstancePage() {
                 size="small"
                 select
                 value={node}
-                onChange={(e) => setZone(e.target.value)}
+                onChange={(e) => selectNode(e.target.value)}
                 disabled={!hypervisorId}
                 fullWidth
               >
@@ -448,15 +474,41 @@ export default function CreateInstancePage() {
                   </MenuItem>
                 ))}
               </TextField>
-              <TextField
-                label="Boot disk size (GB)"
-                size="small"
-                type="number"
-                value={diskGb}
-                onChange={(e) => setDiskGb(Number(e.target.value))}
-                slotProps={{ htmlInput: { min: 1 } }}
-                sx={{ maxWidth: 220 }}
-              />
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                <TextField
+                  label="Boot disk size (GB)"
+                  size="small"
+                  type="number"
+                  value={diskGb}
+                  onChange={(e) => setDiskGb(Number(e.target.value))}
+                  slotProps={{ htmlInput: { min: 1 } }}
+                  sx={{ width: 180 }}
+                />
+                {/* SelectField, not a bare select: the empty option is a
+                    real choice here and MUI renders one as a blank box. */}
+                <SelectField
+                  label="Storage"
+                  size="small"
+                  value={storage}
+                  onChange={(e) => setStorage(e.target.value)}
+                  disabled={!node}
+                  helperText={
+                    !node
+                      ? 'Select a node first (Machine configuration)'
+                      : diskPools.length === 0
+                        ? 'No pool on this node takes VM disks'
+                        : "Where this VM's disks are written"
+                  }
+                  sx={{ flex: 1, maxWidth: 320 }}
+                >
+                  <MenuItem value="">Same as the template</MenuItem>
+                  {diskPools.map((d) => (
+                    <MenuItem key={d.id} value={d.name}>
+                      {d.name} ({d.type})
+                    </MenuItem>
+                  ))}
+                </SelectField>
+              </Box>
             </>
           )}
 

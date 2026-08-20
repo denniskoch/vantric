@@ -314,6 +314,18 @@ type InstanceSpec struct {
 	DiskGB   int
 	ImageID  string
 
+	// Storage is the datastore the clone's disks are written to. EMPTY
+	// MEANS "wherever the template's are", which is what a clone does on
+	// its own and was the only behaviour this console offered.
+	//
+	// It is optional rather than required because inheriting is the
+	// right default — a lab with one pool never wants to think about it
+	// — and it exists because inheriting is not an ANSWER: a template
+	// built on local-lvm gave every guest cloned from it a disk on
+	// local-lvm, with no way to say otherwise short of moving the disk
+	// afterwards.
+	Storage string
+
 	// Networking (optional). Empty bridge keeps the image's network config.
 	NetworkBridge string
 	VLANTag       int

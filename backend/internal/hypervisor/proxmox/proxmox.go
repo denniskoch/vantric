@@ -259,6 +259,12 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 		"target": {spec.Node},
 		"full":   {"1"},
 	}
+	// Only meaningful on a full clone, which is the only kind this
+	// console makes. Left out entirely when unset, because Proxmox
+	// reads an empty storage= as a request rather than as silence.
+	if spec.Storage != "" {
+		form.Set("storage", spec.Storage)
+	}
 	var cloneTask string
 	path := apiPath("/nodes/%s/qemu/%s/clone", templateNode, spec.ImageID)
 	if err := d.do(ctx, http.MethodPost, path, form, &cloneTask); err != nil {

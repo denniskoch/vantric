@@ -435,6 +435,7 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		Name         string           `json:"name"`
 		HypervisorID string           `json:"hypervisorId"`
 		Node         string           `json:"node"`
+		Storage      string           `json:"storage"`
 		CPUs         int              `json:"cpus"`
 		MemoryMB     int              `json:"memoryMb"`
 		DiskGB       int              `json:"diskGb"`
@@ -458,7 +459,7 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, "serverId, node and imageId are required")
 		return
 	}
-	if msg := placementError(req.Node, ""); msg != "" {
+	if msg := placementError(req.Node, req.Storage); msg != "" {
 		s.err(w, http.StatusBadRequest, msg)
 		return
 	}
@@ -500,6 +501,7 @@ func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 	spec := hypervisor.InstanceSpec{
 		Name:          req.Name,
 		Node:          req.Node,
+		Storage:       req.Storage,
 		CPUs:          req.CPUs,
 		MemoryMB:      req.MemoryMB,
 		DiskGB:        req.DiskGB,

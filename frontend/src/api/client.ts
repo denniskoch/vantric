@@ -1431,6 +1431,8 @@ export interface CreateInstanceRequest {
   name: string
   hypervisorId: string
   node: string
+  /** Datastore for the clone's disks. Empty inherits the template's. */
+  storage?: string
   cpus: number
   memoryMb: number
   diskGb?: number
