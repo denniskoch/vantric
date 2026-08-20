@@ -277,6 +277,10 @@ func (s *Server) protectedRoutes(r chi.Router) {
 			r.Post("/protection", s.setInstanceProtection)
 			r.Post("/description", s.setInstanceDescription)
 			r.Post("/rename", s.renameInstance)
+			r.Post("/disks", s.addInstanceDisk)
+			r.Post("/disks/{disk}/resize", s.resizeInstanceDisk)
+			r.Post("/disks/{disk}/attach", s.attachInstanceDisk)
+			r.Post("/disks/{disk}/detach", s.detachInstanceDisk)
 		})
 	}
 }

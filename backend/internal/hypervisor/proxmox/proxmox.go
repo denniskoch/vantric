@@ -359,14 +359,15 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 	return nextID, nil
 }
 
-// growBootDisk grows the guest's boot disk to at least sizeGB.
+// growBootDisk grows the clone's boot disk to at least sizeGB.
 //
 // A no-op when the clone already has that much, because Proxmox cannot
 // SHRINK a disk and asking it to is an error rather than a nudge. That
 // is not the console quietly ignoring you: the create form won't offer
 // less than the template has, so reaching this with a smaller number
 // means the template grew after the form read it, and the honest answer
-// then is the disk you've got.
+// then is the disk you've got. ResizeDisk, which somebody reaches by
+// typing a number at a disk in front of them, says so instead.
 func (d *Driver) growBootDisk(ctx context.Context, node, vmid string, sizeGB int) error {
 	var cfg map[string]any
 	cfgPath := apiPath("/nodes/%s/qemu/%s/config", node, vmid)
@@ -380,35 +381,7 @@ func (d *Driver) growBootDisk(ctx context.Context, node, vmid string, sizeGB int
 	if current >= sizeGB {
 		return nil
 	}
-	// ABSOLUTE, NOT AN INCREMENT. Proxmox's own web GUI asks how much to
-	// extend BY — 32 to 40 is "8" there — and the API takes either:
-	// "+8G" adds to the current size, "40G" without the sign sets it.
-	// The form asks for a final size, so the absolute form is the one
-	// that matches the question, and sending an increment here would
-	// turn "make it 40" into "make it 72". buildtemplate.go has grown
-	// cloud images with the same absolute form since before this
-	// existed, which is where the behaviour is proven.
-	resize := url.Values{"disk": {key}, "size": {strconv.Itoa(sizeGB) + "G"}}
-	path := apiPath("/nodes/%s/qemu/%s/resize", node, vmid)
-	var task string
-	if err := d.do(ctx, http.MethodPut, path, resize, &task); err != nil {
-		return fmt.Errorf("resizing %s to %dG: %w", key, sizeGB, err)
-	}
-	// A RESIZE IS A TASK, like the clone above it. The PUT answers with
-	// a UPID the moment the work is queued, so a caller that reads the
-	// config straight afterwards sees the OLD size and concludes the
-	// resize was ignored — which is exactly what the live test caught,
-	// with Proxmox reporting success the whole time.
-	//
-	// Two minutes: growing a volume is metadata on every storage type
-	// this reaches, so a slow one here means something is wrong rather
-	// than something is large.
-	waitCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
-	defer cancel()
-	if err := d.waitForTask(waitCtx, task); err != nil {
-		return fmt.Errorf("waiting for %s to grow to %dG: %w", key, sizeGB, err)
-	}
-	return nil
+	return d.resizeDisk(ctx, node, vmid, key, sizeGB)
 }
 
 // List reports every non-template VM from a single cluster/resources

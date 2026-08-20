@@ -639,6 +639,40 @@ type Driver interface {
 	SetName(ctx context.Context, driverID, name string) error
 }
 
+// DiskManager is the optional capability for changing a guest's disks
+// after it exists: growing one, adding one, and taking one out of its
+// slot without destroying it.
+//
+// A type assertion like ContainerDriver, so a backend that only ever
+// clones a template stays simple. Nothing here DESTROYS a volume —
+// detaching leaves it on the guest as an unused disk, which is what
+// makes attaching one again a thing you can do, and what keeps the
+// dangerous operation out of a capability nobody confirmed.
+type DiskManager interface {
+	// ResizeDisk grows an attached disk to sizeGB. Shrinking is not
+	// possible on any backend this targets, so a smaller size is an
+	// error rather than a silent no-op.
+	ResizeDisk(ctx context.Context, driverID, disk string, sizeGB int) error
+	// AddDisk allocates a new volume and attaches it to the next free
+	// slot, returning the slot it chose.
+	AddDisk(ctx context.Context, driverID string, spec DiskSpec) (disk string, err error)
+	// AttachDisk puts an existing but unattached volume back into a
+	// slot, returning the slot it chose. The volume is named by the key
+	// it currently sits under (Proxmox: unused0, unused1, …).
+	AttachDisk(ctx context.Context, driverID, unused string) (disk string, err error)
+	// DetachDisk removes a disk from its slot and KEEPS THE VOLUME. It
+	// stops being visible to the guest and stays on the hypervisor.
+	DetachDisk(ctx context.Context, driverID, disk string) error
+}
+
+// DiskSpec describes a disk to create.
+type DiskSpec struct {
+	// Storage is the pool to allocate on. Required: there is no sensible
+	// default for where somebody's data should live.
+	Storage string
+	SizeGB  int
+}
+
 // BackupDriver is an optional capability for backends that keep a
 // catalog of guest backups. Not every hypervisor does, and one that
 // doesn't should stay simple — so this is a type assertion like
