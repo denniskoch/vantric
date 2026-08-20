@@ -55,14 +55,21 @@ then the first Connect fails with:
 
 That refusal comes from the guest, not from your Proxmox token — worth
 knowing, because a bare 500 sends you auditing token privileges that
-were never the problem. The fix is one line in the image:
+were never the problem.
+
+Drop the two exec calls from the block list and leave the file ones
+blocked — the console only needs to run a command, and there is no
+reason to hand it the ability to read and write arbitrary files as
+root while you're there:
 
 ```
-sed -i 's/^BLOCK_RPCS=.*/BLOCK_RPCS=/' /etc/sysconfig/qemu-ga
-systemctl restart qemu-guest-agent
+virt-customize -a your-image.qcow2 \
+  --run-command "sed -i 's/,guest-exec,guest-exec-status//' /etc/sysconfig/qemu-ga"
 ```
 
-Older builds spell it `BLACKLIST_RPC`.
+Older builds spell the setting `BLACKLIST_RPC`. On a guest that is
+already running, edit `/etc/sysconfig/qemu-ga` the same way and
+`systemctl restart qemu-guest-agent`.
 
 **SELinux is a separate problem on the same guests.** It confines the
 agent tightly enough to deny access to `/usr/sbin/useradd`, so the

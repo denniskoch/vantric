@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  Link,
   Alert,
   Box,
   Button,
@@ -152,9 +153,22 @@ export default function BuildTemplatePage() {
         </Button>
         <Typography variant="h5">Build a cloud template</Typography>
       </Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2, ml: 9 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, ml: 9 }}>
         Imports a cloud disk image, attaches a cloud-init drive and serial console,
         then converts it to a template.
+      </Typography>
+      {/* The steps this form can't do for you all live inside the guest,
+          and every one of them is only noticed later, as a Connect that
+          doesn't work. Say where they're written down before somebody
+          starts, not after. */}
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2, ml: 9 }}>
+        The parts that happen inside the guest — installing the agent, unblocking
+        guest exec on RHEL images, and the serial you must not set on a template —
+        are what decide whether Connect works later.{' '}
+        <Link component={RouterLink} to="/docs/vm-templates">
+          Building a VM template
+        </Link>{' '}
+        walks through them.
       </Typography>
 
       {error && (
