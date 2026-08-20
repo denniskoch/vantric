@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -55,16 +56,76 @@ const (
 	sshKeepaliveInterval = 30 * time.Second
 )
 
-var sshUpgrader = websocket.Upgrader{
-	// Same-origin only: the console serves the page and the socket, so
-	// a cross-site page has no business opening one.
-	CheckOrigin: func(r *http.Request) bool {
-		origin := r.Header.Get("Origin")
-		if origin == "" {
-			return true // non-browser client
+// devOrigins are where `make dev` serves the page from. Vite is on 5173
+// and the API on 8080, so the handshake genuinely is cross-origin from
+// the browser's point of view even though both are this machine.
+//
+// Named explicitly rather than inferred: whether Vite's proxy forwards
+// the original Host or rewrites it is a library default, and a security
+// check should not quietly depend on one. Allowing them in production
+// costs nothing worth counting — an Origin of localhost:5173 means the
+// page was served by a dev server on the victim's own machine, and
+// anyone who can arrange that has already won.
+var devOrigins = []string{"localhost:5173", "127.0.0.1:5173"}
+
+// sshUpgrader carries the origin check. It is built per request because
+// that check needs the server's own idea of its address.
+func (s *Server) sshUpgrader() *websocket.Upgrader {
+	return &websocket.Upgrader{CheckOrigin: s.sameOrigin}
+}
+
+// sameOrigin decides whether a websocket handshake may proceed, and it
+// is the whole of the defence it claims to be — which the version it
+// replaces was not.
+//
+// That one was two substring tests, and neither tested what it read as.
+// HasSuffix(origin, r.Host) matches any domain merely ENDING with the
+// console's, so evilvantric.example.com passed for vantric.example.com;
+// Contains(origin, "localhost") matches the string anywhere, including
+// https://localhost.attacker.example, which anyone can register today.
+//
+// What actually stops cross-site websocket hijacking here is SameSite=Lax
+// on the session cookie: a handshake from a third-party page is a
+// subresource request and doesn't carry it. So nothing was exploitable
+// through this. But the comment above it named this as the control, and
+// a check that reads as a defence without being one is worse than no
+// check at all — it is what somebody trusts on the day a SameSite=None
+// is added for an embed and this becomes the only thing standing there.
+//
+// The comparison is against siteOrigin as well as r.Host, for the same
+// reason the OIDC redirect URI is built from it: behind the tunnel the
+// request arrives addressed to whatever the proxy dialled (app:8080),
+// and only the server's own idea of its address matches what the
+// browser actually sent.
+func (s *Server) sameOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true // not a browser: curl, a CLI, a test
+	}
+	sent, err := url.Parse(origin)
+	if err != nil || sent.Host == "" {
+		return false
+	}
+	for _, allowed := range s.originHosts(r) {
+		if strings.EqualFold(sent.Host, allowed) {
+			return true
 		}
-		return strings.HasSuffix(origin, r.Host) || strings.Contains(origin, "localhost")
-	},
+	}
+	s.log.Warn("refused a cross-origin websocket",
+		"origin", origin, "host", r.Host)
+	return false
+}
+
+// originHosts is every host this console legitimately answers to.
+func (s *Server) originHosts(r *http.Request) []string {
+	hosts := append([]string{r.Host}, devOrigins...)
+	// siteOrigin is the configured public address, falling back to
+	// X-Forwarded-Host and then the request's own — so this covers the
+	// tunnel without a second setting.
+	if site, err := url.Parse(s.siteOrigin(r)); err == nil && site.Host != "" {
+		hosts = append(hosts, site.Host)
+	}
+	return hosts
 }
 
 // Every account signs in to guests with a key of ITS OWN, generated on
@@ -175,7 +236,7 @@ func (s *Server) instanceSSH(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conn, err := sshUpgrader.Upgrade(w, r, nil)
+	conn, err := s.sshUpgrader().Upgrade(w, r, nil)
 	if err != nil {
 		return // Upgrade already answered
 	}
