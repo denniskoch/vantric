@@ -19,6 +19,8 @@ import (
 	"sync"
 	"time"
 
+	proxmox "github.com/luthermonson/go-proxmox"
+
 	"vantric/internal/hypervisor"
 )
 
@@ -35,6 +37,10 @@ type Config struct {
 type Driver struct {
 	cfg    Config
 	client *http.Client
+	// sdk is github.com/luthermonson/go-proxmox, being adopted a call at
+	// a time — see sdk.go. It shares this driver's transport, so there is
+	// one TLS policy and one set of connections rather than two.
+	sdk *proxmox.Client
 	// uploadClient has no timeout: image uploads are multi-GB and are
 	// bounded by the request context instead.
 	uploadClient *http.Client
@@ -49,9 +55,11 @@ func New(cfg Config) *Driver {
 	if cfg.InsecureSkipVerify {
 		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
+	client := &http.Client{Timeout: 30 * time.Second, Transport: transport}
 	return &Driver{
 		cfg:          cfg,
-		client:       &http.Client{Timeout: 30 * time.Second, Transport: transport},
+		client:       client,
+		sdk:          newSDK(cfg, client),
 		uploadClient: &http.Client{Transport: transport},
 		nodeOf:       map[string]string{},
 	}
@@ -98,39 +106,29 @@ func (d *Driver) do(ctx context.Context, method, path string, form url.Values, o
 }
 
 func (d *Driver) Nodes(ctx context.Context) ([]hypervisor.Node, error) {
-	// /nodes reports usage alongside the name, so the summary below is
-	// free — it is the same one request either way.
-	var raw []struct {
-		Node    string  `json:"node"`
-		Status  string  `json:"status"`
-		CPU     float64 `json:"cpu"` // fraction 0..1
-		MaxCPU  int     `json:"maxcpu"`
-		Mem     int64   `json:"mem"`
-		MaxMem  int64   `json:"maxmem"`
-		Disk    int64   `json:"disk"`
-		MaxDisk int64   `json:"maxdisk"`
-		Uptime  int64   `json:"uptime"`
-	}
-	if err := d.do(ctx, http.MethodGet, "/nodes", nil, &raw); err != nil {
+	// The first call moved onto the SDK. /nodes reports usage alongside
+	// the name, so the summary is free either way — what changes is that
+	// the field names and their types are the library's problem.
+	nodes, err := d.sdk.Nodes(ctx)
+	if err != nil {
 		return nil, err
 	}
-	nodes := make([]hypervisor.Node, 0, len(raw))
-	for _, n := range raw {
-		nodes = append(nodes, hypervisor.Node{
+	out := make([]hypervisor.Node, 0, len(nodes))
+	for _, n := range nodes {
+		out = append(out, hypervisor.Node{
 			ID:               n.Node,
 			Name:             n.Node,
 			Status:           n.Status,
 			CPUs:             n.MaxCPU,
 			CPUPercent:       n.CPU * 100,
-			MemoryUsedBytes:  n.Mem,
-			MemoryTotalBytes: n.MaxMem,
-			DiskUsedBytes:    n.Disk,
-			DiskTotalBytes:   n.MaxDisk,
-			UptimeSeconds:    n.Uptime,
+			MemoryUsedBytes:  int64(n.Mem),
+			MemoryTotalBytes: int64(n.MaxMem),
+			DiskUsedBytes:    int64(n.Disk),
+			DiskTotalBytes:   int64(n.MaxDisk),
+			UptimeSeconds:    int64(n.Uptime),
 		})
 	}
-	sortByName(nodes, func(n hypervisor.Node) string { return n.Name })
-	return nodes, nil
+	return out, nil
 }
 
 type clusterVM struct {
