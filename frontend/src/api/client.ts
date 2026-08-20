@@ -1988,6 +1988,33 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ description }),
     }),
+  /**
+   * Disks on an instance that already exists. All four are synchronous:
+   * the driver waits for the hypervisor's task before answering, so the
+   * panel can refetch and show the result rather than guessing.
+   */
+  addInstanceDisk: (name: string, body: { storage: string; sizeGb: number }) =>
+    request<{ disk: string }>(`/instances/${encodeURIComponent(name)}/disks`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  resizeInstanceDisk: (name: string, disk: string, sizeGb: number) =>
+    request<void>(
+      `/instances/${encodeURIComponent(name)}/disks/${encodeURIComponent(disk)}/resize`,
+      { method: 'POST', body: JSON.stringify({ sizeGb }) },
+    ),
+  /** Puts an unused volume back into a slot; `disk` is its unusedN key. */
+  attachInstanceDisk: (name: string, disk: string) =>
+    request<{ disk: string }>(
+      `/instances/${encodeURIComponent(name)}/disks/${encodeURIComponent(disk)}/attach`,
+      { method: 'POST' },
+    ),
+  /** Takes a disk out of its slot. The volume is kept, as unusedN. */
+  detachInstanceDisk: (name: string, disk: string) =>
+    request<void>(
+      `/instances/${encodeURIComponent(name)}/disks/${encodeURIComponent(disk)}/detach`,
+      { method: 'POST' },
+    ),
   setInstanceProtection: (name: string, protectedFlag: boolean) =>
     request<Instance>(`/instances/${name}/protection`, {
       method: 'POST',

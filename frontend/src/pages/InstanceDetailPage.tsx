@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
@@ -30,8 +30,9 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { api } from '../api/client'
-import type { Backup, MetricTimeframe } from '../api/client'
+import type { AttachedDisk, Backup, MetricTimeframe } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
+import AddIcon from '@mui/icons-material/Add'
 import StatusIcon from '../components/StatusIcon'
 import DetailTable, { DetailSection } from '../components/DetailTable'
 import TimeSeriesChart from '../components/TimeSeriesChart'
@@ -82,7 +83,7 @@ function proxmoxConsoleURL(
 }
 
 export default function InstanceDetailPage() {
-  const { name } = useParams<{ name: string }>()
+  const { name = '' } = useParams<{ name: string }>()
   // Offered only where the API would allow it; see rbac.go.
   const { canEdit } = usePermissions()
   const navigate = useNavigate()
@@ -91,6 +92,29 @@ export default function InstanceDetailPage() {
   const [deleting, setDeleting] = useState(false)
   const [tab, setTab] = useState<TabID>('details')
   const [deletingBackup, setDeletingBackup] = useState<Backup | null>(null)
+  // Detaching keeps the volume, so it asks once and doesn't make you
+  // type anything — the rule is that a dialog's weight matches how hard
+  // the thing is to undo, and this one is a click to undo.
+  const [detaching, setDetaching] = useState<AttachedDisk | null>(null)
+
+  const refreshDetail = () =>
+    queryClient.invalidateQueries({ queryKey: ['instanceDetail', name] })
+  const attachDisk = useMutation({
+    mutationFn: (disk: string) => api.attachInstanceDisk(name, disk),
+    onSuccess: refreshDetail,
+    onError: (e: Error) => setError(e.message),
+  })
+  const detachDisk = useMutation({
+    mutationFn: (disk: string) => api.detachInstanceDisk(name, disk),
+    onSuccess: () => {
+      setDetaching(null)
+      void refreshDetail()
+    },
+    onError: (e: Error) => {
+      setDetaching(null)
+      setError(e.message)
+    },
+  })
   const [timeframe, setTimeframe] = useState<MetricTimeframe>('hour')
 
   const { data: inst } = useQuery({
@@ -110,6 +134,11 @@ export default function InstanceDetailPage() {
     refetchInterval: 30000,
     retry: false,
   })
+
+  // The first real disk is the one the guest boots from, which the
+  // driver refuses to detach. Deciding not to OFFER it is this side's
+  // job; the refusal is still the driver's.
+  const bootDiskInterface = detail?.disks?.find((d) => d.media === 'disk')?.interface
 
   const { data: metrics = [], isLoading: metricsLoading } = useQuery({
     queryKey: ['instanceMetrics', name, timeframe],
@@ -571,7 +600,21 @@ export default function InstanceDetailPage() {
               </Box>
             </DetailSection>
 
-            <DetailSection title="Storage">
+            <DetailSection
+              title="Storage"
+              action={
+                canEdit && (
+                  <Button
+                    size="small"
+                    startIcon={<AddIcon sx={{ fontSize: 16 }} />}
+                    component={RouterLink}
+                    to={`/compute/instances/${encodeURIComponent(name)}/disks/add`}
+                  >
+                    Add disk
+                  </Button>
+                )
+              }
+            >
               <TableContainer component={Paper} variant="outlined">
                 <Table size="small">
                   <TableHead>
@@ -582,6 +625,7 @@ export default function InstanceDetailPage() {
                       <TableCell align="right">Size</TableCell>
                       <TableCell>Media</TableCell>
                       <TableCell>Options</TableCell>
+                      <TableCell align="right" sx={{ width: 190 }} />
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -597,11 +641,49 @@ export default function InstanceDetailPage() {
                             .filter(Boolean)
                             .join(', ') || '—'}
                         </TableCell>
+                        <TableCell align="right">
+                          {/* An unused volume is a disk this guest still
+                              owns but can't see. The only thing worth
+                              offering it is a way back in. */}
+                          {canEdit && disk.media === 'unused' && (
+                            <Button
+                              size="small"
+                              disabled={attachDisk.isPending}
+                              onClick={() => attachDisk.mutate(disk.interface)}
+                            >
+                              Attach
+                            </Button>
+                          )}
+                          {canEdit && disk.media === 'disk' && (
+                            <>
+                              <Button
+                                size="small"
+                                component={RouterLink}
+                                to={`/compute/instances/${encodeURIComponent(name)}/disks/${encodeURIComponent(disk.interface)}/resize`}
+                              >
+                                Resize
+                              </Button>
+                              <Button
+                                size="small"
+                                color="error"
+                                disabled={disk.interface === bootDiskInterface}
+                                title={
+                                  disk.interface === bootDiskInterface
+                                    ? 'The boot disk stays attached'
+                                    : undefined
+                                }
+                                onClick={() => setDetaching(disk)}
+                              >
+                                Detach
+                              </Button>
+                            </>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                     {!detail?.disks?.length && (
                       <TableRow>
-                        <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                        <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                           No disks reported.
                         </TableCell>
                       </TableRow>
@@ -967,6 +1049,25 @@ export default function InstanceDetailPage() {
         pending={remove.isPending}
         onCancel={() => setDeleting(false)}
         onConfirm={() => remove.mutate()}
+      />
+
+      <ConfirmDeleteDialog
+        open={Boolean(detaching)}
+        title={`Detach ${detaching?.interface} from ${name}?`}
+        body={
+          <>
+            The disk stops being visible to the guest and stays on the
+            hypervisor as an unused volume, so you can attach it again from
+            this page. Nothing on it is erased.
+            {inst?.status === 'RUNNING' && (
+              <> This instance is running; unmount the disk inside it first.</>
+            )}
+          </>
+        }
+        actionLabel="Detach"
+        pending={detachDisk.isPending}
+        onCancel={() => setDetaching(null)}
+        onConfirm={() => detaching && detachDisk.mutate(detaching.interface)}
       />
 
       <ConfirmDeleteDialog
