@@ -8,7 +8,7 @@ backed by Proxmox, with the hypervisor abstracted for future backends.
 
 ```bash
 make dev      # both halves, reloading — open http://localhost:5173
-make check    # go build + vet, tsc + vite build. Must pass before a commit
+make check    # gofmt, go build + vet, tsc + vite build. Must pass before a commit
 make up       # build and run the app image in Docker (:8080)
 make          # everything else
 ```

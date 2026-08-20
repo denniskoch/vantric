@@ -28,7 +28,10 @@ api: ## Run just the backend (:8080)
 ui: frontend/node_modules ## Run just the frontend (:5173, proxies to :8080)
 	cd frontend && npm run dev
 
-check: frontend/node_modules ## Build, vet and type-check — what has to pass before a commit
+check: frontend/node_modules ## Format, build, vet and type-check — what has to pass before a commit
+	@cd backend && test -z "$$(gofmt -l .)" || { \
+		echo "gofmt would rewrite these:"; gofmt -l . | sed 's/^/  /'; \
+		echo "  fix with: cd backend && gofmt -w ."; exit 1; }
 	cd backend && go build ./... && go vet ./...
 	cd frontend && npx tsc -b && npm run build
 	@echo "ok"

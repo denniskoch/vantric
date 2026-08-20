@@ -27,9 +27,9 @@ var ErrNotFound = errors.New("hypervisor: instance not found")
 type Node struct {
 	// HypervisorID is filled in by the API layer, not the driver.
 	HypervisorID string `json:"hypervisorId"`
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Status   string `json:"status"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Status       string `json:"status"`
 	// The usage below costs NOTHING EXTRA: a host listing reports it
 	// alongside the name we came for, and this app decoded only the
 	// name for as long as nodes were nothing but a dropdown. Zero
@@ -55,18 +55,18 @@ type Node struct {
 // a confident 0.
 type NodeStatus struct {
 	// HypervisorID is filled in by the API layer, not the driver.
-	HypervisorID      string `json:"hypervisorId"`
+	HypervisorID  string `json:"hypervisorId"`
 	ID            string `json:"id"`
 	Name          string `json:"name"`
 	UptimeSeconds int64  `json:"uptimeSeconds"`
 
 	// CPUModel is what GCP calls a CPU platform, spelled the way the
 	// silicon spells it: "Intel(R) Core(TM) i5-8500T CPU @ 2.10GHz".
-	CPUModel   string `json:"cpuModel"`
-	CPUSockets int    `json:"cpuSockets"`
-	CPUCores   int    `json:"cpuCores"`
-	CPUs       int    `json:"cpus"` // logical, i.e. threads
-	CPUMHz     string `json:"cpuMhz"`
+	CPUModel   string  `json:"cpuModel"`
+	CPUSockets int     `json:"cpuSockets"`
+	CPUCores   int     `json:"cpuCores"`
+	CPUs       int     `json:"cpus"` // logical, i.e. threads
+	CPUMHz     string  `json:"cpuMhz"`
 	CPUPercent float64 `json:"cpuPercent"`
 	// IOWaitPercent is time the host spent waiting on storage. It is
 	// reported separately from CPU because it's the number that
@@ -106,9 +106,9 @@ type NodeStatus struct {
 type Image struct {
 	// HypervisorID is filled in by the API layer, not the driver.
 	HypervisorID string `json:"hypervisorId"`
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Node     string `json:"node"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Node         string `json:"node"`
 	// Description is the hypervisor's notes field. Its first line is
 	// the template's friendly name where someone has written one — the
 	// only part of what a picker shows that a machine can't work out.
@@ -127,24 +127,24 @@ type Image struct {
 type Disk struct {
 	// HypervisorID is filled in by the API layer, not the driver.
 	HypervisorID string `json:"hypervisorId"`
-	ID       string `json:"id"`      // driver-scoped, e.g. "101/scsi0"
-	Name     string `json:"name"`    // volume name, e.g. "vm-101-disk-0"
-	InUseBy  string `json:"inUseBy"` // VM name the disk is attached to
-	Node     string `json:"node"`
-	Storage  string `json:"storage"` // storage pool
-	SizeGB   int    `json:"sizeGb"`
+	ID           string `json:"id"`      // driver-scoped, e.g. "101/scsi0"
+	Name         string `json:"name"`    // volume name, e.g. "vm-101-disk-0"
+	InUseBy      string `json:"inUseBy"` // VM name the disk is attached to
+	Node         string `json:"node"`
+	Storage      string `json:"storage"` // storage pool
+	SizeGB       int    `json:"sizeGb"`
 }
 
 // Volume is a file on a datastore. ISOs, container templates and cloud
 // images differ only in content type, so they share this shape.
 type Volume struct {
 	// HypervisorID is filled in by the API layer, not the driver.
-	HypervisorID  string `json:"hypervisorId"`
-	ID        string `json:"id"` // volume ID, e.g. "local:iso/debian-12.iso"
-	Name      string `json:"name"`
-	Node      string `json:"node"`
-	Storage   string `json:"storage"`
-	SizeBytes int64  `json:"sizeBytes"`
+	HypervisorID string `json:"hypervisorId"`
+	ID           string `json:"id"` // volume ID, e.g. "local:iso/debian-12.iso"
+	Name         string `json:"name"`
+	Node         string `json:"node"`
+	Storage      string `json:"storage"`
+	SizeBytes    int64  `json:"sizeBytes"`
 	// CreatedAt is unix seconds; 0 when unknown.
 	CreatedAt int64 `json:"createdAt"`
 }
@@ -161,12 +161,12 @@ type CloudImage = Volume
 // so what it restores to has to travel with it.
 type Backup struct {
 	// HypervisorID is filled in by the API layer, not the driver.
-	HypervisorID  string `json:"hypervisorId"`
-	ID        string `json:"id"` // volume ID
-	Name      string `json:"name"`
-	Node      string `json:"node"`
-	Storage   string `json:"storage"`
-	SizeBytes int64  `json:"sizeBytes"`
+	HypervisorID string `json:"hypervisorId"`
+	ID           string `json:"id"` // volume ID
+	Name         string `json:"name"`
+	Node         string `json:"node"`
+	Storage      string `json:"storage"`
+	SizeBytes    int64  `json:"sizeBytes"`
 	// CreatedAt is unix seconds; 0 when unknown.
 	CreatedAt int64 `json:"createdAt"`
 	// VMID identifies the guest; 0 when the archive doesn't say.
@@ -233,8 +233,8 @@ type CTTemplate = Volume
 type Bridge struct {
 	// HypervisorID is filled in by the API layer, not the driver.
 	HypervisorID string `json:"hypervisorId"`
-	Name     string `json:"name"` // vmbr0
-	Node     string `json:"node"`
+	Name         string `json:"name"` // vmbr0
+	Node         string `json:"node"`
 	// CIDR is the bridge's own address, when it has one.
 	CIDR      string `json:"cidr"`
 	Comment   string `json:"comment"`
@@ -246,27 +246,27 @@ type Bridge struct {
 // Datastore is a storage pool VMs and media live on.
 type Datastore struct {
 	// HypervisorID is filled in by the API layer, not the driver.
-	HypervisorID   string `json:"hypervisorId"`
-	ID         string `json:"id"` // e.g. "pve1/local-lvm"
-	Name       string `json:"name"`
-	Node       string `json:"node"`
-	Type       string `json:"type"`    // lvmthin, zfspool, dir, nfs, ...
-	Content    string `json:"content"` // comma-separated content types
-	TotalBytes int64  `json:"totalBytes"`
-	UsedBytes  int64  `json:"usedBytes"`
-	Active     bool   `json:"active"`
-	Shared     bool   `json:"shared"`
+	HypervisorID string `json:"hypervisorId"`
+	ID           string `json:"id"` // e.g. "pve1/local-lvm"
+	Name         string `json:"name"`
+	Node         string `json:"node"`
+	Type         string `json:"type"`    // lvmthin, zfspool, dir, nfs, ...
+	Content      string `json:"content"` // comma-separated content types
+	TotalBytes   int64  `json:"totalBytes"`
+	UsedBytes    int64  `json:"usedBytes"`
+	Active       bool   `json:"active"`
+	Shared       bool   `json:"shared"`
 }
 
 // Snapshot is a point-in-time VM snapshot.
 type Snapshot struct {
 	// HypervisorID is filled in by the API layer, not the driver.
-	HypervisorID    string `json:"hypervisorId"`
-	ID          string `json:"id"` // driver-scoped, e.g. "101/pre-upgrade"
-	Name        string `json:"name"`
-	VMName      string `json:"vmName"`
-	Node        string `json:"node"`
-	Description string `json:"description"`
+	HypervisorID string `json:"hypervisorId"`
+	ID           string `json:"id"` // driver-scoped, e.g. "101/pre-upgrade"
+	Name         string `json:"name"`
+	VMName       string `json:"vmName"`
+	Node         string `json:"node"`
+	Description  string `json:"description"`
 	// CreatedAt is unix seconds; 0 when the hypervisor doesn't report it.
 	CreatedAt int64 `json:"createdAt"`
 	// IncludesRAM reports whether the snapshot captured VM memory state.
@@ -348,8 +348,8 @@ type ContainerSpec struct {
 	// Template is a CT template volume id, e.g.
 	// "local:vztmpl/debian-13-standard_13.0-1_amd64.tar.zst".
 	Template string
-	CPUs      int
-	MemoryMB  int
+	CPUs     int
+	MemoryMB int
 	// SwapMB is a container-only setting: an LXC gets its own swap
 	// allowance out of the host's, where a VM swaps inside its own disk.
 	SwapMB int

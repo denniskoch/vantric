@@ -82,12 +82,12 @@ type counts struct {
 }
 
 type datastoreUsage struct {
-	Name       string  `json:"name"`
-	Node       string  `json:"node"`
-	HypervisorID   string  `json:"hypervisorId"`
-	UsedBytes  int64   `json:"usedBytes"`
-	TotalBytes int64   `json:"totalBytes"`
-	Percent    float64 `json:"percent"`
+	Name         string  `json:"name"`
+	Node         string  `json:"node"`
+	HypervisorID string  `json:"hypervisorId"`
+	UsedBytes    int64   `json:"usedBytes"`
+	TotalBytes   int64   `json:"totalBytes"`
+	Percent      float64 `json:"percent"`
 }
 
 type overviewResponse struct {
