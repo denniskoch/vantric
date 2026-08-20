@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -173,14 +174,76 @@ func clientAddr(r *http.Request) string {
 	return host
 }
 
+// redactSecrets scrubs an error message on its way into the log.
+//
+// The payload column has been redacted from the start, for a reason
+// stated plainly beside it: a non-JSON body is dropped rather than
+// stored blind, because guessing is how a secret reaches a log. The
+// error column got none of that treatment while holding text this app
+// did not write — a hypervisor or a controller's own response body,
+// quoted verbatim into an error and stored. The same container create
+// can therefore show "password":"[redacted]" in one column and whatever
+// Proxmox chose to echo back in the other.
+//
+// Worth being exact about the size of this: the usual example, a pgx or
+// MySQL connection failure carrying its DSN, does NOT reproduce — pgx
+// reports `user=… database=…` with no password and the MySQL driver
+// reports the dial error alone. This is consistency with the rule next
+// door rather than a plugged leak.
+//
+// Deliberately narrow. An audit trail whose errors have been mangled
+// into uselessness is worse than the risk: only key=value pairs, quoted
+// JSON fields, URL userinfo and auth headers are touched, and the
+// key is judged by isSecret so the vocabulary has one home. In
+// particular, "key: value" with a bare colon is left alone — error text
+// is full of prose like "NoSuchKey: The specified key does not exist",
+// and a rule that reached into that would eat the sentence.
+var (
+	// token=abc, password=hunter2
+	kvSecretRe = regexp.MustCompile(`([A-Za-z_][\w.-]*)=("?)([^\s,;&"']+)`)
+	// "clientSecret": "abc"
+	jsonSecretRe = regexp.MustCompile(`"([A-Za-z_][\w.-]*)"(\s*:\s*)"([^"]*)"`)
+	// postgres://user:pass@host, and the MySQL user:pass@tcp(...) form
+	userInfoRe = regexp.MustCompile(`([A-Za-z][A-Za-z0-9+.-]*://[^\s:/@]+):([^\s/@]+)@`)
+	mysqlDSNRe = regexp.MustCompile(`([^\s:/@]+):([^\s:/@]+)@(tcp|unix)\(`)
+	// Authorization: Bearer …, and Basic …
+	authHeaderRe = regexp.MustCompile(`(?i)\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]+`)
+)
+
+const redacted = "[redacted]"
+
+func redactSecrets(text string) string {
+	if text == "" {
+		return ""
+	}
+	text = userInfoRe.ReplaceAllString(text, "${1}:"+redacted+"@")
+	text = mysqlDSNRe.ReplaceAllString(text, "${1}:"+redacted+"@${3}(")
+	text = authHeaderRe.ReplaceAllString(text, "${1} "+redacted)
+	text = kvSecretRe.ReplaceAllStringFunc(text, func(match string) string {
+		parts := kvSecretRe.FindStringSubmatch(match)
+		if !isSecret(parts[1]) {
+			return match
+		}
+		return parts[1] + "=" + parts[2] + redacted + parts[2]
+	})
+	text = jsonSecretRe.ReplaceAllStringFunc(text, func(match string) string {
+		parts := jsonSecretRe.FindStringSubmatch(match)
+		if !isSecret(parts[1]) {
+			return match
+		}
+		return `"` + parts[1] + `"` + parts[2] + `"` + redacted + `"`
+	})
+	return text
+}
+
 func errorFrom(body []byte) string {
 	var apiErr struct {
 		Error string `json:"error"`
 	}
 	if json.Unmarshal(body, &apiErr) == nil && apiErr.Error != "" {
-		return apiErr.Error
+		return redactSecrets(apiErr.Error)
 	}
-	return strings.TrimSpace(string(body))
+	return redactSecrets(strings.TrimSpace(string(body)))
 }
 
 // --- guest access ----------------------------------------------------
@@ -227,7 +290,7 @@ func (s *Server) recordGuestAccess(r *http.Request, e guestAccessEntry) {
 		entry.ActorID, entry.ActorEmail = user.ID, user.Email
 	}
 	if e.err != nil {
-		entry.Status, entry.Error = http.StatusBadGateway, e.err.Error()
+		entry.Status, entry.Error = http.StatusBadGateway, redactSecrets(e.err.Error())
 	}
 	if err := s.store.AppendAudit(context.WithoutCancel(r.Context()), entry); err != nil {
 		s.log.Warn("audit: recording guest access failed",
@@ -333,7 +396,7 @@ func (s *Server) recordSignIn(r *http.Request, user *store.User, email string, e
 		entry.ActorEmail = email
 	}
 	if err != nil {
-		entry.Status, entry.Error = http.StatusUnauthorized, err.Error()
+		entry.Status, entry.Error = http.StatusUnauthorized, redactSecrets(err.Error())
 	}
 	if writeErr := s.store.AppendAudit(r.Context(), entry); writeErr != nil {
 		s.log.Warn("audit: recording sign-in failed", "error", writeErr)
