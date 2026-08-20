@@ -24,7 +24,7 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import { api } from '../api/client'
-import { sshUsername, useSession } from '../user'
+import { sshUsername, useSession, usePermissions } from '../user'
 import {
   savedFontSize,
   savedThemeID,
@@ -47,6 +47,7 @@ import {
 export default function InstanceSSHPage() {
   const { name = '' } = useParams()
   const { user } = useSession()
+  const { canEdit } = usePermissions()
   const username = sshUsername(user)
 
   const terminalRef = useRef<HTMLDivElement>(null)
@@ -128,6 +129,16 @@ export default function InstanceSSHPage() {
     fit.fit()
 
     document.title = `${name} — ssh`
+
+    // A viewer's socket would be refused by the backend, and a refused
+    // upgrade reaches the browser as an indistinguishable "connection
+    // failed". Say which it is instead.
+    if (!canEdit) {
+      term.writeln('\x1b[31mThis account can view the lab but not connect to guests.\x1b[0m')
+      term.writeln('\x1b[90mOpening a shell needs the editor role — ask an owner.\x1b[0m')
+      return () => term.dispose()
+    }
+
     term.writeln(`\x1b[90mConnecting as ${username}…\x1b[0m`)
 
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -137,7 +148,12 @@ export default function InstanceSSHPage() {
 
     socket.onopen = () => {
       setConnected(true)
-      socket.send(JSON.stringify({ username, cols: term.cols, rows: term.rows }))
+      // No username in the frame. The server signs in as the account
+      // that owns the session, and used to take this field verbatim —
+      // which let any caller name an arbitrary Unix account and have it
+      // created inside the guest. `username` here is only for display,
+      // derived from the same email the server derives it from.
+      socket.send(JSON.stringify({ cols: term.cols, rows: term.rows }))
       term.focus()
     }
     socket.onmessage = (event) => term.write(event.data)
@@ -171,7 +187,7 @@ export default function InstanceSSHPage() {
     }
     // The session is opened once, when the page mounts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, username])
+  }, [name, username, canEdit])
 
   return (
     <Box

@@ -134,8 +134,19 @@ func authorizedKey(pub ssh.PublicKey, email string) string {
 }
 
 // sshAuth is the first frame the client sends.
+//
+// Username is `json:"-"` DELIBERATELY: it is the account to sign in as,
+// and it is filled from the SESSION rather than the frame. It used to
+// be taken verbatim from the client, which meant any signed-in caller
+// could name an arbitrary Unix account and — on the first failed
+// connect — have the console manufacture it inside the guest as root,
+// with their key in its authorized_keys. That also defeated the reason
+// keys are per-account in the first place: a guest's auth log is
+// supposed to say WHO, and a caller-chosen name made it say whatever
+// the caller wanted. sftpDial always did this correctly; the terminal
+// is now the same.
 type sshAuth struct {
-	Username string `json:"username"`
+	Username string `json:"-"`
 	Password string `json:"password"`
 	// PrivateKey is an optional PEM key; Passphrase decrypts it.
 	PrivateKey string `json:"privateKey"`
@@ -193,16 +204,13 @@ func (s *Server) instanceSSH(w http.ResponseWriter, r *http.Request) {
 		fail("No credentials received.")
 		return
 	}
-	if auth.Username == "" {
-		fail("A username is required.")
-		return
-	}
-
 	me := userFrom(r.Context())
 	if me == nil {
 		fail("Sign in and try again.")
 		return
 	}
+	// Never a name from the request: the account signs in as itself.
+	auth.Username = sshUserFor(me)
 	signer, publicKey, keyErr := s.userSigner(r.Context(), me)
 	if keyErr != nil {
 		fail("%v", keyErr)

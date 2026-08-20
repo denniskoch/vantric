@@ -1,6 +1,15 @@
 package api
 
-import "testing"
+import (
+	"context"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"vantric/internal/store"
+)
 
 // The hypervisor rename moved /servers to /hypervisors and left
 // ownerOnly pointing at the old spelling, which matched nothing — an
@@ -65,4 +74,77 @@ func isOwnerOnly(path string) bool {
 		}
 	}
 	return false
+}
+
+// The string matcher above is not the permission model — requireRole is,
+// and the two can disagree. They did: requireRole returned early for any
+// method that wasn't POST/PUT/PATCH/DELETE, so every check below it was
+// unreachable from a GET. That was correct while every GET was a read,
+// and stopped being correct the day GET /instances/{n}/ssh landed: a
+// viewer could open a shell on every guest in the lab, and a test over
+// ownerOnly could never have seen it, because ownerOnly was never
+// consulted.
+//
+// So this runs the real middleware.
+func TestRequireRoleGuardsTheMiddleware(t *testing.T) {
+	s := &Server{log: slog.New(slog.NewTextHandler(io.Discard, nil))}
+
+	cases := []struct {
+		role, method, path string
+		allowed            bool
+	}{
+		// A read is a read, for everyone.
+		{roleViewer, http.MethodGet, "/api/v1/instances", true},
+		{roleViewer, http.MethodGet, "/api/v1/instances/web-1/describe", true},
+		{roleViewer, http.MethodGet, "/api/v1/instances/web-1/metrics", true},
+		{roleViewer, http.MethodGet, "/api/v1/instances/web-1/backups", true},
+
+		// A GET that reaches INSIDE a guest is not a read. This is
+		// finding 01, and the reason this test exists.
+		{roleViewer, http.MethodGet, "/api/v1/instances/web-1/ssh", false},
+		{roleViewer, http.MethodGet, "/api/v1/instances/web-1/sftp/download", false},
+		{roleEditor, http.MethodGet, "/api/v1/instances/web-1/ssh", true},
+		{roleEditor, http.MethodGet, "/api/v1/instances/web-1/sftp/download", true},
+		{roleOwner, http.MethodGet, "/api/v1/instances/web-1/ssh", true},
+
+		// The account's own key is self-service and must not be caught
+		// by a suffix match on "/ssh".
+		{roleViewer, http.MethodGet, "/api/v1/ssh-key", true},
+		{roleViewer, http.MethodPut, "/api/v1/ssh-key", true},
+		{roleViewer, http.MethodPost, "/api/v1/auth/password", true},
+
+		// Ordinary mutations: an editor's, not a viewer's.
+		{roleViewer, http.MethodPost, "/api/v1/instances", false},
+		{roleViewer, http.MethodDelete, "/api/v1/instances/web-1", false},
+		{roleEditor, http.MethodPost, "/api/v1/instances", true},
+
+		// Credentials stay owner-only.
+		{roleEditor, http.MethodPost, "/api/v1/hypervisors", false},
+		{roleEditor, http.MethodPost, "/api/v1/iam/users", false},
+		{roleOwner, http.MethodPost, "/api/v1/hypervisors", true},
+		// ...and a resource inside a backend does not.
+		{roleEditor, http.MethodPost, "/api/v1/storage/users", true},
+	}
+
+	for _, c := range cases {
+		reached := false
+		next := http.HandlerFunc(func(http.ResponseWriter, *http.Request) { reached = true })
+		r := httptest.NewRequest(c.method, c.path, nil)
+		r = r.WithContext(context.WithValue(r.Context(), ctxUserKey{},
+			&store.User{Email: "someone@example.com", Role: c.role}))
+		w := httptest.NewRecorder()
+
+		s.requireRole(next).ServeHTTP(w, r)
+
+		if reached != c.allowed {
+			verb := "refused"
+			if reached {
+				verb = "allowed"
+			}
+			t.Errorf("%s %s as %s: %s, wanted the opposite", c.method, c.path, c.role, verb)
+		}
+		if !c.allowed && w.Code != http.StatusForbidden {
+			t.Errorf("%s %s as %s: refused with %d, wanted 403", c.method, c.path, c.role, w.Code)
+		}
+	}
 }

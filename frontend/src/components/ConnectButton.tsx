@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Box, Button, ButtonGroup, IconButton, Menu, MenuItem, Tooltip } from '@mui/material'
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown'
 import { connectionFor } from '../connect'
+import { usePermissions } from '../user'
 import type { Instance } from '../api/client'
 
 /**
@@ -12,6 +13,13 @@ import type { Instance } from '../api/client'
  * instances table, where it has to sit in a dense row; "outlined" is
  * the instance detail view, where it's the first thing on the page and
  * looks like a button.
+ *
+ * THE ROLE CHECK LIVES HERE rather than at the call sites, for the same
+ * reason the backend's is middleware: there are two call sites today and
+ * the third is the one that forgets. A viewer is offered nothing — a
+ * shell is not a read, whatever the HTTP verb behind it says — and the
+ * backend refuses it regardless, since this decides what to OFFER and is
+ * worth nothing on its own.
  */
 export default function ConnectButton({
   instance,
@@ -21,6 +29,7 @@ export default function ConnectButton({
   variant?: 'compact' | 'outlined'
 }) {
   const [menu, setMenu] = useState<null | HTMLElement>(null)
+  const { canEdit } = usePermissions()
   const connection = connectionFor(instance.osType, instance.internalIp, instance.name)
   const running = instance.status === 'RUNNING'
   const outlined = variant === 'outlined'
@@ -37,6 +46,28 @@ export default function ConnectButton({
   }
 
   const unavailable = running ? 'No address known yet' : 'Instance is not running'
+
+  if (!canEdit) {
+    const why = 'Connecting to a guest needs the editor role'
+    if (outlined) {
+      return (
+        <Tooltip title={why}>
+          <span>
+            <Button variant="outlined" size="small" disabled>
+              SSH
+            </Button>
+          </span>
+        </Tooltip>
+      )
+    }
+    return (
+      <Tooltip title={why}>
+        <Box component="span" sx={{ color: 'text.secondary' }}>
+          —
+        </Box>
+      </Tooltip>
+    )
+  }
 
   if (!connection) {
     if (outlined) {

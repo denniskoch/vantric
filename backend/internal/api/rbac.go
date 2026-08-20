@@ -28,7 +28,9 @@ import (
 // permission model with a hole is a permission model that isn't one.
 // Reads are unrestricted for anyone signed in — this console shows a
 // lab's state, and a viewer who can't see it has no reason to have an
-// account.
+// account. WITH ONE EXCEPTION, and it is a verb problem rather than a
+// role one: two routes are GETs that reach inside a guest instead of
+// describing it. See guestAccess.
 
 const (
 	roleOwner  = "owner"
@@ -98,6 +100,40 @@ var selfService = []string{
 	"/api/v1/ssh-key",
 }
 
+// guestAccess are the GETs THAT ARE NOT READS, and they are the reason
+// privilege can't be derived from the HTTP verb.
+//
+// The rule above — "reads are unrestricted for anyone signed in" — was
+// true when every GET returned a description of something. It stopped
+// being true when the console grew a way INTO a guest: a websocket
+// shell and a file pull are both GETs, and both do far more than any
+// mutation in this API. A viewer, the role whose whole promise is that
+// it changes nothing, could open a root-capable session on every guest
+// in the lab.
+//
+// So these are matched by SUFFIX under the instance subtree rather than
+// by the subtree itself, because the rest of it — describe, metrics,
+// os-info, inventory, backups — really is reading, and a viewer is
+// meant to have it.
+var guestAccess = []string{
+	"/ssh",           // interactive PTY
+	"/sftp/download", // arbitrary file read
+}
+
+// isGuestAccess reports whether a path reaches inside a guest rather
+// than describing one.
+func isGuestAccess(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/instances/") {
+		return false
+	}
+	for _, suffix := range guestAccess {
+		if strings.HasSuffix(path, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
 // requireRole refuses mutations the signed-in account isn't entitled
 // to make. Mounted inside the authenticated group, so there is always
 // an actor.
@@ -106,8 +142,11 @@ func (s *Server) requireRole(next http.Handler) http.Handler {
 		switch r.Method {
 		case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
 		default:
-			next.ServeHTTP(w, r)
-			return
+			// A verb is not a privilege level: see guestAccess.
+			if !isGuestAccess(r.URL.Path) {
+				next.ServeHTTP(w, r)
+				return
+			}
 		}
 		user := userFrom(r.Context())
 		if user == nil {
