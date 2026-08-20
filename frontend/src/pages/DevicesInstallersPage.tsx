@@ -96,6 +96,12 @@ export default function DevicesInstallersPage() {
     onError: (e: Error) => setError(e.message),
   })
 
+  // Every command on this page embeds the download token, so all of them
+  // are owner-only — the backend withholds the token from anyone else and
+  // these would otherwise render a link with an empty token that fails
+  // with a 404, which reads as a broken console rather than a refusal.
+  const canFetchCommands = Boolean(data?.token)
+
   const urlFor = (name: string) =>
     `${data?.baseUrl ?? ''}/api/v1/installers/${encodeURIComponent(name)}/download?token=${data?.token ?? ''}`
 
@@ -109,7 +115,11 @@ export default function DevicesInstallersPage() {
     <Box sx={{ p: 3 }}>
       <PageHeader
         title="Installers"
-        description="Agent packages a machine can fetch with one command. Download links carry a token."
+        description={
+          canFetchCommands
+            ? 'Agent packages a machine can fetch with one command. Download links carry a token.'
+            : 'Agent packages a machine can fetch with one command. The fetch commands carry the download token, which only an owner can read.'
+        }
         actions={
           <>
             {canEdit && (
@@ -197,7 +207,13 @@ export default function DevicesInstallersPage() {
                       between them is exactly the thing you don't want
                       to be remembering on a fresh box. */}
                   <Box sx={{ display: 'flex', gap: 0.5 }}>
-                    {commandsFor(item, urlFor(item.name)).map((cmd) => (
+                    {!canFetchCommands && (
+                      <Box component="span" sx={{ color: 'text.secondary', fontSize: 12 }}>
+                        Owner only
+                      </Box>
+                    )}
+                    {canFetchCommands &&
+                      commandsFor(item, urlFor(item.name)).map((cmd) => (
                       <Tooltip
                         key={cmd.label}
                         title={copied === `${item.name}:${cmd.label}` ? 'Copied' : cmd.command}
@@ -210,7 +226,7 @@ export default function DevicesInstallersPage() {
                           {cmd.label}
                         </Button>
                       </Tooltip>
-                    ))}
+                      ))}
                   </Box>
                 </TableCell>
                 <TableCell align="right">
@@ -245,10 +261,13 @@ export default function DevicesInstallersPage() {
             if (selected) copy(`${selected.name}:url`, urlFor(selected.name))
             setMenuAnchor(null)
           }}
+          disabled={!canFetchCommands}
         >
           <ContentCopyIcon fontSize="small" sx={{ mr: 1 }} /> Copy download URL
         </MenuItem>
-        {/* Copying the link is a read; removing the file is not. */}
+        {/* The link CARRIES the token, so copying it is not a read —
+            it hands over the credential. Deleting the file is an
+            editor's, which is the smaller of the two. */}
         {canEdit && (
           <MenuItem
             onClick={() => {

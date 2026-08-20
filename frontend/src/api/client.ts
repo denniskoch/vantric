@@ -585,7 +585,9 @@ export interface Installers {
   /** The origin a MACHINE should fetch from — the server's own idea of
    *  its address, which behind a tunnel isn't the browser's. */
   baseUrl: string
-  token: string
+  /** ABSENT unless you're an owner: the token is a credential, and a
+   *  fleetd package carries the enrollment secret. */
+  token?: string
 }
 
 export interface InventoryHostDetail {

@@ -67,7 +67,9 @@ type installersResponse struct {
 	// own idea of its public address, not the browser's, since behind a
 	// tunnel those disagree and only the server's is reachable.
 	BaseURL string `json:"baseUrl"`
-	Token   string `json:"token"`
+	// Token is OMITTED for anyone but an owner, so a viewer gets the
+	// file listing and not the credential — see listInstallers.
+	Token string `json:"token,omitempty"`
 }
 
 func (s *Server) installerRoutes(r chi.Router) {
@@ -104,15 +106,32 @@ func platformOf(name string) string {
 }
 
 func (s *Server) listInstallers(w http.ResponseWriter, r *http.Request) {
-	token, err := s.installerToken(r.Context())
-	if err != nil {
-		s.fail(w, err, "installer token")
-		return
-	}
 	out := installersResponse{
 		Installers: []installer{},
 		BaseURL:    s.siteOrigin(r),
-		Token:      token,
+	}
+	// THE TOKEN IS A CREDENTIAL, and this listing used to hand it to
+	// anyone signed in. "Reads are open to anyone signed in" is the
+	// right rule for a lab's state and the wrong one for a secret:
+	// rotating the token was owner-only, because ownerOnly gates
+	// mutations, while READING it was not gated at all. A fleetd package
+	// carries the enrollment secret, so whoever holds this can enrol a
+	// host into your Fleet instance — which is precisely what a viewer
+	// is not supposed to be able to do.
+	//
+	// The file listing itself stays open: what packages exist is lab
+	// state, and a viewer seeing it costs nothing.
+	//
+	// Minting is inside the check too. The token is created on first
+	// use, and a viewer opening this page should not be what brings a
+	// credential into existence.
+	if user := userFrom(r.Context()); user != nil && user.Role == roleOwner {
+		token, err := s.installerToken(r.Context())
+		if err != nil {
+			s.fail(w, err, "installer token")
+			return
+		}
+		out.Token = token
 	}
 	entries, err := os.ReadDir(filepath.Join(s.dataDir, installerDir))
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
