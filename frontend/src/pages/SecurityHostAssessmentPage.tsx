@@ -94,8 +94,20 @@ export default function SecurityHostAssessmentPage() {
             mt: 3,
           }}
         >
+          {/* TINTED ONLY WHEN THERE IS SOMETHING IN IT. A red
+              "Critical" card reading 0 is alarming about nothing, and
+              four permanently coloured blocks would announce the bands
+              rather than the finding. Low and unscored never tint:
+              neither is a thing to be drawn to. */}
           {bands.map((band) => (
-            <Paper key={band.severity} variant="outlined" sx={{ p: 2 }}>
+            <Paper
+              key={band.severity}
+              variant="outlined"
+              sx={{
+                p: 2,
+                bgcolor: counts[band.severity] > 0 && band.tint ? band.tint : undefined,
+              }}
+            >
               <Typography sx={{ fontSize: 20, lineHeight: 1.3, color: band.color }}>
                 {band.label}
               </Typography>
@@ -206,6 +218,7 @@ const bands = [
     label: 'Critical',
     range: '9.0 – 10.0',
     color: severityColor.CRITICAL,
+    tint: 'surface.errorTint',
     advice: 'Fix right now. Flaws let attackers break in easily and control systems.',
   },
   {
@@ -213,6 +226,7 @@ const bands = [
     label: 'High',
     range: '7.0 – 8.9',
     color: severityColor.HIGH,
+    tint: 'surface.errorTint',
     advice: 'Fix fast. Flaws cause major harm but might need some setup by an attacker.',
   },
   {
@@ -220,6 +234,7 @@ const bands = [
     label: 'Medium',
     range: '4.0 – 6.9',
     color: severityColor.MEDIUM,
+    tint: 'surface.warningTint',
     advice: 'Fix soon. Flaws need specific conditions or user help to exploit.',
   },
   {
@@ -227,6 +242,7 @@ const bands = [
     label: 'Low',
     range: '0.1 – 3.9',
     color: severityColor.LOW,
+    tint: '',
     advice: 'Fix when free. Flaws cause very little harm and are hard to exploit.',
   },
   {
@@ -238,6 +254,7 @@ const bands = [
     label: 'Not scored',
     range: 'no rating yet',
     color: 'text.disabled',
+    tint: '',
     advice: 'Nothing has rated these yet. Scores arrive as the vulnerability database is read.',
   },
 ]
