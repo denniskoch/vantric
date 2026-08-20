@@ -513,7 +513,9 @@ Surface the daily 90% here and link out for the rest.
   Number" from other vendors — fields left blank in a way that looks
   like data. The column exists to identify one specific machine, and a
   string six of them share identifies none, so those render as "not
-  set" like an empty one. Same rule as a VM's unset SMBIOS serial.
+  set" like an empty one. Same rule as a VM's unset SMBIOS serial, and
+  `src/serial.ts` holds it because four pages show a serial and each
+  would otherwise decide for itself.
 - THE JOIN IS THE SMBIOS UUID, which is the whole reason it was
   pulled. The hypervisor knows a guest's UUID and the agent inside
   reports the same value, so `/instances/{name}/inventory` looks the
@@ -948,6 +950,12 @@ Surface the daily 90% here and link out for the rest.
   stays comfortable to hit (20px in a table, 29px in a header). Don't
   fix density per page: a table with a checkbox column standing taller
   than one without is exactly what this prevents.
+- A DROPDOWN SHOWS EIGHT ROWS AND THEN SCROLLS, set once on `MuiMenu`
+  in the theme rather than per select. A picker over every host, or
+  every CVE, otherwise opens a menu the height of the window. It is a
+  HEIGHT, not a count, so a menu whose items run to two lines shows
+  fewer — which is the right trade, since the point is a menu that fits
+  on screen rather than a promise about a number.
 - Every list page opens with `components/PageHeader` — title, its
   actions, an optional description — so the title lands in the same
   place in every section. Written by hand the spacing drifts: buttons

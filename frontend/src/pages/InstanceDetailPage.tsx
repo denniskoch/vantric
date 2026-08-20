@@ -41,6 +41,7 @@ import { OSIcon } from '../components/OSName'
 import ConnectButton from '../components/ConnectButton'
 import GuestInventory from '../components/GuestInventory'
 import { usePermissions } from '../user'
+import { realSerial } from '../serial'
 
 type TabID = 'details' | 'observability' | 'os' | 'backups' | 'console'
 
@@ -461,9 +462,9 @@ export default function InstanceDetailPage() {
                     // Blank is the normal state, and "—" would read as
                     // "we didn't look". Inventory tools key on this, so
                     // say what its absence costs.
-                    value: (inst.serial || detail?.serial) ? (
+                    value: realSerial(inst.serial || detail?.serial) ? (
                       <Box component="span" sx={{ fontFamily: 'monospace', fontSize: 12 }}>
-                        {inst.serial || detail?.serial}
+                        {realSerial(inst.serial || detail?.serial)}
                       </Box>
                     ) : (
                       <Box component="span" sx={{ color: 'text.secondary' }}>

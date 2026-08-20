@@ -6,6 +6,7 @@ import ComputerIcon from '@mui/icons-material/Computer'
 import { api } from '../api/client'
 import DetailTable, { DetailSection } from '../components/DetailTable'
 import InventoryPanels from '../components/InventoryPanels'
+import { realSerial } from '../serial'
 import StatusIcon from '../components/StatusIcon'
 import { OSIcon } from '../components/OSName'
 import { timeAgo } from '../format'
@@ -136,7 +137,7 @@ export default function DevicesHostPage() {
                 label: 'Serial number',
                 value: (
                   <Box component="span" sx={{ fontFamily: 'monospace', fontSize: 12 }}>
-                    {host.serial || '—'}
+                    {realSerial(host.serial) ?? '—'}
                   </Box>
                 ),
               },

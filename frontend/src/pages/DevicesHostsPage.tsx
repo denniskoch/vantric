@@ -18,6 +18,7 @@ import type { InventoryHostView } from '../api/client'
 import { timeAgo } from '../format'
 import PageHeader from '../components/PageHeader'
 import { OSIcon } from '../components/OSName'
+import { realSerial } from '../serial'
 import StatusIcon from '../components/StatusIcon'
 
 /**
@@ -39,34 +40,6 @@ import StatusIcon from '../components/StatusIcon'
  * either way and the split is a property of the data rather than a
  * question to ask the service.
  */
-/**
- * A serial, or nothing — where "nothing" includes the placeholders a
- * board vendor ships and never fills in.
- *
- * Both MSI machines here report "To be filled by O.E.M.", which is DMI's
- * way of saying the field was left blank. It looks like data and is
- * not, which is the same trap as a VM's unset SMBIOS serial: the whole
- * point of the column is identifying a specific machine, and a string
- * six of them could share identifies nothing. A dash says "not set",
- * which is true and shorter.
- */
-const dmiPlaceholders = [
-  'to be filled by o.e.m.',
-  'system serial number',
-  'default string',
-  'not specified',
-  'not applicable',
-  'none',
-  'n/a',
-  '0',
-]
-
-function realSerial(serial: string): string | null {
-  const value = serial.trim()
-  if (!value || dmiPlaceholders.includes(value.toLowerCase())) return null
-  return value
-}
-
 function HostsPage({ virtual }: { virtual: boolean }) {
   const { data, isLoading } = useQuery({
     queryKey: ['inventoryHosts'],

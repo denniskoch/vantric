@@ -7,6 +7,7 @@ import PageHeader from '../components/PageHeader'
 import SelectField from '../components/SelectField'
 import DetailTable from '../components/DetailTable'
 import { severityColor } from '../severity'
+import { realSerial } from '../serial'
 import { installedNeedingUpdate, newestOSInEstate } from '../remediation'
 import { OSIcon } from '../components/OSName'
 
@@ -79,7 +80,7 @@ export default function SecurityHostAssessmentPage() {
                 </Box>
               ),
             },
-            { label: 'Serial number', value: host.serial || '—' },
+            { label: 'Serial number', value: realSerial(host.serial) ?? '—' },
           ]}
         />
       )}

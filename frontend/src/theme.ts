@@ -112,6 +112,23 @@ export const theme = createTheme({
         head: { color: '#5f6368', fontWeight: 500, whiteSpace: 'nowrap' },
       },
     },
+    MuiMenu: {
+      defaultProps: {
+        slotProps: {
+          // EIGHT ROWS, THEN SCROLL. A select over every host or every
+          // CVE otherwise opens a menu the height of the window, and
+          // GCP caps its own region picker the same way.
+          //
+          // Sized in rows of the ordinary single-line item this app
+          // uses (30px, plus the menu's own 8px of padding top and
+          // bottom). A menu whose items run to two lines therefore
+          // shows fewer than eight — which is the right trade: the
+          // point is a menu that fits on screen and scrolls, not a
+          // promise about a number.
+          paper: { sx: { maxHeight: 8 * 30 + 16 } },
+        },
+      },
+    },
     MuiChip: {
       styleOverrides: {
         // Chips are for tags and labels only — never for what a row
