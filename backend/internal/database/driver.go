@@ -11,7 +11,7 @@ package database
 import (
 	"context"
 	"errors"
-	"sync"
+	"vantric/internal/registry"
 )
 
 var ErrNotFound = errors.New("database: not found")
@@ -180,37 +180,10 @@ type Driver interface {
 
 // Registry holds one live Driver per configured server, keyed by its
 // record ID.
-type Registry struct {
-	mu      sync.RWMutex
-	drivers map[string]Driver
-}
+//
+// The three methods live in internal/registry: they were the same
+// three in all seven of these.
+type Registry = registry.Of[Driver]
 
-func NewRegistry() *Registry {
-	return &Registry{drivers: map[string]Driver{}}
-}
-
-func (r *Registry) Get(id string) (Driver, bool) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	d, ok := r.drivers[id]
-	return d, ok
-}
-
-// Set replaces any driver already registered, closing it first.
-func (r *Registry) Set(id string, d Driver) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if old, ok := r.drivers[id]; ok {
-		old.Close()
-	}
-	r.drivers[id] = d
-}
-
-func (r *Registry) Remove(id string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if d, ok := r.drivers[id]; ok {
-		d.Close()
-	}
-	delete(r.drivers, id)
-}
+// NewRegistry returns an empty registry.
+func NewRegistry() *Registry { return registry.New[Driver]() }

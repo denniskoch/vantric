@@ -1,33 +1,14 @@
 package hypervisor
 
-import "sync"
+import "vantric/internal/registry"
 
-// Registry holds one live Driver per registered server, keyed by server
-// ID. It is updated at runtime as servers are added/edited/removed.
-type Registry struct {
-	mu      sync.RWMutex
-	drivers map[string]Driver
-}
+// Registry holds one live Driver per registered hypervisor, keyed by
+// hypervisor ID. It is updated at runtime as hypervisors are added,
+// edited or removed.
+//
+// The three methods live in internal/registry: they were the same
+// three in all seven of these.
+type Registry = registry.Of[Driver]
 
-func NewRegistry() *Registry {
-	return &Registry{drivers: map[string]Driver{}}
-}
-
-func (r *Registry) Get(serverID string) (Driver, bool) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	d, ok := r.drivers[serverID]
-	return d, ok
-}
-
-func (r *Registry) Set(serverID string, d Driver) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.drivers[serverID] = d
-}
-
-func (r *Registry) Remove(serverID string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	delete(r.drivers, serverID)
-}
+// NewRegistry returns an empty registry.
+func NewRegistry() *Registry { return registry.New[Driver]() }

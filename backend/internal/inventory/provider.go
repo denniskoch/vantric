@@ -19,7 +19,7 @@ package inventory
 import (
 	"context"
 	"errors"
-	"sync"
+	"vantric/internal/registry"
 )
 
 var ErrNotFound = errors.New("inventory: not found")
@@ -229,45 +229,10 @@ type Provider interface {
 
 // Registry holds one live Provider per configured record, keyed by its
 // record ID.
-type Registry struct {
-	mu        sync.RWMutex
-	providers map[string]Provider
-}
+//
+// The three methods live in internal/registry: they were the same
+// three in all seven of these.
+type Registry = registry.Of[Provider]
 
-func NewRegistry() *Registry {
-	return &Registry{providers: map[string]Provider{}}
-}
-
-func (r *Registry) Get(id string) (Provider, bool) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	p, ok := r.providers[id]
-	return p, ok
-}
-
-func (r *Registry) Set(id string, p Provider) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.providers[id] = p
-}
-
-func (r *Registry) Remove(id string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	delete(r.providers, id)
-}
-
-// Any returns a provider when exactly one is configured, which is the
-// case a lab is in: endpoints then don't need a provider id they can't
-// get wrong. The same shortcut the identity section takes.
-func (r *Registry) Any() (Provider, bool) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	if len(r.providers) != 1 {
-		return nil, false
-	}
-	for _, p := range r.providers {
-		return p, true
-	}
-	return nil, false
-}
+// NewRegistry returns an empty registry.
+func NewRegistry() *Registry { return registry.New[Provider]() }

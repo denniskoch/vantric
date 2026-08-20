@@ -12,7 +12,7 @@ package identity
 import (
 	"context"
 	"errors"
-	"sync"
+	"vantric/internal/registry"
 )
 
 var ErrNotFound = errors.New("identity: not found")
@@ -120,30 +120,10 @@ type Provider interface {
 
 // Registry holds one live Provider per configured record, keyed by its
 // record ID.
-type Registry struct {
-	mu        sync.RWMutex
-	providers map[string]Provider
-}
+//
+// The three methods live in internal/registry: they were the same
+// three in all seven of these.
+type Registry = registry.Of[Provider]
 
-func NewRegistry() *Registry {
-	return &Registry{providers: map[string]Provider{}}
-}
-
-func (r *Registry) Get(id string) (Provider, bool) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	p, ok := r.providers[id]
-	return p, ok
-}
-
-func (r *Registry) Set(id string, p Provider) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.providers[id] = p
-}
-
-func (r *Registry) Remove(id string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	delete(r.providers, id)
-}
+// NewRegistry returns an empty registry.
+func NewRegistry() *Registry { return registry.New[Provider]() }
