@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -24,7 +25,8 @@ import (
 //
 // It records mutations only. A console that logged every GET would bury
 // the one line that matters under a poll loop reading the instance list
-// every three seconds.
+// every three seconds. THAT RULE HAS TWO EXCEPTIONS and they are the
+// two most privileged things here — see recordGuestAccess.
 
 const (
 	// Enough for a create-instance payload with cloud-init; anything
@@ -176,6 +178,58 @@ func errorFrom(body []byte) string {
 		return apiErr.Error
 	}
 	return strings.TrimSpace(string(body))
+}
+
+// --- guest access ----------------------------------------------------
+
+// A SHELL IS A GET, and so is pulling a file off a guest. The
+// middleware above records mutations only, which is right for reads and
+// was wrong for exactly these two: they don't describe a guest, they
+// reach inside it.
+//
+// This is the case audit_log was built for. Every backend is reached
+// through ONE shared credential, so the hypervisor's own task log can
+// only ever say root@pam!lcm; the mapping from an action to a PERSON
+// exists nowhere else. A shell left no row at all. And while a guest's
+// auth log now names the person — it didn't before the terminal stopped
+// taking its username from the client — it still cannot say which file
+// somebody took.
+type guestAccessEntry struct {
+	// action is instances.ssh.open, instances.ssh.close or
+	// instances.sftp.download.
+	action   string
+	resource string        // the instance
+	payload  string        // the detail worth keeping: which file, how big
+	at       time.Time     // when it started
+	duration time.Duration // how long it lasted, which for a session is the point
+	err      error
+}
+
+// recordGuestAccess writes one of those rows, the way recordSignIn
+// handles the other request the middleware can't reach.
+//
+// The context is DETACHED from the request. A session's closing entry is
+// written as the handler returns, by which time the websocket's peer is
+// usually gone and r.Context() is cancelled — writing through it would
+// drop precisely the record of how long somebody held a shell.
+func (s *Server) recordGuestAccess(r *http.Request, e guestAccessEntry) {
+	entry := &store.AuditEntry{
+		ID: uuid.NewString(), At: e.at.Unix(),
+		Method: r.Method, Path: r.URL.Path,
+		Action: e.action, Resource: e.resource, Payload: e.payload,
+		Status: http.StatusOK, DurationMS: e.duration.Milliseconds(),
+		RemoteAddr: clientAddr(r),
+	}
+	if user := userFrom(r.Context()); user != nil {
+		entry.ActorID, entry.ActorEmail = user.ID, user.Email
+	}
+	if e.err != nil {
+		entry.Status, entry.Error = http.StatusBadGateway, e.err.Error()
+	}
+	if err := s.store.AppendAudit(context.WithoutCancel(r.Context()), entry); err != nil {
+		s.log.Warn("audit: recording guest access failed",
+			"action", e.action, "error", err)
+	}
 }
 
 // --- redaction -------------------------------------------------------

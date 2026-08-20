@@ -1,12 +1,14 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/pkg/sftp"
@@ -139,8 +141,25 @@ func (s *Server) sftpDownload(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, "a path is required")
 		return
 	}
+
+	// An upload is a POST and the middleware records it; this is a GET
+	// and it never did — see recordGuestAccess. WHICH file is the whole
+	// point of the row: "somebody downloaded something from a guest" is
+	// not an audit trail.
+	started := time.Now()
+	var size int64
+	var failure error
+	defer func() {
+		s.recordGuestAccess(r, guestAccessEntry{
+			action: "instances.sftp.download", resource: chi.URLParam(r, "instance"),
+			payload: downloadDetail(remotePath, size), at: started,
+			duration: time.Since(started), err: failure,
+		})
+	}()
+
 	fs, client, ok := s.sftpDial(w, r)
 	if !ok {
+		failure = errors.New("could not open an SFTP session to the guest")
 		return
 	}
 	defer client.Close()
@@ -148,15 +167,19 @@ func (s *Server) sftpDownload(w http.ResponseWriter, r *http.Request) {
 
 	info, err := fs.Stat(remotePath)
 	if err != nil {
+		failure = err
 		s.err(w, http.StatusNotFound, remotePath+": "+err.Error())
 		return
 	}
 	if info.IsDir() {
+		failure = errors.New("is a directory")
 		s.err(w, http.StatusBadRequest, remotePath+" is a directory")
 		return
 	}
+	size = info.Size()
 	remote, err := fs.Open(remotePath)
 	if err != nil {
+		failure = err
 		s.err(w, http.StatusBadGateway, remotePath+": "+err.Error())
 		return
 	}
@@ -170,6 +193,22 @@ func (s *Server) sftpDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition",
 		`attachment; filename="`+strings.ReplaceAll(path.Base(remotePath), `"`, "")+`"`)
 	if _, err := io.Copy(w, remote); err != nil && !errors.Is(err, io.EOF) {
+		failure = err
 		s.log.Error("sftp download", "path", remotePath, "error", err)
 	}
+}
+
+// downloadDetail is what the audit row carries beyond the instance: the
+// file, and how much of it there was. Size is omitted when the transfer
+// never got far enough to know it, rather than written as a confident 0.
+func downloadDetail(remotePath string, size int64) string {
+	detail := map[string]any{"path": remotePath}
+	if size > 0 {
+		detail["bytes"] = size
+	}
+	encoded, err := json.Marshal(detail)
+	if err != nil {
+		return ""
+	}
+	return string(encoded)
 }

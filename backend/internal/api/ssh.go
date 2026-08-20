@@ -193,9 +193,26 @@ func (s *Server) instanceSSH(w http.ResponseWriter, r *http.Request) {
 
 	// Everything past the upgrade reports through the terminal itself:
 	// the browser can't read an HTTP status once the socket is open.
+	// It is also the one funnel every failure passes through, which is
+	// what lets the audit entry below say why without threading an
+	// error back through a dozen returns.
+	//
+	// firstFailure is guarded by the SAME lock as the writes, because
+	// fail is called from the pump goroutines as well as from here. As
+	// written the deferred reader can't overlap those — a pump only
+	// exists once the session is open, and the reader only looks at this
+	// when it never opened — but that is an argument about control flow,
+	// and the next fail() added to a goroutine would quietly end it.
+	var firstFailure string
 	fail := func(format string, args ...any) {
+		msg := fmt.Sprintf(format, args...)
+		writeMu.Lock()
+		if firstFailure == "" {
+			firstFailure = msg
+		}
+		writeMu.Unlock()
 		_ = writeMessage(websocket.TextMessage,
-			[]byte("\r\n\x1b[31m"+fmt.Sprintf(format, args...)+"\x1b[0m\r\n"))
+			[]byte("\r\n\x1b[31m"+msg+"\x1b[0m\r\n"))
 	}
 
 	var auth sshAuth
@@ -211,6 +228,38 @@ func (s *Server) instanceSSH(w http.ResponseWriter, r *http.Request) {
 	}
 	// Never a name from the request: the account signs in as itself.
 	auth.Username = sshUserFor(me)
+
+	// A shell is the most privileged thing this console can do and the
+	// auditing middleware cannot see it — see recordGuestAccess. From
+	// here on every exit leaves a row: a refused attempt with the reason,
+	// or an open and a close with the time between them, which is the
+	// question anybody asks afterwards.
+	//
+	// Deliberately not before this point: a socket that opens and never
+	// sends its first frame is a page load, not an attempt on a guest,
+	// and there is no actor to attribute it to anyway.
+	requested := time.Now()
+	var opened time.Time
+	defer func() {
+		if !opened.IsZero() {
+			s.recordGuestAccess(r, guestAccessEntry{
+				action: "instances.ssh.close", resource: inst.Name,
+				at: opened, duration: time.Since(opened),
+			})
+			return
+		}
+		writeMu.Lock()
+		reason := firstFailure
+		writeMu.Unlock()
+		if reason == "" {
+			reason = "the session did not open"
+		}
+		s.recordGuestAccess(r, guestAccessEntry{
+			action: "instances.ssh.open", resource: inst.Name,
+			at: requested, duration: time.Since(requested),
+			err: errors.New(reason),
+		})
+	}()
 	signer, publicKey, keyErr := s.userSigner(r.Context(), me)
 	if keyErr != nil {
 		fail("%v", keyErr)
@@ -282,6 +331,11 @@ func (s *Server) instanceSSH(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.log.Info("ssh session opened", "instance", inst.Name, "user", auth.Username)
+	opened = time.Now()
+	s.recordGuestAccess(r, guestAccessEntry{
+		action: "instances.ssh.open", resource: inst.Name,
+		at: requested, duration: time.Since(requested),
+	})
 
 	ctx, cancel := context.WithTimeout(r.Context(), sshMaxSession)
 	defer cancel()

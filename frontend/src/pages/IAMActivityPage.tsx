@@ -19,6 +19,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import { api } from '../api/client'
+import { formatDuration } from '../format'
 import PageHeader from '../components/PageHeader'
 import { usePaged } from '../components/usePaged'
 
@@ -34,6 +35,16 @@ import { usePaged } from '../components/usePaged'
  * of the time you want to know that somebody deleted an instance, and
  * occasionally you want to know exactly what they sent.
  */
+/**
+ * Most rows here are a request and measured in milliseconds. An SSH
+ * session is a row too, and "2700000 ms" does not answer the question
+ * that entry exists to answer — which is how long somebody held a shell.
+ */
+function formatElapsed(ms: number): string {
+  if (ms < 1000) return `${ms} ms`
+  return formatDuration(ms / 1000)
+}
+
 export default function IAMActivityPage() {
   const [open, setOpen] = useState<string | null>(null)
   const [filter, setFilter] = useState('')
@@ -137,7 +148,7 @@ export default function IAMActivityPage() {
                         </Typography>
                       )}
                       <Typography sx={{ fontSize: 11, color: 'text.secondary', mb: 1 }}>
-                        {entry.method} {entry.path} · {entry.durationMs} ms · from{' '}
+                        {entry.method} {entry.path} · {formatElapsed(entry.durationMs)} · from{' '}
                         {entry.remoteAddr || 'unknown'}
                       </Typography>
                       {entry.payload && (
