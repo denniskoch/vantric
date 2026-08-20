@@ -149,18 +149,23 @@ function WhatToDo({
   // rather than whatever the vendor's website claims today.
   const newer = newestOSInEstate(host.osVersion, hosts)
 
-  const apps = installedNeedingUpdate(host.platform, detail.packages ?? [])
+  const apps = installedNeedingUpdate(detail.packages ?? [])
 
-  const groups = new Map<string, typeof apps>()
-  for (const a of apps) {
-    groups.set(a.route.key, [...(groups.get(a.route.key) ?? []), a])
-  }
+  // SPLIT BY WHAT SOMEBODY RECOGNISES, not by how it updates. Clicking
+  // update on Edge is nothing; updating a Python that four other things
+  // import is a decision, and burying the two in one list asks for the
+  // same shrug from both. How to update each is said per row instead,
+  // where it's an instruction rather than a heading.
+  const sections = [
+    { heading: 'Applications', list: apps.filter((a) => a.kind === 'application') },
+    { heading: 'Runtimes and libraries', list: apps.filter((a) => a.kind === 'runtime') },
+  ].filter((s) => s.list.length > 0)
 
   if (!newer && apps.length === 0) return null
 
   return (
     <Box sx={{ mt: 3 }}>
-      <Typography sx={{ fontSize: 16, mb: 1.5 }}>What to do</Typography>
+      <Typography sx={{ fontSize: 16, mb: 1.5 }}>Updates required</Typography>
       <Paper variant="outlined" sx={{ p: 2 }}>
         {newer && (
           <Box sx={{ mb: apps.length ? 2 : 0 }}>
@@ -178,17 +183,27 @@ function WhatToDo({
           </Box>
         )}
 
-        {[...groups.entries()].map(([key, list]) => (
-          <Box key={key} sx={{ mb: 1.5, '&:last-child': { mb: 0 } }}>
-            <Typography sx={{ fontSize: 14 }}>{list[0].route.label}</Typography>
-            <Box component="ul" sx={{ m: 0, mt: 0.5, pl: 2.5 }}>
+        {sections.map(({ heading, list }) => (
+          <Box key={heading} sx={{ mb: 2, '&:last-child': { mb: 0 } }}>
+            <Typography sx={{ fontSize: 14, mb: 0.5 }}>{heading}</Typography>
+            <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
               {list.map((a) => (
                 <Box
                   component="li"
                   key={`${a.name}-${a.version}`}
-                  sx={{ fontSize: 13, color: 'text.secondary', py: 0.15 }}
+                  sx={{ fontSize: 13, py: 0.2 }}
                 >
                   {a.version ? `${a.name} ${a.version}` : a.name}
+                  {/* The worst thing in it, coloured — what decides
+                      whether this row is today's problem. */}
+                  {a.severity && (
+                    <Box
+                      component="span"
+                      sx={{ color: severityColor[a.severity] ?? 'text.secondary', ml: 1 }}
+                    >
+                      {a.severity}
+                    </Box>
+                  )}
                   <Box component="span" sx={{ color: 'text.disabled' }}>
                     {' '}
                     — {a.count} {a.count === 1 ? 'vulnerability' : 'vulnerabilities'}
@@ -196,11 +211,6 @@ function WhatToDo({
                 </Box>
               ))}
             </Box>
-            {list[0].route.note && (
-              <Typography sx={{ fontSize: 12, color: 'text.disabled' }}>
-                {list[0].route.note}
-              </Typography>
-            )}
           </Box>
         ))}
       </Paper>

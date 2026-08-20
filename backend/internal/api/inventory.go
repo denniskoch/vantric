@@ -262,7 +262,7 @@ func (s *Server) instanceInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	view.Enrolled = true
-	s.enrichHostVulnerabilities(r.Context(), detail.Vulnerabilities)
+	s.enrichHostVulnerabilities(r.Context(), detail)
 	view.Detail = detail
 	s.json(w, http.StatusOK, view)
 }
@@ -439,7 +439,7 @@ func (s *Server) getInventoryHost(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err, "host")
 		return
 	}
-	s.enrichHostVulnerabilities(r.Context(), detail.Vulnerabilities)
+	s.enrichHostVulnerabilities(r.Context(), detail)
 	view := inventoryHostDetailView{HostDetail: detail}
 	// The correlation again, from the other end: this page knows the
 	// host and wants the guest, where the list knew the guests.
@@ -722,26 +722,39 @@ func (s *Server) setEnrichmentEnabled(w http.ResponseWriter, r *http.Request) {
 // Neither lookup is fatal: a missing score leaves "not scored", a
 // missing catalogue leaves the flames off. The packages and the CVE
 // list are the page; these are columns.
-func (s *Server) enrichHostVulnerabilities(ctx context.Context, vulns []inventory.Vulnerability) {
-	if len(vulns) == 0 {
+func (s *Server) enrichHostVulnerabilities(ctx context.Context, detail *inventory.HostDetail) {
+	if detail == nil {
 		return
 	}
-	if scores, err := s.store.CVEScores(ctx); err == nil {
+	// BOTH COPIES, because the driver builds two: a flat list for the
+	// host, and one per package. They are separate slices of separate
+	// structs, so enriching only the flat one left every per-package row
+	// unscored — which showed up as a page whose severity bands were
+	// full while its list of what to update knew nothing about how bad
+	// anything was.
+	lists := [][]inventory.Vulnerability{detail.Vulnerabilities}
+	for i := range detail.Packages {
+		lists = append(lists, detail.Packages[i].Vulnerabilities)
+	}
+
+	scores, scoreErr := s.store.CVEScores(ctx)
+	catalogue, kevErr := s.kev.Catalogue(ctx)
+	if kevErr != nil {
+		s.log.Warn("kev catalogue unavailable", "error", kevErr)
+	}
+	for _, vulns := range lists {
 		for i := range vulns {
-			if c, ok := scores[vulns[i].CVE]; ok && vulns[i].CVSSScore == 0 {
-				vulns[i].CVSSScore = c.Score
-				vulns[i].Severity = c.Severity
+			if scoreErr == nil {
+				if c, ok := scores[vulns[i].CVE]; ok && vulns[i].CVSSScore == 0 {
+					vulns[i].CVSSScore = c.Score
+					vulns[i].Severity = c.Severity
+				}
 			}
-		}
-	}
-	catalogue, err := s.kev.Catalogue(ctx)
-	if err != nil {
-		s.log.Warn("kev catalogue unavailable", "error", err)
-		return
-	}
-	for i := range vulns {
-		if _, listed := catalogue[strings.ToUpper(vulns[i].CVE)]; listed {
-			vulns[i].KnownExploited = true
+			if kevErr == nil {
+				if _, listed := catalogue[strings.ToUpper(vulns[i].CVE)]; listed {
+					vulns[i].KnownExploited = true
+				}
+			}
 		}
 	}
 }

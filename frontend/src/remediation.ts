@@ -1,103 +1,14 @@
+import { rankOf } from './severity'
+
 /**
  * Turning a host's vulnerabilities into the short list of things
- * somebody actually does.
+ * somebody actually updates.
  *
  * A machine with four hundred CVEs has, in practice, half a dozen
- * actions: update the OS, run one vendor updater, open the App Store,
- * throw away something ancient. That collapse is computable, so it is
- * computed — the counts and versions here all come from the inventory
- * service, and nothing is inferred about a version nobody reported.
- *
- * What IS knowledge rather than data is how a given application gets
- * updated on a given platform, and that is a small static mapping
- * below. It is deliberately shallow: anything unrecognised falls to
- * "update from the vendor", which is true of everything and useful for
- * nothing, rather than guessing at a channel that might not exist.
+ * pieces of software behind them. That collapse is computable, so it is
+ * computed: the counts, versions and severities all come from the
+ * inventory service, and no version is suggested that nobody reported.
  */
-
-/** How a piece of software gets updated. Order is the order to do it. */
-export type UpdateRoute = {
-  key: string
-  /** What to do, as an instruction. */
-  label: string
-  /** Why these are grouped, where it isn't obvious. */
-  note?: string
-}
-
-const OS_BUNDLED: UpdateRoute = {
-  key: 'os',
-  label: 'Updated with the operating system',
-  note: 'These ship with the OS, so the system update above covers them.',
-}
-const APP_STORE: UpdateRoute = { key: 'appstore', label: 'Update from the App Store' }
-const MS_AUTOUPDATE: UpdateRoute = {
-  key: 'msau',
-  label: 'Update with Microsoft AutoUpdate',
-}
-const WINDOWS_UPDATE: UpdateRoute = { key: 'wu', label: 'Update with Windows Update' }
-const PACKAGE_MANAGER: UpdateRoute = {
-  key: 'pkg',
-  label: "Update with the system's package manager",
-}
-const VENDOR: UpdateRoute = { key: 'vendor', label: 'Update from the vendor' }
-const PIP: UpdateRoute = {
-  key: 'pip',
-  label: 'Update with pip',
-  note: 'Libraries inside a Python installation, not separate applications.',
-}
-const NPM: UpdateRoute = { key: 'npm', label: 'Update with npm' }
-const HOMEBREW: UpdateRoute = { key: 'brew', label: 'Update with Homebrew' }
-const BROWSER: UpdateRoute = { key: 'browser', label: 'Update through the browser' }
-
-/**
- * The inventory service says where it FOUND a piece of software, and
- * that answers "how is it updated" far better than its name does.
- *
- * This ran on names alone at first, which put five Python libraries —
- * pip, pyasn1, zstandard, cryptography — under "update from the
- * vendor", as if you'd go and download them. They're pip's to manage,
- * and the source field said so all along.
- */
-const bySource: Record<string, UpdateRoute> = {
-  python_packages: PIP,
-  npm_packages: NPM,
-  homebrew_packages: HOMEBREW,
-  deb_packages: PACKAGE_MANAGER,
-  rpm_packages: PACKAGE_MANAGER,
-  pacman_packages: PACKAGE_MANAGER,
-  chrome_extensions: BROWSER,
-  firefox_addons: BROWSER,
-  safari_extensions: BROWSER,
-}
-
-/** Apple software that updates with macOS rather than separately. */
-const macOSBundled = ['safari', 'webkit']
-/** Apple's own apps, which come through the App Store. */
-const appleAppStore = ['keynote', 'pages', 'numbers', 'imovie', 'garageband', 'xcode']
-
-export function updateRoute(platform: string, name: string, source = ''): UpdateRoute {
-  // Where it was found beats what it's called: a package manager owns
-  // everything it installed, whatever the package happens to be named.
-  const bySrc = bySource[source]
-  if (bySrc) return bySrc
-
-  const app = name.toLowerCase()
-  if (platform === 'darwin') {
-    if (macOSBundled.some((n) => app.startsWith(n))) return OS_BUNDLED
-    if (appleAppStore.some((n) => app.startsWith(n))) return APP_STORE
-    if (app.startsWith('microsoft')) return MS_AUTOUPDATE
-    return VENDOR
-  }
-  if (platform === 'windows') {
-    // Defender and Edge come down Windows Update; other Microsoft apps
-    // may not, so this stays narrow.
-    if (app.includes('defender') || app.startsWith('windows ')) return WINDOWS_UPDATE
-    return VENDOR
-  }
-  // Everything else here is Linux, where the answer is the same for
-  // essentially all of it.
-  return PACKAGE_MANAGER
-}
 
 /**
  * Compares two reported OS strings of the same family, returning true
@@ -146,12 +57,62 @@ export function newestOSInEstate(
 export interface Installed {
   name: string
   version: string
+  /** Worst severity among its CVEs, '' when none of them is scored. */
+  severity: string
+  /** That severity's score, for ordering within a band. */
+  worstScore: number
+  /** Something you open, or something other things run on. */
+  kind: 'application' | 'runtime'
+  count: number
   /** What this is, ignoring which version — used to keep the versions
    *  of one thing together in the list. */
   product: string
   /** Distinct CVEs across every row that is this same software. */
-  count: number
-  route: UpdateRoute
+}
+
+/**
+ * Whether this is something a person opens or something that sits
+ * underneath what they open.
+ *
+ * Anything a package manager installed is a library by definition —
+ * that part is data, not judgement. The name list is only for runtimes
+ * that install like an application, which on Windows is most of them:
+ * Python registers as an installed program exactly as Blender does, and
+ * nothing in the record distinguishes them.
+ *
+ * The split exists because the two ask different things of a person.
+ * Updating Edge is a click; updating a Python that four other things
+ * import is a decision.
+ */
+const runtimeSources = [
+  'python_packages',
+  'npm_packages',
+  'homebrew_packages',
+  'deb_packages',
+  'rpm_packages',
+  'pacman_packages',
+]
+const runtimeNames = [
+  'python',
+  'node',
+  'nodejs',
+  'openjdk',
+  'java',
+  'jre',
+  'jdk',
+  'ruby',
+  'perl',
+  'php',
+  'openssl',
+  'dotnet',
+  '.net',
+  'go programming language',
+]
+
+export function softwareKind(name: string, source: string): 'application' | 'runtime' {
+  if (runtimeSources.includes(source)) return 'runtime'
+  const n = name.toLowerCase()
+  return runtimeNames.some((r) => n.startsWith(r)) ? 'runtime' : 'application'
 }
 
 /** cpe:2.3:a:vendor:product:version:… — the product field, or "". */
@@ -178,18 +139,25 @@ function cpeProduct(cpe: string): string {
  * than being merged into something it might not be.
  */
 export function installedNeedingUpdate(
-  platform: string,
   packages: {
     name: string
     version: string
     cpe: string
     source: string
-    vulnerabilities: { cve: string }[] | null
+    vulnerabilities: { cve: string; severity: string; cvssScore: number }[] | null
   }[],
 ): Installed[] {
   const groups = new Map<
     string,
-    { names: string[]; version: string; product: string; source: string; cves: Set<string> }
+    {
+      names: string[]
+      version: string
+      product: string
+      source: string
+      cves: Set<string>
+      severity: string
+      worstScore: number
+    }
   >()
   for (const p of packages) {
     const vulns = p.vulnerabilities ?? []
@@ -198,9 +166,26 @@ export function installedNeedingUpdate(
     const key = `${product}\u0000${p.version}`
     const group =
       groups.get(key) ??
-      { names: [], version: p.version, product, source: p.source, cves: new Set<string>() }
+      {
+        names: [],
+        version: p.version,
+        product,
+        source: p.source,
+        cves: new Set<string>(),
+        severity: '',
+        worstScore: 0,
+      }
     group.names.push(p.name)
-    for (const v of vulns) group.cves.add(v.cve)
+    for (const v of vulns) {
+      group.cves.add(v.cve)
+      // AN APP IS AS BAD AS ITS WORST FLAW. One critical among fifty
+      // lows is a critical; counting instead would bury it under
+      // something harmless and numerous.
+      if (rankOf(v.severity) < rankOf(group.severity)) {
+        group.severity = v.severity
+      }
+      group.worstScore = Math.max(group.worstScore, v.cvssScore)
+    }
     groups.set(key, group)
   }
   const items = [...groups.values()].map((g) => {
@@ -213,28 +198,35 @@ export function installedNeedingUpdate(
       // again gave "Python 3.13.3 (64-bit) 3.13.3".
       version: name.includes(g.version) ? '' : g.version,
       product: g.product,
+      severity: g.severity,
+      worstScore: g.worstScore,
+      kind: softwareKind(name, g.source),
       count: g.cves.size,
-      route: updateRoute(platform, name, g.source),
     }
   })
 
-  // KEEP THE VERSIONS OF ONE THING TOGETHER. Sorting on count alone
-  // scattered them — Python 3.13.3, Python 3.12.10, Visual Studio Code,
-  // then Python 3.14.6 — which reads as three problems rather than one
-  // piece of software installed three times.
+  // RANKED BY THE WORST THING IN IT, not by how many. An app carrying
+  // one critical among fifty lows is a critical; counting instead
+  // buried it under something harmless and numerous.
   //
-  // A product is ranked by its worst version, so what needs attention
-  // still leads; its other versions then follow immediately. The
-  // ranking is computed over the whole list first, because a pairwise
-  // comparator can't see it.
+  // And the versions of one product stay together — sorting each on its
+  // own scattered them, giving Python 3.13.3, Python 3.12.10, Visual
+  // Studio Code, then Python 3.14.6, which reads as three problems
+  // rather than one thing installed three times. The product's worst
+  // severity leads, its other versions follow. Computed over the whole
+  // list first, because a pairwise comparator can't see it.
   const worst = new Map<string, number>()
+  const worstScore = new Map<string, number>()
   for (const i of items) {
-    worst.set(i.product, Math.max(worst.get(i.product) ?? 0, i.count))
+    worst.set(i.product, Math.min(worst.get(i.product) ?? 99, rankOf(i.severity)))
+    worstScore.set(i.product, Math.max(worstScore.get(i.product) ?? 0, i.worstScore))
   }
   return items.sort(
     (a, b) =>
-      (worst.get(b.product) ?? 0) - (worst.get(a.product) ?? 0) ||
+      (worst.get(a.product) ?? 99) - (worst.get(b.product) ?? 99) ||
+      (worstScore.get(b.product) ?? 0) - (worstScore.get(a.product) ?? 0) ||
       a.product.localeCompare(b.product) ||
+      rankOf(a.severity) - rankOf(b.severity) ||
       b.count - a.count ||
       a.name.localeCompare(b.name),
   )
