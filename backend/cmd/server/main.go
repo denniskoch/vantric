@@ -94,7 +94,30 @@ func main() {
 	// Fills in what each CVE actually is, slowly, in NVD's own time.
 	go server.EnrichCVEs(ctx)
 
-	httpServer := &http.Server{Addr: cfg.Listen, Handler: server.Router()}
+	// Bounded where it can be, and DELIBERATELY NOT where it can't.
+	//
+	// Go's defaults here are "wait forever", which is a non-event on a
+	// LAN and the cheapest denial of service there is behind a public
+	// tunnel: a handful of connections that open and never finish
+	// sending headers hold goroutines and file descriptors indefinitely.
+	//
+	// ReadTimeout and WriteTimeout are missing ON PURPOSE and must stay
+	// missing. They bound a whole request, so a ReadTimeout would cap a
+	// multi-gigabyte ISO upload at whatever number was chosen, and a
+	// WriteTimeout would sever the SSH terminal mid-session — both of
+	// them silently, and both looking like a broken feature rather than
+	// a setting. Anyone tempted to complete the set should add the bound
+	// to the handler that needs it instead. ReadHeaderTimeout covers the
+	// case those two are usually reached for, since a request that never
+	// finishes its headers never reaches a handler at all.
+	httpServer := &http.Server{
+		Addr:              cfg.Listen,
+		Handler:           server.Router(),
+		ReadHeaderTimeout: 15 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		// Go's own default, said out loud so every bound is in one place.
+		MaxHeaderBytes: 1 << 20,
+	}
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
