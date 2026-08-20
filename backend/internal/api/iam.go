@@ -324,8 +324,8 @@ func (s *Server) saveOIDC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Issuer = normalizeIssuer(req.Issuer)
-	if !strings.HasPrefix(req.Issuer, "http://") && !strings.HasPrefix(req.Issuer, "https://") {
-		s.err(w, http.StatusBadRequest, "the issuer must be a URL")
+	if msg := issuerSchemeError(req.Issuer); msg != "" {
+		s.err(w, http.StatusBadRequest, msg)
 		return
 	}
 	if strings.TrimSpace(req.ClientID) == "" {

@@ -6,8 +6,10 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -64,6 +66,12 @@ var (
 
 func discover(ctx context.Context, issuer string) (*oidcDiscovery, error) {
 	issuer = normalizeIssuer(issuer)
+	// Asserted here too, not just where it's saved: this row predates
+	// the check on any console that was already configured, and the
+	// whole flow's safety rests on this one property.
+	if msg := issuerSchemeError(issuer); msg != "" {
+		return nil, errors.New(msg)
+	}
 	discoveryMu.Lock()
 	cached, ok := discoveryCache[issuer]
 	discoveryMu.Unlock()
@@ -119,6 +127,46 @@ func normalizeIssuer(issuer string) string {
 }
 
 const discoveryPath = "/.well-known/openid-configuration"
+
+// issuerSchemeError explains why an http:// issuer is refused, or "".
+//
+// This file's own justification for not verifying the ID token signature
+// is that identity comes from a direct, TLS-pinned call to the
+// provider's userinfo endpoint with a token fetched moments earlier —
+// which is correct, and OIDC Core 3.1.3.7 says as much. It rests
+// ENTIRELY ON THE TLS. Over http anyone on the path between this
+// console and the identity provider can answer the userinfo call and be
+// whoever they like, and by design there is no signature check standing
+// behind it to notice. The reasoning was sound; the precondition was
+// assumed rather than enforced.
+//
+// Loopback is allowed, the way OAuth 2.1 allows it for redirect URIs:
+// nothing is on the path to your own machine, and refusing it would
+// block a provider running beside the console for a test with no
+// security gained.
+func issuerSchemeError(issuer string) string {
+	parsed, err := url.Parse(issuer)
+	if err != nil {
+		return "the issuer must be a URL"
+	}
+	switch strings.ToLower(parsed.Scheme) {
+	case "https":
+		return ""
+	case "http":
+		if host, _, splitErr := net.SplitHostPort(parsed.Host); splitErr == nil {
+			parsed.Host = host
+		}
+		if parsed.Hostname() == "localhost" || parsed.Hostname() == "127.0.0.1" ||
+			parsed.Hostname() == "::1" {
+			return ""
+		}
+		return "the issuer must be https — sign-in trusts this connection " +
+			"instead of checking a signature, so over http anyone between " +
+			"this console and your provider could answer as any user"
+	default:
+		return "the issuer must be a URL"
+	}
+}
 
 // describeResponder turns "404" into something you can act on: whatever
 // the thing on the other end says about itself.
