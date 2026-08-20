@@ -25,10 +25,14 @@ type Reconciler struct {
 	log      *slog.Logger
 	interval time.Duration
 	sweeps   int
+	// grace is removalGrace, held as a field so a test can set it to
+	// zero and isolate the guard it means to exercise.
+	grace time.Duration
 }
 
 func NewReconciler(st *store.Store, registry *hypervisor.Registry, log *slog.Logger, interval time.Duration) *Reconciler {
-	return &Reconciler{store: st, registry: registry, log: log, interval: interval}
+	return &Reconciler{store: st, registry: registry, log: log,
+		interval: interval, grace: removalGrace}
 }
 
 func (r *Reconciler) Run(ctx context.Context) {
@@ -42,6 +46,27 @@ func (r *Reconciler) Run(ctx context.Context) {
 			r.sweep(ctx)
 		}
 	}
+}
+
+// removalGrace is how long a record is safe from the removal pass.
+//
+// Creating an instance races this sweep: the handler writes the record
+// and the hypervisor may not report the VM for another beat or two. The
+// create flow already survives the other direction of that race — it
+// claims a record adoption wrote first — and this is the same race seen
+// from the other side.
+const removalGrace = 30 * time.Second
+
+// heldFor counts the records this console holds for one hypervisor,
+// which is what makes an empty list suspicious rather than informative.
+func heldFor(instances []store.Instance, hypervisorID string) int {
+	held := 0
+	for _, inst := range instances {
+		if inst.HypervisorID == hypervisorID {
+			held++
+		}
+	}
+	return held
 }
 
 func (r *Reconciler) sweep(ctx context.Context) {
@@ -85,8 +110,31 @@ func (r *Reconciler) sweep(ctx context.Context) {
 			}
 		}
 		// Instances whose VM vanished from the hypervisor.
-		for _, inst := range instances {
-			if inst.HypervisorID == server.ID && inst.DriverID != "" && !seen[inst.DriverID] {
+		//
+		// AN EMPTY ANSWER IS NOT "EVERY VM IS GONE". A failed List is
+		// handled above, but a call that SUCCEEDS and returns nothing is
+		// the same shape as a lab that was deleted — and Proxmox's
+		// cluster/resources is cached and can come back empty or partial
+		// when a node loses quorum. Wiping on that costs the protected
+		// flag and the description mirror, and adoption puts the guests
+		// back as new rows, so it reads as a console that forgot
+		// everything it knew about a running lab.
+		if len(states) == 0 && heldFor(instances, server.ID) > 0 {
+			r.log.Warn("reconciler: empty instance list, keeping records",
+				"server", server.Name, "kept", heldFor(instances, server.ID))
+		} else {
+			for _, inst := range instances {
+				if inst.HypervisorID != server.ID || inst.DriverID == "" || seen[inst.DriverID] {
+					continue
+				}
+				// And a record younger than the grace period is not
+				// missing, it is NEW: a VM created seconds ago can be
+				// absent from a sweep that reads a cache older than the
+				// create, and the record would be deleted out from under
+				// the flow that just wrote it.
+				if time.Since(inst.UpdatedAt) < r.grace {
+					continue
+				}
 				r.log.Info("reconciler: instance gone from hypervisor, removing", "name", inst.Name)
 				_ = r.store.DeleteInstance(ctx, inst.ID)
 			}
@@ -126,11 +174,27 @@ func (r *Reconciler) sweepContainers(ctx context.Context, server store.Hyperviso
 			r.adoptContainer(ctx, server, state)
 		}
 	}
+	// Same two guards as the instance sweep, for the same reasons.
+	held := 0
 	for _, ct := range containers {
-		if ct.HypervisorID == server.ID && ct.DriverID != "" && !seen[ct.DriverID] {
-			r.log.Info("reconciler: container gone from hypervisor, removing", "name", ct.Name)
-			_ = r.store.DeleteContainer(ctx, ct.ID)
+		if ct.HypervisorID == server.ID {
+			held++
 		}
+	}
+	if len(states) == 0 && held > 0 {
+		r.log.Warn("reconciler: empty container list, keeping records",
+			"server", server.Name, "kept", held)
+		return
+	}
+	for _, ct := range containers {
+		if ct.HypervisorID != server.ID || ct.DriverID == "" || seen[ct.DriverID] {
+			continue
+		}
+		if time.Since(ct.UpdatedAt) < r.grace {
+			continue
+		}
+		r.log.Info("reconciler: container gone from hypervisor, removing", "name", ct.Name)
+		_ = r.store.DeleteContainer(ctx, ct.ID)
 	}
 }
 
@@ -189,16 +253,16 @@ func (r *Reconciler) syncContainerShape(ctx context.Context, ct *store.Container
 // app didn't create; protected by default like adopted instances.
 func (r *Reconciler) adoptContainer(ctx context.Context, server store.Hypervisor, state hypervisor.InstanceState) {
 	ct := &store.Container{
-		ID:        uuid.NewString(),
-		Name:      state.Name,
-		HypervisorID:  server.ID,
-		Node:      state.Node,
-		CPUs:      state.CPUs,
-		MemoryMB:  state.MemoryMB,
-		DiskGB:    state.DiskGB,
-		Status:    string(state.Status),
-		DriverID:  state.DriverID,
-		Protected: true,
+		ID:           uuid.NewString(),
+		Name:         state.Name,
+		HypervisorID: server.ID,
+		Node:         state.Node,
+		CPUs:         state.CPUs,
+		MemoryMB:     state.MemoryMB,
+		DiskGB:       state.DiskGB,
+		Status:       string(state.Status),
+		DriverID:     state.DriverID,
+		Protected:    true,
 	}
 	if ct.Name == "" {
 		ct.Name = "ct-" + state.DriverID
@@ -342,16 +406,16 @@ func firstNonEmpty(a, b string) string {
 // deleting them destroys a real VM someone made outside the app.
 func (r *Reconciler) adoptInstance(ctx context.Context, server store.Hypervisor, state hypervisor.InstanceState) {
 	inst := &store.Instance{
-		ID:        uuid.NewString(),
-		Name:      state.Name,
-		HypervisorID:  server.ID,
-		Node:      state.Node,
-		CPUs:      state.CPUs,
-		MemoryMB:  state.MemoryMB,
-		DiskGB:    state.DiskGB,
-		Status:    string(state.Status),
-		DriverID:  state.DriverID,
-		Protected: true,
+		ID:           uuid.NewString(),
+		Name:         state.Name,
+		HypervisorID: server.ID,
+		Node:         state.Node,
+		CPUs:         state.CPUs,
+		MemoryMB:     state.MemoryMB,
+		DiskGB:       state.DiskGB,
+		Status:       string(state.Status),
+		DriverID:     state.DriverID,
+		Protected:    true,
 	}
 	if inst.Name == "" {
 		inst.Name = "vm-" + state.DriverID
