@@ -163,7 +163,7 @@ func (s *Server) Router() http.Handler {
 	r := chi.NewRouter()
 	// Not middleware.RealIP: it believes X-Forwarded-For from anyone.
 	// See clientaddr.go.
-	r.Use(middleware.RequestID, s.realIP, middleware.Recoverer)
+	r.Use(middleware.RequestID, s.realIP, securityHeaders, middleware.Recoverer)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		// Sign-in itself can't require being signed in, and /auth/me is

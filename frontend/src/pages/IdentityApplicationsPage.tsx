@@ -16,6 +16,7 @@ import { api } from '../api/client'
 import { BrandLabel } from '../components/BrandIcon'
 import PageHeader from '../components/PageHeader'
 import { appBrand } from '../brands'
+import { externalHref } from '../safeUrl'
 
 export default function IdentityApplicationsPage() {
   const { data: providers = [] } = useQuery({
@@ -74,7 +75,7 @@ export default function IdentityApplicationsPage() {
                 <TableCell>
                   {app.launchUrl ? (
                     <Link
-                      href={app.launchUrl}
+                      href={externalHref(app.launchUrl)}
                       target="_blank"
                       rel="noreferrer"
                       underline="hover"
