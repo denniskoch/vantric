@@ -1184,9 +1184,14 @@ Surface the daily 90% here and link out for the rest.
 ## Config
 
 ENVIRONMENT ONLY — there is no config file. `internal/config` reads
-nine `VANTRIC_*` variables (listen, db driver/dsn, static dir, two ssh
-toggles, two bootstrap-account settings) and every one has a working
-default, so running with nothing set is supported. `.env.example`
+ten `VANTRIC_*` variables (listen, db driver/dsn, site url, static dir,
+trusted proxies, two ssh toggles, two bootstrap-account settings) and
+every one has a working default, so running with nothing set is
+supported. TRUSTED_PROXIES defaults to trusting NOTHING: a forwarding
+header is believed only from a peer named there, so the audit log
+records who actually connected rather than who said they did. Behind
+the tunnel it needs setting, or every action is attributed to the
+proxy. `.env.example`
 documents them; `.env` is gitignored and compose reads it through
 `env_file`, passed whole so a new setting can't be silently dropped by
 forgetting to list it. Container-specific values (`VANTRIC_LISTEN`,

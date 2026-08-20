@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -159,12 +160,14 @@ func resourceOf(r *http.Request) string {
 	return strings.Join(parts, "/")
 }
 
+// clientAddr is who connected. It reads RemoteAddr and NOTHING ELSE:
+// forwarding headers are consulted once, in realIP, and only from a peer
+// this console was told to believe — see clientaddr.go. Reading the
+// header here as well is what let a caller write their own address into
+// the audit log.
 func clientAddr(r *http.Request) string {
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		return strings.TrimSpace(strings.Split(forwarded, ",")[0])
-	}
-	host, _, found := strings.Cut(r.RemoteAddr, ":")
-	if !found {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
 		return r.RemoteAddr
 	}
 	return host

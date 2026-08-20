@@ -3,7 +3,7 @@
 //
 // Environment only, and deliberately: every setting here is a single
 // scalar, Docker is the deployment target, and compose already speaks
-// env. A YAML file alongside it was a second way to say the same eight
+// env. A YAML file alongside it was a second way to say the same ten
 // things — see .env.example, which documents them in one place.
 //
 // This is the app itself, not the lab. Hypervisors, DNS, databases,
@@ -32,8 +32,16 @@ type Config struct {
 	// StaticDir, when set, serves the built frontend from this directory
 	// (with SPA fallback). Empty in development, where Vite serves the UI.
 	StaticDir string
-	SSH       SSH
-	Auth      Auth
+	// TrustedProxies are the peers whose forwarding headers this app
+	// believes: a comma-separated list of CIDRs or bare addresses, e.g.
+	// "172.18.0.0/16" for a compose network. EMPTY MEANS TRUST NOTHING,
+	// which is right on a laptop and on the LAN — the address in the
+	// audit log is then the one that actually connected, and cannot be
+	// chosen by whoever connected. Behind a tunnel or a reverse proxy
+	// this needs setting, or every request is attributed to the proxy.
+	TrustedProxies string
+	SSH            SSH
+	Auth           Auth
 }
 
 type Database struct {
@@ -77,6 +85,7 @@ func Load() Config {
 	overrideStr(&cfg.Database.DSN, "DB_DSN")
 	overrideStr(&cfg.SiteURL, "SITE_URL")
 	overrideStr(&cfg.StaticDir, "STATIC_DIR")
+	overrideStr(&cfg.TrustedProxies, "TRUSTED_PROXIES")
 	overrideBool(&cfg.SSH.Provision, "SSH_PROVISION")
 	overrideBool(&cfg.SSH.ProvisionSudo, "SSH_PROVISION_SUDO")
 	overrideStr(&cfg.Auth.BootstrapEmail, "AUTH_BOOTSTRAP_EMAIL")

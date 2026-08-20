@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -40,6 +41,9 @@ const (
 var (
 	errNoSuchAccount = errors.New("no such account, or it can't sign in with a password")
 	errWrongPassword = errors.New("wrong password")
+	// Recorded like any other refusal: a burst of these is the single
+	// most useful thing this console can tell you.
+	errTooManyAttempts = errors.New("too many failed sign-ins")
 )
 
 // ctxUserKey carries the signed-in account down the request.
@@ -95,6 +99,23 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 
+	// Bounded before any work is done, including the bcrypt comparison —
+	// see loginlimit.go. Keyed on the address AND the email, and the
+	// address is only worth keying on because a forwarding header is
+	// believed from named peers alone (clientaddr.go); on the old rule
+	// an attacker could have rotated X-Forwarded-For and never met this.
+	addrKey, emailKey := "addr:"+clientAddr(r), "email:"+req.Email
+	if locked, retryIn := s.signIns.locked(addrKey, emailKey); locked {
+		s.log.Warn("sign-in locked out", "email", req.Email,
+			"addr", clientAddr(r), "retryIn", retryIn.Round(time.Second))
+		s.recordSignIn(r, nil, req.Email, errTooManyAttempts)
+		w.Header().Set("Retry-After", strconv.Itoa(int(retryIn.Seconds())+1))
+		s.err(w, http.StatusTooManyRequests,
+			"too many failed sign-ins — try again in "+
+				retryIn.Round(time.Minute).String())
+		return
+	}
+
 	user, err := s.store.GetUserByEmail(r.Context(), req.Email)
 	if err != nil || !user.Active || user.PasswordHash == "" {
 		// Compare against a throwaway hash anyway, so a missing account
@@ -106,12 +127,14 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		// Recorded by hand: the audit middleware sits behind
 		// requireAuth, which sign-in by definition runs outside, and a
 		// login body is a password.
+		s.signIns.fail(addrKey, emailKey)
 		s.recordSignIn(r, nil, req.Email, errNoSuchAccount)
 		s.err(w, http.StatusUnauthorized, "that email and password don't match an account")
 		return
 	}
 	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)) != nil {
 		s.log.Warn("failed sign-in", "email", req.Email)
+		s.signIns.fail(addrKey, emailKey)
 		s.recordSignIn(r, nil, req.Email, errWrongPassword)
 		s.err(w, http.StatusUnauthorized, "that email and password don't match an account")
 		return
@@ -127,6 +150,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err, "starting session")
 		return
 	}
+	s.signIns.succeed(addrKey, emailKey)
 	_ = s.store.TouchUserLogin(r.Context(), user.ID)
 	s.setSessionCookie(w, r, token, expires)
 	s.log.Info("sign-in", "email", user.Email, "role", user.Role)

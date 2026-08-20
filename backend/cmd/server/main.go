@@ -88,6 +88,7 @@ func main() {
 	dataDir := filepath.Dir(cfg.Database.DSN)
 	server := api.New(st, registry, dnsRegistry, dbRegistry, identityRegistry,
 		networkRegistry, inventoryRegistry, storageRegistry, log, cfg.StaticDir, dataDir, cfg.SiteURL,
+		cfg.TrustedProxies,
 		api.SSHOptions{Provision: cfg.SSH.Provision, Sudo: cfg.SSH.ProvisionSudo})
 	reconciler := api.NewReconciler(st, registry, log, 2*time.Second)
 	go reconciler.Run(ctx)

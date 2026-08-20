@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"regexp"
 	"strings"
 	"time"
@@ -90,6 +91,11 @@ type Server struct {
 	enrich    *enricher
 	log       *slog.Logger
 	staticDir string
+	// signIns bounds password guessing — see loginlimit.go.
+	signIns *signInLimiter
+	// trustedProxies are the peers whose forwarding headers this app
+	// believes. Empty means none — see clientaddr.go.
+	trustedProxies []netip.Prefix
 	// siteURL is the address the outside world reaches this console at,
 	// when that isn't the one the request arrived on. See config.SiteURL.
 	siteURL string
@@ -121,6 +127,7 @@ func New(
 	staticDir string,
 	dataDir string,
 	siteURL string,
+	trustedProxies string,
 	sshOpts SSHOptions,
 ) *Server {
 	client := nvd.New()
@@ -132,7 +139,9 @@ func New(
 		nvd:               client,
 		kev:               kev.New(),
 		log:               log, staticDir: staticDir, dataDir: dataDir, siteURL: siteURL, ssh: sshOpts,
-		ops: newOpRegistry(),
+		ops:            newOpRegistry(),
+		trustedProxies: parseTrustedProxies(trustedProxies, log),
+		signIns:        newSignInLimiter(),
 	}
 	srv.enrich = newEnricher(st, inventoryRegistry, client, log)
 	// The key is a stored setting rather than config, so it's loaded
@@ -152,7 +161,9 @@ func (s *Server) EnrichCVEs(ctx context.Context) { s.enrich.Run(ctx) }
 
 func (s *Server) Router() http.Handler {
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)
+	// Not middleware.RealIP: it believes X-Forwarded-For from anyone.
+	// See clientaddr.go.
+	r.Use(middleware.RequestID, s.realIP, middleware.Recoverer)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		// Sign-in itself can't require being signed in, and /auth/me is
