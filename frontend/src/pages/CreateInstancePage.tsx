@@ -197,7 +197,20 @@ export default function CreateInstancePage() {
 
   const machineValid =
     nameRe.test(name) && Boolean(hypervisorId) && Boolean(node) && !cpuError && !memoryError
-  const osValid = Boolean(imageId) && diskGb >= 1
+  // A CLONE CANNOT SHRINK. Proxmox grows a disk and refuses to reduce
+  // one, so a number below the template's is a request the hypervisor
+  // will reject — and it used to be accepted here and then ignored
+  // everywhere, which is how a 60 GB request became a 10 GB guest with
+  // nothing saying so. The form prefills from the template, so this
+  // only fires if somebody types downwards.
+  const templateDiskGb = template?.diskGb ?? 0
+  const diskError =
+    diskGb < 1
+      ? 'A boot disk needs at least 1 GB'
+      : templateDiskGb > 0 && diskGb < templateDiskGb
+        ? `This template's disk is ${templateDiskGb} GB, and a clone can grow it but never shrink it`
+        : ''
+  const osValid = Boolean(imageId) && !diskError
   const valid = machineValid && osValid
 
   const hypervisorName = hypervisors.find((s) => s.id === hypervisorId)?.name
@@ -481,7 +494,9 @@ export default function CreateInstancePage() {
                   type="number"
                   value={diskGb}
                   onChange={(e) => setDiskGb(Number(e.target.value))}
-                  slotProps={{ htmlInput: { min: 1 } }}
+                  error={Boolean(diskError)}
+                  helperText={diskError || ' '}
+                  slotProps={{ htmlInput: { min: Math.max(1, templateDiskGb) } }}
                   sx={{ width: 180 }}
                 />
                 {/* SelectField, not a bare select: the empty option is a

@@ -327,6 +327,19 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 			"%s was created but its settings didn't apply — it still has the template's "+
 				"sizing and network configuration: %w", spec.Name, err)
 	}
+	// The disk is a separate call, and it is the one the form asked for
+	// most explicitly. Reported rather than swallowed, for the same
+	// reason the config write above is: a guest quietly carrying the
+	// template's 10 GB when 60 was asked for looks deliberate, and the
+	// reconciler then writes the real number over the requested one, so
+	// nothing anywhere is left saying it didn't happen.
+	if spec.DiskGB > 0 {
+		if err := d.growBootDisk(ctx, spec.Node, nextID, spec.DiskGB); err != nil {
+			return nextID, fmt.Errorf(
+				"%s was created but its boot disk is still the template's size: %w",
+				spec.Name, err)
+		}
+	}
 	if spec.Serial != "" {
 		// A machine that exists without its serial is worth more than a
 		// failed create, and the gap reports itself: the reconciler
@@ -344,6 +357,43 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 	// create flow starts it as a step of its own, retries while the lock
 	// clears, and reports it if it never does.
 	return nextID, nil
+}
+
+// growBootDisk grows the guest's boot disk to at least sizeGB.
+//
+// A no-op when the clone already has that much, because Proxmox cannot
+// SHRINK a disk and asking it to is an error rather than a nudge. That
+// is not the console quietly ignoring you: the create form won't offer
+// less than the template has, so reaching this with a smaller number
+// means the template grew after the form read it, and the honest answer
+// then is the disk you've got.
+func (d *Driver) growBootDisk(ctx context.Context, node, vmid string, sizeGB int) error {
+	var cfg map[string]any
+	cfgPath := apiPath("/nodes/%s/qemu/%s/config", node, vmid)
+	if err := d.do(ctx, http.MethodGet, cfgPath, nil, &cfg); err != nil {
+		return fmt.Errorf("reading the new VM's disks: %w", err)
+	}
+	key, current := bootDisk(cfg)
+	if key == "" {
+		return fmt.Errorf("no boot disk found on the clone")
+	}
+	if current >= sizeGB {
+		return nil
+	}
+	// ABSOLUTE, NOT AN INCREMENT. Proxmox's own web GUI asks how much to
+	// extend BY — 32 to 40 is "8" there — and the API takes either:
+	// "+8G" adds to the current size, "40G" without the sign sets it.
+	// The form asks for a final size, so the absolute form is the one
+	// that matches the question, and sending an increment here would
+	// turn "make it 40" into "make it 72". buildtemplate.go has grown
+	// cloud images with the same absolute form since before this
+	// existed, which is where the behaviour is proven.
+	resize := url.Values{"disk": {key}, "size": {strconv.Itoa(sizeGB) + "G"}}
+	path := apiPath("/nodes/%s/qemu/%s/resize", node, vmid)
+	if err := d.do(ctx, http.MethodPut, path, resize, nil); err != nil {
+		return fmt.Errorf("resizing %s to %dG: %w", key, sizeGB, err)
+	}
+	return nil
 }
 
 // List reports every non-template VM from a single cluster/resources
