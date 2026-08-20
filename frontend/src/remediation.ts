@@ -40,13 +40,47 @@ const PACKAGE_MANAGER: UpdateRoute = {
   label: "Update with the system's package manager",
 }
 const VENDOR: UpdateRoute = { key: 'vendor', label: 'Update from the vendor' }
+const PIP: UpdateRoute = {
+  key: 'pip',
+  label: 'Update with pip',
+  note: 'Libraries inside a Python installation, not separate applications.',
+}
+const NPM: UpdateRoute = { key: 'npm', label: 'Update with npm' }
+const HOMEBREW: UpdateRoute = { key: 'brew', label: 'Update with Homebrew' }
+const BROWSER: UpdateRoute = { key: 'browser', label: 'Update through the browser' }
+
+/**
+ * The inventory service says where it FOUND a piece of software, and
+ * that answers "how is it updated" far better than its name does.
+ *
+ * This ran on names alone at first, which put five Python libraries —
+ * pip, pyasn1, zstandard, cryptography — under "update from the
+ * vendor", as if you'd go and download them. They're pip's to manage,
+ * and the source field said so all along.
+ */
+const bySource: Record<string, UpdateRoute> = {
+  python_packages: PIP,
+  npm_packages: NPM,
+  homebrew_packages: HOMEBREW,
+  deb_packages: PACKAGE_MANAGER,
+  rpm_packages: PACKAGE_MANAGER,
+  pacman_packages: PACKAGE_MANAGER,
+  chrome_extensions: BROWSER,
+  firefox_addons: BROWSER,
+  safari_extensions: BROWSER,
+}
 
 /** Apple software that updates with macOS rather than separately. */
 const macOSBundled = ['safari', 'webkit']
 /** Apple's own apps, which come through the App Store. */
 const appleAppStore = ['keynote', 'pages', 'numbers', 'imovie', 'garageband', 'xcode']
 
-export function updateRoute(platform: string, name: string): UpdateRoute {
+export function updateRoute(platform: string, name: string, source = ''): UpdateRoute {
+  // Where it was found beats what it's called: a package manager owns
+  // everything it installed, whatever the package happens to be named.
+  const bySrc = bySource[source]
+  if (bySrc) return bySrc
+
   const app = name.toLowerCase()
   if (platform === 'darwin') {
     if (macOSBundled.some((n) => app.startsWith(n))) return OS_BUNDLED
@@ -112,6 +146,9 @@ export function newestOSInEstate(
 export interface Installed {
   name: string
   version: string
+  /** What this is, ignoring which version — used to keep the versions
+   *  of one thing together in the list. */
+  product: string
   /** Distinct CVEs across every row that is this same software. */
   count: number
   route: UpdateRoute
@@ -142,26 +179,63 @@ function cpeProduct(cpe: string): string {
  */
 export function installedNeedingUpdate(
   platform: string,
-  packages: { name: string; version: string; cpe: string; vulnerabilities: { cve: string }[] | null }[],
+  packages: {
+    name: string
+    version: string
+    cpe: string
+    source: string
+    vulnerabilities: { cve: string }[] | null
+  }[],
 ): Installed[] {
-  const groups = new Map<string, { names: string[]; version: string; cves: Set<string> }>()
+  const groups = new Map<
+    string,
+    { names: string[]; version: string; product: string; source: string; cves: Set<string> }
+  >()
   for (const p of packages) {
     const vulns = p.vulnerabilities ?? []
     if (vulns.length === 0) continue
     const product = cpeProduct(p.cpe) || p.name
     const key = `${product}\u0000${p.version}`
-    const group = groups.get(key) ?? { names: [], version: p.version, cves: new Set<string>() }
+    const group =
+      groups.get(key) ??
+      { names: [], version: p.version, product, source: p.source, cves: new Set<string>() }
     group.names.push(p.name)
     for (const v of vulns) group.cves.add(v.cve)
     groups.set(key, group)
   }
-  return [...groups.values()]
-    .map((g) => {
-      // The shortest name is the product itself; the longer ones are
-      // its components ("Python 3.13.3 (64-bit)" over "… Core
-      // Interpreter (64-bit)").
-      const name = g.names.reduce((a, b) => (b.length < a.length ? b : a))
-      return { name, version: g.version, count: g.cves.size, route: updateRoute(platform, name) }
-    })
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+  const items = [...groups.values()].map((g) => {
+    // The shortest name is the product itself; the longer ones are its
+    // components ("Python 3.13.3 (64-bit)" over "… Core Interpreter").
+    const name = g.names.reduce((a, b) => (b.length < a.length ? b : a))
+    return {
+      name,
+      // Windows installers put the version in the name, so printing it
+      // again gave "Python 3.13.3 (64-bit) 3.13.3".
+      version: name.includes(g.version) ? '' : g.version,
+      product: g.product,
+      count: g.cves.size,
+      route: updateRoute(platform, name, g.source),
+    }
+  })
+
+  // KEEP THE VERSIONS OF ONE THING TOGETHER. Sorting on count alone
+  // scattered them — Python 3.13.3, Python 3.12.10, Visual Studio Code,
+  // then Python 3.14.6 — which reads as three problems rather than one
+  // piece of software installed three times.
+  //
+  // A product is ranked by its worst version, so what needs attention
+  // still leads; its other versions then follow immediately. The
+  // ranking is computed over the whole list first, because a pairwise
+  // comparator can't see it.
+  const worst = new Map<string, number>()
+  for (const i of items) {
+    worst.set(i.product, Math.max(worst.get(i.product) ?? 0, i.count))
+  }
+  return items.sort(
+    (a, b) =>
+      (worst.get(b.product) ?? 0) - (worst.get(a.product) ?? 0) ||
+      a.product.localeCompare(b.product) ||
+      b.count - a.count ||
+      a.name.localeCompare(b.name),
+  )
 }

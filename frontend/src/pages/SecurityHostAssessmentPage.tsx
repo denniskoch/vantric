@@ -176,7 +176,7 @@ function WhatToDo({
                   key={`${a.name}-${a.version}`}
                   sx={{ fontSize: 13, color: 'text.secondary', py: 0.15 }}
                 >
-                  {a.name} {a.version}
+                  {a.version ? `${a.name} ${a.version}` : a.name}
                   <Box component="span" sx={{ color: 'text.disabled' }}>
                     {' '}
                     — {a.count} {a.count === 1 ? 'vulnerability' : 'vulnerabilities'}
