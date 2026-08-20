@@ -54,6 +54,10 @@ const BucketIcon = createSvgIcon(
   'Bucket',
 )
 
+import MenuBookIcon from '@mui/icons-material/MenuBook'
+import ArticleIcon from '@mui/icons-material/Article'
+import { docs } from '../docs'
+
 export interface SectionItem {
   label: string
   icon: SvgIconComponent
@@ -573,6 +577,35 @@ export const sections: Section[] = [
       },
     ],
     description: 'Internal name resolution for lab services.',
+  },
+  {
+    // Last, and deliberately apart from the sections it describes: this
+    // is the one place in the console that isn't a view onto the lab.
+    id: 'docs',
+    label: 'Documentation',
+    icon: MenuBookIcon,
+    prefix: '/docs',
+    home: '/docs',
+    items: [
+      {
+        label: 'All docs',
+        icon: MenuBookIcon,
+        to: '/docs',
+        hint: 'Setup guides for the things this console talks to',
+      },
+    ],
+    groups: [
+      {
+        label: 'Guides',
+        items: docs.map((doc) => ({
+          label: doc.title,
+          icon: ArticleIcon,
+          to: `/docs/${doc.slug}`,
+          hint: doc.summary,
+        })),
+      },
+    ],
+    description: 'How to set up the things this console talks to.',
   },
 ]
 

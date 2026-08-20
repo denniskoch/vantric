@@ -22,6 +22,8 @@ import CloudOverviewPage from './pages/CloudOverviewPage'
 import SecurityOverviewPage from './pages/SecurityOverviewPage'
 import SecurityHostAssessmentPage from './pages/SecurityHostAssessmentPage'
 import NotFoundPage from './pages/NotFoundPage'
+import DocsPage from './pages/DocsPage'
+import DocsArticlePage from './pages/DocsArticlePage'
 import RenameInstancePage from './pages/RenameInstancePage'
 import EditDescriptionPage, {
   instanceDescription,
@@ -288,6 +290,12 @@ export default function App() {
         <Route path="/compute/settings/hypervisors" element={<Navigate to="/compute/hypervisors" replace />} />
         {/* Last, and inside the shell: an address that matches nothing
             was a white page until now. */}
+        {/* Documentation. No RequireRole: a viewer who can't read how
+            to set up the thing they're looking at is a viewer who files
+            a ticket instead. */}
+        <Route path="/docs" element={<DocsPage />} />
+        <Route path="/docs/:slug" element={<DocsArticlePage />} />
+
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
