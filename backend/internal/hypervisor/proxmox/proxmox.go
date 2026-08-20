@@ -390,8 +390,23 @@ func (d *Driver) growBootDisk(ctx context.Context, node, vmid string, sizeGB int
 	// existed, which is where the behaviour is proven.
 	resize := url.Values{"disk": {key}, "size": {strconv.Itoa(sizeGB) + "G"}}
 	path := apiPath("/nodes/%s/qemu/%s/resize", node, vmid)
-	if err := d.do(ctx, http.MethodPut, path, resize, nil); err != nil {
+	var task string
+	if err := d.do(ctx, http.MethodPut, path, resize, &task); err != nil {
 		return fmt.Errorf("resizing %s to %dG: %w", key, sizeGB, err)
+	}
+	// A RESIZE IS A TASK, like the clone above it. The PUT answers with
+	// a UPID the moment the work is queued, so a caller that reads the
+	// config straight afterwards sees the OLD size and concludes the
+	// resize was ignored — which is exactly what the live test caught,
+	// with Proxmox reporting success the whole time.
+	//
+	// Two minutes: growing a volume is metadata on every storage type
+	// this reaches, so a slow one here means something is wrong rather
+	// than something is large.
+	waitCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	if err := d.waitForTask(waitCtx, task); err != nil {
+		return fmt.Errorf("waiting for %s to grow to %dG: %w", key, sizeGB, err)
 	}
 	return nil
 }
