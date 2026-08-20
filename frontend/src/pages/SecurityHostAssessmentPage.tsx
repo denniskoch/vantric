@@ -1,12 +1,27 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Alert, Box, MenuItem, Paper, Typography } from '@mui/material'
+import {
+  Alert,
+  Box,
+  Link,
+  MenuItem,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+} from '@mui/material'
+import { Link as RouterLink } from 'react-router-dom'
+import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import { api } from '../api/client'
 import type { InventoryHost, InventoryHostDetail } from '../api/client'
 import PageHeader from '../components/PageHeader'
 import SelectField from '../components/SelectField'
 import DetailTable from '../components/DetailTable'
-import { severityColor } from '../severity'
+import { severityColor, severityLabel } from '../severity'
 import { realSerial } from '../serial'
 import { installedNeedingUpdate, newestOSInEstate } from '../remediation'
 import { OSIcon } from '../components/OSName'
@@ -121,7 +136,82 @@ export default function SecurityHostAssessmentPage() {
         </Box>
       )}
 
+      {host && detail && <Exploited detail={detail} />}
+
       {host && detail && <WhatToDo host={host} hosts={hosts} detail={detail} />}
+    </Box>
+  )
+}
+
+/**
+ * The flaws on this machine that somebody is actually exploiting.
+ *
+ * It sits above the update list because it cuts across the bands: a
+ * medium being used in the wild outranks a critical nobody has worked
+ * out how to reach. And it renders only when there is something in it —
+ * on this estate that's one host in twenty-one, which is the point. A
+ * section that appears is a section worth reading.
+ */
+function Exploited({ detail }: { detail: InventoryHostDetail }) {
+  const seen = new Set<string>()
+  const rows = (detail.vulnerabilities ?? []).filter((v) => {
+    if (!v.knownExploited || seen.has(v.cve)) return false
+    seen.add(v.cve)
+    return true
+  })
+  if (rows.length === 0) return null
+
+  return (
+    <Box sx={{ mt: 3 }}>
+      <Typography sx={{ fontSize: 16, mb: 1.5 }}>Exploitable vulnerabilities</Typography>
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>CVE</TableCell>
+              <TableCell>Severity</TableCell>
+              <TableCell>In</TableCell>
+              <TableCell>Fixed in</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {rows.map((v) => (
+              <TableRow key={v.cve} hover>
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <LocalFireDepartmentIcon
+                      fontSize="small"
+                      aria-label="Known exploited"
+                      sx={{ color: 'error.main', display: 'block' }}
+                    />
+                    <Link
+                      component={RouterLink}
+                      to={`/security/vulnerabilities/${encodeURIComponent(v.cve)}`}
+                      underline="hover"
+                    >
+                      {v.cve}
+                    </Link>
+                  </Box>
+                </TableCell>
+                <TableCell sx={{ whiteSpace: 'nowrap', color: severityColor[v.severity] }}>
+                  {severityLabel(v.severity, v.cvssScore) ?? (
+                    <Box component="span" sx={{ color: 'text.disabled' }}>
+                      Not scored
+                    </Box>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {v.package}
+                  {v.installedVersion ? ` ${v.installedVersion}` : ''}
+                </TableCell>
+                <TableCell sx={{ color: v.resolvedInVersion ? 'text.primary' : 'text.secondary' }}>
+                  {v.resolvedInVersion || 'No fix published'}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </Box>
   )
 }

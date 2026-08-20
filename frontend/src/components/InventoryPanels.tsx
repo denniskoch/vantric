@@ -222,10 +222,10 @@ function VulnerabilityTable({
                           ids stay aligned whether a row has one. */}
                       <Box sx={{ width: 18, flexShrink: 0 }}>
                         {row.first.knownExploited && (
-                          <Tooltip title="Actively exploited, per CISA's catalogue">
+                          <Tooltip title="Exploitable — CISA lists this as one attackers have used">
                             <LocalFireDepartmentIcon
                               fontSize="small"
-                              aria-label="Actively exploited"
+                              aria-label="Known exploited"
                               sx={{ color: "error.main", display: "block" }}
                             />
                           </Tooltip>

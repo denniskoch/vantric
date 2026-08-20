@@ -142,13 +142,13 @@ export default function SecurityVulnerabilitiesPage() {
                         <Tooltip
                           title={
                             v.exploitedName
-                              ? `Actively exploited — ${v.exploitedName}`
-                              : "Actively exploited, per CISA's catalogue"
+                              ? `Exploitable — ${v.exploitedName}`
+                              : "Exploitable — CISA lists this as one attackers have used"
                           }
                         >
                           <LocalFireDepartmentIcon
                             fontSize="small"
-                            aria-label="Actively exploited"
+                            aria-label="Known exploited"
                             sx={{ color: 'error.main', display: 'block' }}
                           />
                         </Tooltip>
