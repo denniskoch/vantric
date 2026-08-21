@@ -344,7 +344,7 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 	// reconciler then writes the real number over the requested one, so
 	// nothing anywhere is left saying it didn't happen.
 	if spec.DiskGB > 0 {
-		if err := d.growBootDisk(ctx, spec.Node, nextID, spec.DiskGB); err != nil {
+		if err := d.growBootDisk(ctx, nextID, spec.DiskGB); err != nil {
 			return nextID, fmt.Errorf(
 				"%s was created but its boot disk is still the template's size: %w",
 				spec.Name, err)
@@ -378,20 +378,23 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 // means the template grew after the form read it, and the honest answer
 // then is the disk you've got. ResizeDisk, which somebody reaches by
 // typing a number at a disk in front of them, says so instead.
-func (d *Driver) growBootDisk(ctx context.Context, node, vmid string, sizeGB int) error {
-	var cfg map[string]any
-	cfgPath := apiPath("/nodes/%s/qemu/%s/config", node, vmid)
-	if err := d.do(ctx, http.MethodGet, cfgPath, nil, &cfg); err != nil {
+func (d *Driver) growBootDisk(ctx context.Context, vmid string, sizeGB int) error {
+	vm, err := d.vmFor(ctx, vmid)
+	if err != nil {
 		return fmt.Errorf("reading the new VM's disks: %w", err)
 	}
-	key, current := bootDisk(cfg)
+	key, current := bootDisk(configMap(vm.VirtualMachineConfig))
 	if key == "" {
 		return fmt.Errorf("no boot disk found on the clone")
 	}
 	if current >= sizeGB {
 		return nil
 	}
-	return d.resizeDisk(ctx, node, vmid, key, sizeGB)
+	task, err := vm.ResizeDisk(ctx, key, strconv.Itoa(sizeGB)+"G")
+	if err != nil {
+		return fmt.Errorf("resizing %s to %dG: %w", key, sizeGB, err)
+	}
+	return awaitTask(ctx, task, fmt.Sprintf("%s to grow to %dG", key, sizeGB))
 }
 
 // List reports every non-template VM from a single cluster/resources

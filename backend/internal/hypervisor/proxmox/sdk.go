@@ -1,8 +1,12 @@
 package proxmox
 
 import (
+	"context"
+	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	sdk "github.com/luthermonson/go-proxmox"
 )
@@ -41,4 +45,69 @@ func newSDK(cfg Config, client *http.Client) *sdk.Client {
 		sdk.WithHTTPClient(client),
 		sdk.WithAPIToken(cfg.TokenID, cfg.Secret),
 	)
+}
+
+// vmFor is the library's handle on a guest, resolved through this
+// driver's own vmid → node cache so it costs no extra call.
+func (d *Driver) vmFor(ctx context.Context, driverID string) (*sdk.VirtualMachine, error) {
+	node, err := d.node(ctx, driverID)
+	if err != nil {
+		return nil, err
+	}
+	vmid, err := strconv.Atoi(driverID)
+	if err != nil {
+		return nil, fmt.Errorf("%q is not a vmid", driverID)
+	}
+	n, err := d.sdk.Node(ctx, node)
+	if err != nil {
+		return nil, err
+	}
+	return n.VirtualMachine(ctx, vmid)
+}
+
+// configMap flattens the library's typed config back into the shape this
+// driver's own parsers expect.
+//
+// Deliberate, rather than a step not yet taken. The library groups the
+// repeatable keys — SCSIs, IDEs, Unuseds — which is the part worth
+// having, and leaves each VALUE as the string Proxmox wrote
+// ("local-lvm:vm-101-disk-0,size=20G"). The code that reads those
+// strings is ours, tested, and encodes things no library knows: which
+// disk a guest boots from, that a cloud-init drive is media=cdrom, that
+// a size in megabytes rounds DOWN or the next resize is refused as a
+// shrink. Feeding it from here keeps that logic and its tests untouched
+// while the transport moves.
+func configMap(cfg *sdk.VirtualMachineConfig) map[string]any {
+	out := map[string]any{}
+	if cfg == nil {
+		return out
+	}
+	if cfg.Boot != "" {
+		out["boot"] = cfg.Boot
+	}
+	for _, group := range []map[string]string{
+		cfg.SCSIs, cfg.IDEs, cfg.SATAs, cfg.VirtIOs, cfg.Unuseds,
+	} {
+		for key, value := range group {
+			out[key] = value
+		}
+	}
+	return out
+}
+
+// awaitTask waits for one of the library's tasks.
+//
+// The reason this file exists at all: every mutating call in the library
+// returns (*Task, error), so a caller cannot quietly skip the wait the
+// way ours could. The disk resize shipped doing exactly that — issued,
+// reported success, changed nothing — because the UPID came back as an
+// untyped body nobody was obliged to look at.
+func awaitTask(ctx context.Context, task *sdk.Task, what string) error {
+	if task == nil {
+		return nil
+	}
+	if err := task.Wait(ctx, time.Second, diskWait); err != nil {
+		return fmt.Errorf("waiting for %s: %w", what, err)
+	}
+	return nil
 }

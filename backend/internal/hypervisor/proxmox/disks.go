@@ -3,11 +3,11 @@ package proxmox
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	sdk "github.com/luthermonson/go-proxmox"
 
 	"vantric/internal/hypervisor"
 )
@@ -39,35 +39,6 @@ var diskSlots = []string{
 // something is wrong rather than something is large.
 const diskWait = 5 * time.Minute
 
-// settle waits for a config change that turned out to be a task.
-//
-// The response is a UPID string when Proxmox queued work and null when
-// it applied the change inline, so this asks what came back rather than
-// assuming either.
-func (d *Driver) settle(ctx context.Context, out any) error {
-	task, ok := out.(string)
-	if !ok || !strings.HasPrefix(task, "UPID:") {
-		return nil
-	}
-	waitCtx, cancel := context.WithTimeout(ctx, diskWait)
-	defer cancel()
-	return d.waitForTask(waitCtx, task)
-}
-
-// configOf reads a guest's config and the node it lives on.
-func (d *Driver) configOf(ctx context.Context, driverID string) (map[string]any, string, error) {
-	node, err := d.node(ctx, driverID)
-	if err != nil {
-		return nil, "", err
-	}
-	var cfg map[string]any
-	path := apiPath("/nodes/%s/qemu/%s/config", node, driverID)
-	if err := d.do(ctx, http.MethodGet, path, nil, &cfg); err != nil {
-		return nil, "", err
-	}
-	return cfg, node, nil
-}
-
 // freeSlot is the first SCSI slot this guest isn't using.
 func freeSlot(cfg map[string]any) string {
 	for _, slot := range diskSlots {
@@ -83,11 +54,11 @@ func (d *Driver) ResizeDisk(ctx context.Context, driverID, disk string, sizeGB i
 	if sizeGB <= 0 {
 		return fmt.Errorf("a disk size in GB is required")
 	}
-	cfg, node, err := d.configOf(ctx, driverID)
+	vm, err := d.vmFor(ctx, driverID)
 	if err != nil {
 		return err
 	}
-	key, current, ok := diskAt(cfg, disk)
+	key, current, ok := diskAt(configMap(vm.VirtualMachineConfig), disk)
 	if !ok {
 		return fmt.Errorf("%s is not a disk on this instance", disk)
 	}
@@ -98,26 +69,15 @@ func (d *Driver) ResizeDisk(ctx context.Context, driverID, disk string, sizeGB i
 		// and silence would read as a resize that worked.
 		return fmt.Errorf("%s is already %d GB, and a disk can be grown but never shrunk", key, current)
 	}
-	return d.resizeDisk(ctx, node, driverID, key, sizeGB)
-}
-
-// resizeDisk is the call itself, shared with the create flow.
-func (d *Driver) resizeDisk(ctx context.Context, node, driverID, disk string, sizeGB int) error {
-	// ABSOLUTE, NOT AN INCREMENT. Proxmox's web GUI asks how much to
+	// ABSOLUTE, NOT AN INCREMENT. Proxmox's own GUI asks how much to
 	// extend BY — 32 to 40 is "8" there — while the API takes either:
 	// "+8G" adds to the current size, "40G" sets it. Everything in this
-	// console asks for a final size, so the absolute form is the one
-	// that matches the question.
-	form := url.Values{"disk": {disk}, "size": {strconv.Itoa(sizeGB) + "G"}}
-	var out any
-	path := apiPath("/nodes/%s/qemu/%s/resize", node, driverID)
-	if err := d.do(ctx, http.MethodPut, path, form, &out); err != nil {
-		return fmt.Errorf("resizing %s to %dG: %w", disk, sizeGB, err)
+	// console asks for a final size.
+	task, err := vm.ResizeDisk(ctx, key, strconv.Itoa(sizeGB)+"G")
+	if err != nil {
+		return fmt.Errorf("resizing %s to %dG: %w", key, sizeGB, err)
 	}
-	if err := d.settle(ctx, out); err != nil {
-		return fmt.Errorf("waiting for %s to grow to %dG: %w", disk, sizeGB, err)
-	}
-	return nil
+	return awaitTask(ctx, task, fmt.Sprintf("%s to grow to %dG", key, sizeGB))
 }
 
 // AddDisk allocates a new volume and attaches it.
@@ -128,11 +88,11 @@ func (d *Driver) AddDisk(ctx context.Context, driverID string, spec hypervisor.D
 	if spec.SizeGB <= 0 {
 		return "", fmt.Errorf("a disk size in GB is required")
 	}
-	cfg, node, err := d.configOf(ctx, driverID)
+	vm, err := d.vmFor(ctx, driverID)
 	if err != nil {
 		return "", err
 	}
-	slot := freeSlot(cfg)
+	slot := freeSlot(configMap(vm.VirtualMachineConfig))
 	if slot == "" {
 		return "", fmt.Errorf("no free SCSI slot on this instance")
 	}
@@ -141,24 +101,24 @@ func (d *Driver) AddDisk(ctx context.Context, driverID string, spec hypervisor.D
 	// discard=on so freeing space in the guest frees it on the pool,
 	// which is what everything this console creates already does.
 	value := fmt.Sprintf("%s:%d,discard=on", spec.Storage, spec.SizeGB)
-	var out any
-	path := apiPath("/nodes/%s/qemu/%s/config", node, driverID)
-	if err := d.do(ctx, http.MethodPost, path, url.Values{slot: {value}}, &out); err != nil {
+	task, err := vm.Config(ctx, sdk.VirtualMachineOption{Name: slot, Value: value})
+	if err != nil {
 		return "", fmt.Errorf("adding a %d GB disk on %s: %w", spec.SizeGB, spec.Storage, err)
 	}
-	if err := d.settle(ctx, out); err != nil {
-		return "", fmt.Errorf("waiting for the new disk on %s: %w", spec.Storage, err)
+	if err := awaitTask(ctx, task, "the new disk on "+spec.Storage); err != nil {
+		return "", err
 	}
 	return slot, nil
 }
 
 // AttachDisk puts an unused volume back into a slot.
 func (d *Driver) AttachDisk(ctx context.Context, driverID, unused string) (string, error) {
-	cfg, node, err := d.configOf(ctx, driverID)
+	vm, err := d.vmFor(ctx, driverID)
 	if err != nil {
 		return "", err
 	}
-	volume := cfgString(cfg, unused)
+	cfg := configMap(vm.VirtualMachineConfig)
+	volume, _ := cfg[unused].(string)
 	if !strings.HasPrefix(unused, "unused") || volume == "" {
 		return "", fmt.Errorf("%s is not an unused disk on this instance", unused)
 	}
@@ -168,24 +128,23 @@ func (d *Driver) AttachDisk(ctx context.Context, driverID, unused string) (strin
 	}
 	// Naming the volume in a slot is the whole operation: Proxmox drops
 	// the unusedN entry itself once something references it.
-	var out any
-	path := apiPath("/nodes/%s/qemu/%s/config", node, driverID)
-	form := url.Values{slot: {volume + ",discard=on"}}
-	if err := d.do(ctx, http.MethodPost, path, form, &out); err != nil {
+	task, err := vm.Config(ctx, sdk.VirtualMachineOption{Name: slot, Value: volume + ",discard=on"})
+	if err != nil {
 		return "", fmt.Errorf("attaching %s: %w", volume, err)
 	}
-	if err := d.settle(ctx, out); err != nil {
-		return "", fmt.Errorf("waiting for %s to attach: %w", volume, err)
+	if err := awaitTask(ctx, task, volume+" to attach"); err != nil {
+		return "", err
 	}
 	return slot, nil
 }
 
 // DetachDisk takes a disk out of its slot and keeps the volume.
 func (d *Driver) DetachDisk(ctx context.Context, driverID, disk string) error {
-	cfg, node, err := d.configOf(ctx, driverID)
+	vm, err := d.vmFor(ctx, driverID)
 	if err != nil {
 		return err
 	}
+	cfg := configMap(vm.VirtualMachineConfig)
 	if _, _, ok := diskAt(cfg, disk); !ok {
 		return fmt.Errorf("%s is not a disk on this instance", disk)
 	}
@@ -195,15 +154,12 @@ func (d *Driver) DetachDisk(ctx context.Context, driverID, disk string) error {
 		// looked like every other detach.
 		return fmt.Errorf("%s is the boot disk; detaching it would leave nothing to start", disk)
 	}
-	// `delete` removes the reference. Proxmox keeps the volume and lists
-	// it as unusedN, which is what makes this reversible.
-	var out any
-	path := apiPath("/nodes/%s/qemu/%s/config", node, driverID)
-	if err := d.do(ctx, http.MethodPost, path, url.Values{"delete": {disk}}, &out); err != nil {
+	// force=false is the whole point: Proxmox keeps the volume and lists
+	// it as unusedN, which is what makes this reversible. Passing true
+	// would DESTROY it, and this capability deliberately has no way to.
+	task, err := vm.UnlinkDisk(ctx, disk, false)
+	if err != nil {
 		return fmt.Errorf("detaching %s: %w", disk, err)
 	}
-	if err := d.settle(ctx, out); err != nil {
-		return fmt.Errorf("waiting for %s to detach: %w", disk, err)
-	}
-	return nil
+	return awaitTask(ctx, task, disk+" to detach")
 }
