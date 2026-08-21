@@ -26,6 +26,7 @@ export default function SizeSlider({
   step,
   unit,
   caption,
+  formatBound = String,
   error,
   helperText,
   disabled,
@@ -40,6 +41,12 @@ export default function SizeSlider({
   unit: string
   /** A second reading of the same value, e.g. "8 GB" under 8192 MB. */
   caption?: string
+  /**
+   * How the numbers at either end of the track are written. Memory
+   * passes gigabytes: "1024" and "65536" are the units the API wants and
+   * not the ones anybody reads a range in.
+   */
+  formatBound?: (value: number) => string
   error?: boolean
   helperText?: string
   disabled?: boolean
@@ -49,7 +56,9 @@ export default function SizeSlider({
       <Typography sx={{ fontSize: 13, color: 'text.primary', mb: 0.5 }}>{label}</Typography>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{min}</Typography>
+          <Typography sx={{ fontSize: 12, color: 'text.secondary', whiteSpace: 'nowrap' }}>
+            {formatBound(min)}
+          </Typography>
           <Slider
             size="small"
             // Clamped for the HANDLE only: a typed value beyond the range
@@ -64,7 +73,9 @@ export default function SizeSlider({
             aria-label={label}
             sx={{ flex: 1 }}
           />
-          <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{max}</Typography>
+          <Typography sx={{ fontSize: 12, color: 'text.secondary', whiteSpace: 'nowrap' }}>
+            {formatBound(max)}
+          </Typography>
         </Box>
         <TextField
           size="small"
@@ -101,4 +112,14 @@ export default function SizeSlider({
  * switching to GB here would make this the one screen that disagrees.
  */
 export const cpuSlider = { min: 1, max: 32, step: 1, unit: 'vCPU' } as const
-export const memorySlider = { min: 1024, max: 65536, step: 1024, unit: 'MB' } as const
+export const memorySlider = {
+  min: 1024,
+  max: 65536,
+  step: 1024,
+  unit: 'MB',
+  // The ends of the track read in gigabytes while the box stays in MB.
+  // The unit is spelled out on them precisely BECAUSE the two disagree:
+  // a bare "64" beside a box labelled MB invites exactly one wrong
+  // reading, and it is a factor of a thousand out.
+  formatBound: (mb: number) => `${mb / 1024} GB`,
+} as const
