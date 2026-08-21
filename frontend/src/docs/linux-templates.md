@@ -6,6 +6,12 @@ Most of it is ordinary VM setup. This page covers the parts that decide
 whether **Connect** works in this console, because those are guest-side
 and nothing in the UI can do them for you.
 
+This is the **Linux** path, and it is the one this console automates:
+Build a cloud template imports a cloud image, attaches a cloud-init
+drive and converts it. Windows has no cloud image to import and is built
+by hand — see [Building a Windows template](/docs/windows-templates),
+which shares almost none of this.
+
 ## Why the guest has to help
 
 The browser terminal signs in over real SSH, as the local part of your

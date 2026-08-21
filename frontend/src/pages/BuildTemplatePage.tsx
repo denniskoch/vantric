@@ -167,10 +167,11 @@ export default function BuildTemplatePage() {
         The parts that happen inside the guest — installing the agent, unblocking
         guest exec on RHEL images, and the serial you must not set on a template —
         are what decide whether Connect works later.{' '}
-        <Link component={RouterLink} to="/docs/vm-templates">
-          Building a VM template
+        <Link component={RouterLink} to="/docs/linux-templates">
+          Building a Linux template
         </Link>{' '}
-        walks through them.
+        walks through them. Windows has no cloud image to import, so it isn't
+        built here at all.
       </Typography>
 
       {error && (

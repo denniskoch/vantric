@@ -1,4 +1,5 @@
 import ReactMarkdown from 'react-markdown'
+import { Link as RouterLink } from 'react-router-dom'
 import remarkGfm from 'remark-gfm'
 import {
   Box,
@@ -57,6 +58,18 @@ export default function Markdown({ children }: { children: string }) {
             <Typography sx={{ fontSize: 13, lineHeight: 1.7, mb: 1.5 }}>{children}</Typography>
           ),
           a: ({ href, children }) => {
+            // A link to another page of this console stays in the tab and
+            // routes client-side. Treating it as external — which is what
+            // every link here did until docs started referring to each
+            // other — opens a second tab and reloads the whole app to
+            // land somewhere the router could have reached instantly.
+            if (href && href.startsWith('/')) {
+              return (
+                <Link component={RouterLink} to={href} sx={{ fontSize: 'inherit' }}>
+                  {children}
+                </Link>
+              )
+            }
             const safe = externalHref(href)
             if (!safe) return <>{children}</>
             return (

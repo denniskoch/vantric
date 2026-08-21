@@ -1,4 +1,4 @@
-import vmTemplates from './vm-templates.md?raw'
+import linuxTemplates from './linux-templates.md?raw'
 import windowsTemplates from './windows-templates.md?raw'
 
 /**
@@ -26,11 +26,11 @@ export interface Doc {
 
 export const docs: Doc[] = [
   {
-    slug: 'vm-templates',
-    title: 'Building a VM template',
+    slug: 'linux-templates',
+    title: 'Building a Linux template',
     summary:
       'The guest-side setup that makes Connect work: the guest agent, guest exec on RHEL, sudo, and the serial not to set.',
-    markdown: vmTemplates,
+    markdown: linuxTemplates,
   },
   {
     slug: 'windows-templates',
