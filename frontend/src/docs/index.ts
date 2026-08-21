@@ -1,4 +1,5 @@
 import vmTemplates from './vm-templates.md?raw'
+import windowsTemplates from './windows-templates.md?raw'
 
 /**
  * The docs, bundled with the app.
@@ -30,6 +31,13 @@ export const docs: Doc[] = [
     summary:
       'The guest-side setup that makes Connect work: the guest agent, guest exec on RHEL, sudo, and the serial not to set.',
     markdown: vmTemplates,
+  },
+  {
+    slug: 'windows-templates',
+    title: 'Building a Windows template',
+    summary:
+      'Built by hand rather than by this console: virtio at install time, the agent, RDP, and why sysprep goes last.',
+    markdown: windowsTemplates,
   },
 ]
 
