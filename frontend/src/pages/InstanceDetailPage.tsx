@@ -419,20 +419,7 @@ export default function InstanceDetailPage() {
               <ConnectButton instance={inst} variant="outlined" />
             </Box>
 
-            <DetailSection
-              title="Basic information"
-              action={
-                canEdit && (
-                  <Button
-                    size="small"
-                    component={RouterLink}
-                    to={`/compute/instances/${encodeURIComponent(name)}/resize`}
-                  >
-                    Resize
-                  </Button>
-                )
-              }
-            >
+            <DetailSection title="Basic information">
               <DetailTable
                 rows={[
                   {
@@ -533,7 +520,20 @@ export default function InstanceDetailPage() {
               />
             </DetailSection>
 
-            <DetailSection title="Machine configuration">
+            <DetailSection
+              title="Machine configuration"
+              action={
+                canEdit && (
+                  <Button
+                    size="small"
+                    component={RouterLink}
+                    to={`/compute/instances/${encodeURIComponent(name)}/resize`}
+                  >
+                    Resize
+                  </Button>
+                )
+              }
+            >
               <DetailTable
                 rows={[
                   {
