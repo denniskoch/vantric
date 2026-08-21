@@ -2015,6 +2015,34 @@ export const api = {
       `/instances/${encodeURIComponent(name)}/disks/${encodeURIComponent(disk)}/detach`,
       { method: 'POST' },
     ),
+  /** Destroys an unattached volume. Detach first; this one is final. */
+  deleteInstanceDisk: (name: string, disk: string) =>
+    request<void>(
+      `/instances/${encodeURIComponent(name)}/disks/${encodeURIComponent(disk)}`,
+      { method: 'DELETE' },
+    ),
+  /** Changes vCPU and memory. The instance has to be stopped. */
+  resizeInstance: (name: string, body: { cpus: number; memoryMb: number }) =>
+    request<void>(`/instances/${encodeURIComponent(name)}/resize`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  createInstanceSnapshot: (name: string, body: { name: string; description?: string }) =>
+    request<void>(`/instances/${encodeURIComponent(name)}/snapshots`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  /** Returns the guest to a snapshot, discarding everything since. */
+  rollbackInstanceSnapshot: (name: string, snapshot: string) =>
+    request<void>(
+      `/instances/${encodeURIComponent(name)}/snapshots/${encodeURIComponent(snapshot)}/rollback`,
+      { method: 'POST' },
+    ),
+  deleteInstanceSnapshot: (name: string, snapshot: string) =>
+    request<void>(
+      `/instances/${encodeURIComponent(name)}/snapshots/${encodeURIComponent(snapshot)}`,
+      { method: 'DELETE' },
+    ),
   setInstanceProtection: (name: string, protectedFlag: boolean) =>
     request<Instance>(`/instances/${name}/protection`, {
       method: 'POST',

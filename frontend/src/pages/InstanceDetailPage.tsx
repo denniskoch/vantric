@@ -30,14 +30,14 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { api } from '../api/client'
-import type { AttachedDisk, Backup, MetricTimeframe } from '../api/client'
+import type { AttachedDisk, Backup, MetricTimeframe, Snapshot } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import AddIcon from '@mui/icons-material/Add'
 import StatusIcon from '../components/StatusIcon'
 import DetailTable, { DetailSection } from '../components/DetailTable'
 import TimeSeriesChart from '../components/TimeSeriesChart'
 import { chart } from '../chartPalette'
-import { formatBytes, formatBytesPerSec, formatPercent, formatUptime } from '../format'
+import { formatBytes, formatBytesPerSec, formatPercent, formatUptime, timeAgo } from '../format'
 import { OSIcon } from '../components/OSName'
 import ConnectButton from '../components/ConnectButton'
 import GuestInventory from '../components/GuestInventory'
@@ -96,6 +96,22 @@ export default function InstanceDetailPage() {
   // type anything — the rule is that a dialog's weight matches how hard
   // the thing is to undo, and this one is a click to undo.
   const [detaching, setDetaching] = useState<AttachedDisk | null>(null)
+  // Deleting a volume and rolling back both lose something for good, so
+  // both make you type the name. Detaching and deleting a snapshot don't.
+  const [deletingDisk, setDeletingDisk] = useState<AttachedDisk | null>(null)
+  const [rollingBack, setRollingBack] = useState<Snapshot | null>(null)
+  const [deletingSnapshot, setDeletingSnapshot] = useState<Snapshot | null>(null)
+
+  // Filtered from the catalogue rather than through a new endpoint: the
+  // list already carries which guest each snapshot belongs to, and one
+  // more instance-scoped route would be a second way to ask the same
+  // question.
+  const { data: allSnapshots = [] } = useQuery({
+    queryKey: ['snapshots'],
+    queryFn: api.listSnapshots,
+    enabled: Boolean(name),
+  })
+  const snapshots = allSnapshots.filter((snap) => snap.vmName === name)
 
   const refreshDetail = () =>
     queryClient.invalidateQueries({ queryKey: ['instanceDetail', name] })
@@ -103,6 +119,41 @@ export default function InstanceDetailPage() {
     mutationFn: (disk: string) => api.attachInstanceDisk(name, disk),
     onSuccess: refreshDetail,
     onError: (e: Error) => setError(e.message),
+  })
+  const deleteDisk = useMutation({
+    mutationFn: (disk: string) => api.deleteInstanceDisk(name, disk),
+    onSuccess: () => {
+      setDeletingDisk(null)
+      void refreshDetail()
+    },
+    onError: (e: Error) => {
+      setDeletingDisk(null)
+      setError(e.message)
+    },
+  })
+  const refreshSnapshots = () => queryClient.invalidateQueries({ queryKey: ['snapshots'] })
+  const rollback = useMutation({
+    mutationFn: (snapshot: string) => api.rollbackInstanceSnapshot(name, snapshot),
+    onSuccess: () => {
+      setRollingBack(null)
+      void refreshDetail()
+      void refreshSnapshots()
+    },
+    onError: (e: Error) => {
+      setRollingBack(null)
+      setError(e.message)
+    },
+  })
+  const removeSnapshot = useMutation({
+    mutationFn: (snapshot: string) => api.deleteInstanceSnapshot(name, snapshot),
+    onSuccess: () => {
+      setDeletingSnapshot(null)
+      void refreshSnapshots()
+    },
+    onError: (e: Error) => {
+      setDeletingSnapshot(null)
+      setError(e.message)
+    },
   })
   const detachDisk = useMutation({
     mutationFn: (disk: string) => api.detachInstanceDisk(name, disk),
@@ -368,7 +419,20 @@ export default function InstanceDetailPage() {
               <ConnectButton instance={inst} variant="outlined" />
             </Box>
 
-            <DetailSection title="Basic information">
+            <DetailSection
+              title="Basic information"
+              action={
+                canEdit && (
+                  <Button
+                    size="small"
+                    component={RouterLink}
+                    to={`/compute/instances/${encodeURIComponent(name)}/resize`}
+                  >
+                    Resize
+                  </Button>
+                )
+              }
+            >
               <DetailTable
                 rows={[
                   {
@@ -646,13 +710,22 @@ export default function InstanceDetailPage() {
                               owns but can't see. The only thing worth
                               offering it is a way back in. */}
                           {canEdit && disk.media === 'unused' && (
-                            <Button
-                              size="small"
-                              disabled={attachDisk.isPending}
-                              onClick={() => attachDisk.mutate(disk.interface)}
-                            >
-                              Attach
-                            </Button>
+                            <>
+                              <Button
+                                size="small"
+                                disabled={attachDisk.isPending}
+                                onClick={() => attachDisk.mutate(disk.interface)}
+                              >
+                                Attach
+                              </Button>
+                              <Button
+                                size="small"
+                                color="error"
+                                onClick={() => setDeletingDisk(disk)}
+                              >
+                                Delete
+                              </Button>
+                            </>
                           )}
                           {canEdit && disk.media === 'disk' && (
                             <>
@@ -685,6 +758,76 @@ export default function InstanceDetailPage() {
                       <TableRow>
                         <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                           No disks reported.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </DetailSection>
+
+            <DetailSection
+              title="Snapshots"
+              action={
+                canEdit && (
+                  <Button
+                    size="small"
+                    startIcon={<AddIcon sx={{ fontSize: 16 }} />}
+                    component={RouterLink}
+                    to={`/compute/instances/${encodeURIComponent(name)}/snapshots/new`}
+                  >
+                    Take snapshot
+                  </Button>
+                )
+              }
+            >
+              <TableContainer component={Paper} variant="outlined">
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Name</TableCell>
+                      <TableCell>Description</TableCell>
+                      <TableCell>Taken</TableCell>
+                      <TableCell>Memory</TableCell>
+                      <TableCell align="right" sx={{ width: 190 }} />
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {snapshots.map((snap) => (
+                      <TableRow key={snap.id} hover>
+                        <TableCell>{snap.name}</TableCell>
+                        <TableCell sx={{ color: 'text.secondary' }}>
+                          {snap.description || '—'}
+                        </TableCell>
+                        <TableCell sx={{ color: 'text.secondary' }}>
+                          {snap.createdAt ? timeAgo(snap.createdAt) : '—'}
+                        </TableCell>
+                        <TableCell sx={{ color: 'text.secondary' }}>
+                          {snap.includesRam ? 'Included' : 'Disks only'}
+                        </TableCell>
+                        <TableCell align="right">
+                          {canEdit && (
+                            <>
+                              <Button size="small" onClick={() => setRollingBack(snap)}>
+                                Roll back
+                              </Button>
+                              <Button
+                                size="small"
+                                color="error"
+                                onClick={() => setDeletingSnapshot(snap)}
+                              >
+                                Delete
+                              </Button>
+                            </>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {snapshots.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                          No snapshots. One taken before a risky change is the cheapest
+                          undo this console has.
                         </TableCell>
                       </TableRow>
                     )}
@@ -1049,6 +1192,58 @@ export default function InstanceDetailPage() {
         pending={remove.isPending}
         onCancel={() => setDeleting(false)}
         onConfirm={() => remove.mutate()}
+      />
+
+      <ConfirmDeleteDialog
+        open={Boolean(deletingDisk)}
+        title={`Delete ${deletingDisk?.name}?`}
+        body={
+          <>
+            This destroys the volume and everything on it. It is not attached to
+            anything, so nothing will notice it going — which is exactly why this
+            asks you to type its name.
+          </>
+        }
+        confirmPhrase={deletingDisk?.name}
+        confirmLabel="the volume name"
+        pending={deleteDisk.isPending}
+        onCancel={() => setDeletingDisk(null)}
+        onConfirm={() => deletingDisk && deleteDisk.mutate(deletingDisk.interface)}
+      />
+
+      <ConfirmDeleteDialog
+        open={Boolean(rollingBack)}
+        title={`Roll ${name} back to ${rollingBack?.name}?`}
+        body={
+          <>
+            Everything written since that snapshot is discarded — files, packages,
+            configuration, all of it. The snapshot itself is kept, so this can be
+            done again.
+            {rollingBack && !rollingBack.includesRam && (
+              <> That snapshot holds disks only, so the guest comes back powered off.</>
+            )}
+          </>
+        }
+        confirmPhrase={rollingBack?.name}
+        confirmLabel="the snapshot name"
+        actionLabel="Roll back"
+        pending={rollback.isPending}
+        onCancel={() => setRollingBack(null)}
+        onConfirm={() => rollingBack && rollback.mutate(rollingBack.name)}
+      />
+
+      <ConfirmDeleteDialog
+        open={Boolean(deletingSnapshot)}
+        title={`Delete snapshot ${deletingSnapshot?.name}?`}
+        body={
+          <>
+            The restore point goes; {name} itself is untouched and keeps running
+            exactly as it is.
+          </>
+        }
+        pending={removeSnapshot.isPending}
+        onCancel={() => setDeletingSnapshot(null)}
+        onConfirm={() => deletingSnapshot && removeSnapshot.mutate(deletingSnapshot.name)}
       />
 
       <ConfirmDeleteDialog

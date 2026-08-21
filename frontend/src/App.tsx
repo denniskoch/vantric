@@ -23,6 +23,8 @@ import SecurityOverviewPage from './pages/SecurityOverviewPage'
 import SecurityHostAssessmentPage from './pages/SecurityHostAssessmentPage'
 import NotFoundPage from './pages/NotFoundPage'
 import InstanceAddDiskPage from './pages/InstanceAddDiskPage'
+import InstanceResizePage from './pages/InstanceResizePage'
+import InstanceSnapshotPage from './pages/InstanceSnapshotPage'
 import InstanceResizeDiskPage from './pages/InstanceResizeDiskPage'
 import DocsPage from './pages/DocsPage'
 import DocsArticlePage from './pages/DocsArticlePage'
@@ -295,6 +297,14 @@ export default function App() {
         {/* Documentation. No RequireRole: a viewer who can't read how
             to set up the thing they're looking at is a viewer who files
             a ticket instead. */}
+        <Route
+          path="/compute/instances/:name/resize"
+          element={<RequireRole><InstanceResizePage /></RequireRole>}
+        />
+        <Route
+          path="/compute/instances/:name/snapshots/new"
+          element={<RequireRole><InstanceSnapshotPage /></RequireRole>}
+        />
         <Route
           path="/compute/instances/:name/disks/add"
           element={<RequireRole><InstanceAddDiskPage /></RequireRole>}
