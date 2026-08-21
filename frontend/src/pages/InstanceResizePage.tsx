@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, TextField, Typography } from '@mui/material'
+import { Alert, Typography } from '@mui/material'
 import FormPage from '../components/FormPage'
 import { api } from '../api/client'
+import SizeSlider, { cpuSlider, memorySlider } from '../components/SizeSlider'
+import { formatMemory } from '../format'
 
 /**
  * Changing an instance's vCPU and memory.
@@ -75,27 +77,24 @@ export default function InstanceResizePage() {
           the old shape until something restarted it.
         </Alert>
       )}
-      <TextField
-        label="vCPUs"
-        type="number"
-        value={cpus || ''}
-        onChange={(e) => setCpus(Number(e.target.value))}
+      <SizeSlider
+        label="Cores"
+        {...cpuSlider}
+        value={cpus}
+        onChange={setCpus}
         error={Boolean(cpuError)}
-        helperText={cpuError || ' '}
+        helperText={cpuError}
         disabled={running}
-        slotProps={{ htmlInput: { min: 1 } }}
-        sx={{ width: 160 }}
       />
-      <TextField
-        label="Memory (MB)"
-        type="number"
-        value={memoryMb || ''}
-        onChange={(e) => setMemoryMb(Number(e.target.value))}
+      <SizeSlider
+        label="Memory"
+        {...memorySlider}
+        value={memoryMb}
+        onChange={setMemoryMb}
         error={Boolean(memoryError)}
-        helperText={memoryError || ' '}
+        helperText={memoryError}
+        caption={formatMemory(memoryMb)}
         disabled={running}
-        slotProps={{ htmlInput: { min: 128, step: 128 } }}
-        sx={{ width: 200 }}
       />
       <Typography variant="body2" color="text.secondary">
         The guest sees the new sizing when it next starts.

@@ -17,6 +17,8 @@ import {
   Typography,
 } from '@mui/material'
 import SelectField from '../components/SelectField'
+import SizeSlider, { cpuSlider, memorySlider } from '../components/SizeSlider'
+import { formatMemory } from '../format'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CircleIcon from '@mui/icons-material/Circle'
 import ErrorIcon from '@mui/icons-material/Error'
@@ -36,12 +38,6 @@ import { OSIcon } from '../components/OSName'
 type SectionID = 'machine' | 'os' | 'networking' | 'security' | 'advanced'
 
 const nameRe = /^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$/
-
-/** MB is what the hypervisor takes; GB is what you think in. */
-function formatMemory(mb: number): string {
-  if (!Number.isFinite(mb) || mb < 128) return ''
-  return mb % 1024 === 0 ? `${mb / 1024} GB` : `${(mb / 1024).toFixed(1)} GB`
-}
 
 export default function CreateInstancePage() {
   const navigate = useNavigate()
@@ -387,36 +383,29 @@ export default function CreateInstancePage() {
                 ))}
               </TextField>
               <Divider textAlign="left">Size</Divider>
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <TextField
-                  label="vCPUs"
-                  size="small"
-                  type="number"
-                  value={cpus}
-                  onChange={(e) => {
-                    setSizingTouched(true)
-                    setCpus(Number(e.target.value))
-                  }}
-                  error={Boolean(cpuError)}
-                  helperText={cpuError || 'Cores the guest sees'}
-                  slotProps={{ htmlInput: { min: 1, max: 128 } }}
-                  fullWidth
-                />
-                <TextField
-                  label="Memory (MB)"
-                  size="small"
-                  type="number"
-                  value={memoryMb}
-                  onChange={(e) => {
-                    setSizingTouched(true)
-                    setMemoryMb(Number(e.target.value))
-                  }}
-                  error={Boolean(memoryError)}
-                  helperText={memoryError || formatMemory(memoryMb)}
-                  slotProps={{ htmlInput: { min: 128, step: 128 } }}
-                  fullWidth
-                />
-              </Box>
+              <SizeSlider
+                label="Cores"
+                {...cpuSlider}
+                value={cpus}
+                onChange={(next) => {
+                  setSizingTouched(true)
+                  setCpus(next)
+                }}
+                error={Boolean(cpuError)}
+                helperText={cpuError || 'Cores the guest sees'}
+              />
+              <SizeSlider
+                label="Memory"
+                {...memorySlider}
+                value={memoryMb}
+                onChange={(next) => {
+                  setSizingTouched(true)
+                  setMemoryMb(next)
+                }}
+                error={Boolean(memoryError)}
+                helperText={memoryError}
+                caption={formatMemory(memoryMb)}
+              />
             </>
           )}
 

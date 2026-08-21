@@ -66,3 +66,17 @@ export function timeAgo(unixSeconds: number): string {
   const days = Math.round(hours / 24)
   return `${days} day${days === 1 ? '' : 's'} ago`
 }
+
+/**
+ * MB is what the hypervisor takes; GB is what you think in. Shown as a
+ * second reading beside the number rather than replacing it, because the
+ * API, the detail pages and the instance list all speak MB.
+ */
+export function formatMemory(mb: number): string {
+  if (!Number.isFinite(mb) || mb < 1) return ''
+  // Under a gigabyte it stays in MB. Rounding 512 to "0.5 GB" is worse
+  // than not converting, and half-typed values would otherwise read
+  // "0.0 GB" while somebody is still entering the number.
+  if (mb < 1024) return `${mb} MB`
+  return mb % 1024 === 0 ? `${mb / 1024} GB` : `${(mb / 1024).toFixed(1)} GB`
+}

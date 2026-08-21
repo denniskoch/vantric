@@ -21,6 +21,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CircleIcon from '@mui/icons-material/Circle'
 import ErrorIcon from '@mui/icons-material/Error'
 import { api } from '../api/client'
+import SizeSlider, { cpuSlider, memorySlider } from '../components/SizeSlider'
+import { formatMemory } from '../format'
 import type { ContainerRequest } from '../api/client'
 import OSName from '../components/OSName'
 import {
@@ -334,33 +336,28 @@ export default function CreateContainerPage() {
 
               <Divider textAlign="left">Size</Divider>
 
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <TextField
-                  label="vCPUs"
-                  size="small"
-                  type="number"
-                  value={form.cpus}
-                  onChange={(e) => set({ cpus: Number(e.target.value) })}
-                  sx={{ width: 120 }}
-                />
-                <TextField
-                  label="Memory (MB)"
-                  size="small"
-                  type="number"
-                  value={form.memoryMb}
-                  onChange={(e) => set({ memoryMb: Number(e.target.value) })}
-                  sx={{ width: 160 }}
-                />
-                <TextField
-                  label="Swap (MB)"
-                  size="small"
-                  type="number"
-                  value={form.swapMb}
-                  onChange={(e) => set({ swapMb: Number(e.target.value) })}
-                  helperText="Out of the host's swap"
-                  sx={{ width: 160 }}
-                />
-              </Box>
+              <SizeSlider
+                label="Cores"
+                {...cpuSlider}
+                value={form.cpus}
+                onChange={(next) => set({ cpus: next })}
+              />
+              <SizeSlider
+                label="Memory"
+                {...memorySlider}
+                value={form.memoryMb}
+                onChange={(next) => set({ memoryMb: next })}
+                caption={formatMemory(form.memoryMb)}
+              />
+              <TextField
+                label="Swap (MB)"
+                size="small"
+                type="number"
+                value={form.swapMb}
+                onChange={(e) => set({ swapMb: Number(e.target.value) })}
+                helperText="Out of the host's swap"
+                sx={{ width: 160 }}
+              />
               <Box sx={{ display: 'flex', gap: 2 }}>
                 <TextField
                   label="Disk (GB)"

@@ -20,6 +20,8 @@ import {
 } from '@mui/material'
 import SelectField from '../components/SelectField'
 import { Link as RouterLink } from 'react-router-dom'
+import SizeSlider, { cpuSlider, memorySlider } from '../components/SizeSlider'
+import { formatMemory } from '../format'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CircleIcon from '@mui/icons-material/Circle'
 import ErrorIcon from '@mui/icons-material/Error'
@@ -312,23 +314,21 @@ export default function BuildTemplatePage() {
                   helperText="Cloud images ship small; this grows the disk"
                   slotProps={{ htmlInput: { min: 1 } }}
                 />
-                <TextField
-                  label="vCPUs"
-                  size="small"
-                  type="number"
-                  value={cpus}
-                  onChange={(e) => setCpus(Number(e.target.value))}
-                  slotProps={{ htmlInput: { min: 1, max: 128 } }}
-                />
-                <TextField
-                  label="Memory (MB)"
-                  size="small"
-                  type="number"
-                  value={memoryMb}
-                  onChange={(e) => setMemoryMb(Number(e.target.value))}
-                  slotProps={{ htmlInput: { min: 128, step: 128 } }}
-                />
               </Box>
+              <SizeSlider
+                label="Cores"
+                {...cpuSlider}
+                value={cpus}
+                onChange={setCpus}
+                helperText="What a clone of this template starts with"
+              />
+              <SizeSlider
+                label="Memory"
+                {...memorySlider}
+                value={memoryMb}
+                onChange={setMemoryMb}
+                caption={formatMemory(memoryMb)}
+              />
             </>
           )}
 
