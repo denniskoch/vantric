@@ -125,3 +125,15 @@ func (s *Server) detachInstanceDisk(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (s *Server) deleteInstanceDisk(w http.ResponseWriter, r *http.Request) {
+	manager, driverID, ok := s.diskManagerFor(w, r)
+	if !ok {
+		return
+	}
+	if err := manager.DeleteDisk(r.Context(), driverID, chi.URLParam(r, "disk")); err != nil {
+		s.fail(w, err, "deleting the disk")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}

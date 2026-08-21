@@ -663,6 +663,49 @@ type DiskManager interface {
 	// DetachDisk removes a disk from its slot and KEEPS THE VOLUME. It
 	// stops being visible to the guest and stays on the hypervisor.
 	DetachDisk(ctx context.Context, driverID, disk string) error
+	// DeleteDisk destroys an UNATTACHED volume. It takes the key the
+	// volume currently sits under (unused0, unused1, …) and refuses
+	// anything still in a slot, so losing data takes two deliberate
+	// steps: detach, then delete.
+	//
+	// This is the one irreversible thing in this interface, and it is
+	// here because the alternative is worse — without it a detached
+	// volume is permanent, and a console that can fill a pool but never
+	// empty it just moves the job back to the hypervisor's own UI.
+	DeleteDisk(ctx context.Context, driverID, unused string) error
+}
+
+// InstanceResizer changes what a guest is made of after it exists.
+//
+// A capability rather than core, like the rest: a backend that only
+// clones a fixed shape stays simple. Sizing was settled once at create
+// and never again, which was a strange thing to be true in a console
+// that will happily grow the disk underneath it.
+//
+// STOPPED ONLY, and that is a deliberate refusal rather than a
+// limitation being papered over. Proxmox can hotplug cores and balloon
+// memory, but only when the guest was configured for it and only in one
+// direction, so the same button would work on some machines, half-work
+// on others, and silently do nothing on the rest. GCP asks you to stop
+// the instance for the same reason.
+type InstanceResizer interface {
+	ResizeInstance(ctx context.Context, driverID string, cpus, memoryMB int) error
+}
+
+// SnapshotManager takes and restores guest snapshots.
+//
+// The catalogue has always been readable — Driver.Snapshots lists them —
+// and nothing could make one, which is backwards for the operation a lab
+// reaches for most: the thing you do BEFORE the risky change.
+type SnapshotManager interface {
+	// CreateSnapshot captures the guest's current state. description is
+	// free text and may be empty.
+	CreateSnapshot(ctx context.Context, driverID, name, description string) error
+	// RollbackSnapshot returns the guest to a snapshot, DISCARDING
+	// everything since.
+	RollbackSnapshot(ctx context.Context, driverID, name string) error
+	// DeleteSnapshot removes a snapshot. The guest is untouched.
+	DeleteSnapshot(ctx context.Context, driverID, name string) error
 }
 
 // DiskSpec describes a disk to create.

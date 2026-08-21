@@ -31,6 +31,12 @@ import (
 
 var nameRe = regexp.MustCompile(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`)
 
+// snapshotNameRe is what Proxmox accepts for a snapshot. Capitals are
+// allowed where nameRe forbids them: people name snapshots things like
+// "Before-Zabbix", nothing downstream minds, and refusing it would be
+// this console being stricter than the thing it talks to.
+var snapshotNameRe = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]{0,39}$`)
+
 // pveIDRe is what a node or a storage may be called.
 //
 // Nothing SECURITY rests on it: internal/hypervisor/proxmox escapes
@@ -281,6 +287,12 @@ func (s *Server) protectedRoutes(r chi.Router) {
 			r.Post("/disks/{disk}/resize", s.resizeInstanceDisk)
 			r.Post("/disks/{disk}/attach", s.attachInstanceDisk)
 			r.Post("/disks/{disk}/detach", s.detachInstanceDisk)
+			// DELETE, not POST: this one destroys the volume.
+			r.Delete("/disks/{disk}", s.deleteInstanceDisk)
+			r.Post("/resize", s.resizeInstance)
+			r.Post("/snapshots", s.createInstanceSnapshot)
+			r.Post("/snapshots/{snapshot}/rollback", s.rollbackInstanceSnapshot)
+			r.Delete("/snapshots/{snapshot}", s.deleteInstanceSnapshot)
 		})
 	}
 }

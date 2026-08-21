@@ -163,3 +163,28 @@ func (d *Driver) DetachDisk(ctx context.Context, driverID, disk string) error {
 	}
 	return awaitTask(ctx, task, disk+" to detach")
 }
+
+// DeleteDisk destroys an unattached volume.
+func (d *Driver) DeleteDisk(ctx context.Context, driverID, unused string) error {
+	vm, err := d.vmFor(ctx, driverID)
+	if err != nil {
+		return err
+	}
+	cfg := configMap(vm.VirtualMachineConfig)
+	volume, _ := cfg[unused].(string)
+	if !strings.HasPrefix(unused, "unused") || volume == "" {
+		// Attached disks are refused BY KEY rather than by checking
+		// what's in the slot: the two-step rule is the safety, and a
+		// caller that could pass scsi1 here would be one typo from
+		// destroying a running guest's disk.
+		return fmt.Errorf("%s is not an unattached volume; detach a disk before deleting it", unused)
+	}
+	// force=true is what makes this destroy rather than detach. The same
+	// call with false is DetachDisk, which is the whole difference
+	// between the reversible operation and this one.
+	task, err := vm.UnlinkDisk(ctx, unused, true)
+	if err != nil {
+		return fmt.Errorf("deleting %s: %w", volume, err)
+	}
+	return awaitTask(ctx, task, volume+" to be deleted")
+}

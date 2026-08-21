@@ -349,3 +349,157 @@ func diskNamed(t *testing.T, driver hypervisor.Driver, id, slot string) hypervis
 	t.Fatalf("no disk at %s", slot)
 	return hypervisor.AttachedDisk{}
 }
+
+// Resize, snapshots and deleting an unattached volume, against a real
+// hypervisor. All three shipped as capability interfaces with no way to
+// prove them from a unit test: a snapshot that "works" but leaves the
+// guest unrollbackable, or a delete that detaches instead of destroying,
+// both pass every check that isn't this one.
+//
+//	VANTRIC_TEST_NODE=proxmox-a29c go test ./internal/hypervisor/proxmox -run LiveShape -v
+func TestLiveShapeAndSnapshots(t *testing.T) {
+	node := os.Getenv("VANTRIC_TEST_NODE")
+	if node == "" {
+		t.Skip("set VANTRIC_TEST_NODE to run this against a real hypervisor")
+	}
+	dsn := os.Getenv("VANTRIC_TEST_DB")
+	if dsn == "" {
+		dsn = filepath.Join("..", "..", "..", "vantric.db")
+	}
+	st, err := store.Open("sqlite", dsn)
+	if err != nil {
+		t.Fatalf("opening %s: %v", dsn, err)
+	}
+	defer st.Close()
+	ctx := context.Background()
+
+	driver, hv := driverForNode(ctx, t, st, node)
+	disks := driver.(hypervisor.DiskManager)
+	resizer, ok := driver.(hypervisor.InstanceResizer)
+	if !ok {
+		t.Fatalf("%s's driver can't resize", hv)
+	}
+	snaps, ok := driver.(hypervisor.SnapshotManager)
+	if !ok {
+		t.Fatalf("%s's driver has no snapshots", hv)
+	}
+
+	images, err := driver.Images(ctx)
+	if err != nil {
+		t.Fatalf("listing templates: %v", err)
+	}
+	var template *hypervisor.Image
+	for i := range images {
+		if images[i].Node == node {
+			template = &images[i]
+			break
+		}
+	}
+	if template == nil {
+		t.Skipf("no template on %s", node)
+	}
+	stores, err := driver.Datastores(ctx)
+	if err != nil {
+		t.Fatalf("listing datastores: %v", err)
+	}
+	pool := ""
+	for _, ds := range stores {
+		if ds.Node == node && ds.Active && strings.Contains(ds.Content, "images") {
+			pool = ds.Name
+			break
+		}
+	}
+	if pool == "" {
+		t.Skipf("no images-capable pool on %s", node)
+	}
+
+	name := "l-shape-" + time.Now().UTC().Format("150405")
+	id, err := driver.Create(ctx, hypervisor.InstanceSpec{
+		Name: name, Node: node, ImageID: template.ID, CPUs: 1, MemoryMB: 1024,
+	})
+	if id != "" && os.Getenv("VANTRIC_TEST_KEEP") == "" {
+		defer func() {
+			if err := driver.Delete(context.Background(), id); err != nil {
+				t.Errorf("LEFT BEHIND: %s (vmid %s): %v", name, id, err)
+				return
+			}
+			t.Logf("deleted %s (vmid %s)", name, id)
+		}()
+	}
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// A new instance is started by the API layer, not by Create, so this
+	// one is stopped — which is what resizing requires.
+	if err := resizer.ResizeInstance(ctx, id, 2, 2048); err != nil {
+		t.Fatalf("ResizeInstance: %v", err)
+	}
+	state, err := driver.Get(ctx, id)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if state.CPUs != 2 || state.MemoryMB != 2048 {
+		t.Errorf("after resize: %d vCPU / %d MB, want 2 / 2048", state.CPUs, state.MemoryMB)
+	}
+	t.Logf("resized to %d vCPU / %d MB", state.CPUs, state.MemoryMB)
+
+	// Snapshots.
+	if err := snaps.CreateSnapshot(ctx, id, "before-change", "taken by the live test"); err != nil {
+		t.Fatalf("CreateSnapshot: %v", err)
+	}
+	t.Log("took snapshot before-change")
+	if err := resizer.ResizeInstance(ctx, id, 3, 3072); err != nil {
+		t.Fatalf("second ResizeInstance: %v", err)
+	}
+	if err := snaps.RollbackSnapshot(ctx, id, "before-change"); err != nil {
+		t.Fatalf("RollbackSnapshot: %v", err)
+	}
+	state, err = driver.Get(ctx, id)
+	if err != nil {
+		t.Fatalf("Get after rollback: %v", err)
+	}
+	// The rollback has to actually undo something, or "it returned nil"
+	// proves nothing at all.
+	if state.CPUs != 2 || state.MemoryMB != 2048 {
+		t.Errorf("after rollback: %d vCPU / %d MB, want the 2 / 2048 the snapshot held",
+			state.CPUs, state.MemoryMB)
+	}
+	t.Logf("rolled back to %d vCPU / %d MB", state.CPUs, state.MemoryMB)
+	if err := snaps.DeleteSnapshot(ctx, id, "before-change"); err != nil {
+		t.Fatalf("DeleteSnapshot: %v", err)
+	}
+	t.Log("deleted snapshot before-change")
+
+	// Deleting an unattached volume: add, detach, delete, and check it's
+	// gone rather than merely unhooked.
+	slot, err := disks.AddDisk(ctx, id, hypervisor.DiskSpec{Storage: pool, SizeGB: 1})
+	if err != nil {
+		t.Fatalf("AddDisk: %v", err)
+	}
+	if err := disks.DetachDisk(ctx, id, slot); err != nil {
+		t.Fatalf("DetachDisk: %v", err)
+	}
+	unused := ""
+	for _, d := range describeDisks(t, driver, id) {
+		if d.Media == "unused" {
+			unused = d.Interface
+		}
+	}
+	if unused == "" {
+		t.Fatal("nothing unused after detaching")
+	}
+	// An attached disk must be refused: the two-step rule IS the safety.
+	if err := disks.DeleteDisk(ctx, id, "scsi0"); err == nil {
+		t.Error("deleting an attached disk was allowed; it should be refused")
+	}
+	if err := disks.DeleteDisk(ctx, id, unused); err != nil {
+		t.Fatalf("DeleteDisk: %v", err)
+	}
+	for _, d := range describeDisks(t, driver, id) {
+		if d.Media == "unused" {
+			t.Errorf("%s is still there after deleting it", d.Interface)
+		}
+	}
+	t.Logf("deleted the unattached volume that was %s", unused)
+}
