@@ -326,7 +326,19 @@ func (d *Driver) Create(ctx context.Context, spec hypervisor.InstanceSpec) (stri
 				"sizing and network configuration: %w", spec.Name, err)
 	}
 	// The disk is a separate call, and it is the one the form asked for
-	// most explicitly. Reported rather than swallowed, for the same
+	// most explicitly.
+	//
+	// IT HAPPENS BEFORE FIRST BOOT, AND THAT ORDERING IS LOAD-BEARING. A
+	// cloud image runs growpart on startup, so a disk grown before the
+	// guest has ever run comes up with the partition and filesystem
+	// already filling it — nothing to do by hand. Grow it after the boot
+	// and the guest is running on the template's size, with the extra
+	// space invisible until somebody reboots or runs growpart and
+	// resize2fs themselves. That reads as "the resize didn't work",
+	// intermittently, depending on what the image does.
+	//
+	// So the start stays where it is: a step the CALLER takes after this
+	// method returns. Moving it earlier looks harmless and isn't. Reported rather than swallowed, for the same
 	// reason the config write above is: a guest quietly carrying the
 	// template's 10 GB when 60 was asked for looks deliberate, and the
 	// reconciler then writes the real number over the requested one, so
