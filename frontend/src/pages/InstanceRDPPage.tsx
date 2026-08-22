@@ -104,6 +104,11 @@ function Desktop({ name, credentials }: { name: string; credentials: GuacCredent
   const holder = useRef<HTMLDivElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [connected, setConnected] = useState(false)
+  // What the session is actually doing, on screen rather than in a
+  // console. A desktop that connects and draws nothing looks the same
+  // as one that never connected, and the difference is not something
+  // anyone should have to open devtools on a popup to find out.
+  const [status, setStatus] = useState('')
   const clientRef = useRef<Guacamole.Client | null>(null)
 
   // The window the session is opening into. RDP fixes a resolution when
@@ -126,6 +131,24 @@ function Desktop({ name, credentials }: { name: string; credentials: GuacCredent
       `?width=${width}&height=${height}&dpi=${dpi}`
 
     const tunnel = new FirstFrameTunnel(url, credentials)
+    let received = 0
+    let drawn = 0
+    const report = () => {
+      const element = client.getDisplay().getElement()
+      const box = element.getBoundingClientRect()
+      setStatus(
+        `${received} instructions · ${drawn} images · display ` +
+          `${Math.round(box.width)}×${Math.round(box.height)}`,
+      )
+    }
+    tunnel.onactivity = (opcode) => {
+      received++
+      // img is the opcode that carries a picture. Counting it apart
+      // from the rest is what says whether the desktop is arriving and
+      // failing to paint, or never arriving.
+      if (opcode === 'img') drawn++
+      if (received % 25 === 0) report()
+    }
     const client = new Guacamole.Client(tunnel)
     clientRef.current = client
 
@@ -153,6 +176,7 @@ function Desktop({ name, credentials }: { name: string; credentials: GuacCredent
 
     client.connect()
     setConnected(true)
+    const reporting = window.setInterval(report, 1000)
 
     const onResize = () => {
       const next = size()
@@ -161,6 +185,7 @@ function Desktop({ name, credentials }: { name: string; credentials: GuacCredent
     window.addEventListener('resize', onResize)
 
     return () => {
+      window.clearInterval(reporting)
       window.removeEventListener('resize', onResize)
       keyboard.reset()
       // Releasing every key on the way out: a session that ends mid
@@ -184,6 +209,21 @@ function Desktop({ name, credentials }: { name: string; credentials: GuacCredent
         </Typography>
       )}
       <Box ref={holder} sx={{ display: 'flex', justifyContent: 'center' }} />
+      {status && (
+        <Typography
+          sx={{
+            position: 'absolute',
+            bottom: 8,
+            left: 12,
+            color: '#5f6368',
+            fontSize: 11,
+            fontFamily: 'monospace',
+            pointerEvents: 'none',
+          }}
+        >
+          {status}
+        </Typography>
+      )}
     </Box>
   )
 }

@@ -33,6 +33,11 @@ export interface GuacCredentials {
  */
 export class FirstFrameTunnel extends Guacamole.Tunnel {
   private socket: WebSocket | null = null
+  /** Called for every instruction that arrives, before the client sees
+   *  it. The page uses it to show that the stream is alive — a desktop
+   *  that draws nothing is otherwise indistinguishable from one that
+   *  isn't connected. */
+  onactivity: ((opcode: string) => void) | null = null
   // The client starts talking the moment connect() returns, which is
   // before the socket has opened. Held rather than dropped: what it
   // sends first is the state it expects the far end to already have.
@@ -42,7 +47,10 @@ export class FirstFrameTunnel extends Guacamole.Tunnel {
     super()
 
     const parser = new Guacamole.Parser()
-    parser.oninstruction = (opcode, args) => this.oninstruction?.(opcode, args)
+    parser.oninstruction = (opcode, args) => {
+      this.onactivity?.(opcode)
+      this.oninstruction?.(opcode, args)
+    }
 
     this.connect = () => {
       this.setState(Guacamole.Tunnel.State.CONNECTING)
