@@ -36,6 +36,31 @@ services:
       - "8080:8080"
     restart: unless-stopped
 
+  # The thing that speaks RDP and VNC, so a desktop can be proxied into
+  # the browser the way a terminal already is. The console talks to it
+  # over this network; guacd does the protocol and hands back a stream
+  # the page renders. It holds no state and reads no config file.
+  #
+  # NO PUBLISHED PORT, AND THAT IS THE WHOLE ACCESS CONTROL. guacd has
+  # no authentication of its own: anything that can reach 4822 can ask
+  # it to connect to any host with any credentials it supplies. Reaching
+  # it only from this compose network is what stands between that and
+  # your LAN — do not add a `ports:` entry to debug something.
+  #
+  # No depends_on either way. The console connects when somebody asks
+  # for a desktop, so a guacd that isn't running is a failed connect
+  # with a reason, not a console that won't start — the same tolerance
+  # it has for any unreachable backend.
+  guacd:
+    container_name: cloud-console-guacd
+    # Pinned by the MULTI-ARCH manifest digest, same rule as the tunnel
+    # below: the tag is there to be read, the digest is what binds, and
+    # this one still runs on an arm64 host and an amd64 one. 1.6.0 is
+    # the current stable (June 2025).
+    # Tags: https://hub.docker.com/r/guacamole/guacd/tags
+    image: guacamole/guacd:1.6.0@sha256:8974eaa9ba32f713daf311e7cc8cd7e4cdfba1edea39eed75524e78ef4b08f4f
+    restart: unless-stopped
+
   # Reaching the console from outside the lab, without opening a port.
   # The tunnel is created in Cloudflare Zero Trust and points at
   # http://app:8080 over this network; the app's published port stays

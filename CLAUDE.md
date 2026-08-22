@@ -1274,14 +1274,35 @@ Surface the daily 90% here and link out for the rest.
   service in the one compose file — NO PROFILES, here or anywhere: a
   service you have to remember a flag to start is a service you'll
   think is missing. It needs `TUNNEL_TOKEN` in .env and restarts
-  without one, which is noisy but visible. Both services carry a
-  `container_name` (`cloud-console`, `cloud-console-tunnel`) so
+  without one, which is noisy but visible. Every service carries a
+  `container_name` (`cloud-console`, `cloud-console-tunnel`,
+  `cloud-console-guacd`) so
   `docker logs cloud-console` is the same command on every host —
   compose otherwise names them after the checkout directory, which
   differs between machines. It reaches `http://app:8080`
   over the compose network; the published port stays for the LAN. `isTLS` already honours `X-Forwarded-Proto`,
   so the session cookie becomes Secure through the tunnel and stays
   usable over plain http on the LAN.
+- A DESKTOP IS PROXIED THROUGH `guacd`, which is why there is a third
+  service. It speaks RDP and VNC and hands back a stream the page
+  renders, so a Windows desktop reaches the browser the way a terminal
+  already does — the same shape as `internal/api/ssh.go`, with
+  guacamole-common-js where xterm.js sits. It holds no state and reads
+  no config file.
+  ITS ACCESS CONTROL IS THAT IT HAS NO PUBLISHED PORT. guacd
+  authenticates nothing: anything that can reach 4822 can ask it to
+  connect to any host with any credentials it is handed. Being
+  reachable only on the compose network is the entire protection, so a
+  `ports:` entry added to debug something is the whole security model
+  removed. Nothing depends on it either way — a guacd that isn't
+  running is a failed connect with a reason, not a console that won't
+  start, which is the tolerance every other backend gets.
+  WHAT DOESN'T CARRY OVER FROM SSH is the sign-in. The terminal
+  connects as the signed-in account with a key this console mints, so a
+  guest's auth log names a person; RDP has no key equivalent, so
+  credentials are typed per session and travel as the socket's FIRST
+  FRAME — the rule ssh.go already follows, and for the same reason:
+  query parameters land in proxy logs. Nothing is stored.
 - THE DATABASE IS A FILE IN A DIRECTORY, not a named volume:
   `./data/vantric.db` under Docker, `backend/vantric.db` under `make
   dev`. One SQLite file holds everything — accounts, every backend
