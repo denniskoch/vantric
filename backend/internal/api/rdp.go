@@ -2,9 +2,7 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -158,56 +156,25 @@ func (s *Server) instanceRDP(w http.ResponseWriter, r *http.Request) {
 	// verbatim: what arrives is framed by element, and re-encoding is
 	// how a partially-read instruction can't be forwarded as a whole
 	// one.
-	// WHAT ARRIVED, ON A CLOCK RATHER THAN A COUNT. A desktop that
-	// connects and draws nothing looks identical from both ends —
-	// guacd logs a clean session, the browser shows black — so "is it
-	// sending pictures at all" has no answer anywhere.
-	//
-	// Counting to a threshold was the wrong way to ask: a session that
-	// draws nothing may never reach it, so silence meant both "healthy
-	// and quiet" and "stalled immediately". A timer always answers, and
-	// the tally at close always answers, whatever the volume.
-	var tallyMu sync.Mutex
-	seen := map[string]int{}
-	tally := func() string {
-		tallyMu.Lock()
-		defer tallyMu.Unlock()
-		return summarise(seen)
-	}
-
+	// guacd → browser. Instructions are re-rendered rather than copied
+	// verbatim: what arrives is framed by element, and re-encoding is
+	// how a partially-read instruction can't be forwarded as a whole
+	// one. No per-session tallying here any more — the audit rows carry
+	// open/close/duration, and the ?debug readout on the page itself is
+	// the instrument for a session that misbehaves.
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		defer func() { s.log.Info("rdp stream ended", "instance", inst.Name, "opcodes", tally()) }()
 		for {
 			instruction, err := session.Read()
 			if err != nil {
 				return
-			}
-			tallyMu.Lock()
-			seen[instruction.Opcode]++
-			first := instruction.Opcode == "img" && seen["img"] == 1
-			tallyMu.Unlock()
-			// The first picture's own arguments — mimetype, layer,
-			// position. A wrong mimetype makes an undecodable data URI,
-			// the image never loads, and the display's task queue stops
-			// dead: everything keeps arriving and nothing ever paints.
-			if first {
-				s.log.Info("rdp first image", "instance", inst.Name,
-					"args", strings.Join(instruction.Args, " "))
 			}
 			if err := write(websocket.TextMessage, []byte(instruction.String())); err != nil {
 				return
 			}
 		}
 	}()
-
-	// A snapshot early enough to describe the opening of the session,
-	// for the case where it stays open and black.
-	opening := time.AfterFunc(3*time.Second, func() {
-		s.log.Info("rdp stream opening", "instance", inst.Name, "opcodes", tally())
-	})
-	defer opening.Stop()
 
 	// A desktop can sit untouched for a long time and a tunnel between
 	// here and the browser is free to reap a socket that says nothing,
@@ -259,23 +226,4 @@ func screenFrom(r *http.Request) guac.Screen {
 		screen.DPI = min(n, 300)
 	}
 	return screen
-}
-
-// summarise renders the opcode tally busiest first, so "img" and "blob"
-// being absent is as visible as their being present.
-func summarise(seen map[string]int) string {
-	type pair struct {
-		opcode string
-		n      int
-	}
-	pairs := make([]pair, 0, len(seen))
-	for opcode, n := range seen {
-		pairs = append(pairs, pair{opcode, n})
-	}
-	sort.Slice(pairs, func(i, j int) bool { return pairs[i].n > pairs[j].n })
-	parts := make([]string, 0, len(pairs))
-	for _, p := range pairs {
-		parts = append(parts, fmt.Sprintf("%s=%d", p.opcode, p.n))
-	}
-	return strings.Join(parts, " ")
 }
