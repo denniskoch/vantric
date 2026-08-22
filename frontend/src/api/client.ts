@@ -880,6 +880,9 @@ export interface AIRequestQuery {
   callers?: string[]
   status?: string
   search?: string
+  /** RFC3339. The gateway filters on its own clock, not the browser's. */
+  since?: string
+  until?: string
 }
 
 /** One change, and the account that made it. */
@@ -1633,6 +1636,8 @@ function aiQuery(q: AIRequestQuery): string {
   if (q.callers?.length) params.set('callers', q.callers.join(','))
   if (q.status) params.set('status', q.status)
   if (q.search) params.set('search', q.search)
+  if (q.since) params.set('since', q.since)
+  if (q.until) params.set('until', q.until)
   return params.toString()
 }
 

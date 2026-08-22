@@ -8,6 +8,7 @@
  */
 import {
   siAdguard,
+  siAnthropic,
   siApple,
   siAlmalinux,
   siAlpinelinux,
@@ -15,14 +16,19 @@ import {
   siAuthelia,
   siAuthentik,
   siCentos,
+  siClaude,
   siCloudflare,
   siDebian,
+  siDeepseek,
+  siElevenlabs,
   siFedora,
   siForgejo,
   siFreebsd,
   siGitea,
+  siGooglegemini,
   siGrafana,
   siHomeassistant,
+  siHuggingface,
   siImmich,
   siJellyfin,
   siKeycloak,
@@ -30,11 +36,14 @@ import {
   siMealie,
   siMinio,
   siMariadb,
+  siMistralai,
   siMysql,
   siNextcloud,
   siNetbsd,
   siNixos,
   siOpenbsd,
+  siOllama,
+  siOpenrouter,
   siOpensuse,
   siOpnsense,
   siPaperlessngx,
@@ -57,6 +66,7 @@ import type { SimpleIcon } from 'simple-icons'
 import type { SvgIconComponent } from '@mui/icons-material'
 import TerminalIcon from '@mui/icons-material/Terminal'
 import HandymanIcon from '@mui/icons-material/Handyman'
+import SmartToyIcon from '@mui/icons-material/SmartToy'
 
 /**
  * Marks drawn here rather than taken from simple-icons, in the same
@@ -105,6 +115,45 @@ const identityBrands: Record<string, SimpleIcon> = {
 
 export function identityBrand(type: string): SimpleIcon | null {
   return identityBrands[type] ?? null
+}
+
+/**
+ * The model providers an AI gateway routes to, keyed on the name the
+ * gateway itself reports.
+ *
+ * THREE OF THEM HAVE NO MARK HERE, and that is simple-icons' answer
+ * rather than an oversight: OpenAI, xAI and Cerebras aren't in the set.
+ * They fall back to the neutral glyph, the same way an OS with no
+ * legible mark does — and deliberately NOT to a lookalike. X's mark is
+ * not xAI's, and drawing OpenAI's knot from memory would put a wrong
+ * logo next to a real provider, which is worse than a grey square. The
+ * hand-drawn Windows exception above is a flag of four parallelograms;
+ * this isn't that.
+ */
+const aiProviderBrands: Record<string, SimpleIcon> = {
+  anthropic: siAnthropic,
+  claude: siClaude,
+  ollama: siOllama,
+  mistral: siMistralai,
+  deepseek: siDeepseek,
+  huggingface: siHuggingface,
+  openrouter: siOpenrouter,
+  elevenlabs: siElevenlabs,
+  google: siGooglegemini,
+  gemini: siGooglegemini,
+  vertex: siGooglegemini,
+}
+
+/** Same answer shape as osMark: a mark, a glyph, or nothing — so a
+ *  caller doesn't have to ask twice to find out there isn't one. */
+export function aiProviderMark(name: string): OSMark | null {
+  const key = name.trim().toLowerCase()
+  if (!key) return null
+  const brand = aiProviderBrands[key]
+  if (brand) return { kind: 'brand', icon: brand }
+  // OpenAI, xAI, Cerebras and anything else the gateway routes to.
+  // A glyph says "a model provider" without pretending to be a logo.
+  return { kind: 'glyph', icon: SmartToyIcon }
 }
 
 // The services an identity provider fronts. Matched on the

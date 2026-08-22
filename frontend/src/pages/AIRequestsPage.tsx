@@ -5,8 +5,18 @@ import type { ColumnDef, SortingState } from '@tanstack/react-table'
 import DataTable from '../components/DataTable'
 import PageHeader from '../components/PageHeader'
 import SelectField from '../components/SelectField'
+import ProviderName from '../components/ProviderName'
 import { api } from '../api/client'
 import type { AIRequest } from '../api/client'
+
+/** The windows Bifrost's own console offers, in hours. */
+const periods: Record<string, number> = {
+  'Last hour': 1,
+  'Last 6 hours': 6,
+  'Last 24 hours': 24,
+  'Last 7 days': 24 * 7,
+  'Last 30 days': 24 * 30,
+}
 
 /**
  * Every call the lab made to a model, as the gateway recorded it.
@@ -40,6 +50,17 @@ export default function AIRequestsPage() {
   const [model, setModel] = useState('')
   const [status, setStatus] = useState('')
   const [search, setSearch] = useState('')
+  const [period, setPeriod] = useState('')
+
+  // The window is pinned when you pick it rather than recomputed on
+  // every render. A sliding "last hour" would change the query on each
+  // keystroke — refetching under the cursor, renumbering the pages
+  // beneath you, and never settling.
+  const since = useMemo(() => {
+    const hours = periods[period]
+    if (!hours) return undefined
+    return new Date(Date.now() - hours * 3600_000).toISOString()
+  }, [period])
 
   const sort = sorting[0]
   const query = {
@@ -51,6 +72,7 @@ export default function AIRequestsPage() {
     models: model ? [model] : undefined,
     status: status || undefined,
     search: search || undefined,
+    since,
   }
 
   const { data: filters } = useQuery({ queryKey: ['aiFilters'], queryFn: api.getAIFilters })
@@ -62,7 +84,7 @@ export default function AIRequestsPage() {
     refetchInterval: false,
   })
   const { data: stats } = useQuery({
-    queryKey: ['aiStats', query.providers, query.models, query.status, query.search],
+    queryKey: ['aiStats', query.providers, query.models, query.status, query.search, query.since],
     queryFn: () => api.getAIStats({ ...query, limit: undefined, offset: undefined }),
   })
 
@@ -94,7 +116,9 @@ export default function AIRequestsPage() {
         id: 'provider',
         header: 'Provider',
         enableSorting: false,
+        meta: { nowrap: true },
         accessorFn: (r) => r.provider,
+        cell: ({ row }) => <ProviderName name={row.original.provider} />,
       },
       { id: 'model', header: 'Model', enableSorting: false, accessorFn: (r) => r.model },
       {
@@ -198,6 +222,23 @@ export default function AIRequestsPage() {
           {(filters?.models ?? []).map((m) => (
             <MenuItem key={m} value={m}>
               {m}
+            </MenuItem>
+          ))}
+        </SelectField>
+        <SelectField
+          label="Time range"
+          size="small"
+          value={period}
+          onChange={(e) => {
+            setPeriod(e.target.value)
+            setPage(0)
+          }}
+          sx={{ minWidth: 170 }}
+        >
+          <MenuItem value="">Any time</MenuItem>
+          {Object.keys(periods).map((label) => (
+            <MenuItem key={label} value={label}>
+              {label}
             </MenuItem>
           ))}
         </SelectField>
