@@ -1,9 +1,8 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Alert, Box, Chip, Tooltip, Typography } from '@mui/material'
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'
-import CancelIcon from '@mui/icons-material/Cancel'
+import { Alert, Box, Chip, Typography } from '@mui/material'
 import CellLines from '../components/CellLines'
+import EnabledIcon from '../components/EnabledIcon'
 import type { ColumnDef } from '@tanstack/react-table'
 import DataTable from '../components/DataTable'
 import PageHeader from '../components/PageHeader'
@@ -65,7 +64,11 @@ export default function AIProvidersPage() {
                       the first thing about it, and a badge at the end
                       of a name only announces the unusual case — which
                       leaves the ordinary one saying nothing. */}
-                  <KeyState enabled={k.enabled} />
+                  <EnabledIcon
+                    enabled={k.enabled}
+                    on="In use"
+                    off="Disabled on the gateway"
+                  />
                   <span>{k.name}</span>
                   {k.models.length > 0 && k.models[0] !== '*' && (
                     <Chip
@@ -133,20 +136,5 @@ export default function AIProvidersPage() {
         empty={isLoading ? 'Loading…' : 'The gateway has no providers configured.'}
       />
     </Box>
-  )
-}
-
-/** Whether the gateway will actually use this key. */
-function KeyState({ enabled }: { enabled: boolean }) {
-  return (
-    <Tooltip title={enabled ? 'In use' : 'Disabled on the gateway'}>
-      <span style={{ display: 'inline-flex' }}>
-        {enabled ? (
-          <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main', display: 'block' }} />
-        ) : (
-          <CancelIcon sx={{ fontSize: 16, color: 'error.main', display: 'block' }} />
-        )}
-      </span>
-    </Tooltip>
   )
 }

@@ -6,6 +6,7 @@ import DataTable from '../components/DataTable'
 import PageHeader from '../components/PageHeader'
 import ProviderName from '../components/ProviderName'
 import CellLines from '../components/CellLines'
+import EnabledIcon from '../components/EnabledIcon'
 import { api } from '../api/client'
 import type { AIVirtualKey } from '../api/client'
 
@@ -34,14 +35,18 @@ export default function AIVirtualKeysPage() {
         id: 'active',
         header: 'State',
         meta: { hug: true, nowrap: true },
+        // Sorted on the word so disabled keys group, drawn as the mark
+        // the provider keys use — a disabled key is a service whose
+        // calls are being refused right now, and that deserves to look
+        // like something rather than read like a column of the same
+        // word twelve times.
         accessorFn: (k) => (k.active ? 'Active' : 'Disabled'),
         cell: ({ row }) => (
-          <Typography
-            component="span"
-            sx={{ fontSize: 13, color: row.original.active ? undefined : 'text.secondary' }}
-          >
-            {row.original.active ? 'Active' : 'Disabled'}
-          </Typography>
+          <EnabledIcon
+            enabled={row.original.active}
+            on="Active — the gateway accepts this key"
+            off="Disabled — calls with this key are refused"
+          />
         ),
       },
       {
