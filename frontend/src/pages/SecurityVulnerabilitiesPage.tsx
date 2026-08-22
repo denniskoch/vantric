@@ -128,6 +128,11 @@ export default function SecurityVulnerabilitiesPage() {
     defs.push({
       id: 'description',
       header: 'Description',
+      // Describe truncates with an ellipsis, which does nothing unless
+      // the cell is capped — without this the descriptions run as long
+      // as they like and push every other column off the useful part of
+      // the table. The full text is in the tooltip.
+      meta: { maxWidth: 460 },
       // What Describe renders, so searching for "log4j" finds the row
       // whose description says so — the reason this page has a filter.
       accessorFn: (v) => v.exploitedName || v.description,

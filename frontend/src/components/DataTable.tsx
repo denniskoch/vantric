@@ -53,6 +53,13 @@ declare module '@tanstack/react-table' {
      */
     hug?: boolean
     /**
+     * Cap the column's width in pixels. Needed by any cell that
+     * truncates: `text-overflow: ellipsis` does nothing until something
+     * constrains the width, so a long description simply takes the
+     * table over instead of ending in a "…".
+     */
+    maxWidth?: number
+    /**
      * The text the filter should match for this column, when what is
      * rendered differs from what is sorted on. See searchableText.
      */
@@ -300,7 +307,13 @@ export default function DataTable<T>({
                     ...hugStyle(cell.column.columnDef),
                   }}
                 >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  {maxWidthOf(cell.column.columnDef) ? (
+                    <Box sx={{ maxWidth: maxWidthOf(cell.column.columnDef), overflow: 'hidden' }}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </Box>
+                  ) : (
+                    flexRender(cell.column.columnDef.cell, cell.getContext())
+                  )}
                 </TableCell>
               ))}
             </TableRow>
@@ -349,6 +362,25 @@ function nowrapOf(def: { meta?: { nowrap?: boolean } }): 'nowrap' | undefined {
  */
 function hugStyle(def: { meta?: { hug?: boolean } }) {
   return def.meta?.hug ? { width: '1%', whiteSpace: 'nowrap' as const } : undefined
+}
+
+/**
+ * Cap a column's width — on the CONTENT, not the cell.
+ *
+ * A cell's own max-width is decoration in an auto-layout table: the
+ * original `maxWidth: 460` on the vulnerability description never capped
+ * anything, and the column was 885px wide with the rule sitting right
+ * there in the CSS. Nor does a specified width help, because MUI's table
+ * is width:100% and the algorithm hands the slack back out however the
+ * columns were sized.
+ *
+ * A block INSIDE the cell is ordinary layout and obeys max-width, so the
+ * text stops where it is told and the ellipsis triggers there. The
+ * column can still be given space it does not need; what it can no
+ * longer do is grow because one cell had a paragraph in it.
+ */
+function maxWidthOf(def: { meta?: { maxWidth?: number } }) {
+  return def.meta?.maxWidth
 }
 
 function Pagination<T>({ table, options }: { table: TanTable<T>; options: number[] }) {
