@@ -66,7 +66,7 @@ export default function AIGatewaysPage() {
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
-        title="Gateway"
+        title="Connection"
         actions={
           <Button
             variant="contained"

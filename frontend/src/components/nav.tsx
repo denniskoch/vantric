@@ -36,6 +36,8 @@ import DownloadIcon from '@mui/icons-material/Download'
 import DevicesOtherIcon from '@mui/icons-material/DevicesOther'
 import PsychologyIcon from '@mui/icons-material/Psychology'
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart'
+import PaidIcon from '@mui/icons-material/Paid'
+import SettingsEthernetIcon from '@mui/icons-material/SettingsEthernet'
 import { createSvgIcon } from '@mui/material/utils'
 import { siDocker } from 'simple-icons'
 
@@ -466,13 +468,30 @@ export const sections: Section[] = [
     items: [{ label: 'Overview', icon: DashboardIcon, to: '/ai/overview' }],
     groups: [
       {
-        label: 'Observability',
+        // The gateway is the section's subject, so its everyday pages
+        // group under its name: what it served, what it can reach, and
+        // who may ask it. Adding a provider or rotating an upstream key
+        // stays in the gateway's own console — the daily 90% here, the
+        // deep configuration where its blast radius is.
+        label: 'Gateway',
         items: [
           {
             label: 'Requests',
             icon: HistoryIcon,
             to: '/ai/requests',
             hint: 'Every call the lab made to a model, and what answered',
+          },
+          {
+            label: 'Providers',
+            icon: HubIcon,
+            to: '/ai/providers',
+            hint: 'What the gateway can reach, and the keys it holds',
+          },
+          {
+            label: 'Virtual keys',
+            icon: VpnKeyIcon,
+            to: '/ai/virtual-keys',
+            hint: 'Which of your services may call it, and what each may reach',
           },
         ],
       },
@@ -481,7 +500,7 @@ export const sections: Section[] = [
         items: [
           {
             label: 'Provider accounts',
-            icon: VpnKeyIcon,
+            icon: PaidIcon,
             to: '/ai/accounts',
             hint: "What's left where you pay, without a login each",
           },
@@ -491,10 +510,13 @@ export const sections: Section[] = [
         label: 'Settings',
         items: [
           {
-            label: 'Gateway',
-            icon: HubIcon,
+            // Not "Gateway": the group above is called that now, and a
+            // nav with a group and an item of the same name makes you
+            // read both to find out which is which.
+            label: 'Connection',
+            icon: SettingsEthernetIcon,
             to: '/ai/settings/gateway',
-            hint: 'The AI gateway this console reads',
+            hint: 'How this console reaches the gateway',
           },
         ],
       },

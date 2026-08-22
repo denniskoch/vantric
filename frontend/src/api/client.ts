@@ -890,6 +890,41 @@ export interface AIModelUsage {
   avgLatencyMs: number
 }
 
+/** A model provider as the GATEWAY has it configured — a different
+ *  thing from the account at that provider, which is what AIAccount
+ *  is. This says what the gateway can reach; that says what's left. */
+export interface AIGatewayProvider {
+  name: string
+  /** The gateway's own word, passed through rather than mapped. */
+  status: string
+  keys: AIGatewayKey[]
+}
+
+/** One upstream credential. `masked` is the gateway's own masked form
+ *  — a key is shown so it can be recognised, not copied. */
+export interface AIGatewayKey {
+  id: string
+  name: string
+  masked?: string
+  models: string[]
+  enabled: boolean
+  status?: string
+}
+
+/**
+ * A credential the gateway issues to a caller — one per service in the
+ * lab, which is what makes the Caller column on the request log mean
+ * something. The secret is never carried: the gateway returns it in
+ * plaintext and the driver drops it.
+ */
+export interface AIVirtualKey {
+  id: string
+  name: string
+  active: boolean
+  access: { provider: string; models: string[] }[]
+  createdAt: string
+}
+
 export interface AIFilters {
   providers: string[]
   models: string[]
@@ -1891,6 +1926,8 @@ export const api = {
     request<AIRequestPage>(`/ai/requests?${aiQuery(query)}`),
   getAIStats: (query: AIRequestQuery) => request<AIStats>(`/ai/stats?${aiQuery(query)}`),
   getAIFilters: () => request<AIFilters>('/ai/filters'),
+  listAIGatewayProviders: () => request<AIGatewayProvider[]>('/ai/providers'),
+  listAIVirtualKeys: () => request<AIVirtualKey[]>('/ai/virtual-keys'),
   getAITraffic: (query: AIRequestQuery) => request<AITraffic>(`/ai/traffic?${aiQuery(query)}`),
   getAIRankings: (query: AIRequestQuery) =>
     request<AIModelUsage[]>(`/ai/rankings?${aiQuery(query)}`),

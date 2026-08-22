@@ -179,6 +179,58 @@ type ModelUsage struct {
 	AvgLatencyMS float64 `json:"avgLatencyMs"`
 }
 
+// GatewayProvider is a model provider as the GATEWAY has it
+// configured — which is a different thing from the account at that
+// provider (see internal/aiaccount). This says what the gateway can
+// reach and with which credentials; that says what is left to spend.
+type GatewayProvider struct {
+	Name string `json:"name"`
+	// Status is the gateway's own word for it, passed through rather
+	// than mapped: "active", "unknown". Inventing a vocabulary here
+	// would mean deciding what the gateway meant.
+	Status string       `json:"status"`
+	Keys   []GatewayKey `json:"keys"`
+}
+
+// GatewayKey is one upstream credential the gateway holds.
+//
+// Masked is the gateway's OWN masked form — sk-a************ywAA — and
+// this console never asks for more. A key is shown so it can be
+// recognised, not so it can be copied.
+type GatewayKey struct {
+	ID      string   `json:"id"`
+	Name    string   `json:"name"`
+	Masked  string   `json:"masked,omitempty"`
+	Models  []string `json:"models"`
+	Enabled bool     `json:"enabled"`
+	Status  string   `json:"status,omitempty"`
+}
+
+// VirtualKey is a credential the gateway issues to a caller — one per
+// service in the lab, which is what makes the Caller column on the
+// request log mean something.
+//
+// THE SECRET IS NOT HERE, AND THAT IS DELIBERATE. Bifrost returns a
+// virtual key's value in plaintext on the list endpoint, so the driver
+// drops it: a console that renders it turns every open browser tab
+// into a way to spend money, and nothing on this page needs it. The
+// gateway's own UI is where you go to copy one. Same rule as the WiFi
+// passphrases Network never reads.
+type VirtualKey struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Active bool   `json:"active"`
+	// Access is what this key may reach, per provider.
+	Access    []VirtualKeyAccess `json:"access"`
+	CreatedAt time.Time          `json:"createdAt"`
+}
+
+type VirtualKeyAccess struct {
+	Provider string `json:"provider"`
+	// Models is the gateway's list, in which "*" means all of them.
+	Models []string `json:"models"`
+}
+
 // Filters are the values worth offering as a filter, as the gateway
 // reports them — so the list of models is the list of models this
 // gateway has actually seen, not one this console keeps.
@@ -206,6 +258,11 @@ type Provider interface {
 	Traffic(ctx context.Context, q RequestQuery) (*Traffic, error)
 	// Rankings summarizes the traffic by model, busiest first.
 	Rankings(ctx context.Context, q RequestQuery) ([]ModelUsage, error)
+	// GatewayProviders lists the model providers the gateway is
+	// configured to reach, with the credentials it holds for each.
+	GatewayProviders(ctx context.Context) ([]GatewayProvider, error)
+	// VirtualKeys lists the credentials the gateway issues to callers.
+	VirtualKeys(ctx context.Context) ([]VirtualKey, error)
 }
 
 // Registry holds one live Provider per configured record, keyed by its

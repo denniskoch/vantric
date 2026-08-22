@@ -112,6 +112,8 @@ import AIGatewayFormPage from './pages/AIGatewayFormPage'
 import AIAccountsPage from './pages/AIAccountsPage'
 import AIAccountFormPage from './pages/AIAccountFormPage'
 import AIOverviewPage from './pages/AIOverviewPage'
+import AIProvidersPage from './pages/AIProvidersPage'
+import AIVirtualKeysPage from './pages/AIVirtualKeysPage'
 
 export default function App() {
   return (
@@ -217,6 +219,8 @@ export default function App() {
         <Route path="/docker/overview" element={<SectionLandingPage />} />
         <Route path="/ai/overview" element={<AIOverviewPage />} />
         <Route path="/ai/requests" element={<AIRequestsPage />} />
+        <Route path="/ai/providers" element={<AIProvidersPage />} />
+        <Route path="/ai/virtual-keys" element={<AIVirtualKeysPage />} />
         <Route path="/ai/accounts" element={<AIAccountsPage />} />
         <Route path="/ai/accounts/add" element={<AIAccountFormPage />} />
         <Route path="/ai/accounts/:id/edit" element={<AIAccountFormPage />} />

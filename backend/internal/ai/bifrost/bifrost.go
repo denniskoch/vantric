@@ -27,6 +27,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"vantric/internal/ai"
@@ -368,6 +369,114 @@ func (p *Provider) Rankings(ctx context.Context, q ai.RequestQuery) ([]ai.ModelU
 			Cost:         r.TotalCost,
 			AvgLatencyMS: r.AvgLatency,
 		})
+	}
+	return out, nil
+}
+
+func (p *Provider) GatewayProviders(ctx context.Context) ([]ai.GatewayProvider, error) {
+	var body struct {
+		Providers []struct {
+			Name           string `json:"name"`
+			ProviderStatus string `json:"provider_status"`
+		} `json:"providers"`
+	}
+	if err := p.get(ctx, "/api/providers", nil, &body); err != nil {
+		return nil, err
+	}
+	out := make([]ai.GatewayProvider, len(body.Providers))
+	// The keys are a call per provider — ten of them here. Concurrent
+	// and best-effort, the same trade the object store's per-bucket
+	// quotas make: this page isn't polled, and a provider whose keys
+	// won't list is a provider listed without them rather than a page
+	// that fails.
+	var wg sync.WaitGroup
+	for i, pr := range body.Providers {
+		out[i] = ai.GatewayProvider{
+			Name:   pr.Name,
+			Status: pr.ProviderStatus,
+			Keys:   []ai.GatewayKey{},
+		}
+		wg.Add(1)
+		go func(i int, name string) {
+			defer wg.Done()
+			keys, err := p.providerKeys(ctx, name)
+			if err != nil {
+				return
+			}
+			out[i].Keys = keys
+		}(i, pr.Name)
+	}
+	wg.Wait()
+	return out, nil
+}
+
+func (p *Provider) providerKeys(ctx context.Context, provider string) ([]ai.GatewayKey, error) {
+	var body struct {
+		Keys []struct {
+			ID    string `json:"id"`
+			Name  string `json:"name"`
+			Value struct {
+				// Already masked by the gateway — sk-a****ywAA. Carried
+				// through as-is; this console never asks for more.
+				Value string `json:"value"`
+			} `json:"value"`
+			Models  []string `json:"models"`
+			Enabled bool     `json:"enabled"`
+			Status  string   `json:"status"`
+		} `json:"keys"`
+	}
+	if err := p.get(ctx, "/api/providers/"+url.PathEscape(provider)+"/keys", nil, &body); err != nil {
+		return nil, err
+	}
+	keys := make([]ai.GatewayKey, 0, len(body.Keys))
+	for _, k := range body.Keys {
+		keys = append(keys, ai.GatewayKey{
+			ID:      k.ID,
+			Name:    k.Name,
+			Masked:  k.Value.Value,
+			Models:  k.Models,
+			Enabled: k.Enabled,
+			Status:  k.Status,
+		})
+	}
+	return keys, nil
+}
+
+func (p *Provider) VirtualKeys(ctx context.Context) ([]ai.VirtualKey, error) {
+	var body struct {
+		VirtualKeys []struct {
+			ID       string `json:"id"`
+			Name     string `json:"name"`
+			IsActive bool   `json:"is_active"`
+			// `value` is deliberately not declared. Bifrost sends the
+			// live sk-bf-… secret here in plaintext, and a field this
+			// struct doesn't have is a field that cannot leak onward.
+			ProviderConfigs []struct {
+				Provider      string   `json:"provider"`
+				AllowedModels []string `json:"allowed_models"`
+			} `json:"provider_configs"`
+			CreatedAt string `json:"created_at"`
+		} `json:"virtual_keys"`
+	}
+	if err := p.get(ctx, "/api/governance/virtual-keys", nil, &body); err != nil {
+		return nil, err
+	}
+	out := make([]ai.VirtualKey, 0, len(body.VirtualKeys))
+	for _, v := range body.VirtualKeys {
+		key := ai.VirtualKey{
+			ID:        v.ID,
+			Name:      v.Name,
+			Active:    v.IsActive,
+			Access:    []ai.VirtualKeyAccess{},
+			CreatedAt: parseTime(v.CreatedAt),
+		}
+		for _, c := range v.ProviderConfigs {
+			key.Access = append(key.Access, ai.VirtualKeyAccess{
+				Provider: c.Provider,
+				Models:   c.AllowedModels,
+			})
+		}
+		out = append(out, key)
 	}
 	return out, nil
 }

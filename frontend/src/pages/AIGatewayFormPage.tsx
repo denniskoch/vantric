@@ -51,7 +51,7 @@ function GatewayForm({ editing }: { editing: AIGateway | null }) {
     <FormPage
       title={editing ? `Edit ${editing.name}` : 'Connect AI gateway'}
       backTo={backTo}
-      backLabel="Gateway"
+      backLabel="Connection"
       error={error}
       onDismissError={() => setError(null)}
       notice="The gateway is checked before it's saved. Bifrost's management API is open unless you've turned auth on, so a credential is usually not needed."
