@@ -264,9 +264,29 @@ function painted(element: HTMLElement): string {
     for (let i = 0; i < data.length; i += 4) {
       // Any pixel that is both opaque and not black counts as paint.
       if (data[i + 3] > 0 && (data[i] || data[i + 1] || data[i + 2])) {
-        return `${canvases.length} canvases, painted ${canvas.width}×${canvas.height}`
+        return `painted ${canvas.width}×${canvas.height} ${where(canvas)}`
       }
     }
   }
   return `${canvases.length} canvases, all blank`
+}
+
+/**
+ * Where a canvas actually is, and whether anything is stopping it being
+ * seen. Reported because a painted canvas that shows nothing has to be
+ * somewhere other than where you are looking, or hidden by a property
+ * that no log mentions.
+ */
+function where(canvas: HTMLCanvasElement): string {
+  const box = canvas.getBoundingClientRect()
+  const style = getComputedStyle(canvas)
+  const bits = [
+    `at ${Math.round(box.x)},${Math.round(box.y)} ${Math.round(box.width)}×${Math.round(box.height)}`,
+  ]
+  if (style.display === 'none') bits.push('display:none')
+  if (style.visibility !== 'visible') bits.push(`visibility:${style.visibility}`)
+  if (style.opacity !== '1') bits.push(`opacity:${style.opacity}`)
+  if (style.transform !== 'none') bits.push(`transform:${style.transform}`)
+  if (style.zIndex !== 'auto') bits.push(`z:${style.zIndex}`)
+  return bits.join(' ')
 }
