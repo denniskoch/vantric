@@ -162,20 +162,7 @@ export default function AIRequestsPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <PageHeader
-        title="Requests"
-        actions={
-          <TimeRangePicker
-            value={range}
-            onChange={(next) => {
-              setRange(next)
-              // A new window is a new result set; page 4 of the old one
-              // is not a place.
-              setPage(0)
-            }}
-          />
-        }
-      />
+      <PageHeader title="Requests" />
 
       {error && (
         <Alert severity="warning" sx={{ mb: 2 }}>
@@ -199,7 +186,19 @@ export default function AIRequestsPage() {
         </Box>
       )}
 
-      <Box sx={{ display: 'flex', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
+      {/* The range sits with the other filters, not up beside the
+          title: it IS one, and it's the one you reach for before the
+          rest. */}
+      <Box sx={{ display: 'flex', gap: 1.5, mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+        <TimeRangePicker
+          value={range}
+          onChange={(next) => {
+            setRange(next)
+            // A new window is a new result set; page 4 of the old one
+            // is not a place.
+            setPage(0)
+          }}
+        />
         <SelectField
           label="Provider"
           size="small"

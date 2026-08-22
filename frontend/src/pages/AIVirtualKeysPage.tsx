@@ -156,7 +156,6 @@ export default function AIVirtualKeysPage() {
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
-        actions={<TimeRangePicker value={range} onChange={setRange} />}
         title="Virtual keys"
         description="The credentials your gateway issues to callers, what each may reach, and what each has actually done."
       />
@@ -176,6 +175,10 @@ export default function AIVirtualKeysPage() {
           {(error as Error).message}
         </Alert>
       )}
+
+      <Box sx={{ display: 'flex', mb: 2 }}>
+        <TimeRangePicker value={range} onChange={setRange} />
+      </Box>
 
       <DataTable
         rows={keys}
