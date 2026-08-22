@@ -128,12 +128,15 @@ func (p *Provider) Check(ctx context.Context) (*ai.Info, error) {
 
 // logEntry is Bifrost's log row, narrowed to what this console shows.
 //
-// Latency and the token counts are POINTERS because Bifrost omits them
-// rather than sending zero: a request that errored before the model
-// answered has no latency, and 0 ms would read as instant. There is
-// deliberately no Cost field — this gateway's version doesn't carry
-// one per row, and a column that is always blank is worse than no
-// column. Cost arrives in aggregate, from /api/logs/stats.
+// Latency, cost and the token counts are POINTERS because Bifrost
+// omits them rather than sending zero: a request that errored before
+// the model answered has no latency, and 0 ms would read as instant.
+//
+// COST IS A VERSION DIFFERENCE, not a missing feature. v1.6.11 records
+// none per request and v2 does, so this reads the field and lets it be
+// absent — the column then appears the day the gateway is upgraded,
+// with nothing here to change. Until then cost arrives only in
+// aggregate, from /api/logs/stats.
 type logEntry struct {
 	ID         string   `json:"id"`
 	Timestamp  string   `json:"timestamp"`
@@ -142,6 +145,7 @@ type logEntry struct {
 	Object     string   `json:"object"`
 	Status     string   `json:"status"`
 	Latency    *float64 `json:"latency"`
+	Cost       *float64 `json:"cost"`
 	Stream     bool     `json:"stream"`
 	VirtualKey string   `json:"virtual_key_name"`
 	KeyName    string   `json:"selected_key_name"`
@@ -174,6 +178,7 @@ func (p *Provider) Requests(ctx context.Context, q ai.RequestQuery) (*ai.Request
 			Model:      l.Model,
 			Status:     l.Status,
 			LatencyMS:  l.Latency,
+			Cost:       l.Cost,
 			Caller:     l.VirtualKey,
 			Credential: l.KeyName,
 			Streamed:   l.Stream,

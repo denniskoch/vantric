@@ -74,7 +74,13 @@ type Request struct {
 	// Caller is who made the call, in the gateway's own terms — a
 	// Bifrost virtual key's name. It is the closest thing to "which of
 	// my services did this", which is the question a lab actually asks.
-	Caller string `json:"caller,omitempty"`
+	// Cost is what the gateway priced this one call at, and is absent
+	// on a gateway that doesn't price per request — v1.6.11 doesn't,
+	// v2 does. A pointer rather than a zero, so "free" and "not
+	// recorded" stay different answers, and so the column can appear
+	// on its own the day the gateway starts sending it.
+	Cost   *float64 `json:"cost,omitempty"`
+	Caller string   `json:"caller,omitempty"`
 	// Credential is the upstream key the gateway chose. For Ollama it
 	// is the machine's name, which is how a local model shows up as a
 	// place rather than as an account.

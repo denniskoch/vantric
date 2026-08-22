@@ -838,6 +838,10 @@ export interface AIRequest {
   model: string
   status: string
   latencyMs?: number
+  /** Priced per request by Bifrost v2 and not by v1.6.11, so absent
+   *  rather than zero — the column appears when the gateway starts
+   *  sending it. */
+  cost?: number
   promptTokens?: number
   completionTokens?: number
   totalTokens?: number

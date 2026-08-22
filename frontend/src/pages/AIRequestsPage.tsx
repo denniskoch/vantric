@@ -29,6 +29,7 @@ const sortKeys: Record<string, string> = {
   at: 'timestamp',
   latencyMs: 'latency',
   totalTokens: 'tokens',
+  cost: 'cost',
 }
 
 export default function AIRequestsPage() {
@@ -64,6 +65,13 @@ export default function AIRequestsPage() {
     queryKey: ['aiStats', query.providers, query.models, query.status, query.search],
     queryFn: () => api.getAIStats({ ...query, limit: undefined, offset: undefined }),
   })
+
+  const rows = data?.requests ?? []
+  // The gateway prices per request from v2 on, and not before it. The
+  // column appears when there is something in it rather than standing
+  // empty on an older gateway — the same rule the estate CVE list
+  // follows for a severity its service doesn't carry.
+  const priced = rows.some((r) => r.cost !== undefined)
 
   const columns = useMemo<ColumnDef<AIRequest, unknown>[]>(
     () => [
@@ -116,11 +124,21 @@ export default function AIRequestsPage() {
             ? '—'
             : row.original.totalTokens.toLocaleString(),
       },
+      ...(priced
+        ? [
+            {
+              id: 'cost',
+              header: 'Cost',
+              meta: { align: 'right' as const, nowrap: true },
+              accessorFn: (r: AIRequest) => r.cost,
+              cell: ({ row }: { row: { original: AIRequest } }) =>
+                row.original.cost === undefined ? '—' : `$${row.original.cost.toFixed(4)}`,
+            } as ColumnDef<AIRequest, unknown>,
+          ]
+        : []),
     ],
-    [],
+    [priced],
   )
-
-  const rows = data?.requests ?? []
 
   return (
     <Box sx={{ p: 3 }}>
