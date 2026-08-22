@@ -115,6 +115,12 @@ export default function ContainersPage() {
       },
       { id: 'node', header: 'Node', accessorFn: (ct) => ct.node },
       {
+        id: 'internalIp',
+        header: 'IP address',
+        accessorFn: (ct) => ct.internalIp,
+        cell: ({ row }) => row.original.internalIp || '—',
+      },
+      {
         id: 'cpus',
         header: 'vCPUs',
         accessorFn: (ct) => ct.cpus,
@@ -125,12 +131,6 @@ export default function ContainersPage() {
         header: 'Memory (MB)',
         accessorFn: (ct) => ct.memoryMb,
         meta: { align: 'right' },
-      },
-      {
-        id: 'internalIp',
-        header: 'IP address',
-        accessorFn: (ct) => ct.internalIp,
-        cell: ({ row }) => row.original.internalIp || '—',
       },
       {
         id: 'actions',
