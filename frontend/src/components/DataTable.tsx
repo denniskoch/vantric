@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import {
   Box,
   Checkbox,
@@ -15,10 +15,13 @@ import {
   TableSortLabel,
 } from '@mui/material'
 import ClearIcon from '@mui/icons-material/Clear'
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import SearchIcon from '@mui/icons-material/Search'
 import {
   flexRender,
   getCoreRowModel,
+  getExpandedRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
@@ -26,6 +29,7 @@ import {
 } from '@tanstack/react-table'
 import type {
   ColumnDef,
+  ExpandedState,
   FilterFn,
   RowData,
   RowSelectionState,
@@ -104,6 +108,7 @@ export default function DataTable<T>({
   onSelectionChange,
   selectable,
   empty,
+  renderDetail,
   filterPlaceholder = 'Filter',
   searchable = true,
   perPageOptions = [15, 30, 45],
@@ -119,6 +124,12 @@ export default function DataTable<T>({
   /** False disables the boxes without removing the column, e.g. for a viewer. */
   selectable?: boolean
   empty?: ReactNode
+  /**
+   * Extra detail shown in a row of its own underneath. Return nothing
+   * for a row with nothing to add and it gets no expander, so the arrow
+   * only appears where there is something behind it.
+   */
+  renderDetail?: (row: T) => ReactNode
   /** Wording for the filter box; the column names are a good hint. */
   filterPlaceholder?: string
   searchable?: boolean
@@ -126,6 +137,7 @@ export default function DataTable<T>({
 }) {
   const [sorting, setSorting] = useState<SortingState>(initialSort ?? [])
   const [filter, setFilter] = useState('')
+  const [expanded, setExpanded] = useState<ExpandedState>({})
   const selectionEnabled = Boolean(onSelectionChange)
 
   // BLANKS SORT LAST, BOTH WAYS, and this is the only place that can
@@ -184,9 +196,11 @@ export default function DataTable<T>({
     data: rows,
     columns: normalised,
     getRowId,
-    state: { sorting, rowSelection, globalFilter: filter },
+    state: { sorting, rowSelection, globalFilter: filter, expanded },
     onSortingChange: setSorting,
     onGlobalFilterChange: setFilter,
+    onExpandedChange: setExpanded,
+    getRowCanExpand: (row) => Boolean(renderDetail?.(row.original)),
     enableRowSelection: selectionEnabled && selectable !== false,
     onRowSelectionChange: (updater) => {
       if (!onSelectionChange) return
@@ -196,6 +210,7 @@ export default function DataTable<T>({
     defaultColumn: { sortUndefined: 'last' },
     getCoreRowModel: getCoreRowModel(),
     globalFilterFn: searchableText,
+    getExpandedRowModel: getExpandedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -203,7 +218,8 @@ export default function DataTable<T>({
   })
 
   const page = table.getRowModel().rows
-  const columnCount = table.getAllLeafColumns().length + (selectionEnabled ? 1 : 0)
+  const columnCount =
+    table.getAllLeafColumns().length + (selectionEnabled ? 1 : 0) + (renderDetail ? 1 : 0)
 
   return (
     <TableContainer component={Paper} variant="outlined">
@@ -254,6 +270,7 @@ export default function DataTable<T>({
                   />
                 </TableCell>
               )}
+              {renderDetail && <TableCell sx={{ width: 36 }} />}
               {group.headers.map((header) => {
                 const sortable = header.column.getCanSort()
                 const label = flexRender(header.column.columnDef.header, header.getContext())
@@ -286,7 +303,25 @@ export default function DataTable<T>({
         </TableHead>
         <TableBody>
           {page.map((row) => (
-            <TableRow key={row.id} hover selected={row.getIsSelected()}>
+            <Fragment key={row.id}>
+            <TableRow hover selected={row.getIsSelected()}>
+              {renderDetail && (
+                <TableCell sx={{ width: 36 }}>
+                  {row.getCanExpand() && (
+                    <IconButton
+                      size="small"
+                      aria-label={row.getIsExpanded() ? 'Hide details' : 'Show details'}
+                      onClick={row.getToggleExpandedHandler()}
+                    >
+                      {row.getIsExpanded() ? (
+                        <ExpandLessIcon sx={{ fontSize: 16 }} />
+                      ) : (
+                        <ExpandMoreIcon sx={{ fontSize: 16 }} />
+                      )}
+                    </IconButton>
+                  )}
+                </TableCell>
+              )}
               {selectionEnabled && (
                 <TableCell padding="checkbox">
                   <Checkbox
@@ -317,6 +352,14 @@ export default function DataTable<T>({
                 </TableCell>
               ))}
             </TableRow>
+            {row.getIsExpanded() && (
+              <TableRow>
+                <TableCell colSpan={columnCount} sx={{ bgcolor: 'surface.subtle' }}>
+                  {renderDetail?.(row.original)}
+                </TableCell>
+              </TableRow>
+            )}
+            </Fragment>
           ))}
           {page.length === 0 && (empty || filter) && (
             <TableRow>

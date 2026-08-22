@@ -1,27 +1,17 @@
-import { Fragment, useState } from 'react'
+import { useMemo } from 'react'
+import DataTable from '../components/DataTable'
+import type { ColumnDef } from '@tanstack/react-table'
 import { useQuery } from '@tanstack/react-query'
 import {
   Alert,
   Box,
-  IconButton,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
   Typography,
 } from '@mui/material'
-import ExpandLessIcon from '@mui/icons-material/ExpandLess'
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import { api } from '../api/client'
 import { formatDuration } from '../format'
 import PageHeader from '../components/PageHeader'
-import { usePaged } from '../components/usePaged'
 
 /**
  * Who did what.
@@ -46,8 +36,6 @@ function formatElapsed(ms: number): string {
 }
 
 export default function IAMActivityPage() {
-  const [open, setOpen] = useState<string | null>(null)
-  const [filter, setFilter] = useState('')
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['audit'],
@@ -55,29 +43,80 @@ export default function IAMActivityPage() {
     refetchInterval: 15000,
   })
 
-  const term = filter.trim().toLowerCase()
-  const matching = term
-    ? entries.filter((e) =>
-        [e.actorEmail, e.action, e.resource, e.path, e.error]
-          .filter(Boolean)
-          .some((field) => field!.toLowerCase().includes(term)),
-      )
-    : entries
-  const { shown, pagination } = usePaged(matching, 25)
+
+  const columns = useMemo<ColumnDef<(typeof entries)[number], unknown>[]>(
+    () => [
+      {
+        id: 'at',
+        header: 'When',
+        meta: {
+          nowrap: true,
+          filterText: (entry) => new Date(entry.at * 1000).toLocaleString(),
+        },
+        accessorFn: (entry) => entry.at,
+        cell: ({ row }) => new Date(row.original.at * 1000).toLocaleString(),
+      },
+      {
+        id: 'actorEmail',
+        header: 'Account',
+        accessorFn: (entry) => entry.actorEmail,
+        cell: ({ row }) => row.original.actorEmail || '—',
+      },
+      {
+        id: 'action',
+        header: 'Action',
+        meta: { nowrap: true },
+        accessorFn: (entry) => entry.action,
+        cell: ({ row }) => (
+          <Box component="span" sx={{ fontFamily: 'monospace', fontSize: 12 }}>
+            {row.original.action}
+          </Box>
+        ),
+      },
+      {
+        id: 'resource',
+        header: 'Resource',
+        accessorFn: (entry) => entry.resource,
+        cell: ({ row }) => row.original.resource || '—',
+      },
+      {
+        id: 'status',
+        header: 'Outcome',
+        meta: { hug: true },
+        // Sorted on the code, so failures group together — and searched
+        // by it too, since "403" is a thing somebody types.
+        accessorFn: (entry) => entry.status,
+        filterFn: undefined,
+        cell: ({ row }) => (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {row.original.status >= 400 ? (
+              <ErrorIcon sx={{ fontSize: 16, color: 'error.main' }} />
+            ) : (
+              <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
+            )}
+            <Box component="span" sx={{ fontSize: 12, color: 'text.secondary' }}>
+              {row.original.status}
+            </Box>
+          </Box>
+        ),
+      },
+      {
+        id: 'path',
+        header: 'Path',
+        // Not shown as its own column before — it lived in the detail
+        // row. It stays there; this column exists so the filter can
+        // reach it, which is what the hand-written one did.
+        accessorFn: (entry) => `${entry.method} ${entry.path}`,
+      },
+    ],
+    [],
+  )
 
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
         title="Activity"
         description="Every change made through this console, and the account that made it."
-      />
-
-      <TextField
-        size="small"
-        placeholder="Filter by account, action or resource"
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-        sx={{ mb: 2, width: 360 }}
       />
 
       {!isLoading && entries.length === 0 && (
@@ -87,103 +126,46 @@ export default function IAMActivityPage() {
         </Alert>
       )}
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ width: 36 }} />
-              <TableCell>When</TableCell>
-              <TableCell>Account</TableCell>
-              <TableCell>Action</TableCell>
-              <TableCell>Resource</TableCell>
-              <TableCell>Outcome</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {shown.map((entry) => (
-              <Fragment key={entry.id}>
-                <TableRow hover>
-                  <TableCell sx={{ width: 36 }}>
-                    {(entry.payload || entry.error) && (
-                      <IconButton
-                        size="small"
-                        aria-label={open === entry.id ? 'Hide details' : 'Show details'}
-                        onClick={() => setOpen(open === entry.id ? null : entry.id)}
-                      >
-                        {open === entry.id ? (
-                          <ExpandLessIcon sx={{ fontSize: 16 }} />
-                        ) : (
-                          <ExpandMoreIcon sx={{ fontSize: 16 }} />
-                        )}
-                      </IconButton>
-                    )}
-                  </TableCell>
-                  <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                    {new Date(entry.at * 1000).toLocaleString()}
-                  </TableCell>
-                  <TableCell>{entry.actorEmail || '—'}</TableCell>
-                  <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
-                    {entry.action}
-                  </TableCell>
-                  <TableCell>{entry.resource || '—'}</TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {entry.status >= 400 ? (
-                        <ErrorIcon sx={{ fontSize: 16, color: 'error.main' }} />
-                      ) : (
-                        <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
-                      )}
-                      <Box component="span" sx={{ fontSize: 12, color: 'text.secondary' }}>
-                        {entry.status}
-                      </Box>
-                    </Box>
-                  </TableCell>
-                </TableRow>
-                {open === entry.id && (
-                  <TableRow>
-                    <TableCell colSpan={6} sx={{ bgcolor: 'surface.subtle' }}>
-                      {entry.error && (
-                        <Typography sx={{ fontSize: 12, color: 'error.main', mb: 1 }}>
-                          {entry.error}
-                        </Typography>
-                      )}
-                      <Typography sx={{ fontSize: 11, color: 'text.secondary', mb: 1 }}>
-                        {entry.method} {entry.path} · {formatElapsed(entry.durationMs)} · from{' '}
-                        {entry.remoteAddr || 'unknown'}
-                      </Typography>
-                      {entry.payload && (
-                        <Box
-                          component="pre"
-                          sx={{
-                            m: 0,
-                            p: 1.5,
-                            fontSize: 11,
-                            bgcolor: '#fff',
-                            border: '1px solid #e8eaed',
-                            borderRadius: 1,
-                            overflowX: 'auto',
-                            maxHeight: 320,
-                          }}
-                        >
-                          {pretty(entry.payload)}
-                        </Box>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </Fragment>
-            ))}
-            {shown.length === 0 && entries.length > 0 && (
-              <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                  Nothing matches "{filter}".
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      {pagination}
+      <DataTable
+        rows={entries}
+        columns={columns}
+        getRowId={(entry) => entry.id}
+        initialSort={[{ id: 'at', desc: true }]}
+        filterPlaceholder="Filter by account, action, resource, path or status"
+        empty={isLoading ? 'Loading…' : 'Nothing recorded yet.'}
+        renderDetail={(entry) =>
+          entry.payload || entry.error ? (
+            <>
+              {entry.error && (
+                <Typography sx={{ fontSize: 12, color: 'error.main', mb: 1 }}>
+                  {entry.error}
+                </Typography>
+              )}
+              <Typography sx={{ fontSize: 11, color: 'text.secondary', mb: 1 }}>
+                {entry.method} {entry.path} · {formatElapsed(entry.durationMs)} · from{' '}
+                {entry.remoteAddr || 'unknown'}
+              </Typography>
+              {entry.payload && (
+                <Box
+                  component="pre"
+                  sx={{
+                    m: 0,
+                    p: 1.5,
+                    fontSize: 11,
+                    bgcolor: '#fff',
+                    border: '1px solid #e8eaed',
+                    borderRadius: 1,
+                    overflowX: 'auto',
+                    maxHeight: 320,
+                  }}
+                >
+                  {pretty(entry.payload)}
+                </Box>
+              )}
+            </>
+          ) : null
+        }
+      />
 
       <Typography sx={{ fontSize: 11, color: 'text.disabled', mt: 1 }}>
         Secrets are replaced before a payload is stored — passwords, tokens and keys never
