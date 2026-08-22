@@ -32,6 +32,8 @@ func TestOwnerOnlyCoversEveryCredentialRoute(t *testing.T) {
 		"/api/v1/inventory/providers/abc",
 		"/api/v1/storage/providers",
 		"/api/v1/storage/providers/abc",
+		"/api/v1/ai/gateways",
+		"/api/v1/ai/gateways/abc",
 		"/api/v1/iam/users",
 		"/api/v1/iam/users/abc/password",
 		"/api/v1/iam/oidc",
@@ -57,6 +59,9 @@ func TestOwnerOnlyCoversEveryCredentialRoute(t *testing.T) {
 		"/api/v1/storage/users",
 		"/api/v1/storage/users/backups/policy",
 		"/api/v1/dns/zones/example.com/records",
+		// Reading the gateway's log is a read like any other; only the
+		// gateway record itself is an owner's.
+		"/api/v1/ai/requests",
 		"/api/v1/instances",
 		"/api/v1/identity/users",
 	}

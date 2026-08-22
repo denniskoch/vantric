@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"vantric/internal/ai"
+	aifactory "vantric/internal/ai/factory"
 	"vantric/internal/api"
 	"vantric/internal/config"
 	"vantric/internal/database"
@@ -81,13 +83,15 @@ func main() {
 
 	inventoryRegistry := inventory.NewRegistry()
 	loadInventoryRegistry(ctx, st, inventoryRegistry, log)
+	aiRegistry := ai.NewRegistry()
+	loadAIRegistry(ctx, st, aiRegistry, log)
 	storageRegistry := storage.NewRegistry()
 	loadStorageRegistry(ctx, st, storageRegistry, log)
 
 	// The console's SSH key lives beside the database.
 	dataDir := filepath.Dir(cfg.Database.DSN)
 	server := api.New(st, registry, dnsRegistry, dbRegistry, identityRegistry,
-		networkRegistry, inventoryRegistry, storageRegistry, log, cfg.StaticDir, dataDir, cfg.SiteURL,
+		networkRegistry, inventoryRegistry, storageRegistry, aiRegistry, log, cfg.StaticDir, dataDir, cfg.SiteURL,
 		cfg.TrustedProxies,
 		api.SSHOptions{Provision: cfg.SSH.Provision, Sudo: cfg.SSH.ProvisionSudo})
 	reconciler := api.NewReconciler(st, registry, log, 2*time.Second)
@@ -226,6 +230,23 @@ func loadNetworkRegistry(ctx context.Context, st *store.Store, registry *network
 		registry.Set(providers[i].ID, provider)
 	}
 	log.Info("network registry loaded", "providers", len(providers))
+}
+
+func loadAIRegistry(ctx context.Context, st *store.Store, registry *ai.Registry, log *slog.Logger) {
+	gateways, err := st.ListAIGateways(ctx)
+	if err != nil {
+		log.Error("listing AI gateways", "error", err)
+		return
+	}
+	for i := range gateways {
+		provider, err := aifactory.Build(&gateways[i])
+		if err != nil {
+			log.Error("building AI gateway", "gateway", gateways[i].Name, "error", err)
+			continue
+		}
+		registry.Set(gateways[i].ID, provider)
+	}
+	log.Info("AI registry loaded", "gateways", len(gateways))
 }
 
 func loadInventoryRegistry(ctx context.Context, st *store.Store, registry *inventory.Registry, log *slog.Logger) {

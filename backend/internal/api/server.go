@@ -17,6 +17,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 
+	"vantric/internal/ai"
 	"vantric/internal/database"
 	"vantric/internal/dns"
 	"vantric/internal/hypervisor"
@@ -87,6 +88,9 @@ type Server struct {
 	// inventoryRegistry holds the live device inventory services
 	// (FleetDM) — what's installed inside the guests.
 	inventoryRegistry *inventory.Registry
+	// aiRegistry holds the live AI gateways (Bifrost) — the one thing
+	// that has seen every model call the lab made.
+	aiRegistry *ai.Registry
 	// nvd looks CVEs up in the public vulnerability database. No
 	// credential, cached, and never fatal — see internal/nvd.
 	nvd *nvd.Client
@@ -129,6 +133,7 @@ func New(
 	networkRegistry *network.Registry,
 	inventoryRegistry *inventory.Registry,
 	storageRegistry *storage.Registry,
+	aiRegistry *ai.Registry,
 	log *slog.Logger,
 	staticDir string,
 	dataDir string,
@@ -142,6 +147,7 @@ func New(
 		identityRegistry: identityRegistry, networkRegistry: networkRegistry,
 		inventoryRegistry: inventoryRegistry,
 		storageRegistry:   storageRegistry,
+		aiRegistry:        aiRegistry,
 		nvd:               client,
 		kev:               kev.New(),
 		log:               log, staticDir: staticDir, dataDir: dataDir, siteURL: siteURL, ssh: sshOpts,
@@ -261,6 +267,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		s.identityRoutes(r)
 		s.networkRoutes(r)
 		s.inventoryRoutes(r)
+		s.aiRoutes(r)
 		s.installerRoutes(r)
 		s.storageRoutes(r)
 

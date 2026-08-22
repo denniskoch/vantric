@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"vantric/internal/ai"
 	"vantric/internal/database"
 	"vantric/internal/dns"
 	"vantric/internal/hypervisor"
@@ -37,7 +38,7 @@ func TestNewServerAnswersOnTheRoutesThatRunBeforeASession(t *testing.T) {
 	srv := New(st,
 		hypervisor.NewRegistry(), dns.NewRegistry(), database.NewRegistry(),
 		identity.NewRegistry(), network.NewRegistry(), inventory.NewRegistry(),
-		storage.NewRegistry(),
+		storage.NewRegistry(), ai.NewRegistry(),
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		"", dir, "", "", SSHOptions{})
 	router := srv.Router()

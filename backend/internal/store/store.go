@@ -163,6 +163,18 @@ var migrations = []string{
 		insecure_tls INTEGER NOT NULL DEFAULT 0,
 		created_at TEXT NOT NULL
 	)`,
+	// AI gateways. The token is optional here where it is required
+	// everywhere else: Bifrost's management API ships open, so a
+	// gateway on the LAN commonly has no credential at all.
+	`CREATE TABLE IF NOT EXISTS ai_gateways (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL UNIQUE,
+		type TEXT NOT NULL,
+		base_url TEXT NOT NULL DEFAULT '',
+		token TEXT NOT NULL DEFAULT '',
+		insecure_tls INTEGER NOT NULL DEFAULT 0,
+		created_at TEXT NOT NULL
+	)`,
 	// S3-compatible object stores. Several are supported for the same
 	// reason several hypervisors are: a lab may run one for backups and
 	// another for whatever it serves.
