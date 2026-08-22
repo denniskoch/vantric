@@ -76,6 +76,12 @@ func (c Connection) parameters() map[string]string {
 		// of the trade; revisit it if the desktop ever feels sluggish
 		// rather than because the parameter looks pessimistic.
 		p["disable-gfx"] = "true"
+		// AND THEREFORE 32 EXPLICITLY. With the graphics pipeline off,
+		// guacd's own default drops to 16 and the guest answers in
+		// RGB16 — a path that is well known for producing a connected
+		// session that draws nothing. Asking for 32 keeps the legacy
+		// path on the colour depth everything actually tests against.
+		p["color-depth"] = "32"
 	}
 	return p
 }

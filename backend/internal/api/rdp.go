@@ -2,7 +2,9 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -156,13 +158,31 @@ func (s *Server) instanceRDP(w http.ResponseWriter, r *http.Request) {
 	// verbatim: what arrives is framed by element, and re-encoding is
 	// how a partially-read instruction can't be forwarded as a whole
 	// one.
+	//
+	// ONE LINE SAYS WHAT ARRIVED. A desktop that connects and draws
+	// nothing looks identical from both ends — guacd logs a clean
+	// session and the browser shows black — so the question "is it
+	// sending pictures at all" has no answer anywhere. Summarising the
+	// opcodes of the opening burst answers it once per session without
+	// logging a stream of graphics.
+	inst2Name := inst.Name
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
+		seen := map[string]int{}
+		counted := 0
 		for {
 			inst, err := session.Read()
 			if err != nil {
 				return
+			}
+			if counted < openingBurst {
+				seen[inst.Opcode]++
+				counted++
+				if counted == openingBurst {
+					s.log.Info("rdp stream opened",
+						"instance", inst2Name, "opcodes", summarise(seen))
+				}
 			}
 			if err := write(websocket.TextMessage, []byte(inst.String())); err != nil {
 				return
@@ -220,4 +240,28 @@ func screenFrom(r *http.Request) guac.Screen {
 		screen.DPI = min(n, 300)
 	}
 	return screen
+}
+
+// openingBurst is how many instructions to characterise before falling
+// silent. Enough to include a first screenful, few enough to be one
+// line rather than a log of the session.
+const openingBurst = 400
+
+// summarise renders the opcode tally busiest first, so "img" and "blob"
+// being absent is as visible as their being present.
+func summarise(seen map[string]int) string {
+	type pair struct {
+		opcode string
+		n      int
+	}
+	pairs := make([]pair, 0, len(seen))
+	for opcode, n := range seen {
+		pairs = append(pairs, pair{opcode, n})
+	}
+	sort.Slice(pairs, func(i, j int) bool { return pairs[i].n > pairs[j].n })
+	parts := make([]string, 0, len(pairs))
+	for _, p := range pairs {
+		parts = append(parts, fmt.Sprintf("%s=%d", p.opcode, p.n))
+	}
+	return strings.Join(parts, " ")
 }
