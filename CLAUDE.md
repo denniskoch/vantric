@@ -763,6 +763,92 @@ Surface the daily 90% here and link out for the rest.
   don't serve it at all, so `ErrUnsupported` is a distinct answer from
   an error: a missing feature reads as one, and the per-instance list
   keeps working because it comes from host detail.
+- THE AI GATEWAY is the same split an eighth time:
+  `internal/ai.Provider` is the boundary (Bifrost first), gateways are
+  DB records, one live provider per record in `ai.Registry`, and a
+  factory maps type → implementation. It exists because a lab holding
+  an OpenAI key, an Anthropic key and an Ollama box can ask each one
+  what it served and get three answers sharing no vocabulary and no
+  clock; the gateway in front of them saw the lot. READ ONLY, like
+  Network — the daily 90% here, and adding a provider or rotating an
+  upstream key stays in the gateway's own console.
+  The TOKEN IS OPTIONAL, alone among the backends: Bifrost ships with
+  its management API open, so demanding a credential would make the
+  common deployment the unsupported one. When auth IS on, a virtual
+  key will not do — `sk-bf-*` signs inference, not `/api` — and the
+  driver names that rather than reporting a bare 401.
+- FOUR THINGS ABOUT BIFROST CAME FROM READING A REAL GATEWAY, and each
+  was a wrong answer waiting to render. The stats block embedded in the
+  log response is ALL ZEROES beside 473,000 requests, so stats come
+  from `/api/logs/stats` instead — a 0% success rate stated confidently
+  over a working gateway is the exact inverse of the serial rule.
+  Providers come from `/api/providers`, NOT from splitting model names
+  on a slash: that reading invented "qwen" from a model family and
+  missed "ollama" entirely, because a local model is "qwen2.5:7b" with
+  no vendor in front. Latency and token counts are OMITTED rather than
+  zeroed, so they are pointers — a failed request has no latency and
+  0 ms reads as instant. And v1.6.11 carries no per-request cost at
+  all while v2 does, so the field is read as absent-or-present and the
+  column appears the day the gateway is upgraded.
+- THE REQUEST LOG IS PAGED BY THE GATEWAY, not the browser. Every
+  other table here pulls its rows and sorts them client-side, which is
+  right for tens of instances and thousands of CVEs and wrong for a log
+  at 473,000 and growing while you read it. `DataTable`'s `server` prop
+  hands paging and sorting back to whoever holds the data; a new sort
+  resets to the first page, because page 4 of the old order is not a
+  place. WHY A CALL FAILED is a drill-in and not a column, because the
+  gateway carries the reason only on its single-log endpoint —
+  filling a column would be fifty calls to answer a question about one
+  row. Bifrost sets `is_bifrost_error` FALSE on its own governance
+  refusals, so that flag is trusted in one direction only: true means
+  the gateway refused it, false claims nothing.
+- WHAT WAS ASKED AND WHAT CAME BACK ARE NEVER CARRIED. Prompts,
+  completions and raw bodies sit on the same responses this reads, and
+  the structs that decode them have no fields for any of it — a field
+  that doesn't exist cannot leak onward. Same for a VIRTUAL KEY'S
+  SECRET, which Bifrost returns in plaintext on its list endpoint:
+  rendering it would turn every open browser tab into a way to spend
+  money. Upstream provider keys arrive already masked and are shown
+  that way — a key is listed so it can be recognised, not copied. The
+  rule is the WiFi passphrases Network never reads.
+- WHAT'S LEFT AT A PROVIDER IS A SEPARATE SPLIT, the ninth:
+  `internal/aiaccount.Provider`, because a gateway account and a
+  provider account are different things holding different credentials.
+  The gateway knows what it sent; only the provider knows what remains,
+  and that answer otherwise costs one login per provider.
+  PROVIDERS DO NOT ANSWER THE SAME QUESTION and this refuses to pretend
+  otherwise. Of ten a lab might use, four report a real remaining
+  figure in four different units (OpenRouter dollars, DeepSeek a
+  currency it names, xAI cents, ElevenLabs characters), three report
+  only SPEND, and Anthropic reports nothing at all to an individual
+  account. So a Balance names its own Kind and Unit and the UI shows
+  what each provider said — "no balance API" and "unreadable" as those
+  words, never as a dash. OpenRouter needs a MANAGEMENT key, and its
+  `/api/v1/key` endpoint is deliberately unused: `limit_remaining` is
+  that key's own cap and is null on an uncapped key, so a balance wired
+  to it would read "unlimited" on an account that is nearly empty.
+  xAI is absent because its endpoint wants a different host, a
+  management key and a team id the record has nowhere to keep — a
+  column and a form field, not a driver.
+- A LOW BALANCE IS A FRONT-PAGE PROBLEM, and its threshold is PER UNIT
+  with no default: five is nearly empty in dollars and nothing at all
+  in characters, and one number applied to both would either shout
+  about a healthy account or stay silent about a spent one. An
+  unrecognised unit warns about nothing rather than borrowing a
+  comparison that doesn't hold. It is one of the few tested things
+  here, because a warning that never fires looks exactly like one that
+  can't.
+- THE AI OVERVIEW IS A DAY, NOT ALL TIME. An all-time success rate
+  keeps reporting an outage long after it is fixed — this lab's read
+  51% for months because of one migration that broke Ollama for a day.
+  A front page owes you the state of the thing now. That is not a
+  promise the number looks good: while the outage is inside the window
+  the page reports it in red, which is the point. Failures are their
+  own series rather than a dip in one line, and cancelled requests
+  count as failed, or the two series stop adding up to the total. The
+  same dashboard response carries token, cost, latency and throughput
+  buckets and every one comes back empty — they are not drawn, because
+  five blank panels beside one real chart says the gateway is broken.
 - OBJECT STORAGE is the same split a seventh time:
   `internal/storage.Provider` is the boundary (RustFS first), stores are
   DB records with a write-only secret key, one live provider per record
