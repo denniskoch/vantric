@@ -1,22 +1,15 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
   Box,
   Button,
-  Checkbox,
   IconButton,
   Link,
   Menu,
   MenuItem,
   Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
 } from '@mui/material'
 import { Tooltip, Typography } from '@mui/material'
 import AddBoxIcon from '@mui/icons-material/AddBox'
@@ -31,6 +24,8 @@ import { api } from '../api/client'
 import type { Instance } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import ConnectButton from '../components/ConnectButton'
+import DataTable from '../components/DataTable'
+import type { ColumnDef } from '@tanstack/react-table'
 import PageHeader from '../components/PageHeader'
 import StatusIcon from '../components/StatusIcon'
 import { usePermissions } from '../user'
@@ -92,6 +87,68 @@ export default function InstancesPage() {
     onError: (e: Error) => setError(e.message),
   })
 
+  // Columns as data, so the header, the sort key and the cell live in
+  // one place instead of being split across two JSX blocks that have to
+  // stay in the same order.
+  const columns = useMemo<ColumnDef<Instance, unknown>[]>(
+    () => [
+      {
+        id: 'status',
+        header: 'Status',
+        accessorFn: (i) => i.status,
+        cell: ({ row }) => <StatusIcon status={row.original.status} />,
+      },
+      {
+        id: 'name',
+        header: 'Name',
+        accessorFn: (i) => i.name,
+        cell: ({ row }) => (
+          <Link
+            component={RouterLink}
+            to={`/compute/instances/${row.original.name}`}
+            underline="hover"
+          >
+            {row.original.name}
+          </Link>
+        ),
+      },
+      { id: 'node', header: 'Node', accessorFn: (i) => i.node },
+      {
+        id: 'internalIp',
+        header: 'Internal IP',
+        // Sorts on the address, renders the dash. Sorting on what's
+        // drawn would order every guest without one under "—".
+        accessorFn: (i) => i.internalIp,
+        cell: ({ row }) => row.original.internalIp || '—',
+      },
+      {
+        id: 'externalIp',
+        header: 'External IP',
+        accessorFn: (i) => i.externalIp,
+        cell: ({ row }) => row.original.externalIp || '—',
+      },
+      {
+        id: 'connect',
+        header: 'Connect',
+        enableSorting: false,
+        cell: ({ row }) => <ConnectButton instance={row.original} />,
+      },
+      {
+        id: 'actions',
+        header: '',
+        enableSorting: false,
+        meta: { align: 'right' },
+        cell: ({ row }) =>
+          canEdit ? (
+            <IconButton size="small" onClick={(e) => openMenu(e, row.original)}>
+              <MoreVertIcon fontSize="small" />
+            </IconButton>
+          ) : null,
+      },
+    ],
+    [canEdit],
+  )
+
   const selected = instances.filter((i) => picked.has(i.name))
   const eligible = (want: (i: Instance) => boolean) =>
     selected.filter(want).map((i) => i.name)
@@ -105,13 +162,6 @@ export default function InstancesPage() {
       : protectedOnes.length > 0
         ? `${protectedOnes.length === 1 ? protectedOnes[0].name + ' has' : protectedOnes.length + ' of these have'} deletion protection`
         : ''
-
-  const toggle = (name: string) =>
-    setPicked((current) => {
-      const next = new Set(current)
-      if (!next.delete(name)) next.add(name)
-      return next
-    })
 
   const openMenu = (e: React.MouseEvent<HTMLElement>, inst: Instance) => {
     setMenuAnchor(e.currentTarget)
@@ -214,82 +264,18 @@ export default function InstancesPage() {
         </Paper>
       )}
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell padding="checkbox">
-                <Checkbox
-                  size="small"
-                  disabled={instances.length === 0 || !canEdit}
-                  checked={instances.length > 0 && selected.length === instances.length}
-                  indeterminate={selected.length > 0 && selected.length < instances.length}
-                  onChange={(e) =>
-                    setPicked(e.target.checked ? new Set(instances.map((i) => i.name)) : new Set())
-                  }
-                  slotProps={{ input: { 'aria-label': 'Select all instances' } }}
-                />
-              </TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>Node</TableCell>
-              <TableCell>Internal IP</TableCell>
-              <TableCell>External IP</TableCell>
-              <TableCell>Connect</TableCell>
-              <TableCell align="right" />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {instances.map((inst) => (
-              <TableRow key={inst.id} hover selected={picked.has(inst.name)}>
-                <TableCell padding="checkbox">
-                  <Checkbox
-                    size="small"
-                    disabled={!canEdit}
-                    checked={picked.has(inst.name)}
-                    onChange={() => toggle(inst.name)}
-                    slotProps={{ input: { 'aria-label': `Select ${inst.name}` } }}
-                  />
-                </TableCell>
-                <TableCell>
-                  <StatusIcon status={inst.status} />
-                </TableCell>
-                <TableCell>
-                  <Link
-                    component={RouterLink}
-                    to={`/compute/instances/${inst.name}`}
-                    underline="hover"
-                  >
-                    {inst.name}
-                  </Link>
-                </TableCell>
-                <TableCell>{inst.node}</TableCell>
-                <TableCell>{inst.internalIp || '—'}</TableCell>
-                <TableCell>{inst.externalIp || '—'}</TableCell>
-                <TableCell>
-                  <ConnectButton instance={inst} />
-                </TableCell>
-                <TableCell align="right">
-                  {canEdit && (
-                    <IconButton size="small" onClick={(e) => openMenu(e, inst)}>
-                      <MoreVertIcon fontSize="small" />
-                    </IconButton>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-            {instances.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                  {isLoading
-                    ? 'Loading…'
-                    : 'No VM instances yet. Click "Create instance" to get started.'}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <DataTable
+        rows={instances}
+        columns={columns}
+        getRowId={(i) => i.name}
+        initialSort={[{ id: 'name', desc: false }]}
+        selection={[...picked]}
+        onSelectionChange={(ids) => setPicked(new Set(ids))}
+        selectable={canEdit}
+        empty={
+          isLoading ? 'Loading…' : 'No VM instances yet. Click "Create instance" to get started.'
+        }
+      />
 
       <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeMenu}>
         <MenuItem

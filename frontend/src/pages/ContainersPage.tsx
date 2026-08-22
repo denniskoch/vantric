@@ -1,21 +1,14 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
   Box,
-  Checkbox,
   IconButton,
   Link,
   Menu,
   MenuItem,
   Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Tooltip,
   Typography,
 } from '@mui/material'
@@ -31,6 +24,8 @@ import { Button } from '@mui/material'
 import { api } from '../api/client'
 import type { Container } from '../api/client'
 import StatusIcon from '../components/StatusIcon'
+import DataTable from '../components/DataTable'
+import type { ColumnDef } from '@tanstack/react-table'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import PageHeader from '../components/PageHeader'
 import { usePermissions } from '../user'
@@ -88,6 +83,63 @@ export default function ContainersPage() {
     onError: (e: Error) => setError(e.message),
   })
 
+  const columns = useMemo<ColumnDef<Container, unknown>[]>(
+    () => [
+      {
+        id: 'status',
+        header: 'Status',
+        accessorFn: (ct) => ct.status,
+        cell: ({ row }) => <StatusIcon status={row.original.status} />,
+      },
+      {
+        id: 'name',
+        header: 'Name',
+        accessorFn: (ct) => ct.name,
+        cell: ({ row }) => (
+          <Link
+            component={RouterLink}
+            to={`/compute/containers/${row.original.name}`}
+            underline="hover"
+          >
+            {row.original.name}
+          </Link>
+        ),
+      },
+      { id: 'node', header: 'Node', accessorFn: (ct) => ct.node },
+      {
+        id: 'cpus',
+        header: 'vCPUs',
+        accessorFn: (ct) => ct.cpus,
+        meta: { align: 'right' },
+      },
+      {
+        id: 'memoryMb',
+        header: 'Memory (MB)',
+        accessorFn: (ct) => ct.memoryMb,
+        meta: { align: 'right' },
+      },
+      {
+        id: 'internalIp',
+        header: 'Internal IP',
+        accessorFn: (ct) => ct.internalIp,
+        cell: ({ row }) => row.original.internalIp || '—',
+      },
+      {
+        id: 'actions',
+        header: '',
+        enableSorting: false,
+        meta: { align: 'right' },
+        cell: ({ row }) =>
+          canEdit ? (
+            <IconButton size="small" onClick={(e) => openMenu(e, row.original)}>
+              <MoreVertIcon fontSize="small" />
+            </IconButton>
+          ) : null,
+      },
+    ],
+    [canEdit],
+  )
+
   const selected = containers.filter((ct) => picked.has(ct.name))
   const eligible = (want: (ct: Container) => boolean) =>
     selected.filter(want).map((ct) => ct.name)
@@ -101,13 +153,6 @@ export default function ContainersPage() {
       : protectedOnes.length > 0
         ? `${protectedOnes.length === 1 ? protectedOnes[0].name + ' has' : protectedOnes.length + ' of these have'} deletion protection`
         : ''
-
-  const toggle = (name: string) =>
-    setPicked((current) => {
-      const next = new Set(current)
-      if (!next.delete(name)) next.add(name)
-      return next
-    })
 
   const openMenu = (e: React.MouseEvent<HTMLElement>, ct: Container) => {
     setMenuAnchor(e.currentTarget)
@@ -214,78 +259,16 @@ export default function ContainersPage() {
         </Paper>
       )}
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell padding="checkbox">
-                <Checkbox
-                  size="small"
-                  disabled={!canEdit}
-                  checked={containers.length > 0 && selected.length === containers.length}
-                  indeterminate={selected.length > 0 && selected.length < containers.length}
-                  onChange={(e) =>
-                    setPicked(e.target.checked ? new Set(containers.map((ct) => ct.name)) : new Set())
-                  }
-                />
-              </TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>Node</TableCell>
-              <TableCell align="right">vCPUs</TableCell>
-              <TableCell align="right">Memory (MB)</TableCell>
-              <TableCell>Internal IP</TableCell>
-              <TableCell align="right" />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {containers.map((ct) => (
-              <TableRow key={ct.id} hover selected={picked.has(ct.name)}>
-                <TableCell padding="checkbox">
-                  <Checkbox
-                    size="small"
-                    disabled={!canEdit}
-                    checked={picked.has(ct.name)}
-                    onChange={() => toggle(ct.name)}
-                  />
-                </TableCell>
-                <TableCell>
-                  <StatusIcon status={ct.status} />
-                </TableCell>
-                <TableCell>
-                  <Link
-                    component={RouterLink}
-                    to={`/compute/containers/${ct.name}`}
-                    underline="hover"
-                  >
-                    {ct.name}
-                  </Link>
-                </TableCell>
-                <TableCell>{ct.node}</TableCell>
-                <TableCell align="right">{ct.cpus}</TableCell>
-                <TableCell align="right">{ct.memoryMb}</TableCell>
-                <TableCell>{ct.internalIp || '—'}</TableCell>
-                <TableCell align="right">
-                  {canEdit && (
-                    <IconButton size="small" onClick={(e) => openMenu(e, ct)}>
-                      <MoreVertIcon fontSize="small" />
-                    </IconButton>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-            {containers.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                  {isLoading
-                    ? 'Loading…'
-                    : 'No containers found on your servers.'}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <DataTable
+        rows={containers}
+        columns={columns}
+        getRowId={(ct) => ct.name}
+        initialSort={[{ id: 'name', desc: false }]}
+        selection={[...picked]}
+        onSelectionChange={(ids) => setPicked(new Set(ids))}
+        selectable={canEdit}
+        empty={isLoading ? 'Loading…' : 'No containers found on your servers.'}
+      />
 
       <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeMenu}>
         <MenuItem
