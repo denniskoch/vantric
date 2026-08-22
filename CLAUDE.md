@@ -1297,6 +1297,27 @@ Surface the daily 90% here and link out for the rest.
   removed. Nothing depends on it either way — a guacd that isn't
   running is a failed connect with a reason, not a console that won't
   start, which is the tolerance every other backend gets.
+  THE DESKTOP RENDERS BEHIND A STACKING CONTEXT, AND THAT IS LOAD-
+  BEARING. Guacamole's default layer canvas carries z-index:-1, and a
+  negative child paints BEHIND the backgrounds of ordinary ancestors —
+  so a page with any background and no stacking context between it and
+  the canvas paints itself over a fully rendered desktop. That is
+  `isolation: isolate` on the holder in InstanceRDPPage, and it took
+  four wrong guesses at RDP parameters to find, because a session in
+  that state is connected, streaming and painted, and both ends' logs
+  are clean. The instrument that ended it is still there: open the RDP
+  window with ?debug and a corner line reports instructions, images,
+  display size and whether any pixel is actually lit. Read that BEFORE
+  touching the handshake — it says in one line whether a black screen
+  is the page (images painted) or the protocol (nothing painting).
+  Two more from the same hunt: the handshake's `image` instruction is
+  the list of formats the client can DECODE, not a media channel —
+  sent empty it means "this client displays no images" (audio and
+  video ARE announced empty, deliberately). And the library's Tunnel
+  assigns its methods as OWN properties in its constructor, so a
+  subclass must assign overrides after super() — a prototype method is
+  silently shadowed by the parent's empty stub, and nothing anywhere
+  errors.
   WHAT DOESN'T CARRY OVER FROM SSH is the sign-in. The terminal
   connects as the signed-in account with a key this console mints, so a
   guest's auth log names a person; RDP has no key equivalent, so
