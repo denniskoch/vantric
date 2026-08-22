@@ -7,17 +7,11 @@ import PageHeader from '../components/PageHeader'
 import SelectField from '../components/SelectField'
 import ProviderName from '../components/ProviderName'
 import AIRequestDetail from '../components/AIRequestDetail'
+import TimeRangePicker from '../components/TimeRangePicker'
+import { ANY_TIME } from '../timeRange'
+import type { TimeRange } from '../timeRange'
 import { api } from '../api/client'
 import type { AIRequest } from '../api/client'
-
-/** The windows Bifrost's own console offers, in hours. */
-const periods: Record<string, number> = {
-  'Last hour': 1,
-  'Last 6 hours': 6,
-  'Last 24 hours': 24,
-  'Last 7 days': 24 * 7,
-  'Last 30 days': 24 * 30,
-}
 
 /**
  * Every call the lab made to a model, as the gateway recorded it.
@@ -51,17 +45,9 @@ export default function AIRequestsPage() {
   const [model, setModel] = useState('')
   const [status, setStatus] = useState('')
   const [search, setSearch] = useState('')
-  const [period, setPeriod] = useState('')
-
-  // The window is pinned when you pick it rather than recomputed on
-  // every render. A sliding "last hour" would change the query on each
-  // keystroke — refetching under the cursor, renumbering the pages
-  // beneath you, and never settling.
-  const since = useMemo(() => {
-    const hours = periods[period]
-    if (!hours) return undefined
-    return new Date(Date.now() - hours * 3600_000).toISOString()
-  }, [period])
+  // The picker resolves a window when you choose it rather than
+  // keeping a rule that re-evaluates — see timeRange.ts.
+  const [range, setRange] = useState<TimeRange>(ANY_TIME)
 
   const sort = sorting[0]
   const query = {
@@ -73,7 +59,8 @@ export default function AIRequestsPage() {
     models: model ? [model] : undefined,
     status: status || undefined,
     search: search || undefined,
-    since,
+    since: range.since,
+    until: range.until,
   }
 
   const { data: filters } = useQuery({ queryKey: ['aiFilters'], queryFn: api.getAIFilters })
@@ -85,7 +72,15 @@ export default function AIRequestsPage() {
     refetchInterval: false,
   })
   const { data: stats } = useQuery({
-    queryKey: ['aiStats', query.providers, query.models, query.status, query.search, query.since],
+    queryKey: [
+      'aiStats',
+      query.providers,
+      query.models,
+      query.status,
+      query.search,
+      query.since,
+      query.until,
+    ],
     queryFn: () => api.getAIStats({ ...query, limit: undefined, offset: undefined }),
   })
 
@@ -167,7 +162,20 @@ export default function AIRequestsPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <PageHeader title="Requests" />
+      <PageHeader
+        title="Requests"
+        actions={
+          <TimeRangePicker
+            value={range}
+            onChange={(next) => {
+              setRange(next)
+              // A new window is a new result set; page 4 of the old one
+              // is not a place.
+              setPage(0)
+            }}
+          />
+        }
+      />
 
       {error && (
         <Alert severity="warning" sx={{ mb: 2 }}>
@@ -223,23 +231,6 @@ export default function AIRequestsPage() {
           {(filters?.models ?? []).map((m) => (
             <MenuItem key={m} value={m}>
               {m}
-            </MenuItem>
-          ))}
-        </SelectField>
-        <SelectField
-          label="Time range"
-          size="small"
-          value={period}
-          onChange={(e) => {
-            setPeriod(e.target.value)
-            setPage(0)
-          }}
-          sx={{ minWidth: 170 }}
-        >
-          <MenuItem value="">Any time</MenuItem>
-          {Object.keys(periods).map((label) => (
-            <MenuItem key={label} value={label}>
-              {label}
             </MenuItem>
           ))}
         </SelectField>

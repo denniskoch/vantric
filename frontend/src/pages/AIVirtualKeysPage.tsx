@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Alert, Box, Chip, Link, Typography } from '@mui/material'
 import type { ColumnDef } from '@tanstack/react-table'
@@ -6,6 +6,9 @@ import DataTable from '../components/DataTable'
 import PageHeader from '../components/PageHeader'
 import ProviderName from '../components/ProviderName'
 import CellLines from '../components/CellLines'
+import TimeRangePicker from '../components/TimeRangePicker'
+import { ANY_TIME } from '../timeRange'
+import type { TimeRange } from '../timeRange'
 import EnabledIcon from '../components/EnabledIcon'
 import { api } from '../api/client'
 import type { AIVirtualKey } from '../api/client'
@@ -22,9 +25,13 @@ import type { AIVirtualKey } from '../api/client'
  * Copying one is what the gateway's own console is for.
  */
 export default function AIVirtualKeysPage() {
+  // All time by default: the questions this page answers — which key
+  // is expensive, which has never been used — are about the whole life
+  // of a credential, not about this week.
+  const [range, setRange] = useState<TimeRange>(ANY_TIME)
   const { data: keys = [], isLoading, error } = useQuery({
-    queryKey: ['aiVirtualKeys'],
-    queryFn: api.listAIVirtualKeys,
+    queryKey: ['aiVirtualKeys', range.since, range.until],
+    queryFn: () => api.listAIVirtualKeys({ since: range.since, until: range.until }),
     refetchInterval: 5 * 60_000,
   })
 
@@ -149,6 +156,7 @@ export default function AIVirtualKeysPage() {
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
+        actions={<TimeRangePicker value={range} onChange={setRange} />}
         title="Virtual keys"
         description="The credentials your gateway issues to callers, what each may reach, and what each has actually done."
       />

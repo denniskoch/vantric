@@ -838,9 +838,9 @@ export interface AIRequest {
   model: string
   status: string
   latencyMs?: number
-  /** Priced per request by Bifrost v2 and not by v1.6.11, so absent
-   *  rather than zero — the column appears when the gateway starts
-   *  sending it. */
+  /** Sent where the gateway priced the call and omitted where there
+   *  was nothing to price — a local model costs nothing. Absent rather
+   *  than zero, so free and not-recorded stay different answers. */
   cost?: number
   promptTokens?: number
   completionTokens?: number
@@ -2000,7 +2000,8 @@ export const api = {
   getAIStats: (query: AIRequestQuery) => request<AIStats>(`/ai/stats?${aiQuery(query)}`),
   getAIFilters: () => request<AIFilters>('/ai/filters'),
   listAIGatewayProviders: () => request<AIGatewayProvider[]>('/ai/providers'),
-  listAIVirtualKeys: () => request<AIVirtualKey[]>('/ai/virtual-keys'),
+  listAIVirtualKeys: (query: AIRequestQuery = {}) =>
+    request<AIVirtualKey[]>(`/ai/virtual-keys?${aiQuery(query)}`),
   listAILimits: () => request<AILimit[]>('/ai/limits'),
   getAITraffic: (query: AIRequestQuery) => request<AITraffic>(`/ai/traffic?${aiQuery(query)}`),
   getAIRankings: (query: AIRequestQuery) =>

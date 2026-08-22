@@ -785,11 +785,12 @@ Surface the daily 90% here and link out for the rest.
   Providers come from `/api/providers`, NOT from splitting model names
   on a slash: that reading invented "qwen" from a model family and
   missed "ollama" entirely, because a local model is "qwen2.5:7b" with
-  no vendor in front. Latency and token counts are OMITTED rather than
-  zeroed, so they are pointers — a failed request has no latency and
-  0 ms reads as instant. And v1.6.11 carries no per-request cost at
-  all while v2 does, so the field is read as absent-or-present and the
-  column appears the day the gateway is upgraded.
+  no vendor in front. Latency, token counts and COST are all OMITTED
+  rather than zeroed, so they are pointers — a failed request has no
+  latency and 0 ms reads as instant, and a call to a local model has no
+  cost because there was nothing to price. One row in forty on this lab
+  carries a cost at all, which is why that column renders only when a
+  page holds one rather than standing empty over free traffic.
 - THE REQUEST LOG IS PAGED BY THE GATEWAY, not the browser. Every
   other table here pulls its rows and sorts them client-side, which is
   right for tens of instances and thousands of CVEs and wrong for a log

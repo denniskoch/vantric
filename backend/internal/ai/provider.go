@@ -74,11 +74,11 @@ type Request struct {
 	// Caller is who made the call, in the gateway's own terms — a
 	// Bifrost virtual key's name. It is the closest thing to "which of
 	// my services did this", which is the question a lab actually asks.
-	// Cost is what the gateway priced this one call at, and is absent
-	// on a gateway that doesn't price per request — v1.6.11 doesn't,
-	// v2 does. A pointer rather than a zero, so "free" and "not
-	// recorded" stay different answers, and so the column can appear
-	// on its own the day the gateway starts sending it.
+	// Cost is what the gateway priced this one call at, and it is
+	// OMITTED WHERE THERE WAS NOTHING TO PRICE — a local model costs
+	// nothing and the field simply isn't sent, while a call routed to a
+	// paid provider carries one. A pointer rather than a zero, so
+	// "free" and "not recorded" stay different answers.
 	Cost   *float64 `json:"cost,omitempty"`
 	Caller string   `json:"caller,omitempty"`
 	// Credential is the upstream key the gateway chose. For Ollama it
@@ -376,7 +376,10 @@ type Provider interface {
 	// configured to reach, with the credentials it holds for each.
 	GatewayProviders(ctx context.Context) ([]GatewayProvider, error)
 	// VirtualKeys lists the credentials the gateway issues to callers.
-	VirtualKeys(ctx context.Context) ([]VirtualKey, error)
+	// The query narrows the ACTIVITY on each key, not which keys are
+	// listed: a key that did nothing this week is still a key, and
+	// hiding it would remove the answer to "which of these is idle".
+	VirtualKeys(ctx context.Context, q RequestQuery) ([]VirtualKey, error)
 	// Limits lists the spending and rate caps the gateway enforces.
 	Limits(ctx context.Context) ([]Limit, error)
 }

@@ -376,7 +376,7 @@ func (s *Server) aiVirtualKeys(w http.ResponseWriter, r *http.Request) {
 	if provider == nil {
 		return
 	}
-	keys, err := provider.VirtualKeys(r.Context())
+	keys, err := provider.VirtualKeys(r.Context(), aiQuery(r))
 	if err != nil {
 		s.fail(w, err, "virtual keys")
 		return

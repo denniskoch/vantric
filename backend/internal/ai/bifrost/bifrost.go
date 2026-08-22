@@ -133,11 +133,10 @@ func (p *Provider) Check(ctx context.Context) (*ai.Info, error) {
 // omits them rather than sending zero: a request that errored before
 // the model answered has no latency, and 0 ms would read as instant.
 //
-// COST IS A VERSION DIFFERENCE, not a missing feature. v1.6.11 records
-// none per request and v2 does, so this reads the field and lets it be
-// absent — the column then appears the day the gateway is upgraded,
-// with nothing here to change. Until then cost arrives only in
-// aggregate, from /api/logs/stats.
+// COST IS PER ROW AND OFTEN ABSENT. The gateway sends it where it
+// priced the call and omits it entirely where it didn't — on this lab
+// one row in forty carries one, because ollama serves the rest and
+// costs nothing. Absent is not zero and must not render as free.
 type logEntry struct {
 	ID         string   `json:"id"`
 	Timestamp  string   `json:"timestamp"`
@@ -442,7 +441,7 @@ func (p *Provider) providerKeys(ctx context.Context, provider string) ([]ai.Gate
 	return keys, nil
 }
 
-func (p *Provider) VirtualKeys(ctx context.Context) ([]ai.VirtualKey, error) {
+func (p *Provider) VirtualKeys(ctx context.Context, q ai.RequestQuery) ([]ai.VirtualKey, error) {
 	var body struct {
 		VirtualKeys []struct {
 			ID       string `json:"id"`
@@ -488,15 +487,18 @@ func (p *Provider) VirtualKeys(ctx context.Context) ([]ai.VirtualKey, error) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			out[i].Activity = p.keyActivity(ctx, out[i].ID)
+			out[i].Activity = p.keyActivity(ctx, out[i].ID, q)
 		}(i)
 	}
 	wg.Wait()
 	return out, nil
 }
 
-func (p *Provider) keyActivity(ctx context.Context, id string) *ai.VirtualKeyActivity {
-	filter := url.Values{"virtual_key_ids": {id}}
+func (p *Provider) keyActivity(ctx context.Context, id string, q ai.RequestQuery) *ai.VirtualKeyActivity {
+	// The window comes from the same place every other query here gets
+	// one, so "last 7 days" means the same thing on every page.
+	filter := queryValues(q, false)
+	filter.Set("virtual_key_ids", id)
 
 	var stats struct {
 		TotalRequests int64   `json:"total_requests"`
@@ -516,12 +518,11 @@ func (p *Provider) keyActivity(ctx context.Context, id string) *ai.VirtualKeyAct
 	if activity.Requests == 0 {
 		return activity
 	}
-	newest := url.Values{
-		"virtual_key_ids": {id},
-		"limit":           {"1"},
-		"sort_by":         {"timestamp"},
-		"order":           {"desc"},
-	}
+	newest := queryValues(q, false)
+	newest.Set("virtual_key_ids", id)
+	newest.Set("limit", "1")
+	newest.Set("sort_by", "timestamp")
+	newest.Set("order", "desc")
 	var page struct {
 		Logs []struct {
 			Timestamp string `json:"timestamp"`
