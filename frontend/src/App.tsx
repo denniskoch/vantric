@@ -209,6 +209,8 @@ export default function App() {
           element={<RequireRole><DatabaseUserPasswordPage /></RequireRole>}
         />
         <Route path="/docker/overview" element={<SectionLandingPage />} />
+        <Route path="/ai/overview" element={<SectionLandingPage />} />
+        <Route path="/monitoring/overview" element={<SectionLandingPage />} />
         <Route path="/iam/overview" element={<SectionLandingPage />} />
         <Route path="/iam/account" element={<MyAccountPage />} />
         <Route path="/iam/account/password" element={<MyPasswordPage />} />
@@ -244,6 +246,8 @@ export default function App() {
         <Route path="/network" element={<Navigate to="/network/overview" replace />} />
         <Route path="/databases" element={<Navigate to="/databases/overview" replace />} />
         <Route path="/docker" element={<Navigate to="/docker/overview" replace />} />
+        <Route path="/ai" element={<Navigate to="/ai/overview" replace />} />
+        <Route path="/monitoring" element={<Navigate to="/monitoring/overview" replace />} />
         <Route path="/iam" element={<Navigate to="/iam/overview" replace />} />
         <Route path="/identity" element={<Navigate to="/identity/overview" replace />} />
         <Route path="/dns" element={<Navigate to="/dns/overview" replace />} />

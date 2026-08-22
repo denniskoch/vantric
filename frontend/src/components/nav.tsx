@@ -34,6 +34,8 @@ import FactCheckIcon from '@mui/icons-material/FactCheck'
 import BugReportIcon from '@mui/icons-material/BugReport'
 import DownloadIcon from '@mui/icons-material/Download'
 import DevicesOtherIcon from '@mui/icons-material/DevicesOther'
+import PsychologyIcon from '@mui/icons-material/Psychology'
+import MonitorHeartIcon from '@mui/icons-material/MonitorHeart'
 import { createSvgIcon } from '@mui/material/utils'
 import { siDocker } from 'simple-icons'
 
@@ -443,6 +445,41 @@ export const sections: Section[] = [
     items: [{ label: 'Overview', icon: DashboardIcon, to: '/docker/overview' }],
     groups: [],
     description: 'Container workloads running on your Docker hosts.',
+  },
+  {
+    // GCP's own name for this group, which is the point: a lab that
+    // calls an OpenAI key, a Claude key and an Ollama box on the desk
+    // "the AI stuff" has the same problem a cloud does, and the same
+    // question — what ran, against which model, at what cost.
+    //
+    // OBSERVABILITY FIRST, because that is the half no provider's own
+    // console can answer: each one shows you its own traffic, and the
+    // gateway in front of them all is the only thing that has seen the
+    // lot. Everything else here — providers, keys, budgets, the local
+    // models — is configuration that already has a home, and comes
+    // second for that reason.
+    id: 'ai',
+    label: 'Artificial Intelligence',
+    icon: PsychologyIcon,
+    prefix: '/ai',
+    home: '/ai/overview',
+    items: [{ label: 'Overview', icon: DashboardIcon, to: '/ai/overview' }],
+    groups: [],
+    description:
+      'What your lab asks of language models, and what answers: requests through the gateway, the providers behind it, and the models running on your own hardware.',
+  },
+  {
+    // A placeholder, and deliberately unopinionated about what fills
+    // it: metrics, logs and alerts all live in tools that already run
+    // here, and which of them this section fronts is not decided.
+    id: 'monitoring',
+    label: 'Monitoring',
+    icon: MonitorHeartIcon,
+    prefix: '/monitoring',
+    home: '/monitoring/overview',
+    items: [{ label: 'Overview', icon: DashboardIcon, to: '/monitoring/overview' }],
+    groups: [],
+    description: 'Metrics, logs and alerts for the lab. Nothing is connected yet.',
   },
   {
     // This console's own access control: who may sign in here and what
