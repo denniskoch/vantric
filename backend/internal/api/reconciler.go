@@ -372,7 +372,23 @@ func (r *Reconciler) fillFacts(ctx context.Context, driver hypervisor.Driver, in
 	// A serial is usually absent rather than unknown, so it can't be
 	// part of the "already filled" test: waiting for one would mean
 	// re-reading every VM's config forever.
-	if (inst.OSType != "" && inst.UUID != "") || r.sweeps%10 != 0 {
+	//
+	// OSTYPE IS NOT IMMUTABLE, WHICH THIS USED TO ASSUME. The uuid a
+	// guest is born with never changes, and the os type was filed
+	// beside it as another birth fact — but it is a config field a
+	// person edits, and a guest adopted while Proxmox said win10 kept
+	// win10 forever after it was corrected to l26. The console then
+	// offered RDP on a Linux box, permanently, with the hypervisor
+	// plainly disagreeing.
+	//
+	// So a blank is still chased often, and a value already held is
+	// re-read rarely: roughly every ten minutes, which self-heals
+	// without turning a fact nobody edits into a Describe per guest per
+	// sweep.
+	complete := inst.OSType != "" && inst.UUID != ""
+	fillDue := !complete && r.sweeps%10 == 0
+	refreshDue := complete && r.sweeps%300 == 0
+	if !fillDue && !refreshDue {
 		return
 	}
 	detail, err := driver.Describe(ctx, inst.DriverID)
