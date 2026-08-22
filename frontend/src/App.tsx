@@ -113,6 +113,10 @@ import AIGatewayFormPage from './pages/AIGatewayFormPage'
 import AIAccountsPage from './pages/AIAccountsPage'
 import AIAccountFormPage from './pages/AIAccountFormPage'
 import AIOverviewPage from './pages/AIOverviewPage'
+import MonitoringProblemsPage from './pages/MonitoringProblemsPage'
+import MonitoringHostsPage from './pages/MonitoringHostsPage'
+import MonitoringProvidersPage from './pages/MonitoringProvidersPage'
+import MonitoringProviderFormPage from './pages/MonitoringProviderFormPage'
 import AIProvidersPage from './pages/AIProvidersPage'
 import AIVirtualKeysPage from './pages/AIVirtualKeysPage'
 import AIBudgetsPage from './pages/AIBudgetsPage'
@@ -232,6 +236,14 @@ export default function App() {
         <Route path="/ai/connection/add" element={<AIGatewayFormPage />} />
         <Route path="/ai/connection/:id/edit" element={<AIGatewayFormPage />} />
         <Route path="/monitoring/overview" element={<SectionLandingPage />} />
+        <Route path="/monitoring/problems" element={<MonitoringProblemsPage />} />
+        <Route path="/monitoring/hosts" element={<MonitoringHostsPage />} />
+        <Route path="/monitoring/settings/service" element={<MonitoringProvidersPage />} />
+        <Route path="/monitoring/settings/service/add" element={<MonitoringProviderFormPage />} />
+        <Route
+          path="/monitoring/settings/service/:id/edit"
+          element={<MonitoringProviderFormPage />}
+        />
         <Route path="/iam/overview" element={<SectionLandingPage />} />
         <Route path="/iam/account" element={<MyAccountPage />} />
         <Route path="/iam/account/password" element={<MyPasswordPage />} />

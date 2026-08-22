@@ -27,6 +27,8 @@ import (
 	identityfactory "vantric/internal/identity/factory"
 	"vantric/internal/inventory"
 	inventoryfactory "vantric/internal/inventory/factory"
+	"vantric/internal/monitoring"
+	monitoringfactory "vantric/internal/monitoring/factory"
 	"vantric/internal/network"
 	networkfactory "vantric/internal/network/factory"
 	"vantric/internal/storage"
@@ -89,6 +91,8 @@ func main() {
 	loadAIRegistry(ctx, st, aiRegistry, log)
 	aiAccountRegistry := aiaccount.NewRegistry()
 	loadAIAccountRegistry(ctx, st, aiAccountRegistry, log)
+	monitoringRegistry := monitoring.NewRegistry()
+	loadMonitoringRegistry(ctx, st, monitoringRegistry, log)
 	storageRegistry := storage.NewRegistry()
 	loadStorageRegistry(ctx, st, storageRegistry, log)
 
@@ -96,6 +100,7 @@ func main() {
 	dataDir := filepath.Dir(cfg.Database.DSN)
 	server := api.New(st, registry, dnsRegistry, dbRegistry, identityRegistry,
 		networkRegistry, inventoryRegistry, storageRegistry, aiRegistry, aiAccountRegistry,
+		monitoringRegistry,
 		log, cfg.StaticDir, dataDir, cfg.SiteURL,
 		cfg.TrustedProxies,
 		api.SSHOptions{Provision: cfg.SSH.Provision, Sudo: cfg.SSH.ProvisionSudo}, cfg.GuacdAddr)
@@ -235,6 +240,23 @@ func loadNetworkRegistry(ctx context.Context, st *store.Store, registry *network
 		registry.Set(providers[i].ID, provider)
 	}
 	log.Info("network registry loaded", "providers", len(providers))
+}
+
+func loadMonitoringRegistry(ctx context.Context, st *store.Store, registry *monitoring.Registry, log *slog.Logger) {
+	providers, err := st.ListMonitoringProviders(ctx)
+	if err != nil {
+		log.Error("listing monitoring services", "error", err)
+		return
+	}
+	for i := range providers {
+		provider, err := monitoringfactory.Build(&providers[i])
+		if err != nil {
+			log.Error("building monitoring service", "service", providers[i].Name, "error", err)
+			continue
+		}
+		registry.Set(providers[i].ID, provider)
+	}
+	log.Info("monitoring registry loaded", "services", len(providers))
 }
 
 func loadAIAccountRegistry(ctx context.Context, st *store.Store, registry *aiaccount.Registry, log *slog.Logger) {

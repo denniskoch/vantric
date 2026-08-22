@@ -871,6 +871,41 @@ Surface the daily 90% here and link out for the rest.
   same dashboard response carries token, cost, latency and throughput
   buckets and every one comes back empty — they are not drawn, because
   five blank panels beside one real chart says the gateway is broken.
+- MONITORING is the same split a tenth time:
+  `internal/monitoring.Provider` is the boundary (Zabbix first),
+  services are DB records with a write-only token, one live provider
+  per record in `monitoring.Registry`, and a factory maps type →
+  implementation. READ ONLY like Devices: this shows what the service
+  concluded — Problems, and the hosts it watches — while triggers,
+  templates and dashboards stay in Zabbix where their blast radius is.
+  The token should come from a read-only user whose ROLE ALLOW-LISTS
+  exactly host.get, problem.get and event.get, which is why the host
+  behind each problem is fetched via `event.get selectHosts` rather
+  than the textbook trigger.get — the same answer without demanding a
+  fourth method. Severity is Zabbix's own vocabulary (Disaster, High,
+  Average…), carried as words with a rank beside them for sorting;
+  suppressed problems are SHOWN, muted, because a maintenance window
+  is somebody's plan and hiding it means re-alerting when it ends.
+  TWO API TRAPS, both verified live: every value is a STRING
+  ("severity":"2", "clock":"1787353326"), so the driver decodes
+  strings and parses; and the endpoint prefix varies — this lab serves
+  api_jsonrpc.php under /zabbix/, other installs at the root — so the
+  prefix is DISCOVERED per the UniFi rule, with the caveat that an
+  RPC-level error means the endpoint IS the API and must not trigger
+  the next candidate. Zabbix's host status is also backwards from
+  every other API here: 0 is monitored, 1 is disabled.
+  THE JOIN IS INTERFACE IP, not hostname and not UUID — a monitoring
+  agent doesn't report SMBIOS, and the address is what both sides hold
+  fresh. Weaker than the Devices join and said so on the page. Only
+  RUNNING guests count as unmonitored (a stopped VM having no
+  monitoring is the expected state), and the Zabbix server registers
+  ITSELF at 127.0.0.1, so its own VM always reads unmonitored — a
+  quirk worth knowing before chasing it.
+  THE FRONT DOOR GETS ONE LINE — "zabbix reports N problems at High or
+  worse", unsuppressed only — never the individual problems: the
+  overview derives findings from what the console itself observes, and
+  importing another system's judgment wholesale would duplicate half
+  of them. The Problems page holds the list.
 - OBJECT STORAGE is the same split a seventh time:
   `internal/storage.Provider` is the boundary (RustFS first), stores are
   DB records with a write-only secret key, one live provider per record

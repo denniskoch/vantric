@@ -25,6 +25,7 @@ import (
 	"vantric/internal/identity"
 	"vantric/internal/inventory"
 	"vantric/internal/kev"
+	"vantric/internal/monitoring"
 	"vantric/internal/network"
 	"vantric/internal/nvd"
 	"vantric/internal/storage"
@@ -92,6 +93,9 @@ type Server struct {
 	// aiRegistry holds the live AI gateways (Bifrost) — the one thing
 	// that has seen every model call the lab made.
 	aiRegistry *ai.Registry
+	// monitoringRegistry holds the live monitoring services (Zabbix) —
+	// what is on fire, and since when.
+	monitoringRegistry *monitoring.Registry
 	// aiAccountRegistry holds the model providers' own accounts — what
 	// is left where you pay, which the gateway cannot know.
 	aiAccountRegistry *aiaccount.Registry
@@ -141,6 +145,7 @@ func New(
 	storageRegistry *storage.Registry,
 	aiRegistry *ai.Registry,
 	aiAccountRegistry *aiaccount.Registry,
+	monitoringRegistry *monitoring.Registry,
 	log *slog.Logger,
 	staticDir string,
 	dataDir string,
@@ -153,13 +158,14 @@ func New(
 	srv := &Server{
 		store: st, registry: registry, dnsRegistry: dnsRegistry, dbRegistry: dbRegistry,
 		identityRegistry: identityRegistry, networkRegistry: networkRegistry,
-		inventoryRegistry: inventoryRegistry,
-		storageRegistry:   storageRegistry,
-		aiRegistry:        aiRegistry,
-		aiAccountRegistry: aiAccountRegistry,
-		nvd:               client,
-		kev:               kev.New(),
-		log:               log, staticDir: staticDir, dataDir: dataDir, siteURL: siteURL, ssh: sshOpts,
+		inventoryRegistry:  inventoryRegistry,
+		storageRegistry:    storageRegistry,
+		aiRegistry:         aiRegistry,
+		aiAccountRegistry:  aiAccountRegistry,
+		monitoringRegistry: monitoringRegistry,
+		nvd:                client,
+		kev:                kev.New(),
+		log:                log, staticDir: staticDir, dataDir: dataDir, siteURL: siteURL, ssh: sshOpts,
 		guacdAddr:      guacdAddr,
 		ops:            newOpRegistry(),
 		trustedProxies: parseTrustedProxies(trustedProxies, log),
@@ -281,6 +287,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		s.inventoryRoutes(r)
 		s.aiRoutes(r)
 		s.aiAccountRoutes(r)
+		s.monitoringRoutes(r)
 		s.installerRoutes(r)
 		s.storageRoutes(r)
 

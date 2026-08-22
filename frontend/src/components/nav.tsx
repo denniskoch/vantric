@@ -39,6 +39,7 @@ import MonitorHeartIcon from '@mui/icons-material/MonitorHeart'
 import PaidIcon from '@mui/icons-material/Paid'
 import SpeedIcon from '@mui/icons-material/Speed'
 import SettingsEthernetIcon from '@mui/icons-material/SettingsEthernet'
+import ReportProblemIcon from '@mui/icons-material/ReportProblem'
 import { createSvgIcon } from '@mui/material/utils'
 import { siDocker } from 'simple-icons'
 
@@ -532,17 +533,46 @@ export const sections: Section[] = [
       'What your lab asks of language models, and what answers: requests through the gateway, the providers behind it, and the models running on your own hardware.',
   },
   {
-    // A placeholder, and deliberately unopinionated about what fills
-    // it: metrics, logs and alerts all live in tools that already run
-    // here, and which of them this section fronts is not decided.
+    // Zabbix's own vocabulary for its pages — Problems, Hosts — the
+    // same rule the Network section follows for UniFi's. Triggers,
+    // templates and dashboards stay in Zabbix, where their blast
+    // radius is; the daily 90% here is what's on fire and who isn't
+    // being watched.
     id: 'monitoring',
     label: 'Monitoring',
     icon: MonitorHeartIcon,
     prefix: '/monitoring',
     home: '/monitoring/overview',
-    items: [{ label: 'Overview', icon: DashboardIcon, to: '/monitoring/overview' }],
-    groups: [],
-    description: 'Metrics, logs and alerts for the lab. Nothing is connected yet.',
+    items: [
+      { label: 'Overview', icon: DashboardIcon, to: '/monitoring/overview' },
+      {
+        label: 'Problems',
+        icon: ReportProblemIcon,
+        to: '/monitoring/problems',
+        hint: "What the monitoring service says is wrong, and since when",
+      },
+      {
+        label: 'Hosts',
+        icon: DevicesOtherIcon,
+        to: '/monitoring/hosts',
+        hint: 'What it watches, joined to the instances this console runs',
+      },
+    ],
+    groups: [
+      {
+        label: 'Settings',
+        items: [
+          {
+            label: 'Monitoring service',
+            icon: MonitorHeartIcon,
+            to: '/monitoring/settings/service',
+            hint: 'The monitoring service this console reads',
+          },
+        ],
+      },
+    ],
+    description:
+      "What your monitoring service says is on fire, and which guests aren't being watched at all.",
   },
   {
     // This console's own access control: who may sign in here and what

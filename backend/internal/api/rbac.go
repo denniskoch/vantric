@@ -60,6 +60,7 @@ var ownerOnly = []string{
 	"/api/v1/storage/providers",
 	"/api/v1/ai/gateways",
 	"/api/v1/ai/accounts",
+	"/api/v1/monitoring/providers",
 	"/api/v1/inventory/enrichment/", // an API key
 	"/api/v1/installers/token/",     // the download token
 }

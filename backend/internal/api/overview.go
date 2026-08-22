@@ -345,6 +345,58 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 		}
 	})
 
+	// Monitoring contributes ONE line, not a problem per problem. The
+	// overview derives findings from what the console itself observes,
+	// and importing another system's judgment wholesale would duplicate
+	// half of them (Zabbix also notices a full datastore). The front
+	// door says look here; the Problems page holds the list.
+	run(func() {
+		providers, err := s.store.ListMonitoringProviders(ctx)
+		if err != nil {
+			return
+		}
+		for i := range providers {
+			view := s.probeMonitoringProvider(ctx, providers[i])
+			if detail, bad := unhealthy(view.Status, view.Error); bad {
+				add(problem{
+					Severity: "error",
+					Title:    "Monitoring service " + providers[i].Name + " is unreachable",
+					Detail:   detail,
+					To:       "/monitoring/settings/service",
+				})
+				continue
+			}
+			provider, ok := s.monitoringRegistry.Get(providers[i].ID)
+			if !ok {
+				continue
+			}
+			problems, err := provider.Problems(ctx)
+			if err != nil {
+				continue
+			}
+			// High and worse, unsuppressed: a maintenance window is
+			// somebody's plan, not a finding.
+			serious := 0
+			for _, pr := range problems {
+				if pr.Rank >= 4 && !pr.Suppressed {
+					serious++
+				}
+			}
+			if serious > 0 {
+				noun := "problems"
+				if serious == 1 {
+					noun = "problem"
+				}
+				add(problem{
+					Severity: "warning",
+					Title:    fmt.Sprintf("%s reports %d %s at High or worse", providers[i].Name, serious, noun),
+					Detail:   "The monitoring service's own judgment — see its problem list.",
+					To:       "/monitoring/problems",
+				})
+			}
+		}
+	})
+
 	run(func() {
 		providers, err := s.store.ListNetworkProviders(ctx)
 		if err != nil {

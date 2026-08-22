@@ -163,6 +163,18 @@ var migrations = []string{
 		insecure_tls INTEGER NOT NULL DEFAULT 0,
 		created_at TEXT NOT NULL
 	)`,
+	// Monitoring services (Zabbix). The same shape as every other
+	// backend credential; the token is an API token from a read-only,
+	// allow-listed user.
+	`CREATE TABLE IF NOT EXISTS monitoring_providers (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL UNIQUE,
+		type TEXT NOT NULL,
+		base_url TEXT NOT NULL DEFAULT '',
+		token TEXT NOT NULL DEFAULT '',
+		insecure_tls INTEGER NOT NULL DEFAULT 0,
+		created_at TEXT NOT NULL
+	)`,
 	// AI gateways. The token is optional here where it is required
 	// everywhere else: Bifrost's management API ships open, so a
 	// gateway on the LAN commonly has no credential at all.

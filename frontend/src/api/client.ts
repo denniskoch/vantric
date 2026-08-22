@@ -1053,6 +1053,60 @@ export interface AIAccountRequest {
   key?: string
 }
 
+/** A configured monitoring service — Zabbix, for now. */
+export interface MonitoringProvider {
+  id: string
+  name: string
+  type: string
+  baseUrl: string
+  insecureTls: boolean
+  createdAt: string
+  hasToken: boolean
+  status: string
+  info?: { version: string; hosts: number }
+  error?: string
+}
+
+export interface MonitoringProviderRequest {
+  name: string
+  type: string
+  baseUrl: string
+  token?: string
+  insecureTls?: boolean
+}
+
+/**
+ * One thing the monitoring service says is wrong right now. Severity
+ * is the service's own word — Disaster, High, Average… — with rank
+ * beside it so tables sort without parsing prose.
+ */
+export interface MonitoringProblem {
+  id: string
+  name: string
+  hostId?: string
+  host?: string
+  severity: string
+  rank: number
+  startedAt: string
+  acknowledged: boolean
+  suppressed: boolean
+}
+
+/** A watched host, stamped with the instance at the same address. */
+export interface MonitoredHost {
+  id: string
+  name: string
+  addresses: string[]
+  enabled: boolean
+  instance?: string
+}
+
+export interface MonitoringHostsResponse {
+  hosts: MonitoredHost[]
+  /** Running instances no watched host answers for — the finding. */
+  unmonitored: string[]
+}
+
 /** One change, and the account that made it. */
 export interface AuditEntry {
   id: string
@@ -1986,6 +2040,23 @@ export const api = {
   updateAIAccount: (id: string, body: AIAccountRequest) =>
     request<AIAccount>(`/ai/accounts/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteAIAccount: (id: string) => request<void>(`/ai/accounts/${id}`, { method: 'DELETE' }),
+
+  listMonitoringProviderTypes: () => request<string[]>('/monitoring/provider-types'),
+  listMonitoringProviders: () => request<MonitoringProvider[]>('/monitoring/providers'),
+  createMonitoringProvider: (body: MonitoringProviderRequest) =>
+    request<MonitoringProvider>('/monitoring/providers', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateMonitoringProvider: (id: string, body: MonitoringProviderRequest) =>
+    request<MonitoringProvider>(`/monitoring/providers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  deleteMonitoringProvider: (id: string) =>
+    request<void>(`/monitoring/providers/${id}`, { method: 'DELETE' }),
+  listMonitoringProblems: () => request<MonitoringProblem[]>('/monitoring/problems'),
+  listMonitoringHosts: () => request<MonitoringHostsResponse>('/monitoring/hosts'),
 
   listAIGatewayTypes: () => request<string[]>('/ai/gateway-types'),
   listAIGateways: () => request<AIGateway[]>('/ai/gateways'),
