@@ -75,6 +75,38 @@ export const theme = createTheme({
         root: { textTransform: 'none', fontWeight: 500 },
       },
     },
+    // The footer is part of the table, and MUI's default toolbar is
+    // 52px tall — nearly twice a row. Against 28px rows that reads as a
+    // band of empty space with some controls floating in it, so it is
+    // tightened here rather than per table: usePaged draws one of these
+    // too, and density is a house decision, not a page's.
+    MuiTablePagination: {
+      styleOverrides: {
+        toolbar: {
+          minHeight: 36,
+          paddingLeft: 12,
+          paddingRight: 4,
+          // Repeated inside the breakpoint on purpose: Toolbar sets its
+          // own min-height and gutters through a `@media (min-width:600px)`
+          // rule, which beats a plain declaration however specific it
+          // looks. Overriding only the base rule leaves the footer at 52
+          // on every screen anybody actually uses.
+          '@media (min-width:600px)': {
+            minHeight: 36,
+            paddingLeft: 12,
+            paddingRight: 4,
+          },
+        },
+        selectLabel: { fontSize: 12, marginTop: 0, marginBottom: 0 },
+        displayedRows: { fontSize: 12, marginTop: 0, marginBottom: 0 },
+        select: { fontSize: 12, paddingTop: 0, paddingBottom: 0 },
+        actions: {
+          marginLeft: 8,
+          '& .MuiIconButton-root': { padding: 4 },
+          '& .MuiSvgIcon-root': { fontSize: 18 },
+        },
+      },
+    },
     MuiTableCell: {
       styleOverrides: {
         root: {
