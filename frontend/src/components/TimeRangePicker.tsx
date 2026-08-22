@@ -75,13 +75,22 @@ export default function TimeRangePicker({
         {value.label}
       </Button>
 
+      {/* THE PANELS OPEN BESIDE THE LIST, NOT OVER IT. Swapping the
+          menu's contents made changing your mind cost two clicks —
+          cancel out of the panel, then pick the preset you actually
+          wanted. Side by side, the list never leaves, so it stays one.
+          The paper widens only while a panel is open. */}
       <Menu
         anchorEl={anchor}
         open={Boolean(anchor)}
         onClose={close}
-        slotProps={{ paper: { sx: { width: 340 } } }}
+        slotProps={{
+          paper: { sx: { width: view === 'presets' ? 340 : 680, maxWidth: '95vw' } },
+        }}
       >
-        {view === 'presets' && [
+        <Box sx={{ display: 'flex', alignItems: 'stretch' }}>
+        <Box sx={{ width: 340, flexShrink: 0 }}>
+        {[
           <Box key="relative" sx={{ px: 1.5, pt: 0.5, pb: 1 }}>
             <TextField
               size="small"
@@ -121,20 +130,39 @@ export default function TimeRangePicker({
             </MenuItem>
           )),
           <Divider key="d2" />,
-          <MenuItem key="absolute" onClick={() => setView('absolute')}>
+          <MenuItem
+            key="absolute"
+            selected={view === 'absolute'}
+            onClick={() => setView(view === 'absolute' ? 'presets' : 'absolute')}
+          >
             <DateRangeIcon sx={{ fontSize: 18, mr: 1.5, color: 'text.secondary' }} />
             <ListItemText primary="Start and end times" />
             <ChevronRightIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
           </MenuItem>,
-          <MenuItem key="around" onClick={() => setView('around')}>
+          <MenuItem
+            key="around"
+            selected={view === 'around'}
+            onClick={() => setView(view === 'around' ? 'presets' : 'around')}
+          >
             <AccessTimeIcon sx={{ fontSize: 18, mr: 1.5, color: 'text.secondary' }} />
             <ListItemText primary="Around a time" />
             <ChevronRightIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
           </MenuItem>,
         ]}
+        </Box>
 
-        {view === 'absolute' && <Absolute onApply={pick} onCancel={() => setView('presets')} />}
-        {view === 'around' && <Around onApply={pick} onCancel={() => setView('presets')} />}
+        {view !== 'presets' && (
+          <>
+            <Divider orientation="vertical" flexItem />
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              {view === 'absolute' && (
+                <Absolute onApply={pick} onCancel={() => setView('presets')} />
+              )}
+              {view === 'around' && <Around onApply={pick} onCancel={() => setView('presets')} />}
+            </Box>
+          </>
+        )}
+        </Box>
       </Menu>
     </>
   )
