@@ -175,7 +175,7 @@ export default function AIRequestsPage() {
       )}
 
       {stats && (
-        <Paper variant="outlined" sx={{ display: 'flex', flexWrap: 'wrap', mb: 2 }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
           <Stat label="Requests" value={stats.requests.toLocaleString()} />
           <Stat label="Succeeded" value={`${stats.successRate.toFixed(1)}%`} />
           <Stat label="Average latency" value={formatMs(stats.avgLatencyMs)} />
@@ -187,7 +187,7 @@ export default function AIRequestsPage() {
             // this is a floor on what was spent rather than a total.
             note="priced traffic only"
           />
-        </Paper>
+        </Box>
       )}
 
       <Box sx={{ display: 'flex', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
@@ -304,13 +304,18 @@ function StatusText({ status }: { status: string }) {
   )
 }
 
+/** One figure per card, the same shape the Compute overview uses —
+ *  five numbers in one undivided strip read as a sentence rather than
+ *  as five separate answers. */
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
-    <Box sx={{ px: 2.5, py: 1.5, minWidth: 150 }}>
-      <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{label}</Typography>
-      <Typography sx={{ fontSize: 20 }}>{value}</Typography>
+    <Paper variant="outlined" sx={{ p: 2, minWidth: 160, flex: '1 1 160px' }}>
+      <Typography variant="body2" color="text.secondary">
+        {label}
+      </Typography>
+      <Typography sx={{ fontSize: 28, fontWeight: 400 }}>{value}</Typography>
       {note && <Chip label={note} size="small" sx={{ fontSize: 10, height: 18, mt: 0.5 }} />}
-    </Box>
+    </Paper>
   )
 }
 
