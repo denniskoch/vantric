@@ -33,7 +33,7 @@ import { api } from '../api/client'
 import type { AttachedDisk, Backup, MetricTimeframe, Snapshot } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import AddIcon from '@mui/icons-material/Add'
-import StatusIcon from '../components/StatusIcon'
+import StatusIcon, { statusLabel } from '../components/StatusIcon'
 import DetailTable, { DetailSection } from '../components/DetailTable'
 import TimeSeriesChart from '../components/TimeSeriesChart'
 import { chart } from '../chartPalette'
@@ -342,7 +342,6 @@ export default function InstanceDetailPage() {
         <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate('/compute/instances')}>
           Virtual machines
         </Button>
-        <StatusIcon status={inst.status} />
         <Typography variant="h5">{inst.name}</Typography>
         <Box sx={{ flex: 1 }} />
         <Button
@@ -477,7 +476,15 @@ export default function InstanceDetailPage() {
                     ),
                   },
                   { label: 'Type', value: 'Virtual machine' },
-                  { label: 'Status', value: inst.status },
+                  {
+                    label: 'Status',
+                    value: (
+                      <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                        <StatusIcon status={inst.status} />
+                        {statusLabel(inst.status)}
+                      </Box>
+                    ),
+                  },
                   {
                     // The store's own timestamp, NOT the hypervisor's.
                     // Proxmox's only per-guest timestamp is the ctime in

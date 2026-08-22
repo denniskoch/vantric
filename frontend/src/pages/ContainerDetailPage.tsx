@@ -20,7 +20,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import { useState } from 'react'
 import { api } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
-import StatusIcon from '../components/StatusIcon'
+import StatusIcon, { statusLabel } from '../components/StatusIcon'
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -94,7 +94,6 @@ export default function ContainerDetailPage() {
         <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate('/compute/containers')}>
           Containers
         </Button>
-        <StatusIcon status={ct.status} />
         <Typography variant="h5">{ct.name}</Typography>
         <Box sx={{ flex: 1 }} />
         <Button
@@ -144,7 +143,15 @@ export default function ContainerDetailPage() {
         </Typography>
         <Table size="small">
           <TableBody>
-            <Row label="Status" value={ct.status} />
+            <Row
+              label="Status"
+              value={
+                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                  <StatusIcon status={ct.status} />
+                  {statusLabel(ct.status)}
+                </Box>
+              }
+            />
             <Row label="Node" value={ct.node} />
             <Row label="Resources" value={`${ct.cpus} vCPU, ${ct.memoryMb} MB memory`} />
             <Row label="Root disk" value={`${ct.diskGb} GB`} />
