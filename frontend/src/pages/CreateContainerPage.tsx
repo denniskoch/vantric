@@ -208,7 +208,7 @@ export default function CreateContainerPage() {
           startIcon={<ArrowBackIcon />}
           onClick={() => navigate('/compute/containers')}
         >
-          Container instances
+          Containers
         </Button>
         <Typography variant="h5">Create a container</Typography>
       </Box>

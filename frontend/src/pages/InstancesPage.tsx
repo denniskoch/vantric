@@ -182,7 +182,7 @@ export default function InstancesPage() {
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
-        title="VM instances"
+        title="Virtual machines"
         actions={
           <>
             {canEdit && (
@@ -279,7 +279,7 @@ export default function InstancesPage() {
         onSelectionChange={(ids) => setPicked(new Set(ids))}
         selectable={canEdit}
         empty={
-          isLoading ? 'Loading…' : 'No VM instances yet. Click "Create instance" to get started.'
+          isLoading ? 'Loading…' : 'No virtual machines yet. Click "Create instance" to get started.'
         }
       />
 

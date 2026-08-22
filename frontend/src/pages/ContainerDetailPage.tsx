@@ -92,7 +92,7 @@ export default function ContainerDetailPage() {
     <Box sx={{ p: 3, maxWidth: 860 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
         <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate('/compute/containers')}>
-          Container instances
+          Containers
         </Button>
         <StatusIcon status={ct.status} />
         <Typography variant="h5">{ct.name}</Typography>

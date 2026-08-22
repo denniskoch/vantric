@@ -176,7 +176,7 @@ export default function ContainersPage() {
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
-        title="Container instances"
+        title="Containers"
         actions={
           <>
             {canEdit && (

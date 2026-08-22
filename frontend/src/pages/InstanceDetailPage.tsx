@@ -340,7 +340,7 @@ export default function InstanceDetailPage() {
         }}
       >
         <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate('/compute/instances')}>
-          VM instances
+          Virtual machines
         </Button>
         <StatusIcon status={inst.status} />
         <Typography variant="h5">{inst.name}</Typography>

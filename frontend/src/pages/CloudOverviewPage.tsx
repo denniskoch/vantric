@@ -89,14 +89,14 @@ export default function CloudOverviewPage() {
         }}
       >
         <Stat
-          label="VM instances"
+          label="Virtual machines"
           value={counts && `${counts.running}/${counts.instances}`}
           hint="running"
           to="/compute/instances"
           loading={isLoading}
         />
         <Stat
-          label="Container instances"
+          label="Containers"
           value={counts && `${counts.containersRunning}/${counts.containers}`}
           hint="running"
           to="/compute/containers"

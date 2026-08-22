@@ -375,7 +375,7 @@ Surface the daily 90% here and link out for the rest.
   turn and reintroduces the disappearing signal this replaced. Template builds are
   the same path (cloud image → import disk → cloud-init drive → serial
   console → convert), so a build interrupted by a restart still leaves
-  a VM, not a template — it shows up in VM instances.
+  a VM, not a template — it shows up under Virtual machines.
 - A PAGE WAITS ONLY FOR WORK THE BROWSER ITSELF IS DOING. An upload
   keeps its progress bar because the bytes are leaving this machine;
   the hypervisor's import afterwards is the bell's. A download from a

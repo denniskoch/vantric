@@ -186,7 +186,7 @@ export const sections: Section[] = [
         label: 'Instances',
         items: [
           {
-            label: 'VM instances',
+            label: 'Virtual machines',
             icon: ComputerIcon,
             to: '/compute/instances',
             hint: 'Create, start, stop and inspect virtual machines',
@@ -197,7 +197,7 @@ export const sections: Section[] = [
             // the UI after one implementation of hypervisor.Container-
             // Driver, which exists so a backend's containers needn't
             // be LXC at all.
-            label: 'Container instances',
+            label: 'Containers',
             icon: Inventory2Icon,
             to: '/compute/containers',
             hint: 'System containers discovered on your servers',
