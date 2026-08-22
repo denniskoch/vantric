@@ -20,10 +20,15 @@ import type { GuacCredentials } from '../guacTunnel'
  */
 export default function InstanceRDPPage() {
   const { name = '' } = useParams()
+  // The readout that found the stacking-context bug, kept behind a
+  // flag rather than deleted: it cost four wrong guesses to learn that
+  // this session can't be diagnosed from either end's logs. Open the
+  // window with ?debug to get it back.
+  const debug = new URLSearchParams(window.location.search).has('debug')
   const [credentials, setCredentials] = useState<GuacCredentials | null>(null)
 
   return credentials ? (
-    <Desktop name={name} credentials={credentials} />
+    <Desktop name={name} credentials={credentials} debug={debug} />
   ) : (
     <Prompt name={name} onConnect={setCredentials} />
   )
@@ -100,7 +105,15 @@ function Prompt({
   )
 }
 
-function Desktop({ name, credentials }: { name: string; credentials: GuacCredentials }) {
+function Desktop({
+  name,
+  credentials,
+  debug,
+}: {
+  name: string
+  credentials: GuacCredentials
+  debug: boolean
+}) {
   const holder = useRef<HTMLDivElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [connected, setConnected] = useState(false)
@@ -141,13 +154,15 @@ function Desktop({ name, credentials }: { name: string; credentials: GuacCredent
           `${Math.round(box.width)}×${Math.round(box.height)} · ${painted(element)}`,
       )
     }
-    tunnel.onactivity = (opcode) => {
-      received++
-      // img is the opcode that carries a picture. Counting it apart
-      // from the rest is what says whether the desktop is arriving and
-      // failing to paint, or never arriving.
-      if (opcode === 'img') drawn++
-      if (received % 25 === 0) report()
+    if (debug) {
+      tunnel.onactivity = (opcode) => {
+        received++
+        // img is the opcode that carries a picture. Counting it apart
+        // from the rest is what says whether the desktop is arriving
+        // and failing to paint, or never arriving.
+        if (opcode === 'img') drawn++
+        if (received % 25 === 0) report()
+      }
     }
     const client = new Guacamole.Client(tunnel)
     clientRef.current = client
@@ -176,7 +191,7 @@ function Desktop({ name, credentials }: { name: string; credentials: GuacCredent
 
     client.connect()
     setConnected(true)
-    const reporting = window.setInterval(report, 1000)
+    const reporting = debug ? window.setInterval(report, 1000) : 0
 
     const onResize = () => {
       const next = size()
@@ -194,7 +209,7 @@ function Desktop({ name, credentials }: { name: string; credentials: GuacCredent
       element.remove()
       clientRef.current = null
     }
-  }, [name, credentials, size])
+  }, [name, credentials, debug, size])
 
   return (
     <Box sx={{ height: '100vh', bgcolor: '#202124', position: 'relative', overflow: 'hidden' }}>
