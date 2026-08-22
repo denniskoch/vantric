@@ -6,6 +6,7 @@ import DataTable from '../components/DataTable'
 import PageHeader from '../components/PageHeader'
 import SelectField from '../components/SelectField'
 import ProviderName from '../components/ProviderName'
+import AIRequestDetail from '../components/AIRequestDetail'
 import { api } from '../api/client'
 import type { AIRequest } from '../api/client'
 
@@ -274,6 +275,9 @@ export default function AIRequestsPage() {
         columns={columns}
         getRowId={(r) => r.id}
         searchable={false}
+        // Every row has a detail worth opening, and a failed one has
+        // the reason — which the list endpoint doesn't carry.
+        renderDetail={(r) => <AIRequestDetail id={r.id} />}
         perPageOptions={[25, 50, 100]}
         server={{
           total: data?.total ?? 0,

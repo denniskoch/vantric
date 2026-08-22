@@ -851,6 +851,33 @@ export interface AIRequest {
   kind?: string
 }
 
+/**
+ * Why a call failed, in the words of whoever refused it. Whose words
+ * matters: the gateway blocking on its own policy and the provider
+ * rejecting the call are different problems with different fixes.
+ */
+export interface AIRequestError {
+  kind?: string
+  statusCode?: number
+  message: string
+  fromGateway: boolean
+}
+
+/**
+ * One call with the facts the list can't carry — the gateway only
+ * returns a failure reason on the single-log endpoint, which is why
+ * this is a drill-in and not another column.
+ *
+ * The prompt and the completion are deliberately absent, here as in
+ * the list.
+ */
+export interface AIRequestDetail extends AIRequest {
+  error?: AIRequestError
+  retries: number
+  fallbackIndex: number
+  routingRule?: string
+}
+
 export interface AIRequestPage {
   requests: AIRequest[]
   total: number
@@ -1956,6 +1983,7 @@ export const api = {
   deleteAIGateway: (id: string) => request<void>(`/ai/gateways/${id}`, { method: 'DELETE' }),
   listAIRequests: (query: AIRequestQuery) =>
     request<AIRequestPage>(`/ai/requests?${aiQuery(query)}`),
+  getAIRequest: (id: string) => request<AIRequestDetail>(`/ai/requests/${encodeURIComponent(id)}`),
   getAIStats: (query: AIRequestQuery) => request<AIStats>(`/ai/stats?${aiQuery(query)}`),
   getAIFilters: () => request<AIFilters>('/ai/filters'),
   listAIGatewayProviders: () => request<AIGatewayProvider[]>('/ai/providers'),

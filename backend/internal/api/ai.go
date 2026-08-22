@@ -38,6 +38,7 @@ func (s *Server) aiRoutes(r chi.Router) {
 	r.Put("/ai/gateways/{id}", s.updateAIGateway)
 	r.Delete("/ai/gateways/{id}", s.deleteAIGateway)
 	r.Get("/ai/requests", s.listAIRequests)
+	r.Get("/ai/requests/{id}", s.getAIRequest)
 	r.Get("/ai/stats", s.aiStats)
 	r.Get("/ai/filters", s.aiFilters)
 	r.Get("/ai/traffic", s.aiTraffic)
@@ -394,4 +395,17 @@ func (s *Server) aiLimits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.json(w, http.StatusOK, limits)
+}
+
+func (s *Server) getAIRequest(w http.ResponseWriter, r *http.Request) {
+	provider := s.aiProvider(w, r)
+	if provider == nil {
+		return
+	}
+	detail, err := provider.Request(r.Context(), chi.URLParam(r, "id"))
+	if err != nil {
+		s.fail(w, err, "AI request")
+		return
+	}
+	s.json(w, http.StatusOK, detail)
 }

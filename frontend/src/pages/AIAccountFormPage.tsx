@@ -14,6 +14,9 @@ const backTo = '/ai/accounts'
 const keyHelp: Record<string, string> = {
   openrouter:
     'A MANAGEMENT key from openrouter.ai/settings/management-keys — not your sk-or-v1 inference key, which this endpoint refuses.',
+  deepseek: 'Your ordinary API key. DeepSeek reads the balance with the same key you infer with.',
+  elevenlabs:
+    'Your ordinary API key. A key with restricted scopes may not be allowed to read the subscription.',
 }
 
 function AccountForm({ editing }: { editing: AIAccount | null }) {

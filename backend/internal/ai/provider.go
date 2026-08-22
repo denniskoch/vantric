@@ -89,6 +89,44 @@ type Request struct {
 	Kind       string `json:"kind,omitempty"`
 }
 
+// RequestError is why a call failed, in the words of whoever refused
+// it. WHOSE words matters and is carried: a gateway that blocked the
+// call on its own policy and a provider that rejected it are different
+// problems with different fixes, and a bare status code makes you
+// guess which you have.
+type RequestError struct {
+	// Kind is the gateway's own classification, e.g. "provider_blocked".
+	Kind       string `json:"kind,omitempty"`
+	StatusCode int    `json:"statusCode,omitempty"`
+	Message    string `json:"message"`
+	// FromGateway is true where the gateway refused it rather than
+	// passing it upstream.
+	FromGateway bool `json:"fromGateway"`
+}
+
+// RequestDetail is one call with the facts the list can't carry.
+//
+// The gateway's list endpoint omits the failure reason entirely — it
+// is only on the single-log endpoint — which is the whole reason this
+// exists rather than being another column.
+//
+// WHAT WAS ASKED AND WHAT CAME BACK STAY OUT, here as in the list. The
+// prompt, the completion and the raw bodies are all on the same
+// response and none of them is carried: they are the most sensitive
+// thing the gateway holds, and a console that mirrors them turns every
+// browser tab into a copy of the lab's conversations.
+type RequestDetail struct {
+	Request
+	Error *RequestError `json:"error,omitempty"`
+	// Retries is how many times the gateway tried before giving up.
+	Retries int `json:"retries"`
+	// FallbackIndex is which entry in the fallback chain answered; 0 is
+	// the first choice.
+	FallbackIndex int `json:"fallbackIndex"`
+	// RoutingRule is the rule that chose the provider, where one did.
+	RoutingRule string `json:"routingRule,omitempty"`
+}
+
 // RequestQuery is one page of the log, filtered.
 //
 // PAGING IS THE GATEWAY'S, not the browser's. Every other table in
@@ -299,6 +337,9 @@ type Provider interface {
 	Check(ctx context.Context) (*Info, error)
 	// Requests returns one page of the request log.
 	Requests(ctx context.Context, q RequestQuery) (*RequestPage, error)
+	// Request returns one call with its failure reason, which the list
+	// endpoint does not carry.
+	Request(ctx context.Context, id string) (*RequestDetail, error)
 	// Stats summarizes the log for the same filter.
 	Stats(ctx context.Context, q RequestQuery) (*Stats, error)
 	// Filters lists the values this gateway has seen.

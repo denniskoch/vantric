@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"vantric/internal/aiaccount"
 	"vantric/internal/hypervisor"
 )
 
@@ -289,6 +290,61 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 		}
 	})
 
+	// The AI gateway and the accounts behind it. A gateway that stops
+	// answering is the same class of problem as any other backend; a
+	// provider account running out is the one that stops work without
+	// anything breaking, which is exactly what a front page is for.
+	run(func() {
+		gateways, err := s.store.ListAIGateways(ctx)
+		if err != nil {
+			return
+		}
+		for i := range gateways {
+			view := s.probeAIGateway(ctx, gateways[i])
+			if detail, bad := unhealthy(view.Status, view.Error); bad {
+				add(problem{
+					Severity: "error",
+					Title:    "AI gateway " + gateways[i].Name + " is unreachable",
+					Detail:   detail,
+					To:       "/ai/settings/gateway",
+				})
+			}
+		}
+	})
+
+	run(func() {
+		accounts, err := s.store.ListAIAccounts(ctx)
+		if err != nil {
+			return
+		}
+		for i := range accounts {
+			view := s.probeAIAccount(ctx, accounts[i])
+			switch {
+			case view.Status == "unreachable":
+				add(problem{
+					Severity: "error",
+					Title:    "Can't read the balance at " + accounts[i].Name,
+					Detail:   view.Error,
+					To:       "/ai/accounts",
+				})
+			case view.Balance != nil && view.Balance.Remaining != nil:
+				// A THRESHOLD PER UNIT, because the numbers aren't
+				// comparable: five is nearly empty in dollars and
+				// nothing at all in characters. A provider whose unit
+				// isn't known here contributes no warning rather than a
+				// wrong one.
+				if low, detail := lowBalance(accounts[i].Name, view.Balance); low {
+					add(problem{
+						Severity: "warning",
+						Title:    accounts[i].Name + " is nearly out of credit",
+						Detail:   detail,
+						To:       "/ai/accounts",
+					})
+				}
+			}
+		}
+	})
+
 	run(func() {
 		providers, err := s.store.ListNetworkProviders(ctx)
 		if err != nil {
@@ -510,3 +566,26 @@ func commaSeparated(names []string) string {
 }
 
 func pctString(pct float64) string { return fmt.Sprintf("%.0f%%", pct) }
+
+// lowBalance decides whether a provider account is close enough to
+// empty to say so.
+//
+// The threshold is PER UNIT and there is no default: five is nearly
+// empty in dollars and nothing at all in characters, and a single
+// number applied to both would either shout about a healthy account or
+// stay silent about a spent one. A unit this doesn't recognise
+// contributes no warning, which is the honest answer — better than one
+// derived from a comparison that doesn't hold.
+func lowBalance(name string, b *aiaccount.Balance) (bool, string) {
+	switch b.Unit {
+	case "USD":
+		if *b.Remaining < 5 {
+			return true, fmt.Sprintf("$%.2f left of $%.2f", *b.Remaining, b.Granted)
+		}
+	case "characters":
+		if *b.Remaining < 10000 {
+			return true, fmt.Sprintf("%.0f characters left of %.0f", *b.Remaining, b.Granted)
+		}
+	}
+	return false, ""
+}

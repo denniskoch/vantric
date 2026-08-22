@@ -543,3 +543,58 @@ func (p *Provider) Limits(ctx context.Context) ([]ai.Limit, error) {
 	}
 	return out, nil
 }
+
+func (p *Provider) Request(ctx context.Context, id string) (*ai.RequestDetail, error) {
+	var l struct {
+		logEntry
+		Retries       int    `json:"number_of_retries"`
+		FallbackIndex int    `json:"fallback_index"`
+		RoutingRule   string `json:"routing_rule_name"`
+		// input_history, raw_request, raw_response and content_summary
+		// are all on this response and none is declared: a field this
+		// struct doesn't have is a field that cannot leak onward.
+		ErrorDetails *struct {
+			Type           string `json:"type"`
+			IsBifrostError bool   `json:"is_bifrost_error"`
+			StatusCode     int    `json:"status_code"`
+			Error          struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		} `json:"error_details"`
+	}
+	if err := p.get(ctx, "/api/logs/"+url.PathEscape(id), nil, &l); err != nil {
+		return nil, err
+	}
+	detail := &ai.RequestDetail{
+		Request: ai.Request{
+			ID:         l.ID,
+			At:         parseTime(l.Timestamp),
+			Provider:   l.Provider,
+			Model:      l.Model,
+			Status:     l.Status,
+			LatencyMS:  l.Latency,
+			Cost:       l.Cost,
+			Caller:     l.VirtualKey,
+			Credential: l.KeyName,
+			Streamed:   l.Stream,
+			Kind:       l.Object,
+		},
+		Retries:       l.Retries,
+		FallbackIndex: l.FallbackIndex,
+		RoutingRule:   l.RoutingRule,
+	}
+	if l.TokenUsage != nil {
+		detail.PromptTokens = l.TokenUsage.Prompt
+		detail.CompletionTokens = l.TokenUsage.Completion
+		detail.TotalTokens = l.TokenUsage.Total
+	}
+	if e := l.ErrorDetails; e != nil {
+		detail.Error = &ai.RequestError{
+			Kind:        e.Type,
+			StatusCode:  e.StatusCode,
+			Message:     e.Error.Message,
+			FromGateway: e.IsBifrostError,
+		}
+	}
+	return detail, nil
+}
