@@ -20,7 +20,6 @@ export default function SnapshotsPage() {
 
   const columns = useMemo<ColumnDef<(typeof snapshots)[number], unknown>[]>(
     () => [
-      { id: 'name', header: 'Name', accessorFn: (snap) => snap.name },
       {
         id: 'vmName',
         header: 'VM',
@@ -35,6 +34,7 @@ export default function SnapshotsPage() {
           </Link>
         ),
       },
+      { id: 'name', header: 'Name', accessorFn: (snap) => snap.name },
       { id: 'node', header: 'Node', accessorFn: (snap) => snap.node },
       {
         id: 'description',
@@ -72,7 +72,7 @@ export default function SnapshotsPage() {
         rows={snapshots}
         columns={columns}
         getRowId={(snap) => `${snap.hypervisorId}/${snap.id}`}
-        initialSort={[{ id: 'name', desc: false }]}
+        initialSort={[{ id: 'vmName', desc: false }]}
         empty={isLoading ? 'Loading…' : 'No snapshots found on your servers.'}
       />
     </Box>
