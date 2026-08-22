@@ -25,6 +25,7 @@ export default function DatastoresPage() {
       {
         id: 'active',
         header: 'Status',
+        meta: { hug: true },
         accessorFn: (ds) => ds.active,
         cell: ({ row }) => (
           <Tooltip title={row.original.active ? 'available' : 'unavailable'}>

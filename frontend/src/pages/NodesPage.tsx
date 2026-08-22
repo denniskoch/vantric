@@ -37,6 +37,7 @@ export default function NodesPage() {
       {
         id: 'status',
         header: 'Status',
+        meta: { hug: true },
         accessorFn: (node) => node.status,
         cell: ({ row }) => (
           <Tooltip title={row.original.status || 'unknown'}>

@@ -88,6 +88,7 @@ export default function ContainersPage() {
       {
         id: 'status',
         header: 'Status',
+        meta: { hug: true },
         accessorFn: (ct) => ct.status,
         cell: ({ row }) => <StatusIcon status={row.original.status} />,
       },
@@ -128,7 +129,7 @@ export default function ContainersPage() {
         id: 'actions',
         header: '',
         enableSorting: false,
-        meta: { align: 'right' },
+        meta: { align: 'right', hug: true },
         cell: ({ row }) =>
           canEdit ? (
             <IconButton size="small" onClick={(e) => openMenu(e, row.original)}>

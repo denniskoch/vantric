@@ -114,7 +114,7 @@ export default function BackupsPage() {
         id: 'actions',
         header: '',
         enableSorting: false,
-        meta: { align: 'right' },
+        meta: { align: 'right', hug: true },
         cell: ({ row }) => (
           <Tooltip
             title={

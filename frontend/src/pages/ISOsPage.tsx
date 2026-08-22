@@ -82,7 +82,7 @@ export default function ISOsPage() {
         id: 'actions',
         header: '',
         enableSorting: false,
-        meta: { align: 'right' },
+        meta: { align: 'right', hug: true },
         cell: ({ row }) =>
           canEdit ? (
             <IconButton

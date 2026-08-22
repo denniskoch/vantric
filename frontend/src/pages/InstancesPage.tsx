@@ -95,6 +95,7 @@ export default function InstancesPage() {
       {
         id: 'status',
         header: 'Status',
+        meta: { hug: true },
         accessorFn: (i) => i.status,
         cell: ({ row }) => <StatusIcon status={row.original.status} />,
       },
@@ -137,7 +138,7 @@ export default function InstancesPage() {
         id: 'actions',
         header: '',
         enableSorting: false,
-        meta: { align: 'right' },
+        meta: { align: 'right', hug: true },
         cell: ({ row }) =>
           canEdit ? (
             <IconButton size="small" onClick={(e) => openMenu(e, row.original)}>

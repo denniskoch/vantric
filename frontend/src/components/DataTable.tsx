@@ -48,6 +48,11 @@ declare module '@tanstack/react-table' {
     /** Keep the value on one line — timestamps, filenames. */
     nowrap?: boolean
     /**
+     * Shrink the column to its contents. For a cell holding one icon or
+     * one button, where the header word is wider than anything under it.
+     */
+    hug?: boolean
+    /**
      * The text the filter should match for this column, when what is
      * rendered differs from what is sorted on. See searchableText.
      */
@@ -252,6 +257,7 @@ export default function DataTable<T>({
                     sx={{
                       width: header.column.columnDef.size,
                       whiteSpace: nowrapOf(header.column.columnDef),
+                      ...hugStyle(header.column.columnDef),
                     }}
                   >
                     {sortable ? (
@@ -289,7 +295,10 @@ export default function DataTable<T>({
                 <TableCell
                   key={cell.id}
                   align={alignOf(cell.column.columnDef)}
-                  sx={{ whiteSpace: nowrapOf(cell.column.columnDef) }}
+                  sx={{
+                    whiteSpace: nowrapOf(cell.column.columnDef),
+                    ...hugStyle(cell.column.columnDef),
+                  }}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>
@@ -326,6 +335,20 @@ function alignOf(def: { meta?: { align?: 'left' | 'right' } }): 'left' | 'right'
  */
 function nowrapOf(def: { meta?: { nowrap?: boolean } }): 'nowrap' | undefined {
   return def.meta?.nowrap ? 'nowrap' : undefined
+}
+
+/**
+ * Width for a column that should take only what it needs.
+ *
+ * `width: 1%` is the table idiom for it: a browser laying out an auto
+ * table treats a tiny percentage as "give this one its minimum" and
+ * hands the slack to the columns that have something to say. Setting a
+ * pixel width instead only sets a floor — the column still grows when
+ * there is space going spare, which is exactly what made a column
+ * holding one 18px icon as wide as one holding a hostname.
+ */
+function hugStyle(def: { meta?: { hug?: boolean } }) {
+  return def.meta?.hug ? { width: '1%', whiteSpace: 'nowrap' as const } : undefined
 }
 
 function Pagination<T>({ table, options }: { table: TanTable<T>; options: number[] }) {

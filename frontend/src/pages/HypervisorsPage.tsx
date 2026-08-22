@@ -99,6 +99,7 @@ export default function HypervisorsPage() {
       {
         id: 'status',
         header: 'Status',
+        meta: { hug: true },
         accessorFn: (hypervisor) => hypervisor.status,
         cell: ({ row }) => <StatusGlyph hypervisor={row.original} />,
       },
@@ -125,7 +126,7 @@ export default function HypervisorsPage() {
         header: 'Nodes',
         accessorFn: (hypervisor) =>
           hypervisor.status === 'connected' ? hypervisor.nodes : undefined,
-        meta: { align: 'right' },
+        meta: { align: 'right', hug: true },
         cell: ({ row }) => (row.original.status === 'connected' ? row.original.nodes : '—'),
       },
       {
