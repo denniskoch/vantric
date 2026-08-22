@@ -15,6 +15,7 @@ import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import DateRangeIcon from '@mui/icons-material/DateRange'
 import SelectField from './SelectField'
+import { filterButton } from './filterButton'
 import {
   ANY_TIME,
   aroundRange,
@@ -70,7 +71,7 @@ export default function TimeRangePicker({
         startIcon={<AccessTimeIcon sx={{ fontSize: 16 }} />}
         endIcon={<ArrowDropDownIcon />}
         onClick={(e) => setAnchor(e.currentTarget)}
-        sx={{ textTransform: 'none' }}
+        sx={filterButton}
       >
         {value.label}
       </Button>

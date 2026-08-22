@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button, ListItemText, Menu, MenuItem } from '@mui/material'
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown'
+import { filterButton } from './filterButton'
 
 export interface FilterOption {
   value: string
@@ -45,7 +46,7 @@ export default function FilterSelect({
         endIcon={<ArrowDropDownIcon />}
         onClick={(e) => setAnchor(e.currentTarget)}
         sx={{
-          textTransform: 'none',
+          ...filterButton,
           maxWidth: 260,
           // A model name can be long; the button shouldn't grow to fit
           // one and push the rest of the row off screen.
