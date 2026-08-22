@@ -7,6 +7,7 @@ import DataTable from '../components/DataTable'
 import PageHeader from '../components/PageHeader'
 import ProviderName from '../components/ProviderName'
 import FilterSelect from '../components/FilterSelect'
+import { filterField } from '../components/filterButton'
 import AIRequestDetail from '../components/AIRequestDetail'
 import TimeRangePicker from '../components/TimeRangePicker'
 import { ANY_TIME } from '../timeRange'
@@ -249,7 +250,7 @@ export default function AIRequestsPage() {
               ),
             },
           }}
-          sx={{ minWidth: 220 }}
+          sx={{ ...filterField, minWidth: 220 }}
         />
       </Box>
 
