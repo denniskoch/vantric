@@ -500,6 +500,20 @@ export const sections: Section[] = [
             to: '/ai/budgets',
             hint: 'What each caller may spend, and how much of it is gone',
           },
+          {
+            // Last in the group rather than alone under a Settings
+            // heading: everything here is the gateway, and how this
+            // console reaches it is the last of those things — not a
+            // separate concern that needs its own section.
+            //
+            // Not "Gateway": the group is called that, and a nav with a
+            // group and an item of the same name makes you read both to
+            // find out which is which.
+            label: 'Connection',
+            icon: SettingsEthernetIcon,
+            to: '/ai/connection',
+            hint: 'How this console reaches the gateway',
+          },
         ],
       },
       {
@@ -510,20 +524,6 @@ export const sections: Section[] = [
             icon: PaidIcon,
             to: '/ai/accounts',
             hint: "What's left where you pay, without a login each",
-          },
-        ],
-      },
-      {
-        label: 'Settings',
-        items: [
-          {
-            // Not "Gateway": the group above is called that now, and a
-            // nav with a group and an item of the same name makes you
-            // read both to find out which is which.
-            label: 'Connection',
-            icon: SettingsEthernetIcon,
-            to: '/ai/settings/gateway',
-            hint: 'How this console reaches the gateway',
           },
         ],
       },

@@ -226,9 +226,9 @@ export default function App() {
         <Route path="/ai/accounts" element={<AIAccountsPage />} />
         <Route path="/ai/accounts/add" element={<AIAccountFormPage />} />
         <Route path="/ai/accounts/:id/edit" element={<AIAccountFormPage />} />
-        <Route path="/ai/settings/gateway" element={<AIGatewaysPage />} />
-        <Route path="/ai/settings/gateway/add" element={<AIGatewayFormPage />} />
-        <Route path="/ai/settings/gateway/:id/edit" element={<AIGatewayFormPage />} />
+        <Route path="/ai/connection" element={<AIGatewaysPage />} />
+        <Route path="/ai/connection/add" element={<AIGatewayFormPage />} />
+        <Route path="/ai/connection/:id/edit" element={<AIGatewayFormPage />} />
         <Route path="/monitoring/overview" element={<SectionLandingPage />} />
         <Route path="/iam/overview" element={<SectionLandingPage />} />
         <Route path="/iam/account" element={<MyAccountPage />} />

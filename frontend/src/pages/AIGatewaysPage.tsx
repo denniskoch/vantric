@@ -73,7 +73,7 @@ export default function AIGatewaysPage() {
             size="small"
             startIcon={<AddBoxIcon />}
             component={RouterLink}
-            to="/ai/settings/gateway/add"
+            to="/ai/connection/add"
           >
             Connect
           </Button>
@@ -150,7 +150,7 @@ export default function AIGatewaysPage() {
       <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
         <MenuItem
           onClick={() => {
-            if (selected) navigate(`/ai/settings/gateway/${selected.id}/edit`)
+            if (selected) navigate(`/ai/connection/${selected.id}/edit`)
             setMenuAnchor(null)
           }}
         >

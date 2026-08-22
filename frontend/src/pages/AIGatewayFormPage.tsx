@@ -7,7 +7,7 @@ import type { AIGateway, AIGatewayRequest } from '../api/client'
 import FormPage from '../components/FormPage'
 import { resourceNameError, resourceNameRe } from '../validation'
 
-const backTo = '/ai/settings/gateway'
+const backTo = '/ai/connection'
 
 function GatewayForm({ editing }: { editing: AIGateway | null }) {
   const navigate = useNavigate()
