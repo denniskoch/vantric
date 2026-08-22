@@ -45,6 +45,7 @@ export default function SnapshotsPage() {
       {
         id: 'createdAt',
         header: 'Created',
+        meta: { nowrap: true },
         accessorFn: (snap) => snap.createdAt,
         cell: ({ row }) =>
           row.original.createdAt

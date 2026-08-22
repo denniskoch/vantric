@@ -103,6 +103,7 @@ export default function NodesPage() {
       {
         id: 'uptime',
         header: 'Uptime',
+        meta: { nowrap: true },
         accessorFn: (node) => node.uptimeSeconds,
         cell: ({ row }) => (
           <Box component="span" sx={{ color: 'text.secondary' }}>

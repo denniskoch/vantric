@@ -125,6 +125,7 @@ export default function VMTemplatesPage() {
       {
         id: 'createdAt',
         header: 'Built',
+        meta: { nowrap: true },
         accessorFn: (tpl) => tpl.createdAt,
         cell: ({ row }) => builtOn(row.original.createdAt),
       },

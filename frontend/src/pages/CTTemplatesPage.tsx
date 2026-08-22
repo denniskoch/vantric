@@ -69,6 +69,7 @@ export default function CTTemplatesPage() {
       {
         id: 'createdAt',
         header: 'Uploaded',
+        meta: { nowrap: true },
         accessorFn: (tpl) => tpl.createdAt,
         cell: ({ row }) =>
           row.original.createdAt

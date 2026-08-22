@@ -70,6 +70,7 @@ export default function ISOsPage() {
       {
         id: 'createdAt',
         header: 'Uploaded',
+        meta: { nowrap: true },
         accessorFn: (iso) => iso.createdAt,
         cell: ({ row }) =>
           row.original.createdAt

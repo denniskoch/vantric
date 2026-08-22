@@ -203,7 +203,10 @@ export default function DataTable<T>({
                   <TableCell
                     key={header.id}
                     align={alignOf(header.column.columnDef)}
-                    sx={{ width: header.column.columnDef.size }}
+                    sx={{
+                      width: header.column.columnDef.size,
+                      whiteSpace: nowrapOf(header.column.columnDef),
+                    }}
                   >
                     {sortable ? (
                       <TableSortLabel
@@ -237,7 +240,11 @@ export default function DataTable<T>({
                 </TableCell>
               )}
               {row.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id} align={alignOf(cell.column.columnDef)}>
+                <TableCell
+                  key={cell.id}
+                  align={alignOf(cell.column.columnDef)}
+                  sx={{ whiteSpace: nowrapOf(cell.column.columnDef) }}
+                >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>
               ))}
@@ -264,6 +271,17 @@ export default function DataTable<T>({
 function alignOf(def: { meta?: unknown }): 'left' | 'right' {
   const meta = def.meta as { align?: 'left' | 'right' } | undefined
   return meta?.align === 'right' ? 'right' : 'left'
+}
+
+/**
+ * Columns that must not wrap. A timestamp is the case this exists for:
+ * "8/21/2026, 11:31:44 PM" is one value, and a table that breaks it
+ * across two lines makes the row taller and the column harder to read
+ * than simply letting it be as wide as it is.
+ */
+function nowrapOf(def: { meta?: unknown }): 'nowrap' | undefined {
+  const meta = def.meta as { nowrap?: boolean } | undefined
+  return meta?.nowrap ? 'nowrap' : undefined
 }
 
 function Pagination<T>({ table, options }: { table: TanTable<T>; options: number[] }) {

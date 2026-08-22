@@ -7,10 +7,8 @@ import {
   Box,
   Chip,
   IconButton,
-  MenuItem,
   Tooltip,
 } from '@mui/material'
-import SelectField from '../components/SelectField'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { api } from '../api/client'
 import type { Backup } from '../api/client'
@@ -22,7 +20,6 @@ const guestLabels: Record<string, string> = { qemu: 'VM', lxc: 'CT' }
 
 export default function BackupsPage() {
   const queryClient = useQueryClient()
-  const [guestFilter, setGuestFilter] = useState('')
   const [confirming, setConfirming] = useState<Backup | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -46,18 +43,12 @@ export default function BackupsPage() {
     },
   })
 
-  // A busy lab keeps hundreds of these, and you almost always arrive
-  // looking for one guest's.
-  const guests = [...new Set(backups.map((b) => b.guestName || String(b.vmid)))].sort()
-  const shown = guestFilter
-    ? backups.filter((b) => (b.guestName || String(b.vmid)) === guestFilter)
-    : backups
-
-  const columns = useMemo<ColumnDef<(typeof shown)[number], unknown>[]>(
+  const columns = useMemo<ColumnDef<(typeof backups)[number], unknown>[]>(
     () => [
       {
         id: 'createdAt',
         header: 'Created',
+        meta: { nowrap: true },
         accessorFn: (backup) => backup.createdAt,
         cell: ({ row }) =>
           row.original.createdAt
@@ -157,25 +148,8 @@ export default function BackupsPage() {
         </Alert>
       )}
 
-      <SelectField
-        label="Guest"
-        size="small"
-        value={guestFilter}
-        onChange={(e) => setGuestFilter(e.target.value)}
-        sx={{ width: 260, mb: 2 }}
-      >
-        <MenuItem value="">
-          <em>All guests</em>
-        </MenuItem>
-        {guests.map((guest) => (
-          <MenuItem key={guest} value={guest}>
-            {guest}
-          </MenuItem>
-        ))}
-      </SelectField>
-
       <DataTable
-        rows={shown}
+        rows={backups}
         columns={columns}
         getRowId={(backup) => `${backup.hypervisorId}/${backup.id}`}
         initialSort={[{ id: 'createdAt', desc: true }]}

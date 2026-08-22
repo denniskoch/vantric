@@ -70,6 +70,7 @@ export default function CloudImagesPage() {
       {
         id: 'createdAt',
         header: 'Uploaded',
+        meta: { nowrap: true },
         accessorFn: (image) => image.createdAt,
         cell: ({ row }) =>
           row.original.createdAt
