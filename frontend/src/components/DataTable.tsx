@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react'
 import {
+  Box,
   Checkbox,
+  IconButton,
+  InputBase,
   Paper,
   Table,
   TableBody,
@@ -11,9 +14,12 @@ import {
   TableRow,
   TableSortLabel,
 } from '@mui/material'
+import ClearIcon from '@mui/icons-material/Clear'
+import SearchIcon from '@mui/icons-material/Search'
 import {
   flexRender,
   getCoreRowModel,
+  getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
@@ -63,6 +69,8 @@ export default function DataTable<T>({
   onSelectionChange,
   selectable,
   empty,
+  filterPlaceholder = 'Filter',
+  searchable = true,
   perPageOptions = [15, 30, 45],
 }: {
   rows: T[]
@@ -76,9 +84,13 @@ export default function DataTable<T>({
   /** False disables the boxes without removing the column, e.g. for a viewer. */
   selectable?: boolean
   empty?: ReactNode
+  /** Wording for the filter box; the column names are a good hint. */
+  filterPlaceholder?: string
+  searchable?: boolean
   perPageOptions?: number[]
 }) {
   const [sorting, setSorting] = useState<SortingState>(initialSort ?? [])
+  const [filter, setFilter] = useState('')
   const selectionEnabled = Boolean(onSelectionChange)
 
   // BLANKS SORT LAST, BOTH WAYS, and this is the only place that can
@@ -115,8 +127,9 @@ export default function DataTable<T>({
     data: rows,
     columns: normalised,
     getRowId,
-    state: { sorting, rowSelection },
+    state: { sorting, rowSelection, globalFilter: filter },
     onSortingChange: setSorting,
+    onGlobalFilterChange: setFilter,
     enableRowSelection: selectionEnabled && selectable !== false,
     onRowSelectionChange: (updater) => {
       if (!onSelectionChange) return
@@ -125,6 +138,7 @@ export default function DataTable<T>({
     },
     defaultColumn: { sortUndefined: 'last' },
     getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: perPageOptions[0] } },
@@ -135,6 +149,37 @@ export default function DataTable<T>({
 
   return (
     <TableContainer component={Paper} variant="outlined">
+      {/* No box of its own: the strip above the header IS the input,
+          so the filter reads as part of the table rather than a control
+          parked on top of it. The rule underneath is what separates it
+          from the header row. */}
+      {searchable && (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            px: 1.5,
+            py: 0.5,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          <SearchIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+          <InputBase
+            placeholder={filterPlaceholder}
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            sx={{ flex: 1, fontSize: 13 }}
+            inputProps={{ 'aria-label': filterPlaceholder }}
+          />
+          {filter && (
+            <IconButton size="small" onClick={() => setFilter('')} aria-label="Clear filter">
+              <ClearIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          )}
+        </Box>
+      )}
       <Table size="small">
         <TableHead>
           {table.getHeaderGroups().map((group) => (
@@ -198,16 +243,19 @@ export default function DataTable<T>({
               ))}
             </TableRow>
           ))}
-          {page.length === 0 && empty && (
+          {page.length === 0 && (empty || filter) && (
             <TableRow>
               <TableCell colSpan={columnCount} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                {empty}
+                {/* "Nothing matches" and "there is nothing" are different
+                    answers, and showing the second one to somebody who
+                    typed a filter reads as data having disappeared. */}
+                {filter ? `Nothing matches "${filter}".` : empty}
               </TableCell>
             </TableRow>
           )}
         </TableBody>
       </Table>
-      {rows.length > 0 && <Pagination table={table} options={perPageOptions} />}
+      {table.getRowCount() > 0 && <Pagination table={table} options={perPageOptions} />}
     </TableContainer>
   )
 }
