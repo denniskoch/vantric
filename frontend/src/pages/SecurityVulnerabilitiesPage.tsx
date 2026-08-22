@@ -1,18 +1,12 @@
-import { useState } from 'react'
+import { useMemo } from 'react'
+import DataTable from '../components/DataTable'
+import type { ColumnDef } from '@tanstack/react-table'
 import { Link as RouterLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   Alert,
   Box,
   Link,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TablePagination,
-  TableRow,
   Tooltip,
 } from '@mui/material'
 import { api } from '../api/client'
@@ -41,22 +35,123 @@ export default function SecurityVulnerabilitiesPage() {
     refetchInterval: 300000,
   })
 
-  const [page, setPage] = useState(0)
-  const [perPage, setPerPage] = useState(25)
-
   const all = data?.vulnerabilities ?? []
   // Only render what the service actually fills in.
   const hasScores = all.some((v) => v.cvssScore > 0)
   const hasEPSS = all.some((v) => v.epss > 0)
 
-  const rows = [...all].sort(
-    (a, b) =>
-      Number(b.knownExploited) - Number(a.knownExploited) ||
-      b.hosts - a.hosts ||
-      b.cvssScore - a.cvssScore ||
-      a.cve.localeCompare(b.cve),
-  )
-  const shown = rows.slice(page * perPage, page * perPage + perPage)
+
+  const columns = useMemo<ColumnDef<VulnerabilitySummary, unknown>[]>(() => {
+    const defs: ColumnDef<VulnerabilitySummary, unknown>[] = [
+      {
+        // The flame is its OWN column now. It used to sit inside the CVE
+        // cell behind a fixed 18px spacer, which existed only to stop
+        // three flames landing at three different offsets — a column
+        // does that by construction. It also makes "show me the
+        // exploited ones" a thing you can click rather than a fixed
+        // default you cannot change.
+        id: 'exploited',
+        header: () => (
+          <Tooltip title="Known exploited — sort to bring these together">
+            <LocalFireDepartmentIcon
+              fontSize="small"
+              aria-label="Known exploited"
+              sx={{ color: 'text.disabled', display: 'block' }}
+            />
+          </Tooltip>
+        ),
+        meta: { hug: true },
+        accessorFn: (v) => v.knownExploited,
+        cell: ({ row }) =>
+          row.original.knownExploited ? (
+            <Tooltip
+              title={
+                row.original.exploitedName
+                  ? `Exploitable — ${row.original.exploitedName}`
+                  : 'Exploitable — CISA lists this as one attackers have used'
+              }
+            >
+              <LocalFireDepartmentIcon
+                fontSize="small"
+                aria-label="Known exploited"
+                sx={{ color: 'error.main', display: 'block' }}
+              />
+            </Tooltip>
+          ) : null,
+      },
+      {
+        id: 'cve',
+        header: 'CVE',
+        // An identifier must not wrap: broken across two lines it stops
+        // being scannable, which is the only thing it's good for.
+        meta: { nowrap: true },
+        accessorFn: (v) => v.cve,
+        cell: ({ row }) => (
+          <Link
+            component={RouterLink}
+            to={`/security/vulnerabilities/${encodeURIComponent(row.original.cve)}`}
+            underline="hover"
+          >
+            {row.original.cve}
+          </Link>
+        ),
+      },
+    ]
+    if (hasScores) {
+      defs.push({
+        id: 'severity',
+        header: 'Severity',
+        meta: {
+          nowrap: true,
+          filterText: (v) => severityLabel(v.severity, v.cvssScore) ?? 'not scored',
+        },
+        // NOT SCORED IS NOT A LOW SCORE. severityLabel returns null when
+        // the service has no score, and undefined here sorts last in
+        // both directions — so a descending sort doesn't open with a
+        // screenful of flaws nobody has assessed, and an ascending one
+        // doesn't rank them safer than a real LOW.
+        accessorFn: (v) => (severityLabel(v.severity, v.cvssScore) ? v.cvssScore : undefined),
+        cell: ({ row }) =>
+          severityLabel(row.original.severity, row.original.cvssScore) ? (
+            <Box component="span" sx={{ color: severityColor[row.original.severity] ?? '#5f6368' }}>
+              {severityLabel(row.original.severity, row.original.cvssScore)}
+            </Box>
+          ) : (
+            <Tooltip title="No score from the inventory service, and the vulnerability database hasn't been asked yet.">
+              <Box component="span" sx={{ color: 'text.disabled' }}>
+                Not scored
+              </Box>
+            </Tooltip>
+          ),
+      })
+    }
+    defs.push({
+      id: 'description',
+      header: 'Description',
+      // What Describe renders, so searching for "log4j" finds the row
+      // whose description says so — the reason this page has a filter.
+      accessorFn: (v) => v.exploitedName || v.description,
+      cell: ({ row }) => <Describe v={row.original} />,
+    })
+    defs.push({
+      id: 'hosts',
+      header: 'Affected hosts',
+      meta: { align: 'right' },
+      accessorFn: (v) => v.hosts || undefined,
+      cell: ({ row }) => row.original.hosts || '—',
+    })
+    if (hasEPSS) {
+      defs.push({
+        id: 'epss',
+        header: 'Exploit probability',
+        meta: { align: 'right', nowrap: true },
+        accessorFn: (v) => (v.epss > 0 ? v.epss : undefined),
+        cell: ({ row }) =>
+          row.original.epss > 0 ? `${(row.original.epss * 100).toFixed(1)}%` : '—',
+      })
+    }
+    return defs
+  }, [hasScores, hasEPSS])
 
   return (
     <Box sx={{ p: 3 }}>
@@ -93,130 +188,29 @@ export default function SecurityVulnerabilitiesPage() {
         </Alert>
       )}
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>CVE</TableCell>
-              {/* Ahead of the description: how bad it is decides
-                  whether you read the sentence next to it. */}
-              {hasScores && <TableCell>Severity</TableCell>}
-              {/* Replaces Detected, which answered "when did Fleet
-                  first see this" — true of every row, useful on almost
-                  none, and never the reason anyone opened this page. */}
-              <TableCell>Description</TableCell>
-              <TableCell align="right">Affected hosts</TableCell>
-              {hasEPSS && <TableCell align="right">Exploit probability</TableCell>}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {shown.map((v) => (
-              <TableRow key={v.cve} hover>
-                {/* An identifier must not wrap: broken across two
-                    lines it stops being scannable, which is the only
-                    thing it's good for. */}
-                <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                  {/* Stays in the console: who has it and what to
-                      upgrade is the question, and NVD is a click away
-                      from there. */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {/* A flame rather than the word: this is the one
-                        mark on the page that means "someone is using
-                        this right now", and at a glance a shape carries
-                        that faster than a chip full of text. The tooltip
-                        keeps the meaning available, and carries CISA's
-                        own name for the flaw where there is one — so
-                        the icon is a pointer, never the only telling.
-
-                        LEADING, IN A FIXED SLOT that's empty when there
-                        is no flame — the same spacer the OS marks use.
-                        Trailing the id, it landed wherever that id
-                        happened to end, so three flames sat at three
-                        different offsets and the ids they belonged to
-                        jogged left and right. Both line up now.
-
-                        display:block because an inline SVG drags
-                        descender space into a 28px row. */}
-                    <Box sx={{ width: 18, flexShrink: 0 }}>
-                      {v.knownExploited && (
-                        <Tooltip
-                          title={
-                            v.exploitedName
-                              ? `Exploitable — ${v.exploitedName}`
-                              : "Exploitable — CISA lists this as one attackers have used"
-                          }
-                        >
-                          <LocalFireDepartmentIcon
-                            fontSize="small"
-                            aria-label="Known exploited"
-                            sx={{ color: 'error.main', display: 'block' }}
-                          />
-                        </Tooltip>
-                      )}
-                    </Box>
-                    <Link
-                      component={RouterLink}
-                      to={`/security/vulnerabilities/${encodeURIComponent(v.cve)}`}
-                      underline="hover"
-                    >
-                      {v.cve}
-                    </Link>
-                  </Box>
-                </TableCell>
-                {hasScores && (
-                  <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                    {severityLabel(v.severity, v.cvssScore) ? (
-                      <Box component="span" sx={{ color: severityColor[v.severity] ?? '#5f6368' }}>
-                        {severityLabel(v.severity, v.cvssScore)}
-                      </Box>
-                    ) : (
-                      <Tooltip title="No score from the inventory service, and the vulnerability database hasn't been asked yet.">
-                        <Box component="span" sx={{ color: 'text.disabled' }}>
-                          Not scored
-                        </Box>
-                      </Tooltip>
-                    )}
-                  </TableCell>
-                )}
-                <TableCell sx={{ maxWidth: 460 }}>
-                  <Describe v={v} />
-                </TableCell>
-                <TableCell align="right">{v.hosts || '—'}</TableCell>
-                {hasEPSS && (
-                  <TableCell align="right">
-                    {v.epss > 0 ? `${(v.epss * 100).toFixed(1)}%` : '—'}
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
-            {rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                  {isLoading
-                    ? 'Loading…'
-                    : data?.configured && data.supported
-                      ? 'No known vulnerabilities across your machines.'
-                      : 'Nothing to show.'}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      {rows.length > 0 && (
-        <TablePagination
-          component="div"
-          count={rows.length}
-          page={page}
-          onPageChange={(_, next) => setPage(next)}
-          rowsPerPage={perPage}
-          rowsPerPageOptions={[25, 50, 100]}
-          onRowsPerPageChange={(e) => {
-            setPerPage(Number(e.target.value))
-            setPage(0)
-          }}
-        />
-      )}
+      <DataTable
+        rows={all}
+        columns={columns}
+        getRowId={(v) => v.cve}
+        // The order this page has always opened in, now as a starting
+        // point rather than a fixture: exploited first, then the ones on
+        // the most machines, then the worst scored, then by id so the
+        // list is stable between polls.
+        initialSort={[
+          { id: 'exploited', desc: true },
+          { id: 'hosts', desc: true },
+          { id: 'severity', desc: true },
+          { id: 'cve', desc: false },
+        ]}
+        filterPlaceholder="Filter by CVE, description or severity"
+        empty={
+          isLoading
+            ? 'Loading…'
+            : data?.configured && data.supported
+              ? 'No known vulnerabilities across your machines.'
+              : 'Nothing to show.'
+        }
+      />
     </Box>
   )
 }
