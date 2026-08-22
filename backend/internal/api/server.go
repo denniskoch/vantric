@@ -117,6 +117,8 @@ type Server struct {
 	// beside it.
 	dataDir string
 	ssh     SSHOptions
+	// guacdAddr is the desktop gateway — see internal/guac.
+	guacdAddr string
 	// ops tracks the work that outlives its request — see operations.go.
 	ops *opRegistry
 }
@@ -145,6 +147,7 @@ func New(
 	siteURL string,
 	trustedProxies string,
 	sshOpts SSHOptions,
+	guacdAddr string,
 ) *Server {
 	client := nvd.New()
 	srv := &Server{
@@ -157,6 +160,7 @@ func New(
 		nvd:               client,
 		kev:               kev.New(),
 		log:               log, staticDir: staticDir, dataDir: dataDir, siteURL: siteURL, ssh: sshOpts,
+		guacdAddr:      guacdAddr,
 		ops:            newOpRegistry(),
 		trustedProxies: parseTrustedProxies(trustedProxies, log),
 		signIns:        newSignInLimiter(),
@@ -292,6 +296,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 			r.Get("/sftp/download", s.sftpDownload)
 			r.Get("/backups", s.instanceBackups)
 			r.Get("/ssh", s.instanceSSH)
+			r.Get("/rdp", s.instanceRDP)
 			r.Delete("/", s.deleteInstance)
 			r.Post("/start", s.instanceAction("start"))
 			r.Post("/stop", s.instanceAction("stop"))

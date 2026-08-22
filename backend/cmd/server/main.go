@@ -98,7 +98,7 @@ func main() {
 		networkRegistry, inventoryRegistry, storageRegistry, aiRegistry, aiAccountRegistry,
 		log, cfg.StaticDir, dataDir, cfg.SiteURL,
 		cfg.TrustedProxies,
-		api.SSHOptions{Provision: cfg.SSH.Provision, Sudo: cfg.SSH.ProvisionSudo})
+		api.SSHOptions{Provision: cfg.SSH.Provision, Sudo: cfg.SSH.ProvisionSudo}, cfg.GuacdAddr)
 	reconciler := api.NewReconciler(st, registry, log, 2*time.Second)
 	go reconciler.Run(ctx)
 	// Fills in what each CVE actually is, slowly, in NVD's own time.

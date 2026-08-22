@@ -41,7 +41,7 @@ func TestNewServerAnswersOnTheRoutesThatRunBeforeASession(t *testing.T) {
 		identity.NewRegistry(), network.NewRegistry(), inventory.NewRegistry(),
 		storage.NewRegistry(), ai.NewRegistry(), aiaccount.NewRegistry(),
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
-		"", dir, "", "", SSHOptions{})
+		"", dir, "", "", SSHOptions{}, "guacd:4822")
 	router := srv.Router()
 
 	cases := []struct {

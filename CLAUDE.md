@@ -1343,8 +1343,9 @@ Surface the daily 90% here and link out for the rest.
 ## Config
 
 ENVIRONMENT ONLY — there is no config file. `internal/config` reads
-ten `VANTRIC_*` variables (listen, db driver/dsn, site url, static dir,
-trusted proxies, two ssh toggles, two bootstrap-account settings) and
+eleven `VANTRIC_*` variables (listen, db driver/dsn, site url, static dir,
+trusted proxies, two ssh toggles, the guacd address, two
+bootstrap-account settings) and
 every one has a working default, so running with nothing set is
 supported. TRUSTED_PROXIES defaults to trusting NOTHING: a forwarding
 header is believed only from a peer named there, so the audit log

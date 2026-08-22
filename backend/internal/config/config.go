@@ -42,6 +42,13 @@ type Config struct {
 	TrustedProxies string
 	SSH            SSH
 	Auth           Auth
+	// GuacdAddr is where the desktop gateway listens. It is the one
+	// address here that names another container rather than a thing in
+	// the lab, because guacd is part of this deployment: the default is
+	// what the compose file calls it. Point it elsewhere if you run one
+	// already — and remember guacd authenticates nothing, so wherever
+	// it lives, only this console should be able to reach it.
+	GuacdAddr string
 }
 
 type Database struct {
@@ -76,9 +83,10 @@ type Auth struct {
 // running with nothing set is a supported way to start.
 func Load() Config {
 	cfg := Config{
-		Listen:   "127.0.0.1:8080",
-		Database: Database{Driver: "sqlite", DSN: "vantric.db"},
-		SSH:      SSH{Provision: true},
+		Listen:    "127.0.0.1:8080",
+		Database:  Database{Driver: "sqlite", DSN: "vantric.db"},
+		SSH:       SSH{Provision: true},
+		GuacdAddr: "guacd:4822",
 	}
 	overrideStr(&cfg.Listen, "LISTEN")
 	overrideStr(&cfg.Database.Driver, "DB_DRIVER")
@@ -88,6 +96,7 @@ func Load() Config {
 	overrideStr(&cfg.TrustedProxies, "TRUSTED_PROXIES")
 	overrideBool(&cfg.SSH.Provision, "SSH_PROVISION")
 	overrideBool(&cfg.SSH.ProvisionSudo, "SSH_PROVISION_SUDO")
+	overrideStr(&cfg.GuacdAddr, "GUACD_ADDR")
 	overrideStr(&cfg.Auth.BootstrapEmail, "AUTH_BOOTSTRAP_EMAIL")
 	overrideStr(&cfg.Auth.BootstrapPassword, "AUTH_BOOTSTRAP_PASSWORD")
 	return cfg
