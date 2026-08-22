@@ -141,10 +141,7 @@ export default function BackupsPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <PageHeader
-        title="Backups"
-        description="Guest backup archives on your datastores, newest first."
-      />
+      <PageHeader title="Backups" />
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
