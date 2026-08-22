@@ -29,6 +29,7 @@ export default function ConnectButton({
   variant?: 'compact' | 'outlined'
 }) {
   const [menu, setMenu] = useState<null | HTMLElement>(null)
+  const [rdpMenu, setRdpMenu] = useState<null | HTMLElement>(null)
   const { canEdit } = usePermissions()
   const connection = connectionFor(instance.osType, instance.internalIp, instance.name)
   const running = instance.status === 'RUNNING'
@@ -42,6 +43,15 @@ export default function ConnectButton({
       connection.href,
       `ssh-${instance.name}`,
       'width=1024,height=640,menubar=no,toolbar=no,location=no,status=no',
+    )
+  }
+
+  // A desktop wants more room than a terminal, and the same detachment.
+  const openDesktop = () => {
+    window.open(
+      `/compute/instances/${encodeURIComponent(instance.name)}/rdp`,
+      `rdp-${instance.name}`,
+      'width=1440,height=900,menubar=no,toolbar=no,location=no,status=no',
     )
   }
 
@@ -99,32 +109,72 @@ export default function ConnectButton({
 
   // RDP has no proxy here, so it stays a single button handing the URI
   // to whatever client the desktop registered.
+  // RDP is proxied now, so it behaves like SSH: the button opens a
+  // desktop in this console and the caret keeps the handoff to whatever
+  // client the machine registered, for the times you want a real one.
   if (connection.kind === 'RDP') {
-    const button = (
-      <Tooltip title={running ? connection.command : 'Instance is not running'}>
-        <span>
-          <Button
-            variant={outlined ? 'outlined' : 'text'}
-            size="small"
-            href={connection.href}
-            disabled={!running}
-            sx={outlined ? undefined : { minWidth: 0, px: 1 }}
-          >
-            RDP
-          </Button>
-        </span>
-      </Tooltip>
+    const menu = (
+      <Menu anchorEl={rdpMenu} open={Boolean(rdpMenu)} onClose={() => setRdpMenu(null)}>
+        <MenuItem
+          onClick={() => {
+            setRdpMenu(null)
+            openDesktop()
+          }}
+        >
+          Open in browser window
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setRdpMenu(null)
+            window.location.href = connection.href
+          }}
+        >
+          Use another RDP client
+        </MenuItem>
+      </Menu>
     )
-    if (outlined) return button
-    // RDP has one way in, so its caret is dead — but the SLOT stays,
-    // because a column where some rows carry a caret and some don't is
-    // a column whose text starts in two different places. The disabled
-    // control also says there is nothing under it, which an absence
-    // leaves you to work out by comparing rows.
+    if (outlined) {
+      return (
+        <>
+          <ButtonGroup variant="outlined" size="small" disabled={!running}>
+            <Button onClick={openDesktop} sx={{ px: 2 }}>
+              RDP
+            </Button>
+            <Button
+              onClick={(e) => setRdpMenu(e.currentTarget)}
+              aria-label="Other ways to connect"
+              sx={{ px: 0.5, minWidth: 32 }}
+            >
+              <ArrowDropDownIcon fontSize="small" />
+            </Button>
+          </ButtonGroup>
+          {menu}
+        </>
+      )
+    }
     return (
       <Box sx={{ display: 'flex', alignItems: 'center' }}>
-        {button}
-        <CaretSlot disabled />
+        <Tooltip title={running ? 'Open a desktop' : 'Instance is not running'}>
+          <span>
+            <Button
+              size="small"
+              disabled={!running}
+              onClick={openDesktop}
+              sx={{ minWidth: 0, px: 1 }}
+            >
+              RDP
+            </Button>
+          </span>
+        </Tooltip>
+        <IconButton
+          size="small"
+          disabled={!running}
+          onClick={(e) => setRdpMenu(e.currentTarget)}
+          aria-label="Other ways to connect"
+        >
+          <ArrowDropDownIcon fontSize="small" />
+        </IconButton>
+        {menu}
       </Box>
     )
   }

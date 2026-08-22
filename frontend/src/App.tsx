@@ -5,6 +5,7 @@ import InstancesPage from './pages/InstancesPage'
 import CreateInstancePage from './pages/CreateInstancePage'
 import InstanceDetailPage from './pages/InstanceDetailPage'
 import InstanceSSHPage from './pages/InstanceSSHPage'
+import InstanceRDPPage from './pages/InstanceRDPPage'
 import SignInPage from './pages/SignInPage'
 import IAMUsersPage from './pages/IAMUsersPage'
 import IAMUserFormPage from './pages/IAMUserFormPage'
@@ -123,6 +124,7 @@ export default function App() {
       <Route path="/signin" element={<SignInPage />} />
       {/* Opened in its own window, so no shell around it. */}
       <Route path="/compute/instances/:name/ssh" element={<InstanceSSHPage />} />
+      <Route path="/compute/instances/:name/rdp" element={<InstanceRDPPage />} />
       <Route element={<Shell />}>
         {/* The console opens on the overview, not on a resource list. */}
         <Route path="/" element={<Navigate to="/overview" replace />} />
