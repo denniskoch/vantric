@@ -158,37 +158,47 @@ func (s *Server) instanceRDP(w http.ResponseWriter, r *http.Request) {
 	// verbatim: what arrives is framed by element, and re-encoding is
 	// how a partially-read instruction can't be forwarded as a whole
 	// one.
+	// WHAT ARRIVED, ON A CLOCK RATHER THAN A COUNT. A desktop that
+	// connects and draws nothing looks identical from both ends —
+	// guacd logs a clean session, the browser shows black — so "is it
+	// sending pictures at all" has no answer anywhere.
 	//
-	// ONE LINE SAYS WHAT ARRIVED. A desktop that connects and draws
-	// nothing looks identical from both ends — guacd logs a clean
-	// session and the browser shows black — so the question "is it
-	// sending pictures at all" has no answer anywhere. Summarising the
-	// opcodes of the opening burst answers it once per session without
-	// logging a stream of graphics.
-	inst2Name := inst.Name
+	// Counting to a threshold was the wrong way to ask: a session that
+	// draws nothing may never reach it, so silence meant both "healthy
+	// and quiet" and "stalled immediately". A timer always answers, and
+	// the tally at close always answers, whatever the volume.
+	var tallyMu sync.Mutex
+	seen := map[string]int{}
+	tally := func() string {
+		tallyMu.Lock()
+		defer tallyMu.Unlock()
+		return summarise(seen)
+	}
+
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		seen := map[string]int{}
-		counted := 0
+		defer func() { s.log.Info("rdp stream ended", "instance", inst.Name, "opcodes", tally()) }()
 		for {
-			inst, err := session.Read()
+			instruction, err := session.Read()
 			if err != nil {
 				return
 			}
-			if counted < openingBurst {
-				seen[inst.Opcode]++
-				counted++
-				if counted == openingBurst {
-					s.log.Info("rdp stream opened",
-						"instance", inst2Name, "opcodes", summarise(seen))
-				}
-			}
-			if err := write(websocket.TextMessage, []byte(inst.String())); err != nil {
+			tallyMu.Lock()
+			seen[instruction.Opcode]++
+			tallyMu.Unlock()
+			if err := write(websocket.TextMessage, []byte(instruction.String())); err != nil {
 				return
 			}
 		}
 	}()
+
+	// A snapshot early enough to describe the opening of the session,
+	// for the case where it stays open and black.
+	opening := time.AfterFunc(3*time.Second, func() {
+		s.log.Info("rdp stream opening", "instance", inst.Name, "opcodes", tally())
+	})
+	defer opening.Stop()
 
 	// A desktop can sit untouched for a long time and a tunnel between
 	// here and the browser is free to reap a socket that says nothing,
@@ -241,11 +251,6 @@ func screenFrom(r *http.Request) guac.Screen {
 	}
 	return screen
 }
-
-// openingBurst is how many instructions to characterise before falling
-// silent. Enough to include a first screenful, few enough to be one
-// line rather than a log of the session.
-const openingBurst = 400
 
 // summarise renders the opcode tally busiest first, so "img" and "blob"
 // being absent is as visible as their being present.
