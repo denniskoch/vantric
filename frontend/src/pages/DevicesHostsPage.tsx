@@ -86,6 +86,10 @@ function HostsPage({ virtual }: { virtual: boolean }) {
       {
         id: 'os',
         header: 'Operating system',
+        // "macOS 26.2" and "Debian GNU/Linux 13 (trixie)" are one value
+        // each, and breaking them after the icon leaves a stray version
+        // on its own line.
+        meta: { nowrap: true },
         accessorFn: (host) => host.osVersion || host.platform,
         cell: ({ row }) => (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
