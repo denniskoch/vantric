@@ -20,49 +20,74 @@ export interface GuacCredentials {
   domain?: string
 }
 
+/**
+ * ITS METHODS ARE ASSIGNED, NOT DECLARED, AND THAT IS NOT A STYLE
+ * CHOICE. Guacamole.Tunnel is a constructor function that sets
+ * `this.connect`, `this.disconnect` and `this.sendMessage` to empty
+ * stubs as OWN properties. An own property shadows a prototype method,
+ * so a subclass that declares `connect()` the ordinary way has it
+ * silently replaced the moment super() runs — the client then calls a
+ * function that does nothing, the socket is never opened, and there is
+ * no error anywhere because nothing failed. Assigning after super() is
+ * what actually overrides them.
+ */
 export class FirstFrameTunnel extends Guacamole.Tunnel {
   private socket: WebSocket | null = null
-  private readonly parser = new Guacamole.Parser()
-
-  private readonly url: string
-  private readonly credentials: GuacCredentials
+  // The client starts talking the moment connect() returns, which is
+  // before the socket has opened. Held rather than dropped: what it
+  // sends first is the state it expects the far end to already have.
+  private pending: string[] = []
 
   constructor(url: string, credentials: GuacCredentials) {
     super()
-    this.url = url
-    this.credentials = credentials
-    this.parser.oninstruction = (opcode, args) => this.oninstruction?.(opcode, args)
-  }
 
-  connect(): void {
-    this.setState(Guacamole.Tunnel.State.CONNECTING)
-    const socket = new WebSocket(this.url)
-    this.socket = socket
+    const parser = new Guacamole.Parser()
+    parser.oninstruction = (opcode, args) => this.oninstruction?.(opcode, args)
 
-    socket.onopen = () => {
-      socket.send(JSON.stringify(this.credentials))
-      this.setState(Guacamole.Tunnel.State.OPEN)
+    this.connect = () => {
+      this.setState(Guacamole.Tunnel.State.CONNECTING)
+      const socket = new WebSocket(url)
+      this.socket = socket
+
+      socket.onopen = () => {
+        // Credentials first, always: the backend reads exactly one
+        // frame before it does anything else.
+        socket.send(JSON.stringify(credentials))
+        for (const message of this.pending) socket.send(message)
+        this.pending = []
+        this.setState(Guacamole.Tunnel.State.OPEN)
+      }
+      socket.onmessage = (event) => parser.receive(String(event.data))
+      socket.onclose = () => this.setState(Guacamole.Tunnel.State.CLOSED)
+      socket.onerror = () => {
+        // 519 is Guacamole's "upstream unavailable". A browser never
+        // says why a socket failed — that is a browser rule, not a gap
+        // here — so this is the honest amount of detail.
+        this.onerror?.(
+          Object.assign(new Guacamole.Status(), {
+            code: 519,
+            message: 'The connection closed.',
+          }),
+        )
+        this.setState(Guacamole.Tunnel.State.CLOSED)
+      }
     }
-    socket.onmessage = (event) => this.parser.receive(String(event.data))
-    socket.onclose = () => this.setState(Guacamole.Tunnel.State.CLOSED)
-    socket.onerror = () => {
-      // 519 is Guacamole's "upstream unavailable". The socket itself
-      // never says why it failed — that's a browser rule, not a gap
-      // here — so this is the honest amount of detail.
-      this.onerror?.(Object.assign(new Guacamole.Status(), { code: 519, message: 'The connection closed.' }))
+
+    this.disconnect = () => {
+      this.socket?.close()
+      this.socket = null
+      this.pending = []
       this.setState(Guacamole.Tunnel.State.CLOSED)
     }
-  }
 
-  disconnect(): void {
-    this.socket?.close()
-    this.socket = null
-    this.setState(Guacamole.Tunnel.State.CLOSED)
-  }
-
-  sendMessage(...elements: unknown[]): void {
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return
-    this.socket.send(encode(elements))
+    this.sendMessage = (...elements: unknown[]) => {
+      const message = encode(elements)
+      if (this.socket?.readyState === WebSocket.OPEN) {
+        this.socket.send(message)
+        return
+      }
+      if (this.socket) this.pending.push(message)
+    }
   }
 }
 
