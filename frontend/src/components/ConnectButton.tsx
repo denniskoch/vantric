@@ -62,8 +62,11 @@ export default function ConnectButton({
     }
     return (
       <Tooltip title={why}>
-        <Box component="span" sx={{ color: 'text.secondary' }}>
-          —
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Box component="span" sx={{ color: 'text.secondary' }}>
+            —
+          </Box>
+          <CaretSlot />
         </Box>
       </Tooltip>
     )
@@ -84,8 +87,11 @@ export default function ConnectButton({
     }
     return (
       <Tooltip title={unavailable}>
-        <Box component="span" sx={{ color: 'text.secondary' }}>
-          —
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Box component="span" sx={{ color: 'text.secondary' }}>
+            —
+          </Box>
+          <CaretSlot />
         </Box>
       </Tooltip>
     )
@@ -94,7 +100,7 @@ export default function ConnectButton({
   // RDP has no proxy here, so it stays a single button handing the URI
   // to whatever client the desktop registered.
   if (connection.kind === 'RDP') {
-    return (
+    const button = (
       <Tooltip title={running ? connection.command : 'Instance is not running'}>
         <span>
           <Button
@@ -108,6 +114,18 @@ export default function ConnectButton({
           </Button>
         </span>
       </Tooltip>
+    )
+    if (outlined) return button
+    // RDP has one way in, so its caret is dead — but the SLOT stays,
+    // because a column where some rows carry a caret and some don't is
+    // a column whose text starts in two different places. The disabled
+    // control also says there is nothing under it, which an absence
+    // leaves you to work out by comparing rows.
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        {button}
+        <CaretSlot disabled />
+      </Box>
     )
   }
 
@@ -167,5 +185,29 @@ export default function ConnectButton({
       </IconButton>
       {items}
     </Box>
+  )
+}
+
+/**
+ * The caret's place in the Connect column, whether or not there is a
+ * caret to put in it.
+ *
+ * `disabled` draws it greyed and dead; the default draws nothing at
+ * all but still takes the width, so a row with no way in lines up with
+ * the rows that have one. Rendering the same control either way is
+ * what guarantees the widths match — a hand-measured spacer is a
+ * number that goes stale the first time the icon size changes.
+ */
+function CaretSlot({ disabled }: { disabled?: boolean }) {
+  return (
+    <IconButton
+      size="small"
+      disabled
+      aria-hidden
+      tabIndex={-1}
+      sx={disabled ? undefined : { visibility: 'hidden' }}
+    >
+      <ArrowDropDownIcon fontSize="small" />
+    </IconButton>
   )
 }
