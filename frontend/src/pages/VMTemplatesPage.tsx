@@ -72,6 +72,7 @@ export default function VMTemplatesPage() {
         // sorting on tpl.name would order by a filename the eye reads
         // second. See osIdentity.
         header: 'Name',
+        meta: { nowrap: true },
         accessorFn: (tpl) => templateIdentity(tpl).title,
         cell: ({ row }) => {
           const id = templateIdentity(row.original)
@@ -108,19 +109,11 @@ export default function VMTemplatesPage() {
           )
         },
       },
-      { id: 'id', header: 'ID', accessorFn: (tpl) => tpl.id },
       {
         id: 'node',
         header: 'Node',
         accessorFn: (tpl) => tpl.node,
         cell: ({ row }) => row.original.node || '—',
-      },
-      {
-        id: 'clones',
-        header: 'Instances',
-        accessorFn: (tpl) => clonesOf(tpl) || undefined,
-        meta: { align: 'right' },
-        cell: ({ row }) => clonesOf(row.original) || '—',
       },
       {
         id: 'createdAt',
@@ -158,7 +151,7 @@ export default function VMTemplatesPage() {
           ) : null,
       },
     ],
-    [canEdit, clonesOf],
+    [canEdit],
   )
 
   return (
