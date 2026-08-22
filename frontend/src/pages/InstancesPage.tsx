@@ -133,6 +133,9 @@ export default function InstancesPage() {
         id: 'connect',
         header: 'Connect',
         enableSorting: false,
+        // Hugs its content at the right, so the slack goes to the name
+        // rather than stranding the button in the middle of the row.
+        meta: { align: 'right', hug: true },
         cell: ({ row }) => <ConnectButton instance={row.original} />,
       },
       {
