@@ -950,6 +950,19 @@ export interface AIVirtualKey {
   active: boolean
   access: { provider: string; models: string[] }[]
   createdAt: string
+  /** What the key has actually done. Absent where the gateway wouldn't
+   *  say — best effort, so a key without figures is still listed. */
+  activity?: {
+    requests: number
+    successRate: number
+    /** AN ESTIMATE, and labelled as one wherever shown: the gateway
+     *  prices from its own list, and a router picks an upstream per
+     *  request, so the real charge can differ either way. */
+    cost: number
+    /** Zero time where the key has never been used — a finding, not a
+     *  blank. */
+    lastUsed: string
+  }
 }
 
 /**

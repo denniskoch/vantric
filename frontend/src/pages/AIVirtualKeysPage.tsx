@@ -50,6 +50,61 @@ export default function AIVirtualKeysPage() {
         ),
       },
       {
+        id: 'requests',
+        header: 'Requests',
+        meta: { align: 'right', nowrap: true },
+        accessorFn: (k) => k.activity?.requests,
+        cell: ({ row }) =>
+          row.original.activity ? row.original.activity.requests.toLocaleString() : '—',
+      },
+      {
+        id: 'successRate',
+        header: 'Succeeded',
+        meta: { align: 'right', nowrap: true },
+        accessorFn: (k) => k.activity?.requests ? k.activity.successRate : undefined,
+        // A percentage over no requests is not 0%, it is nothing.
+        cell: ({ row }) => {
+          const a = row.original.activity
+          if (!a || a.requests === 0) return '—'
+          return (
+            <Typography
+              component="span"
+              sx={{ fontSize: 13, color: a.successRate < 90 ? 'error.main' : undefined }}
+            >
+              {a.successRate.toFixed(1)}%
+            </Typography>
+          )
+        },
+      },
+      {
+        id: 'cost',
+        header: 'Cost (est.)',
+        meta: { align: 'right', nowrap: true },
+        accessorFn: (k) => k.activity?.cost,
+        cell: ({ row }) =>
+          row.original.activity ? `$${row.original.activity.cost.toFixed(2)}` : '—',
+      },
+      {
+        id: 'lastUsed',
+        header: 'Last used',
+        meta: { nowrap: true },
+        accessorFn: (k) => usedAt(k),
+        cell: ({ row }) => {
+          const at = usedAt(row.original)
+          if (!at) {
+            // Never used at all — a live credential issued to something
+            // that never called. Said in words, because a dash here
+            // reads as "we didn't look".
+            return (
+              <Typography component="span" sx={{ fontSize: 12, color: 'text.secondary' }}>
+                never used
+              </Typography>
+            )
+          }
+          return new Date(at).toLocaleDateString()
+        },
+      },
+      {
         id: 'access',
         header: 'Allowed providers',
         enableSorting: false,
@@ -87,14 +142,6 @@ export default function AIVirtualKeysPage() {
             </CellLines>
           ),
       },
-      {
-        id: 'createdAt',
-        header: 'Created',
-        meta: { nowrap: true },
-        accessorFn: (k) => k.createdAt,
-        cell: ({ row }) =>
-          row.original.createdAt ? new Date(row.original.createdAt).toLocaleDateString() : '—',
-      },
     ],
     [],
   )
@@ -103,8 +150,14 @@ export default function AIVirtualKeysPage() {
     <Box sx={{ p: 3 }}>
       <PageHeader
         title="Virtual keys"
-        description="The credentials your gateway issues to callers, and what each one may reach. The secrets stay in the gateway."
+        description="The credentials your gateway issues to callers, what each may reach, and what each has actually done."
       />
+
+      <Alert severity="info" sx={{ mb: 2 }}>
+        Cost is the gateway's own estimate, priced from its list. A router picks an
+        upstream per request, so what you were charged can be higher or lower — read it
+        as which caller is expensive, not as a bill.
+      </Alert>
 
       {error && (
         <Alert severity="warning" sx={{ mb: 2 }}>
@@ -117,10 +170,19 @@ export default function AIVirtualKeysPage() {
         columns={columns}
         getRowId={(k) => k.id}
         alignTop
-        initialSort={[{ id: 'name', desc: false }]}
+        initialSort={[{ id: 'requests', desc: true }]}
         filterPlaceholder="Filter by name or provider"
         empty={isLoading ? 'Loading…' : 'The gateway has issued no virtual keys.'}
       />
     </Box>
   )
+}
+
+/** The last use, or nothing. The gateway sends a zero time for a key
+ *  that has never been used, which parses to year 1 rather than to an
+ *  absence — left alone it would render as 1/1/1. */
+function usedAt(key: AIVirtualKey): string | undefined {
+  const at = key.activity?.lastUsed
+  if (!at) return undefined
+  return new Date(at).getFullYear() > 1970 ? at : undefined
 }

@@ -261,6 +261,30 @@ type VirtualKey struct {
 	// Access is what this key may reach, per provider.
 	Access    []VirtualKeyAccess `json:"access"`
 	CreatedAt time.Time          `json:"createdAt"`
+	// Activity is nil where the gateway wouldn't say — best effort, so
+	// a key whose figures don't come back is a key listed without them
+	// rather than a page that fails.
+	Activity *VirtualKeyActivity `json:"activity,omitempty"`
+}
+
+// VirtualKeyActivity is what a key has actually done — the half the
+// gateway's own key list doesn't carry, and the reason this console
+// asks for it: the gateway lists keys and the log lists callers, and
+// nothing joins the two.
+type VirtualKeyActivity struct {
+	Requests    int64   `json:"requests"`
+	SuccessRate float64 `json:"successRate"`
+	// Cost is AN ESTIMATE and must be labelled as one wherever it is
+	// shown. The gateway prices traffic from its own price list, and a
+	// router like OpenRouter picks an upstream per request on
+	// availability and other factors — so what was actually charged
+	// can be higher or lower than this. It is a guide to which caller
+	// is expensive, not a bill.
+	Cost float64 `json:"cost"`
+	// LastUsed is zero where the key has never been used at all, which
+	// is a finding rather than a blank: a credential issued to
+	// something that never called is one nobody is watching.
+	LastUsed time.Time `json:"lastUsed"`
 }
 
 type VirtualKeyAccess struct {

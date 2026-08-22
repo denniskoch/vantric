@@ -478,7 +478,59 @@ func (p *Provider) VirtualKeys(ctx context.Context) ([]ai.VirtualKey, error) {
 		}
 		out = append(out, key)
 	}
+	// What each key has DONE is two more calls apiece — the gateway has
+	// no by-virtual-key rollup, so the join is ours. Concurrent and
+	// best-effort, the same trade the per-provider keys make: this page
+	// isn't polled, and a key whose figures don't come back is listed
+	// without them rather than failing the page.
+	var wg sync.WaitGroup
+	for i := range out {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			out[i].Activity = p.keyActivity(ctx, out[i].ID)
+		}(i)
+	}
+	wg.Wait()
 	return out, nil
+}
+
+func (p *Provider) keyActivity(ctx context.Context, id string) *ai.VirtualKeyActivity {
+	filter := url.Values{"virtual_key_ids": {id}}
+
+	var stats struct {
+		TotalRequests int64   `json:"total_requests"`
+		SuccessRate   float64 `json:"success_rate"`
+		TotalCost     float64 `json:"total_cost"`
+	}
+	if err := p.get(ctx, "/api/logs/stats", filter, &stats); err != nil {
+		return nil
+	}
+	activity := &ai.VirtualKeyActivity{
+		Requests:    stats.TotalRequests,
+		SuccessRate: stats.SuccessRate,
+		Cost:        stats.TotalCost,
+	}
+	// A key with no requests has no last use to look up, and asking
+	// would be a call guaranteed to come back empty.
+	if activity.Requests == 0 {
+		return activity
+	}
+	newest := url.Values{
+		"virtual_key_ids": {id},
+		"limit":           {"1"},
+		"sort_by":         {"timestamp"},
+		"order":           {"desc"},
+	}
+	var page struct {
+		Logs []struct {
+			Timestamp string `json:"timestamp"`
+		} `json:"logs"`
+	}
+	if err := p.get(ctx, "/api/logs", newest, &page); err == nil && len(page.Logs) > 0 {
+		activity.LastUsed = parseTime(page.Logs[0].Timestamp)
+	}
+	return activity
 }
 
 func (p *Provider) Limits(ctx context.Context) ([]ai.Limit, error) {

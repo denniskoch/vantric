@@ -811,6 +811,23 @@ Surface the daily 90% here and link out for the rest.
   money. Upstream provider keys arrive already masked and are shown
   that way — a key is listed so it can be recognised, not copied. The
   rule is the WiFi passphrases Network never reads.
+- WHAT A KEY HAS DONE IS THE JOIN NOTHING ELSE MAKES. The gateway
+  lists the keys it issued and the log lists the callers it saw, and no
+  endpoint puts the two together — so the virtual keys page asks for
+  each key's requests, success rate, spend and last use itself, two
+  calls apiece, concurrent and best-effort. It answers the two
+  questions the key list alone can't: which service is costing money,
+  and which credential is issued to something that never calls.
+  NEVER USED IS A FINDING, not a blank, and the gateway says it with a
+  zero timestamp that parses to year 1 — left alone it renders as
+  1/1/1, so it is checked for and written out. A success rate over no
+  requests is likewise "—" rather than 0%.
+  COST HERE IS AN ESTIMATE AND THE PAGE SAYS SO. The gateway prices
+  traffic from its own list, and a router like OpenRouter picks an
+  upstream per request on availability and other factors, so the real
+  charge differs either way. It answers "which caller is expensive",
+  never "what you owe" — which is also why the balance at the provider
+  (below) is a different question worth asking separately.
 - WHAT'S LEFT AT A PROVIDER IS A SEPARATE SPLIT, the ninth:
   `internal/aiaccount.Provider`, because a gateway account and a
   provider account are different things holding different credentials.
