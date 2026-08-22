@@ -885,6 +885,41 @@ export interface AIRequestQuery {
   until?: string
 }
 
+/**
+ * A model provider's own account — what's LEFT where you pay, which
+ * the gateway in front of them can't know.
+ *
+ * `kind` matters: providers don't answer the same question. OpenRouter
+ * reports credits in dollars, ElevenLabs an allowance in characters,
+ * and some report only what's been spent. A number without its kind
+ * and unit beside it is a number to argue about.
+ */
+export interface AIAccountBalance {
+  kind: 'credits' | 'quota' | 'spend'
+  unit: string
+  remaining?: number
+  used: number
+  granted: number
+  asOf: string
+}
+
+export interface AIAccount {
+  id: string
+  name: string
+  type: string
+  createdAt: string
+  hasKey: boolean
+  status: string
+  balance?: AIAccountBalance
+  error?: string
+}
+
+export interface AIAccountRequest {
+  name: string
+  type: string
+  key?: string
+}
+
 /** One change, and the account that made it. */
 export interface AuditEntry {
   id: string
@@ -1810,6 +1845,14 @@ export const api = {
   listFavorites: () => request<string[]>('/favorites'),
   setFavorites: (ids: string[]) =>
     request<string[]>('/favorites', { method: 'PUT', body: JSON.stringify(ids) }),
+
+  listAIAccountTypes: () => request<string[]>('/ai/account-types'),
+  listAIAccounts: () => request<AIAccount[]>('/ai/accounts'),
+  createAIAccount: (body: AIAccountRequest) =>
+    request<AIAccount>('/ai/accounts', { method: 'POST', body: JSON.stringify(body) }),
+  updateAIAccount: (id: string, body: AIAccountRequest) =>
+    request<AIAccount>(`/ai/accounts/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteAIAccount: (id: string) => request<void>(`/ai/accounts/${id}`, { method: 'DELETE' }),
 
   listAIGatewayTypes: () => request<string[]>('/ai/gateway-types'),
   listAIGateways: () => request<AIGateway[]>('/ai/gateways'),

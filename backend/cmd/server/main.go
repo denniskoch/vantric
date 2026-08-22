@@ -13,6 +13,8 @@ import (
 
 	"vantric/internal/ai"
 	aifactory "vantric/internal/ai/factory"
+	"vantric/internal/aiaccount"
+	aiaccountfactory "vantric/internal/aiaccount/factory"
 	"vantric/internal/api"
 	"vantric/internal/config"
 	"vantric/internal/database"
@@ -85,13 +87,16 @@ func main() {
 	loadInventoryRegistry(ctx, st, inventoryRegistry, log)
 	aiRegistry := ai.NewRegistry()
 	loadAIRegistry(ctx, st, aiRegistry, log)
+	aiAccountRegistry := aiaccount.NewRegistry()
+	loadAIAccountRegistry(ctx, st, aiAccountRegistry, log)
 	storageRegistry := storage.NewRegistry()
 	loadStorageRegistry(ctx, st, storageRegistry, log)
 
 	// The console's SSH key lives beside the database.
 	dataDir := filepath.Dir(cfg.Database.DSN)
 	server := api.New(st, registry, dnsRegistry, dbRegistry, identityRegistry,
-		networkRegistry, inventoryRegistry, storageRegistry, aiRegistry, log, cfg.StaticDir, dataDir, cfg.SiteURL,
+		networkRegistry, inventoryRegistry, storageRegistry, aiRegistry, aiAccountRegistry,
+		log, cfg.StaticDir, dataDir, cfg.SiteURL,
 		cfg.TrustedProxies,
 		api.SSHOptions{Provision: cfg.SSH.Provision, Sudo: cfg.SSH.ProvisionSudo})
 	reconciler := api.NewReconciler(st, registry, log, 2*time.Second)
@@ -230,6 +235,23 @@ func loadNetworkRegistry(ctx context.Context, st *store.Store, registry *network
 		registry.Set(providers[i].ID, provider)
 	}
 	log.Info("network registry loaded", "providers", len(providers))
+}
+
+func loadAIAccountRegistry(ctx context.Context, st *store.Store, registry *aiaccount.Registry, log *slog.Logger) {
+	accounts, err := st.ListAIAccounts(ctx)
+	if err != nil {
+		log.Error("listing provider accounts", "error", err)
+		return
+	}
+	for i := range accounts {
+		provider, err := aiaccountfactory.Build(&accounts[i])
+		if err != nil {
+			log.Error("building provider account", "account", accounts[i].Name, "error", err)
+			continue
+		}
+		registry.Set(accounts[i].ID, provider)
+	}
+	log.Info("provider account registry loaded", "accounts", len(accounts))
 }
 
 func loadAIRegistry(ctx context.Context, st *store.Store, registry *ai.Registry, log *slog.Logger) {

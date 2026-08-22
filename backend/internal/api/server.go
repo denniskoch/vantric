@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 
 	"vantric/internal/ai"
+	"vantric/internal/aiaccount"
 	"vantric/internal/database"
 	"vantric/internal/dns"
 	"vantric/internal/hypervisor"
@@ -91,6 +92,9 @@ type Server struct {
 	// aiRegistry holds the live AI gateways (Bifrost) — the one thing
 	// that has seen every model call the lab made.
 	aiRegistry *ai.Registry
+	// aiAccountRegistry holds the model providers' own accounts — what
+	// is left where you pay, which the gateway cannot know.
+	aiAccountRegistry *aiaccount.Registry
 	// nvd looks CVEs up in the public vulnerability database. No
 	// credential, cached, and never fatal — see internal/nvd.
 	nvd *nvd.Client
@@ -134,6 +138,7 @@ func New(
 	inventoryRegistry *inventory.Registry,
 	storageRegistry *storage.Registry,
 	aiRegistry *ai.Registry,
+	aiAccountRegistry *aiaccount.Registry,
 	log *slog.Logger,
 	staticDir string,
 	dataDir string,
@@ -148,6 +153,7 @@ func New(
 		inventoryRegistry: inventoryRegistry,
 		storageRegistry:   storageRegistry,
 		aiRegistry:        aiRegistry,
+		aiAccountRegistry: aiAccountRegistry,
 		nvd:               client,
 		kev:               kev.New(),
 		log:               log, staticDir: staticDir, dataDir: dataDir, siteURL: siteURL, ssh: sshOpts,
@@ -270,6 +276,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		s.networkRoutes(r)
 		s.inventoryRoutes(r)
 		s.aiRoutes(r)
+		s.aiAccountRoutes(r)
 		s.installerRoutes(r)
 		s.storageRoutes(r)
 

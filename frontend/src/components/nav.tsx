@@ -477,6 +477,17 @@ export const sections: Section[] = [
         ],
       },
       {
+        label: 'Billing',
+        items: [
+          {
+            label: 'Provider accounts',
+            icon: VpnKeyIcon,
+            to: '/ai/accounts',
+            hint: "What's left where you pay, without a login each",
+          },
+        ],
+      },
+      {
         label: 'Settings',
         items: [
           {

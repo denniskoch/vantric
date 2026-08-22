@@ -34,6 +34,8 @@ func TestOwnerOnlyCoversEveryCredentialRoute(t *testing.T) {
 		"/api/v1/storage/providers/abc",
 		"/api/v1/ai/gateways",
 		"/api/v1/ai/gateways/abc",
+		"/api/v1/ai/accounts",
+		"/api/v1/ai/accounts/abc",
 		"/api/v1/iam/users",
 		"/api/v1/iam/users/abc/password",
 		"/api/v1/iam/oidc",

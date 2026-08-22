@@ -109,6 +109,8 @@ import NodeDetailPage from './pages/NodeDetailPage'
 import AIRequestsPage from './pages/AIRequestsPage'
 import AIGatewaysPage from './pages/AIGatewaysPage'
 import AIGatewayFormPage from './pages/AIGatewayFormPage'
+import AIAccountsPage from './pages/AIAccountsPage'
+import AIAccountFormPage from './pages/AIAccountFormPage'
 
 export default function App() {
   return (
@@ -214,6 +216,9 @@ export default function App() {
         <Route path="/docker/overview" element={<SectionLandingPage />} />
         <Route path="/ai/overview" element={<SectionLandingPage />} />
         <Route path="/ai/requests" element={<AIRequestsPage />} />
+        <Route path="/ai/accounts" element={<AIAccountsPage />} />
+        <Route path="/ai/accounts/add" element={<AIAccountFormPage />} />
+        <Route path="/ai/accounts/:id/edit" element={<AIAccountFormPage />} />
         <Route path="/ai/settings/gateway" element={<AIGatewaysPage />} />
         <Route path="/ai/settings/gateway/add" element={<AIGatewayFormPage />} />
         <Route path="/ai/settings/gateway/:id/edit" element={<AIGatewayFormPage />} />

@@ -175,6 +175,17 @@ var migrations = []string{
 		insecure_tls INTEGER NOT NULL DEFAULT 0,
 		created_at TEXT NOT NULL
 	)`,
+	// A model provider's own account, which is a different credential
+	// from the gateway's: OpenRouter's balance needs a management key
+	// that cannot call completions, and the inference key the gateway
+	// holds cannot read the balance.
+	`CREATE TABLE IF NOT EXISTS ai_accounts (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL UNIQUE,
+		type TEXT NOT NULL,
+		api_key TEXT NOT NULL DEFAULT '',
+		created_at TEXT NOT NULL
+	)`,
 	// S3-compatible object stores. Several are supported for the same
 	// reason several hypervisors are: a lab may run one for backups and
 	// another for whatever it serves.
