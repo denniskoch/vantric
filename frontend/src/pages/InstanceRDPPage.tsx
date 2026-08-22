@@ -208,7 +208,18 @@ function Desktop({ name, credentials }: { name: string; credentials: GuacCredent
           Connecting to {name}…
         </Typography>
       )}
-      <Box ref={holder} sx={{ display: 'flex', justifyContent: 'center' }} />
+      {/* isolation:isolate MAKES THIS A STACKING CONTEXT, and that is
+          the whole reason the desktop is visible. Guacamole's default
+          layer canvas carries z-index:-1, and a negative child paints
+          BEHIND the backgrounds of ordinary ancestors — so without a
+          context here, the page's own dark background painted over a
+          fully rendered desktop: connected, streaming, painted, and
+          invisible. The context traps the canvas above this element's
+          background instead of below the page's. */}
+      <Box
+        ref={holder}
+        sx={{ display: 'flex', justifyContent: 'center', isolation: 'isolate' }}
+      />
       {status && (
         <Typography
           sx={{
