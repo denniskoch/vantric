@@ -61,27 +61,13 @@ func (c Connection) parameters() map[string]string {
 		// mode the guest may not offer. NLA is the usual answer and is
 		// what "any" lands on where it's available.
 		p["security"] = "any"
-		// THE GRAPHICS PIPELINE IS OFF, and this is the difference
-		// between a desktop and a black rectangle. With RDPGFX enabled
-		// the surface updates are encoded through a codec FreeRDP and
-		// the guest negotiate between them, and where that negotiation
-		// goes wrong nothing is drawn at all — while the CURSOR, which
-		// travels on its own channel, keeps working. So the failure
-		// looks like a live session with an invisible desktop rather
-		// than like an error, and guacd logs a clean connect either
-		// way.
-		//
-		// The legacy path is slower on a fast link and correct
-		// everywhere. For a lab console on a LAN that is the right side
-		// of the trade; revisit it if the desktop ever feels sluggish
-		// rather than because the parameter looks pessimistic.
-		p["disable-gfx"] = "true"
-		// AND THEREFORE 32 EXPLICITLY. With the graphics pipeline off,
-		// guacd's own default drops to 16 and the guest answers in
-		// RGB16 — a path that is well known for producing a connected
-		// session that draws nothing. Asking for 32 keeps the legacy
-		// path on the colour depth everything actually tests against.
-		p["color-depth"] = "32"
+		// disable-gfx and color-depth were both set here for a while,
+		// chasing a black desktop that turned out to be a CSS stacking
+		// context in the page — the session was painting the whole
+		// time. Both are gone: they treated a disease this connection
+		// never had, and RDPGFX is the faster pipeline. If a black
+		// screen ever comes back WITH ?debug showing images arriving
+		// and painted pixels, it is the page again, not this handshake.
 	}
 	return p
 }
