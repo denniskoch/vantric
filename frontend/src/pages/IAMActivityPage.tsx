@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import DataTable from '../components/DataTable'
 import type { ColumnDef } from '@tanstack/react-table'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Alert,
@@ -12,6 +13,10 @@ import ErrorIcon from '@mui/icons-material/Error'
 import { api } from '../api/client'
 import { formatDuration } from '../format'
 import PageHeader from '../components/PageHeader'
+import TimeRangePicker from '../components/TimeRangePicker'
+import FilterSelect from '../components/FilterSelect'
+import { ANY_TIME, inRange } from '../timeRange'
+import type { TimeRange } from '../timeRange'
 
 /**
  * Who did what.
@@ -36,12 +41,38 @@ function formatElapsed(ms: number): string {
 }
 
 export default function IAMActivityPage() {
+  const [range, setRange] = useState<TimeRange>(ANY_TIME)
+  const [actor, setActor] = useState('')
+  const [outcome, setOutcome] = useState('')
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['audit'],
     queryFn: () => api.listAudit(),
     refetchInterval: 15000,
   })
+
+  // Filtered here rather than at the API: the whole log is already
+  // loaded and pruned at 90 days, so narrowing it is a pass over an
+  // array. Same controls as the gateway's request log, which pages
+  // server-side because it has half a million rows — one vocabulary,
+  // two places the work happens.
+  const actors = useMemo(
+    () => [...new Set(entries.map((e) => e.actorEmail).filter(Boolean))].sort(),
+    [entries],
+  )
+  const shown = useMemo(
+    () =>
+      entries.filter((e) => {
+        if (!inRange(range, e.at)) return false
+        if (actor && e.actorEmail !== actor) return false
+        // 400 and up is the line the audit log already draws when it
+        // marks a row as refused.
+        if (outcome === 'failed' && e.status < 400) return false
+        if (outcome === 'succeeded' && e.status >= 400) return false
+        return true
+      }),
+    [entries, range, actor, outcome],
+  )
 
 
   const columns = useMemo<ColumnDef<(typeof entries)[number], unknown>[]>(
@@ -125,8 +156,27 @@ export default function IAMActivityPage() {
         </Alert>
       )}
 
+      <Box sx={{ display: 'flex', gap: 1.5, mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+        <TimeRangePicker value={range} onChange={setRange} />
+        <FilterSelect
+          value={actor}
+          onChange={setActor}
+          anyLabel="Anyone"
+          options={actors.map((a) => ({ value: a, label: a }))}
+        />
+        <FilterSelect
+          value={outcome}
+          onChange={setOutcome}
+          anyLabel="Any outcome"
+          options={[
+            { value: 'succeeded', label: 'Succeeded' },
+            { value: 'failed', label: 'Refused or failed' },
+          ]}
+        />
+      </Box>
+
       <DataTable
-        rows={entries}
+        rows={shown}
         columns={columns}
         getRowId={(entry) => entry.id}
         initialSort={[{ id: 'at', desc: true }]}

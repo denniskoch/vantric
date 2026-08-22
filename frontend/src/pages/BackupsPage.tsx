@@ -14,11 +14,15 @@ import { api } from '../api/client'
 import type { Backup } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
 import PageHeader from '../components/PageHeader'
+import TimeRangePicker from '../components/TimeRangePicker'
+import { ANY_TIME, inRange } from '../timeRange'
+import type { TimeRange } from '../timeRange'
 import { formatBytes } from '../format'
 
 const guestLabels: Record<string, string> = { qemu: 'VM', lxc: 'CT' }
 
 export default function BackupsPage() {
+  const [range, setRange] = useState<TimeRange>(ANY_TIME)
   const queryClient = useQueryClient()
   const [confirming, setConfirming] = useState<Backup | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -42,6 +46,13 @@ export default function BackupsPage() {
       setConfirming(null)
     },
   })
+
+  // An archive's date is the thing you narrow a backup list by, and
+  // the text box can only match the date as it happens to be spelled.
+  const shown = useMemo(
+    () => backups.filter((b) => inRange(range, b.createdAt)),
+    [backups, range],
+  )
 
   const columns = useMemo<ColumnDef<(typeof backups)[number], unknown>[]>(
     () => [
@@ -149,8 +160,12 @@ export default function BackupsPage() {
         </Alert>
       )}
 
+      <Box sx={{ display: 'flex', mb: 2 }}>
+        <TimeRangePicker value={range} onChange={setRange} />
+      </Box>
+
       <DataTable
-        rows={backups}
+        rows={shown}
         columns={columns}
         getRowId={(backup) => `${backup.hypervisorId}/${backup.id}`}
         initialSort={[{ id: 'createdAt', desc: true }]}

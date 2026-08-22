@@ -103,3 +103,28 @@ export function toLocalInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
+
+/**
+ * Whether a moment falls inside a range, for the tables that hold
+ * their whole list and filter in the browser.
+ *
+ * The gateway's log is paged server-side because it has half a million
+ * rows; an audit log or a backup list is loaded whole and can be
+ * narrowed here — same picker, same vocabulary, different place the
+ * work happens.
+ *
+ * Accepts what the API happens to send: unix seconds, or an ISO
+ * string. A row with no timestamp at all stays IN, because a range is
+ * a filter on when something happened and not a claim that everything
+ * has a when — hiding rows for lacking a field the user didn't ask
+ * about is a filter doing something nobody requested.
+ */
+export function inRange(range: TimeRange, at: number | string | undefined | null): boolean {
+  if (!range.since && !range.until) return true
+  if (at === undefined || at === null || at === '') return true
+  const ms = typeof at === 'number' ? at * 1000 : new Date(at).getTime()
+  if (!Number.isFinite(ms)) return true
+  if (range.since && ms < new Date(range.since).getTime()) return false
+  if (range.until && ms > new Date(range.until).getTime()) return false
+  return true
+}

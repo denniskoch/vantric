@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import DataTable from '../components/DataTable'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Link as RouterLink } from 'react-router-dom'
@@ -13,6 +13,7 @@ import { api } from '../api/client'
 import type { InventoryHostView } from '../api/client'
 import { timeAgo } from '../format'
 import PageHeader from '../components/PageHeader'
+import FilterSelect from '../components/FilterSelect'
 import { OSIcon } from '../components/OSName'
 import { realSerial } from '../serial'
 import StatusIcon from '../components/StatusIcon'
@@ -37,6 +38,7 @@ import StatusIcon from '../components/StatusIcon'
  * question to ask the service.
  */
 function HostsPage({ virtual }: { virtual: boolean }) {
+  const [platform, setPlatform] = useState('')
   const { data, isLoading } = useQuery({
     queryKey: ['inventoryHosts'],
     queryFn: api.listInventoryHosts,
@@ -44,7 +46,13 @@ function HostsPage({ virtual }: { virtual: boolean }) {
   })
 
   const all = data?.hosts ?? []
-  const hosts = all.filter((h) => h.virtual === virtual)
+  const onThisPage = all.filter((h) => h.virtual === virtual)
+  // The platform is the one dimension a mixed estate keeps being
+  // sliced by — "just the Macs", "just the Linux boxes" — and it's a
+  // word the text box would only match by accident, since it appears
+  // in the OS column as "macOS 15.2" rather than as "darwin".
+  const platforms = [...new Set(onThisPage.map((h) => h.platform).filter(Boolean))].sort()
+  const hosts = platform ? onThisPage.filter((h) => h.platform === platform) : onThisPage
   // Instances with no agent are guests, so they are the virtual page's
   // business and would be noise on the physical one.
   const unenrolled = virtual ? (data?.unenrolled ?? []) : []
@@ -192,6 +200,17 @@ function HostsPage({ virtual }: { virtual: boolean }) {
                 .join(', ')}${unenrolled.length > 6 ? `, and ${unenrolled.length - 6} more` : ''}.`}{' '}
           They have no agent installed, or it has never checked in.
         </Alert>
+      )}
+
+      {platforms.length > 1 && (
+        <Box sx={{ display: 'flex', mb: 2 }}>
+          <FilterSelect
+            value={platform}
+            onChange={setPlatform}
+            anyLabel="Any platform"
+            options={platforms.map((p) => ({ value: p, label: p }))}
+          />
+        </Box>
       )}
 
       <DataTable

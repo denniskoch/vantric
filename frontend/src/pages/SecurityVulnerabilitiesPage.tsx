@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import DataTable from '../components/DataTable'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Link as RouterLink } from 'react-router-dom'
@@ -13,6 +13,7 @@ import { api } from '../api/client'
 import type { VulnerabilitySummary } from '../api/client'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import PageHeader from '../components/PageHeader'
+import FilterSelect from '../components/FilterSelect'
 import { severityColor, severityLabel } from '../severity'
 
 /**
@@ -29,6 +30,8 @@ import { severityColor, severityLabel } from '../severity'
  * scores, the columns come back on their own.
  */
 export default function SecurityVulnerabilitiesPage() {
+  const [severity, setSeverity] = useState('')
+  const [exploited, setExploited] = useState(false)
   const { data, isLoading } = useQuery({
     queryKey: ['inventoryVulnerabilities'],
     queryFn: api.listInventoryVulnerabilities,
@@ -36,6 +39,21 @@ export default function SecurityVulnerabilitiesPage() {
   })
 
   const all = data?.vulnerabilities ?? []
+  // Severity and "being exploited" are the two questions anyone brings
+  // to four thousand CVEs, and neither is answerable by typing in the
+  // text box: severity is a word you'd have to know, and exploited is
+  // a flag with no text at all.
+  const shown = useMemo(
+    () =>
+      all.filter((v) => {
+        if (exploited && !v.knownExploited) return false
+        if (!severity) return true
+        // Unscored is its own answer, not a low one — see severity.ts.
+        if (severity === 'UNSCORED') return !v.severity
+        return v.severity === severity
+      }),
+    [all, severity, exploited],
+  )
   // Only render what the service actually fills in.
   const hasScores = all.some((v) => v.cvssScore > 0)
   const hasEPSS = all.some((v) => v.epss > 0)
@@ -193,8 +211,29 @@ export default function SecurityVulnerabilitiesPage() {
         </Alert>
       )}
 
+      <Box sx={{ display: 'flex', gap: 1.5, mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+        <FilterSelect
+          value={severity}
+          onChange={setSeverity}
+          anyLabel="Any severity"
+          options={[
+            { value: 'CRITICAL', label: 'Critical' },
+            { value: 'HIGH', label: 'High' },
+            { value: 'MEDIUM', label: 'Medium' },
+            { value: 'LOW', label: 'Low' },
+            { value: 'UNSCORED', label: 'Not scored' },
+          ]}
+        />
+        <FilterSelect
+          value={exploited ? 'yes' : ''}
+          onChange={(v) => setExploited(v === 'yes')}
+          anyLabel="All CVEs"
+          options={[{ value: 'yes', label: 'Known exploited only' }]}
+        />
+      </Box>
+
       <DataTable
-        rows={all}
+        rows={shown}
         columns={columns}
         getRowId={(v) => v.cve}
         // The order this page has always opened in, now as a starting
