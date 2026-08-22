@@ -259,7 +259,7 @@ export default function DataTable<T>({
           {table.getHeaderGroups().map((group) => (
             <TableRow key={group.id}>
               {selectionEnabled && (
-                <TableCell padding="checkbox">
+                <TableCell padding="checkbox" sx={selectionCell}>
                   <Checkbox
                     size="small"
                     disabled={page.length === 0 || selectable === false}
@@ -270,7 +270,7 @@ export default function DataTable<T>({
                   />
                 </TableCell>
               )}
-              {renderDetail && <TableCell sx={{ width: 36 }} />}
+              {renderDetail && <TableCell sx={expanderCell} />}
               {group.headers.map((header) => {
                 const sortable = header.column.getCanSort()
                 const label = flexRender(header.column.columnDef.header, header.getContext())
@@ -306,7 +306,7 @@ export default function DataTable<T>({
             <Fragment key={row.id}>
             <TableRow hover selected={row.getIsSelected()}>
               {renderDetail && (
-                <TableCell sx={{ width: 36 }}>
+                <TableCell sx={expanderCell}>
                   {row.getCanExpand() && (
                     <IconButton
                       size="small"
@@ -323,7 +323,7 @@ export default function DataTable<T>({
                 </TableCell>
               )}
               {selectionEnabled && (
-                <TableCell padding="checkbox">
+                <TableCell padding="checkbox" sx={selectionCell}>
                   <Checkbox
                     size="small"
                     disabled={!row.getCanSelect()}
@@ -377,6 +377,22 @@ export default function DataTable<T>({
     </TableContainer>
   )
 }
+
+// The checkbox column carried no width, so it absorbed whatever the
+// data columns left over — and that depends on how many there are. VM
+// instances gave it 88px and containers 60px, which moved the Status
+// column 28px sideways as you clicked between two pages that are meant
+// to read the same. Pinning it to its content fixes it everywhere at
+// once, the way the row height is fixed in the theme rather than per
+// page.
+// The `&.MuiTableCell-paddingCheckbox` is not decoration: MUI's own
+// checkbox-padding rule sets a width and carries two classes, so a
+// plain `width` here loses to it.
+const selectionCell = { '&.MuiTableCell-paddingCheckbox': { width: '1%' } } as const
+
+// Same reason, and the same lesson: a px width still takes a share of
+// the leftover, where a percentage one is held to its content.
+const expanderCell = { width: '1%' } as const
 
 /** Column meta carries the alignment, since MUI wants it per cell. */
 function alignOf(def: { meta?: { align?: 'left' | 'right' } }): 'left' | 'right' {
