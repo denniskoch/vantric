@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import DataTable from '../components/DataTable'
+import type { ColumnDef } from '@tanstack/react-table'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -8,13 +10,6 @@ import {
   IconButton,
   Menu,
   MenuItem,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
 } from '@mui/material'
 import AddBoxIcon from '@mui/icons-material/AddBox'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
@@ -69,6 +64,102 @@ export default function VMTemplatesPage() {
     },
   })
 
+  const columns = useMemo<ColumnDef<(typeof templates)[number], unknown>[]>(
+    () => [
+      {
+        id: 'name',
+        // Sorts on the DERIVED title, which is what the row leads with —
+        // sorting on tpl.name would order by a filename the eye reads
+        // second. See osIdentity.
+        header: 'Name',
+        accessorFn: (tpl) => templateIdentity(tpl).title,
+        cell: ({ row }) => {
+          const id = templateIdentity(row.original)
+          return (
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+              <Box sx={{ width: 16, mt: 0.25 }}>
+                <OSIcon name={`${row.original.name} ${id.family}`} />
+              </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Box>{id.title}</Box>
+                {id.title !== row.original.name && (
+                  <Box sx={{ fontSize: 11, color: 'text.secondary' }}>{row.original.name}</Box>
+                )}
+              </Box>
+            </Box>
+          )
+        },
+      },
+      {
+        id: 'family',
+        header: 'Operating system',
+        accessorFn: (tpl) => {
+          const id = templateIdentity(tpl)
+          return id.family === 'Other' ? undefined : `${id.family} ${id.version ?? ''}`.trim()
+        },
+        cell: ({ row }) => {
+          const id = templateIdentity(row.original)
+          if (id.family === 'Other') return '—'
+          return (
+            <>
+              {id.family}
+              {id.version && ` ${id.version}`}
+            </>
+          )
+        },
+      },
+      { id: 'id', header: 'ID', accessorFn: (tpl) => tpl.id },
+      {
+        id: 'node',
+        header: 'Node',
+        accessorFn: (tpl) => tpl.node,
+        cell: ({ row }) => row.original.node || '—',
+      },
+      {
+        id: 'clones',
+        header: 'Instances',
+        accessorFn: (tpl) => clonesOf(tpl) || undefined,
+        meta: { align: 'right' },
+        cell: ({ row }) => clonesOf(row.original) || '—',
+      },
+      {
+        id: 'createdAt',
+        header: 'Built',
+        accessorFn: (tpl) => tpl.createdAt,
+        cell: ({ row }) => builtOn(row.original.createdAt),
+      },
+      {
+        id: 'notes',
+        header: 'Notes',
+        accessorFn: (tpl) => templateIdentity(tpl).notes,
+        cell: ({ row }) => (
+          <Box component="span" sx={{ color: 'text.secondary' }}>
+            {templateIdentity(row.original).notes || '—'}
+          </Box>
+        ),
+      },
+      {
+        id: 'actions',
+        header: '',
+        enableSorting: false,
+        meta: { align: 'right' },
+        cell: ({ row }) =>
+          canEdit ? (
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                setMenuAnchor(e.currentTarget)
+                setMenuTemplate(row.original)
+              }}
+            >
+              <MoreVertIcon fontSize="small" />
+            </IconButton>
+          ) : null,
+      },
+    ],
+    [canEdit, clonesOf],
+  )
+
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
@@ -94,82 +185,13 @@ export default function VMTemplatesPage() {
         </Alert>
       )}
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Operating system</TableCell>
-              <TableCell>ID</TableCell>
-              <TableCell>Node</TableCell>
-              <TableCell align="right">Instances</TableCell>
-              <TableCell>Built</TableCell>
-              <TableCell>Notes</TableCell>
-              <TableCell align="right" />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {templates.map((tpl) => {
-              const id = templateIdentity(tpl)
-              return (
-              <TableRow key={`${tpl.hypervisorId}/${tpl.id}`} hover>
-                <TableCell>
-                  {/* What it is, then what it's called. The raw name
-                      stays visible because it's what Proxmox shows and
-                      what you type when something goes wrong. */}
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                    <Box sx={{ width: 16, mt: 0.25 }}>
-                      <OSIcon name={`${tpl.name} ${id.family}`} />
-                    </Box>
-                    <Box sx={{ minWidth: 0 }}>
-                      <Box>{id.title}</Box>
-                      {id.title !== tpl.name && (
-                        <Box sx={{ fontSize: 11, color: 'text.secondary' }}>{tpl.name}</Box>
-                      )}
-                    </Box>
-                  </Box>
-                </TableCell>
-                <TableCell>
-                  {id.family === 'Other' ? (
-                    '—'
-                  ) : (
-                    <>
-                      {id.family}
-                      {id.version && ` ${id.version}`}
-                    </>
-                  )}
-                </TableCell>
-                <TableCell>{tpl.id}</TableCell>
-                <TableCell>{tpl.node || '—'}</TableCell>
-                <TableCell align="right">{clonesOf(tpl) || '—'}</TableCell>
-                <TableCell>{builtOn(tpl.createdAt)}</TableCell>
-                <TableCell sx={{ color: 'text.secondary' }}>{id.notes || '—'}</TableCell>
-                <TableCell align="right">
-                  {canEdit && (
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        setMenuAnchor(e.currentTarget)
-                        setMenuTemplate(tpl)
-                      }}
-                    >
-                      <MoreVertIcon fontSize="small" />
-                    </IconButton>
-                  )}
-                </TableCell>
-              </TableRow>
-              )
-            })}
-            {templates.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                  {isLoading ? 'Loading…' : 'No VM templates found on your servers.'}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <DataTable
+        rows={templates}
+        columns={columns}
+        getRowId={(tpl) => `${tpl.hypervisorId}/${tpl.id}`}
+        initialSort={[{ id: 'name', desc: false }]}
+        empty={isLoading ? 'Loading…' : 'No VM templates found on your servers.'}
+      />
 
       <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
         <MenuItem

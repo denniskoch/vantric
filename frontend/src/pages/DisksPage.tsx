@@ -1,15 +1,11 @@
+import { useMemo } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
+import DataTable from '../components/DataTable'
+import type { ColumnDef } from '@tanstack/react-table'
 import { useQuery } from '@tanstack/react-query'
 import {
   Box,
   Link,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
 } from '@mui/material'
 import { api } from '../api/client'
 import PageHeader from '../components/PageHeader'
@@ -21,52 +17,49 @@ export default function DisksPage() {
     refetchInterval: 10000,
   })
 
+  const columns = useMemo<ColumnDef<(typeof disks)[number], unknown>[]>(
+    () => [
+      { id: 'name', header: 'Name', accessorFn: (disk) => disk.name },
+      {
+        id: 'inUseBy',
+        header: 'In use by',
+        accessorFn: (disk) => disk.inUseBy,
+        cell: ({ row }) =>
+          row.original.inUseBy ? (
+            <Link
+              component={RouterLink}
+              to={`/compute/instances/${row.original.inUseBy}`}
+              underline="hover"
+            >
+              {row.original.inUseBy}
+            </Link>
+          ) : (
+            '—'
+          ),
+      },
+      { id: 'node', header: 'Node', accessorFn: (disk) => disk.node },
+      { id: 'storage', header: 'Storage pool', accessorFn: (disk) => disk.storage },
+      {
+        id: 'sizeGb',
+        header: 'Size (GB)',
+        accessorFn: (disk) => disk.sizeGb,
+        meta: { align: 'right' },
+        cell: ({ row }) => row.original.sizeGb || '—',
+      },
+    ],
+    [],
+  )
+
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader title="Disks" />
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>In use by</TableCell>
-              <TableCell>Node</TableCell>
-              <TableCell>Storage pool</TableCell>
-              <TableCell align="right">Size (GB)</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {disks.map((disk) => (
-              <TableRow key={`${disk.hypervisorId}/${disk.id}`} hover>
-                <TableCell>{disk.name}</TableCell>
-                <TableCell>
-                  {disk.inUseBy ? (
-                    <Link
-                      component={RouterLink}
-                      to={`/compute/instances/${disk.inUseBy}`}
-                      underline="hover"
-                    >
-                      {disk.inUseBy}
-                    </Link>
-                  ) : (
-                    '—'
-                  )}
-                </TableCell>
-                <TableCell>{disk.node}</TableCell>
-                <TableCell>{disk.storage}</TableCell>
-                <TableCell align="right">{disk.sizeGb || '—'}</TableCell>
-              </TableRow>
-            ))}
-            {disks.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                  {isLoading ? 'Loading…' : 'No disks found on your servers.'}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <DataTable
+        rows={disks}
+        columns={columns}
+        getRowId={(disk) => `${disk.hypervisorId}/${disk.id}`}
+        initialSort={[{ id: 'name', desc: false }]}
+        empty={isLoading ? 'Loading…' : 'No disks found on your servers.'}
+      />
     </Box>
   )
 }

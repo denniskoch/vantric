@@ -1,15 +1,11 @@
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import DataTable from '../components/DataTable'
+import type { ColumnDef } from '@tanstack/react-table'
 import { Link as RouterLink } from 'react-router-dom'
 import {
   Box,
   Link,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Tooltip,
 } from '@mui/material'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
@@ -36,76 +32,101 @@ export default function NodesPage() {
     refetchInterval: 10000,
   })
 
+  const columns = useMemo<ColumnDef<(typeof nodes)[number], unknown>[]>(
+    () => [
+      {
+        id: 'status',
+        header: 'Status',
+        accessorFn: (node) => node.status,
+        cell: ({ row }) => (
+          <Tooltip title={row.original.status || 'unknown'}>
+            {row.original.status === 'online' ? (
+              <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} />
+            ) : (
+              <ErrorIcon sx={{ color: 'error.main', fontSize: 18 }} />
+            )}
+          </Tooltip>
+        ),
+      },
+      {
+        id: 'name',
+        header: 'Name',
+        accessorFn: (node) => node.name,
+        cell: ({ row }) => (
+          <Link
+            component={RouterLink}
+            to={`/compute/nodes/${row.original.hypervisorId}/${encodeURIComponent(row.original.id)}`}
+            underline="hover"
+          >
+            {row.original.name}
+          </Link>
+        ),
+      },
+      {
+        id: 'hypervisor',
+        header: 'Hypervisor',
+        accessorFn: (node) => hypervisorName(node.hypervisorId),
+      },
+      {
+        id: 'cpus',
+        header: 'vCPUs',
+        accessorFn: (node) => node.cpus,
+        meta: { align: 'right' },
+        cell: ({ row }) => row.original.cpus || '—',
+      },
+      {
+        id: 'cpuPercent',
+        header: 'CPU',
+        accessorFn: (node) => node.cpuPercent,
+        cell: ({ row }) => (
+          <UsageBar used={row.original.cpuPercent} total={100} minWidth={110} showValues={false} />
+        ),
+      },
+      {
+        id: 'memory',
+        header: 'Memory',
+        accessorFn: (node) =>
+          node.memoryTotalBytes > 0 ? node.memoryUsedBytes / node.memoryTotalBytes : undefined,
+        cell: ({ row }) => (
+          <UsageBar used={row.original.memoryUsedBytes} total={row.original.memoryTotalBytes} />
+        ),
+      },
+      {
+        id: 'disk',
+        header: 'Root filesystem',
+        accessorFn: (node) =>
+          node.diskTotalBytes > 0 ? node.diskUsedBytes / node.diskTotalBytes : undefined,
+        cell: ({ row }) => (
+          <UsageBar used={row.original.diskUsedBytes} total={row.original.diskTotalBytes} />
+        ),
+      },
+      {
+        id: 'uptime',
+        header: 'Uptime',
+        accessorFn: (node) => node.uptimeSeconds,
+        cell: ({ row }) => (
+          <Box component="span" sx={{ color: 'text.secondary' }}>
+            {row.original.uptimeSeconds ? formatUptime(row.original.uptimeSeconds) : '—'}
+          </Box>
+        ),
+      },
+    ],
+    [hypervisorName],
+  )
+
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
         title="Nodes"
         description="The virtualization hosts your instances and containers run on."
       />
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Status</TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>Hypervisor</TableCell>
-              <TableCell align="right">vCPUs</TableCell>
-              <TableCell>CPU</TableCell>
-              <TableCell>Memory</TableCell>
-              <TableCell>Root filesystem</TableCell>
-              <TableCell>Uptime</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {nodes.map((node) => (
-              <TableRow key={`${node.hypervisorId}/${node.id}`} hover>
-                <TableCell>
-                  <Tooltip title={node.status || 'unknown'}>
-                    {node.status === 'online' ? (
-                      <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} />
-                    ) : (
-                      <ErrorIcon sx={{ color: 'error.main', fontSize: 18 }} />
-                    )}
-                  </Tooltip>
-                </TableCell>
-                <TableCell>
-                  <Link
-                    component={RouterLink}
-                    to={`/compute/nodes/${node.hypervisorId}/${encodeURIComponent(node.id)}`}
-                    underline="hover"
-                  >
-                    {node.name}
-                  </Link>
-                </TableCell>
-                <TableCell>{hypervisorName(node.hypervisorId)}</TableCell>
-                <TableCell align="right">{node.cpus || '—'}</TableCell>
-                <TableCell>
-                  {/* A rate, not an occupancy: the bar shows how hard
-                      the host is working, with no used-of-total pair
-                      the way memory and disk have. */}
-                  <UsageBar used={node.cpuPercent} total={100} minWidth={110} showValues={false} />
-                </TableCell>
-                <TableCell>
-                  <UsageBar used={node.memoryUsedBytes} total={node.memoryTotalBytes} />
-                </TableCell>
-                <TableCell>
-                  <UsageBar used={node.diskUsedBytes} total={node.diskTotalBytes} />
-                </TableCell>
-                <TableCell sx={{ color: 'text.secondary' }}>
-                  {node.uptimeSeconds ? formatUptime(node.uptimeSeconds) : '—'}
-                </TableCell>
-              </TableRow>
-            ))}
-            {nodes.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                  {isLoading ? 'Loading…' : 'No nodes found. Add a hypervisor to see its hosts.'}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <DataTable
+        rows={nodes}
+        columns={columns}
+        getRowId={(node) => `${node.hypervisorId}/${node.id}`}
+        initialSort={[{ id: 'name', desc: false }]}
+        empty={isLoading ? 'Loading…' : 'No nodes found. Add a hypervisor to see its hosts.'}
+      />
     </Box>
   )
 }

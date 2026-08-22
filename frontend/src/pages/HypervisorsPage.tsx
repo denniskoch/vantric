@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import DataTable from '../components/DataTable'
+import type { ColumnDef } from '@tanstack/react-table'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -11,13 +13,6 @@ import {
   DialogContentText,
   DialogTitle,
   IconButton,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Tooltip,
 } from '@mui/material'
 import AddBoxIcon from '@mui/icons-material/AddBox'
@@ -99,6 +94,67 @@ export default function HypervisorsPage() {
     },
   })
 
+  const columns = useMemo<ColumnDef<(typeof hypervisors)[number], unknown>[]>(
+    () => [
+      {
+        id: 'status',
+        header: 'Status',
+        accessorFn: (hypervisor) => hypervisor.status,
+        cell: ({ row }) => <StatusGlyph hypervisor={row.original} />,
+      },
+      { id: 'name', header: 'Name', accessorFn: (hypervisor) => hypervisor.name },
+      {
+        id: 'type',
+        header: 'Type',
+        accessorFn: (hypervisor) => typeLabels[hypervisor.type] ?? hypervisor.type,
+        cell: ({ row }) => (
+          <BrandLabel
+            icon={hypervisorBrand(row.original.type)}
+            label={typeLabels[row.original.type] ?? row.original.type}
+          />
+        ),
+      },
+      {
+        id: 'baseUrl',
+        header: 'Endpoint',
+        accessorFn: (hypervisor) => hypervisor.baseUrl,
+        cell: ({ row }) => row.original.baseUrl || '—',
+      },
+      {
+        id: 'nodes',
+        header: 'Nodes',
+        accessorFn: (hypervisor) =>
+          hypervisor.status === 'connected' ? hypervisor.nodes : undefined,
+        meta: { align: 'right' },
+        cell: ({ row }) => (row.original.status === 'connected' ? row.original.nodes : '—'),
+      },
+      {
+        id: 'actions',
+        header: '',
+        enableSorting: false,
+        meta: { align: 'right' },
+        cell: ({ row }) => (
+          <>
+            <IconButton
+              size="small"
+              onClick={() => navigate(`/compute/hypervisors/${row.original.id}/edit`)}
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={() => setPendingRemoval(row.original)}
+              disabled={remove.isPending}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </>
+        ),
+      },
+    ],
+    [navigate, remove.isPending],
+  )
+
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
@@ -123,61 +179,13 @@ export default function HypervisorsPage() {
         </Alert>
       )}
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Status</TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Endpoint</TableCell>
-              <TableCell align="right">Nodes</TableCell>
-              <TableCell align="right" />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {hypervisors.map((hypervisor) => (
-              <TableRow key={hypervisor.id} hover>
-                <TableCell>
-                  <StatusGlyph hypervisor={hypervisor} />
-                </TableCell>
-                <TableCell>{hypervisor.name}</TableCell>
-                <TableCell>
-                  <BrandLabel
-                    icon={hypervisorBrand(hypervisor.type)}
-                    label={typeLabels[hypervisor.type] ?? hypervisor.type}
-                  />
-                </TableCell>
-                <TableCell>{hypervisor.baseUrl || '—'}</TableCell>
-                <TableCell align="right">
-                  {hypervisor.status === 'connected' ? hypervisor.nodes : '—'}
-                </TableCell>
-                <TableCell align="right">
-                  <IconButton size="small" onClick={() => navigate(`/compute/hypervisors/${hypervisor.id}/edit`)}>
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() => setPendingRemoval(hypervisor)}
-                    disabled={remove.isPending}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-            {hypervisors.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                  {isLoading
-                    ? 'Loading…'
-                    : 'No hypervisors registered. Click "Add hypervisor" to connect one.'}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <DataTable
+        rows={hypervisors}
+        columns={columns}
+        getRowId={(hypervisor) => hypervisor.id}
+        initialSort={[{ id: 'name', desc: false }]}
+        empty={isLoading ? 'Loading…' : 'No hypervisors registered. Click \"Add hypervisor\" to connect one.'}
+      />
 
       <Dialog open={Boolean(pendingRemoval)} onClose={() => setPendingRemoval(null)}>
         <DialogTitle>Remove {pendingRemoval?.name}?</DialogTitle>

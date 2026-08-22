@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import DataTable from '../components/DataTable'
+import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
@@ -6,13 +8,6 @@ import {
   Chip,
   IconButton,
   MenuItem,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Tooltip,
 } from '@mui/material'
 import SelectField from '../components/SelectField'
@@ -58,6 +53,97 @@ export default function BackupsPage() {
     ? backups.filter((b) => (b.guestName || String(b.vmid)) === guestFilter)
     : backups
 
+  const columns = useMemo<ColumnDef<(typeof shown)[number], unknown>[]>(
+    () => [
+      {
+        id: 'createdAt',
+        header: 'Created',
+        accessorFn: (backup) => backup.createdAt,
+        cell: ({ row }) =>
+          row.original.createdAt
+            ? new Date(row.original.createdAt * 1000).toLocaleString()
+            : '—',
+      },
+      {
+        id: 'guestName',
+        header: 'Guest',
+        // A backup outlives its guest, so this is blank where the guest
+        // is gone — and those sort last rather than leading the list.
+        accessorFn: (backup) => backup.guestName,
+        cell: ({ row }) => (
+          <>
+            {row.original.guestName || (
+              <Box component="span" sx={{ color: 'text.secondary' }}>
+                deleted guest
+              </Box>
+            )}
+            <Box component="span" sx={{ color: 'text.secondary' }}> · {row.original.vmid}</Box>
+            {row.original.protected && (
+              <Chip
+                label="protected"
+                size="small"
+                variant="outlined"
+                sx={{ fontSize: 10, height: 18, ml: 1 }}
+              />
+            )}
+          </>
+        ),
+      },
+      {
+        id: 'guestType',
+        header: 'Type',
+        accessorFn: (backup) => guestLabels[backup.guestType] ?? backup.guestType,
+        cell: ({ row }) =>
+          guestLabels[row.original.guestType] ?? row.original.guestType ?? '—',
+      },
+      { id: 'node', header: 'Node', accessorFn: (backup) => backup.node },
+      { id: 'storage', header: 'Datastore', accessorFn: (backup) => backup.storage },
+      {
+        id: 'size',
+        header: 'Size',
+        accessorFn: (backup) => backup.sizeBytes,
+        meta: { align: 'right' },
+        cell: ({ row }) => formatBytes(row.original.sizeBytes),
+      },
+      {
+        id: 'format',
+        header: 'Archive',
+        accessorFn: (backup) => backup.format,
+        cell: ({ row }) => (
+          <Box component="span" sx={{ color: 'text.secondary' }}>
+            {row.original.format || '—'}
+          </Box>
+        ),
+      },
+      {
+        id: 'actions',
+        header: '',
+        enableSorting: false,
+        meta: { align: 'right' },
+        cell: ({ row }) => (
+          <Tooltip
+            title={
+              row.original.protected
+                ? 'Protected on the hypervisor — clear that first'
+                : 'Delete this archive'
+            }
+          >
+            <span>
+              <IconButton
+                size="small"
+                disabled={row.original.protected || remove.isPending}
+                onClick={() => setConfirming(row.original)}
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+        ),
+      },
+    ],
+    [remove.isPending],
+  )
+
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
@@ -88,78 +174,13 @@ export default function BackupsPage() {
         ))}
       </SelectField>
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Created</TableCell>
-              <TableCell>Guest</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Node</TableCell>
-              <TableCell>Datastore</TableCell>
-              <TableCell align="right">Size</TableCell>
-              <TableCell>Archive</TableCell>
-              <TableCell align="right" />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {shown.map((backup) => (
-              <TableRow key={`${backup.hypervisorId}/${backup.id}`} hover>
-                <TableCell>
-                  {backup.createdAt ? new Date(backup.createdAt * 1000).toLocaleString() : '—'}
-                </TableCell>
-                <TableCell>
-                  {backup.guestName || (
-                    <Box component="span" sx={{ color: 'text.secondary' }}>
-                      deleted guest
-                    </Box>
-                  )}
-                  <Box component="span" sx={{ color: 'text.secondary' }}> · {backup.vmid}</Box>
-                  {backup.protected && (
-                    <Chip
-                      label="protected"
-                      size="small"
-                      variant="outlined"
-                      sx={{ fontSize: 10, height: 18, ml: 1 }}
-                    />
-                  )}
-                </TableCell>
-                <TableCell>{guestLabels[backup.guestType] ?? backup.guestType ?? '—'}</TableCell>
-                <TableCell>{backup.node}</TableCell>
-                <TableCell>{backup.storage}</TableCell>
-                <TableCell align="right">{formatBytes(backup.sizeBytes)}</TableCell>
-                <TableCell sx={{ color: 'text.secondary' }}>{backup.format || '—'}</TableCell>
-                <TableCell align="right">
-                  <Tooltip
-                    title={
-                      backup.protected
-                        ? 'Protected on the hypervisor — clear that first'
-                        : 'Delete this archive'
-                    }
-                  >
-                    <span>
-                      <IconButton
-                        size="small"
-                        disabled={backup.protected || remove.isPending}
-                        onClick={() => setConfirming(backup)}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                </TableCell>
-              </TableRow>
-            ))}
-            {shown.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                  {isLoading ? 'Loading…' : 'No backups on any datastore.'}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <DataTable
+        rows={shown}
+        columns={columns}
+        getRowId={(backup) => `${backup.hypervisorId}/${backup.id}`}
+        initialSort={[{ id: 'createdAt', desc: true }]}
+        empty={isLoading ? 'Loading…' : 'No backups on any datastore.'}
+      />
 
       <ConfirmDeleteDialog
         open={Boolean(confirming)}

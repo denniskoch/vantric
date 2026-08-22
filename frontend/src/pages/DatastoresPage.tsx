@@ -1,14 +1,10 @@
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import DataTable from '../components/DataTable'
+import type { ColumnDef } from '@tanstack/react-table'
 import {
   Box,
   Chip,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Tooltip,
 } from '@mui/material'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
@@ -24,58 +20,69 @@ export default function DatastoresPage() {
     refetchInterval: 10000,
   })
 
+  const columns = useMemo<ColumnDef<(typeof datastores)[number], unknown>[]>(
+    () => [
+      {
+        id: 'active',
+        header: 'Status',
+        accessorFn: (ds) => ds.active,
+        cell: ({ row }) => (
+          <Tooltip title={row.original.active ? 'available' : 'unavailable'}>
+            {row.original.active ? (
+              <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} />
+            ) : (
+              <ErrorIcon sx={{ color: 'error.main', fontSize: 18 }} />
+            )}
+          </Tooltip>
+        ),
+      },
+      { id: 'name', header: 'Name', accessorFn: (ds) => ds.name },
+      { id: 'node', header: 'Node', accessorFn: (ds) => ds.node },
+      { id: 'type', header: 'Type', accessorFn: (ds) => ds.type },
+      {
+        id: 'content',
+        header: 'Content',
+        accessorFn: (ds) => ds.content,
+        cell: ({ row }) => (
+          <Box component="span" sx={{ color: 'text.secondary', fontSize: 12 }}>
+            {row.original.content}
+          </Box>
+        ),
+      },
+      {
+        id: 'usage',
+        header: 'Usage',
+        // Sorts on the FRACTION, which is the question a usage column
+        // answers — a 90%-full 100 GB pool needs attention before a
+        // 10%-full 10 TB one.
+        accessorFn: (ds) => (ds.totalBytes > 0 ? ds.usedBytes / ds.totalBytes : undefined),
+        cell: ({ row }) => (
+          <UsageBar used={row.original.usedBytes} total={row.original.totalBytes} />
+        ),
+      },
+      {
+        id: 'shared',
+        header: '',
+        accessorFn: (ds) => ds.shared,
+        cell: ({ row }) =>
+          row.original.shared ? (
+            <Chip label="shared" size="small" variant="outlined" sx={{ fontSize: 10, height: 18 }} />
+          ) : null,
+      },
+    ],
+    [],
+  )
+
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader title="Datastores" />
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Status</TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>Node</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Content</TableCell>
-              <TableCell>Usage</TableCell>
-              <TableCell />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {datastores.map((ds) => (
-              <TableRow key={`${ds.hypervisorId}/${ds.id}`} hover>
-                <TableCell>
-                  <Tooltip title={ds.active ? 'available' : 'unavailable'}>
-                    {ds.active ? (
-                      <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} />
-                    ) : (
-                      <ErrorIcon sx={{ color: 'error.main', fontSize: 18 }} />
-                    )}
-                  </Tooltip>
-                </TableCell>
-                <TableCell>{ds.name}</TableCell>
-                <TableCell>{ds.node}</TableCell>
-                <TableCell>{ds.type}</TableCell>
-                <TableCell sx={{ color: 'text.secondary', fontSize: 12 }}>{ds.content}</TableCell>
-                <TableCell>
-                  <UsageBar used={ds.usedBytes} total={ds.totalBytes} />
-                </TableCell>
-                <TableCell>
-                  {ds.shared && (
-                    <Chip label="shared" size="small" variant="outlined" sx={{ fontSize: 10, height: 18 }} />
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-            {datastores.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                  {isLoading ? 'Loading…' : 'No datastores found on your servers.'}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <DataTable
+        rows={datastores}
+        columns={columns}
+        getRowId={(ds) => `${ds.hypervisorId}/${ds.id}`}
+        initialSort={[{ id: 'name', desc: false }]}
+        empty={isLoading ? 'Loading…' : 'No datastores found on your servers.'}
+      />
     </Box>
   )
 }
