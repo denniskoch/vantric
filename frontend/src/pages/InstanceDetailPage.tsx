@@ -835,8 +835,7 @@ export default function InstanceDetailPage() {
                     {snapshots.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                          No snapshots. One taken before a risky change is the cheapest
-                          undo this console has.
+                          No snapshots.
                         </TableCell>
                       </TableRow>
                     )}
@@ -1114,8 +1113,8 @@ export default function InstanceDetailPage() {
             {osLoading && <Typography color="text.secondary">Loading OS info…</Typography>}
             {osInfo && !osInfo.available && (
               <Alert severity="info" sx={{ mb: 2 }}>
-                No guest agent is responding on this instance. Install and enable the
-                QEMU guest agent in the guest to report OS details here.
+                No guest agent is responding. OS details need the QEMU guest agent
+                installed and running in the guest.
               </Alert>
             )}
             {osInfo && (
@@ -1151,12 +1150,6 @@ export default function InstanceDetailPage() {
 
         {tab === 'console' && (
           <>
-            <Alert severity="info" sx={{ mb: 2 }}>
-              The display and serial consoles still open on the hypervisor. Proxying
-              them through this app — the way the SSH terminal already is — is the
-              next step.
-            </Alert>
-
             <DetailSection title="Console access">
               <TableContainer component={Paper} variant="outlined">
                 <Table size="small">
@@ -1208,9 +1201,8 @@ export default function InstanceDetailPage() {
         title={`Delete ${deletingDisk?.name}?`}
         body={
           <>
-            This destroys the volume and everything on it. It is not attached to
-            anything, so nothing will notice it going — which is exactly why this
-            asks you to type its name.
+            This destroys the volume and everything on it. Nothing is attached to
+            it, so nothing will report it missing.
           </>
         }
         confirmPhrase={deletingDisk?.name}
@@ -1225,9 +1217,8 @@ export default function InstanceDetailPage() {
         title={`Roll ${name} back to ${rollingBack?.name}?`}
         body={
           <>
-            Everything written since that snapshot is discarded — files, packages,
-            configuration, all of it. The snapshot itself is kept, so this can be
-            done again.
+            Everything written since that snapshot is discarded. The snapshot itself
+            is kept.
             {rollingBack && !rollingBack.includesRam && (
               <> That snapshot holds disks only, so the guest comes back powered off.</>
             )}
@@ -1260,9 +1251,8 @@ export default function InstanceDetailPage() {
         title={`Detach ${detaching?.interface} from ${name}?`}
         body={
           <>
-            The disk stops being visible to the guest and stays on the
-            hypervisor as an unused volume, so you can attach it again from
-            this page. Nothing on it is erased.
+            The disk stays on the hypervisor as an unused volume and can be
+            attached again. Nothing on it is erased.
             {inst?.status === 'RUNNING' && (
               <> This instance is running; unmount the disk inside it first.</>
             )}

@@ -191,9 +191,9 @@ export default function MyAccountPage() {
         <DialogTitle>Generate a new SSH key?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            The current key stops working immediately. Guests still holding it
-            will refuse you until the new one is installed — which the guest
-            agent does on the next Connect, wherever it can reach.
+            The current key stops working immediately. Guests still holding it will
+            refuse you until the guest agent installs the new one, which it does on
+            the next Connect wherever it can reach.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

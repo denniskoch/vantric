@@ -21,10 +21,6 @@ export default function NotFoundPage() {
         </Box>
         . It may have moved, or the link may be out of date.
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        This is the console's own routing, not a resource that's missing — a page for a guest or
-        bucket that no longer exists says so on the page itself.
-      </Typography>
       <Button variant="contained" size="small" component={RouterLink} to="/overview">
         Go to the overview
       </Button>

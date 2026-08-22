@@ -51,8 +51,8 @@ export default function GuestInventory({ instance }: { instance: string }) {
   if (!data.enrolled) {
     return (
       <Alert severity="info" sx={{ mt: 3 }}>
-        This guest isn't enrolled in your inventory service. Nothing reports system
-        UUID {data.uuid || '(unknown)'} — install the agent to see its packages and
+        This guest isn't enrolled in your inventory service — nothing reports system
+        UUID {data.uuid || '(unknown)'}. Install the agent to see its packages and
         vulnerabilities here.
       </Alert>
     )

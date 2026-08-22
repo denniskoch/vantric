@@ -95,7 +95,7 @@ export default function StorageKeyPage() {
         select
         value={enabled === null ? '' : enabled ? 'enabled' : 'disabled'}
         onChange={(e) => setEnabled(e.target.value === 'enabled')}
-        helperText="A disabled key is refused by the store without being deleted — the way to stop something without losing the ability to start it again."
+        helperText="A disabled key is refused by the store without being deleted."
         fullWidth
       >
         <MenuItem value="enabled">Enabled</MenuItem>

@@ -169,8 +169,7 @@ export default function NotificationBell() {
         {operations.length === 0 ? (
           <Box sx={{ px: 2, py: 3 }}>
             <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-              Nothing running. Long jobs — creating an instance, building a template,
-              downloading an image — report here.
+              No history to show.
             </Typography>
           </Box>
         ) : (

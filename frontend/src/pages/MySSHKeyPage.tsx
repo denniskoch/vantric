@@ -44,11 +44,9 @@ export default function MySSHKeyPage() {
       onDismissError={() => setError(null)}
       notice={
         <>
-          The console stores this key decrypted so it can connect without
-          asking you each time — a passphrase held beside the key it unlocks
-          protects nothing. Anyone who can read the console's database can
-          sign in as you. Prefer a key dedicated to this rather than the one
-          guarding everything else you own.
+          The console stores this key decrypted so it can connect unattended,
+          so anyone who can read its database can sign in as you. Best to use
+          a key dedicated to this.
         </>
       }
       primaryLabel="Replace key"

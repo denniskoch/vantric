@@ -490,8 +490,7 @@ export default function CreateContainerPage() {
                   then there is no way in at all. */}
               {!accessValid && (
                 <Alert severity="warning">
-                  Set a root password or an SSH key. Without one there is no way into this
-                  container once it starts.
+                  Set a root password or an SSH key, or there's no way in once it starts.
                 </Alert>
               )}
 
@@ -533,8 +532,8 @@ export default function CreateContainerPage() {
                 label="Unprivileged"
               />
               <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: -1.5 }}>
-                Leave this on. A privileged container shares the host's user namespace, so root
-                inside is root on {form.node || 'the host'} if it ever escapes.
+                A privileged container shares the host's user namespace, so root inside is
+                root on {form.node || 'the host'} if it ever escapes.
               </Typography>
 
               <FormControlLabel

@@ -80,10 +80,9 @@ export default function InstanceResizeDiskPage() {
         sx={{ width: 200 }}
       />
       <Typography variant="body2" color="text.secondary">
-        This grows the virtual disk. The guest then has to grow the partition
-        and the filesystem on it — a cloud image with growpart does that on the
-        next boot; anything else is <code>growpart</code> and{' '}
-        <code>resize2fs</code> by hand.
+        This grows the virtual disk. The partition and filesystem inside still
+        have to follow — a cloud image with growpart does that on the next boot,
+        otherwise it's <code>growpart</code> and <code>resize2fs</code> by hand.
       </Typography>
     </FormPage>
   )

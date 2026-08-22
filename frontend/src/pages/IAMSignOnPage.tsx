@@ -143,10 +143,9 @@ export default function IAMSignOnPage() {
         </Box>
         {provider && !provider.siteUrlSet && (
           <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 1 }}>
-            Worked out from this request. If the console sits behind a proxy or
-            a tunnel, set <code>VANTRIC_SITE_URL</code> in <code>.env</code> to the
-            address people actually use — otherwise this is the address the
-            proxy dialled, and the provider will reject it.
+            Worked out from this request. Behind a proxy or a tunnel that's the
+            address the proxy dialled, which the provider will reject — set{' '}
+            <code>VANTRIC_SITE_URL</code> in <code>.env</code> to the real one.
           </Typography>
         )}
       </Paper>
@@ -225,10 +224,8 @@ export default function IAMSignOnPage() {
             <Box>
               <Typography sx={{ fontSize: 14 }}>Create accounts automatically</Typography>
               <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
-                Off means someone must already have an account here, matched by
-                email — being in the directory isn't by itself a way into the
-                console that runs the lab. On means anyone the provider vouches
-                for gets in with the role below.
+                Off, someone must already have an account here, matched by email.
+                On, anyone the provider vouches for gets in with the role below.
               </Typography>
             </Box>
           }

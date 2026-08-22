@@ -574,8 +574,8 @@ export default function CreateInstancePage() {
             <>
               <Typography variant="h6">Security and access</Typography>
               <Typography variant="body2" color="text.secondary">
-                Applied by cloud-init on first boot. Requires a cloud-init enabled
-                image — the templates built by the wizard are.
+                Applied by cloud-init on first boot, so the image needs cloud-init.
+                Templates built by the wizard have it.
               </Typography>
               <CloudInitLoginFields value={cloudInit} onChange={setCloudInit} />
             </>
@@ -601,9 +601,8 @@ export default function CreateInstancePage() {
                 placeholder={name}
                 helperText={
                   'Written to the guest\'s SMBIOS before it first boots, where device ' +
-                  'inventory reads it as hardware_serial. Blank leaves it unset — which is ' +
-                  'what a hypervisor does by default, and why a fleet of VMs can look ' +
-                  'like one host. Defaults to the instance name.'
+                  'inventory reads it as hardware_serial. Defaults to the instance ' +
+                  'name; blank leaves it unset.'
                 }
                 fullWidth
               />

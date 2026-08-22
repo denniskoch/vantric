@@ -97,9 +97,8 @@ export default function InstanceAddDiskPage() {
         sx={{ width: 200 }}
       />
       <Typography variant="body2" color="text.secondary">
-        The disk is attached to the next free SCSI slot. The guest still has to
-        partition, format and mount it — adding one here gives the machine a
-        block device, not a filesystem.
+        Attached to the next free SCSI slot. The guest still has to partition,
+        format and mount it.
       </Typography>
     </FormPage>
   )

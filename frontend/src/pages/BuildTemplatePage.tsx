@@ -165,8 +165,8 @@ export default function BuildTemplatePage() {
           starts, not after. */}
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2, ml: 9 }}>
         The parts that happen inside the guest — installing the agent, unblocking
-        guest exec on RHEL images, and the serial you must not set on a template —
-        are what decide whether Connect works later.{' '}
+        guest exec on RHEL images, the serial to leave unset on a template — decide
+        whether Connect works later.{' '}
         <Link component={RouterLink} to="/docs/linux-templates">
           Building a Linux template
         </Link>{' '}
@@ -460,10 +460,10 @@ export default function BuildTemplatePage() {
                 virt-customize -a your-image.qcow2 --install qemu-guest-agent
               </Box>
               <Typography variant="body2" color="text.secondary">
-                Without it the guest reports no IP, Connect can't reach it, and OS
-                info stays empty — everything else works, which is what makes it
-                hard to spot. A serial console is always configured too: cloud
-                images log to it and often carry no graphics driver.
+                Without it the guest reports no IP, Connect can't reach it and OS
+                info stays empty, while everything else keeps working. A serial
+                console is always configured too: cloud images log to it and often
+                carry no graphics driver.
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 RHEL-family images (Rocky, Alma, CentOS, RHEL) do carry the agent,

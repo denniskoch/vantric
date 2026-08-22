@@ -65,8 +65,8 @@ export default function BucketPublicPage() {
     >
       {alreadyPublic && (
         <Alert severity="info">
-          Something in this bucket is already public. Saving replaces that grant rather than adding
-          to it, so what's public stays answerable by looking once.
+          Something in this bucket is already public. Saving replaces that grant rather
+          than adding to it.
         </Alert>
       )}
 
@@ -95,9 +95,8 @@ export default function BucketPublicPage() {
         label="Also let anyone list what's in it"
       />
       <Typography variant="caption" color="text.secondary" sx={{ mt: -1 }}>
-        Without this, a file can only be fetched by someone who already knows its exact name. With
-        it, the folder's whole contents can be enumerated by anyone — a much larger decision, and
-        rarely what a file you're linking to needs.
+        Without this, a file can only be fetched by someone who already knows its exact
+        name. With it, anyone can list everything under the prefix.
       </Typography>
 
       {!prefix.trim() && (

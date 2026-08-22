@@ -170,9 +170,8 @@ export default function DatabaseDetailPage() {
             )}
             <DetailSection title="Tables">
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                Row counts are the engine's own estimate, and a dash means it
-                doesn't have one yet — a console shouldn't run{' '}
-                <code>COUNT(*)</code> across your tables to draw a page.
+                Row counts are the engine's own estimate; a dash means it doesn't
+                have one yet.
                 {tables.length > 0 &&
                   ` ${tables.length} table${tables.length === 1 ? '' : 's'}, about ${totalRows.toLocaleString()} rows, ${formatBytes(totalSize)}.`}
               </Typography>
@@ -247,9 +246,8 @@ export default function DatabaseDetailPage() {
               }
             >
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                Who may do what, as the server reports it. Granting here offers
-                read, read/write and full access — the three answers worth a
-                button; anything finer stays in{' '}
+                Who may do what, as the server reports it. Granting here offers read,
+                read/write and full access; anything finer stays in{' '}
                 {isPostgres ? 'psql' : 'the MySQL client'}.
               </Typography>
               <TableContainer component={Paper} variant="outlined">

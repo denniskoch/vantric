@@ -87,8 +87,7 @@ export default function RenameInstancePage() {
       </Paper>
 
       <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 2 }}>
-        This console addresses instances by name, so its address changes with it: existing
-        links to {name} will stop resolving, and an open SSH window won't reconnect.
+        Links to {name} will stop resolving, and an open SSH window won't reconnect.
       </Typography>
 
       <Box

@@ -84,13 +84,11 @@ export default function InstanceSnapshotPage() {
       {instance?.status === 'RUNNING' && (
         <Alert severity="info">
           {name} is running, and this captures its disks but not its memory.
-          Rolling back later gives you a machine that finds itself powered off —
-          the same state as pulling the plug, which is fine for most things and
-          not for a database mid-write.
+          Rolling back gives a machine that comes back as if the power was cut.
         </Alert>
       )}
       <Typography variant="body2" color="text.secondary">
-        Snapshots live on the same storage as the disks they capture, and grow as
+        Snapshots live on the same storage as the disks they capture and grow as
         the guest writes. They are not a backup.
       </Typography>
     </FormPage>

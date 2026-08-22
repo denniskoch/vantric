@@ -121,8 +121,7 @@ export default function IAMActivityPage() {
 
       {!isLoading && entries.length === 0 && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          Nothing recorded yet. Changes made from here — creating an instance, editing a
-          description, connecting a backend — appear as they happen.
+          Nothing recorded yet.
         </Alert>
       )}
 

@@ -94,10 +94,9 @@ function ConnectionForm({ editing }: { editing: DatabaseServer | null }) {
         </Alert>
       )}
       <Alert severity="info" sx={{ mb: 2, maxWidth: 680 }}>
-        The credentials are checked before the connection is saved, so a saved
-        instance is one that works. Use a role with enough rights to read the
-        catalog — and to create databases and users, if you want to do that
-        from here.
+        Credentials are checked before the connection is saved. Use a role that can
+        read the catalog, and create databases and users if you want to do that from
+        here.
       </Alert>
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, maxWidth: 680 }}>
