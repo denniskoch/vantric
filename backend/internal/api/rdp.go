@@ -186,7 +186,16 @@ func (s *Server) instanceRDP(w http.ResponseWriter, r *http.Request) {
 			}
 			tallyMu.Lock()
 			seen[instruction.Opcode]++
+			first := instruction.Opcode == "img" && seen["img"] == 1
 			tallyMu.Unlock()
+			// The first picture's own arguments — mimetype, layer,
+			// position. A wrong mimetype makes an undecodable data URI,
+			// the image never loads, and the display's task queue stops
+			// dead: everything keeps arriving and nothing ever paints.
+			if first {
+				s.log.Info("rdp first image", "instance", inst.Name,
+					"args", strings.Join(instruction.Args, " "))
+			}
 			if err := write(websocket.TextMessage, []byte(instruction.String())); err != nil {
 				return
 			}

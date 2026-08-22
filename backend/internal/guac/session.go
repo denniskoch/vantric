@@ -128,14 +128,29 @@ func Dial(ctx context.Context, addr string, c Connection) (*Session, error) {
 		s.Close()
 		return nil, err
 	}
-	// Announced empty: this console proxies a screen, not sound or
-	// video, and claiming support for a codec nothing will decode is how
-	// you get a session that plays silence very efficiently.
-	for _, opcode := range []string{"audio", "video", "image"} {
+	// Audio and video are announced EMPTY because this console proxies a
+	// screen and nothing else — claiming a codec nothing will decode is
+	// how you get a session that plays silence very efficiently.
+	//
+	// IMAGE IS NOT ONE OF THOSE, and treating it as one was a mistake
+	// worth naming: it is not a media stream, it is the list of formats
+	// the far end can DECODE. Sent empty it says "this client can
+	// display no images", and what comes back is a session that
+	// connects, streams, and draws nothing.
+	//
+	// These three are what guacamole-common-js decodes and what every
+	// browser this console runs in supports.
+	for _, opcode := range []string{"audio", "video"} {
 		if err := s.send(Instruction{Opcode: opcode}); err != nil {
 			s.Close()
 			return nil, err
 		}
+	}
+	if err := s.send(Instruction{Opcode: "image", Args: []string{
+		"image/png", "image/jpeg", "image/webp",
+	}}); err != nil {
+		s.Close()
+		return nil, err
 	}
 
 	// Values in guacd's order, blank for anything it asked for that this
