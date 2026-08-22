@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Badge,
   Box,
   Button,
   CircularProgress,
@@ -11,6 +11,7 @@ import {
   Menu,
   Tooltip,
   Typography,
+  useMediaQuery,
 } from '@mui/material'
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
@@ -27,10 +28,10 @@ import type { Operation } from '../api/client'
  * than a form should sit there for, so the handler starts the work and
  * answers with an operation. This watches them all in one place, the
  * way a cloud console does — and it tells you WITHOUT BEING OPENED,
- * which is the whole point of putting it in the toolbar: it rings while
- * something is running, and keeps a dot on whatever finished since you
- * last looked. Nobody should have to sit with a menu open to find out
- * their VM came up.
+ * which is the whole point of putting it in the toolbar: a ring turns
+ * around it while something is running, and once work lands the ring
+ * holds the number that finished since you last looked. Nobody should
+ * have to sit with a menu open to find out their VM came up.
  */
 
 /** Which cached lists an operation's outcome invalidates. The backend
@@ -86,9 +87,10 @@ export default function NotificationBell() {
     if (anchor) setUnseen(new Set())
   }, [anchor])
 
-  // One state drives the icon, the badge and the label, so they can't
-  // contradict each other: busy while something runs, then done or
-  // failed until you look, then idle.
+  // One state drives the shape, the count and the label, so they can't
+  // contradict each other: busy while something runs — which outranks
+  // anything waiting to be read, since it's the thing still changing —
+  // then done or failed until you look, then idle.
   const mode: BellMode =
     running.length > 0
       ? 'busy'
@@ -97,6 +99,10 @@ export default function NotificationBell() {
         : operations.some((op) => unseen.has(op.id) && op.status === 'ERROR')
           ? 'failed'
           : 'done'
+
+  // A ring that turns is the signal here, so there is no colour or dot
+  // left to carry it when motion is unwelcome: the ring stays, still.
+  const stillMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['operations'] })
   const dismiss = useMutation({ mutationFn: api.dismissOperation, onSuccess: refresh })
@@ -109,24 +115,34 @@ export default function NotificationBell() {
           onClick={(e) => setAnchor(e.currentTarget)}
           aria-label={label(mode, running.length, unseen.size)}
           aria-live="polite"
+          // The ring is the same 30px as the avatar beside it, which
+          // leaves the default 8px padding too tall for a 48px toolbar.
+          sx={{ p: 0.75 }}
         >
-          {/* Three separate cases rather than one badge with clever
-              props: MUI treats a badge whose content is 0 as one to
-              hide, which quietly swallowed the finished-work dot. */}
+          {/* Three shapes, one per state: a bare bell when there is
+              nothing to say, the bell inside a turning ring while work
+              runs, and — once it lands — the ring alone with the count
+              in it, since at that point the number IS the news. */}
           {mode === 'busy' ? (
-            <Badge
-              badgeContent={running.length}
-              color="primary"
-              slotProps={{ badge: { sx: { fontSize: 10, height: 16, minWidth: 16 } } }}
-            >
+            <Ring color="#1a73e8" spinning={!stillMotion}>
               <NotificationsNoneIcon sx={bellIcon(mode)} />
-            </Badge>
+            </Ring>
           ) : mode === 'idle' ? (
             <NotificationsNoneIcon sx={bellIcon(mode)} />
           ) : (
-            <Badge variant="dot" color={mode === 'failed' ? 'error' : 'success'}>
-              <NotificationsNoneIcon sx={bellIcon(mode)} />
-            </Badge>
+            <Ring color={mode === 'failed' ? '#d93025' : '#1e8e3e'}>
+              <Typography
+                component="span"
+                sx={{
+                  fontSize: 13,
+                  fontWeight: 500,
+                  lineHeight: 1,
+                  color: mode === 'failed' ? '#d93025' : '#1e8e3e',
+                }}
+              >
+                {unseen.size}
+              </Typography>
+            </Ring>
           )}
         </IconButton>
       </Tooltip>
@@ -255,31 +271,50 @@ function elapsed(op: Operation): string {
 type BellMode = 'idle' | 'busy' | 'done' | 'failed'
 
 /**
- * The bell rings while work is running, because the whole point is not
- * having to open it to find out. It swings for under a second and then
- * rests, rather than shaking continuously — a permanent animation in a
- * toolbar stops being information and becomes a distraction.
+ * A circle drawn around whatever the bell is currently saying — turning
+ * while work is in flight, closed and still once it has landed. It is
+ * the same 30px either way, so the toolbar doesn't shift as operations
+ * come and go.
  */
+function Ring({
+  color,
+  spinning,
+  children,
+}: {
+  color: string
+  spinning?: boolean
+  children: ReactNode
+}) {
+  return (
+    <Box
+      sx={{
+        position: 'relative',
+        width: 30,
+        height: 30,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <CircularProgress
+        variant={spinning ? 'indeterminate' : 'determinate'}
+        value={100}
+        size={30}
+        thickness={2.4}
+        // Without this the arc shrinks to a dash twice a turn, and a
+        // signal that keeps vanishing is the problem the shake had.
+        disableShrink
+        sx={{ position: 'absolute', color }}
+      />
+      {children}
+    </Box>
+  )
+}
+
 function bellIcon(mode: BellMode) {
-  const busy = mode === 'busy'
   return {
     fontSize: 22,
-    color: busy ? '#1a73e8' : mode === 'failed' ? '#d93025' : '#5f6368',
-    transformOrigin: 'top center',
-    animation: busy ? 'lcmBellRing 2.4s ease-in-out infinite' : 'none',
-    '@keyframes lcmBellRing': {
-      '0%, 45%, 100%': { transform: 'rotate(0deg)' },
-      '4%': { transform: 'rotate(14deg)' },
-      '9%': { transform: 'rotate(-12deg)' },
-      '14%': { transform: 'rotate(10deg)' },
-      '19%': { transform: 'rotate(-8deg)' },
-      '24%': { transform: 'rotate(5deg)' },
-      '29%': { transform: 'rotate(-3deg)' },
-      '34%': { transform: 'rotate(1deg)' },
-    },
-    // Movement isn't the only signal — the colour and the badge say the
-    // same thing — so it costs nothing to leave people alone here.
-    '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
+    color: mode === 'busy' ? '#1a73e8' : mode === 'failed' ? '#d93025' : '#5f6368',
   }
 }
 

@@ -355,16 +355,24 @@ Surface the daily 90% here and link out for the rest.
   honest, where rows in the database would survive as operations stuck
   at RUNNING with nothing left to advance them.
 - THE BELL REPORTS WITHOUT BEING OPENED, which is the only reason to
-  put it in the toolbar: it RINGS while something runs (a swing that
-  decays over a second, then rests — a permanent animation stops being
-  information), and keeps a coloured dot on work that finished since
-  you last looked, red if any of it failed. Opening the menu is
-  reading it. One `mode` drives the icon, the badge and the label
-  together, because deriving them separately let them disagree — and
-  MUI hides a badge whose content is zero, which quietly swallowed the
-  finished-work dot until the three cases were rendered separately.
-  `prefers-reduced-motion` turns the ring off; the colour and the dot
-  say the same thing without it. Template builds are
+  put it in the toolbar, and it does it with a RING rather than a
+  wiggle. It used to shake — a swing that decayed over a second and
+  then rested, kept short because a permanent animation stops being
+  information — and the trouble is that a signal you have to be
+  looking at when it fires is a signal you miss. A circle is a STATE,
+  readable whenever you happen to glance: it turns while work runs,
+  and once work lands it closes and holds the COUNT of what finished
+  since you last looked, green or red. In that state the bell is gone,
+  because the number is the news. Opening the menu is reading it.
+  Running OUTRANKS unread — a new action starts the ring turning even
+  with a count waiting — since the thing still changing is the thing
+  worth watching. One `mode` drives the shape, the count and the
+  label together, because deriving them separately let them disagree.
+  `prefers-reduced-motion` leaves the ring closed and still rather
+  than removing it: there is no dot or colour behind it to fall back
+  on any more, so the shape has to survive without the motion. The
+  arc is `disableShrink`, or MUI's spinner thins to a dash twice a
+  turn and reintroduces the disappearing signal this replaced. Template builds are
   the same path (cloud image → import disk → cloud-init drive → serial
   console → convert), so a build interrupted by a restart still leaves
   a VM, not a template — it shows up in VM instances.
