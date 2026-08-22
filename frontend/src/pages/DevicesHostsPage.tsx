@@ -1,16 +1,12 @@
+import { useMemo } from 'react'
+import DataTable from '../components/DataTable'
+import type { ColumnDef } from '@tanstack/react-table'
 import { Link as RouterLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   Alert,
   Box,
   Link,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Typography,
 } from '@mui/material'
 import { api } from '../api/client'
@@ -53,6 +49,107 @@ function HostsPage({ virtual }: { virtual: boolean }) {
   // business and would be noise on the physical one.
   const unenrolled = virtual ? (data?.unenrolled ?? []) : []
 
+  const columns = useMemo<ColumnDef<InventoryHostView, unknown>[]>(() => {
+    const defs: ColumnDef<InventoryHostView, unknown>[] = [
+      {
+        id: 'status',
+        header: 'Status',
+        meta: { hug: true },
+        accessorFn: (host) => host.status,
+        // The same glyph the instance lists use: an agent that's checked
+        // in recently is running, one that hasn't is stopped.
+        cell: ({ row }) => (
+          <StatusIcon status={row.original.status === 'online' ? 'RUNNING' : 'TERMINATED'} />
+        ),
+      },
+      {
+        id: 'name',
+        header: 'Host',
+        // Sorts and searches on the DISPLAY name, which is the one
+        // somebody chose — "Diane's MacBook Air", not mac.localdomain.
+        accessorFn: (host) => host.name || host.hostname,
+        cell: ({ row }) => (
+          <Link component={RouterLink} to={`/devices/hosts/${row.original.id}`} underline="hover">
+            {row.original.name || row.original.hostname || 'Unnamed host'}
+          </Link>
+        ),
+      },
+      {
+        // The identifying column, and it differs by kind: a VM is which
+        // instance it is, a laptop is which machine it is.
+        id: virtual ? 'instance' : 'model',
+        header: virtual ? 'Instance' : 'Model',
+        accessorFn: (host) => (virtual ? (host.managed ? host.instance : undefined) : host.model),
+        cell: ({ row }) =>
+          virtual ? <InstanceCell host={row.original} /> : row.original.model || '—',
+      },
+      {
+        id: 'os',
+        header: 'Operating system',
+        accessorFn: (host) => host.osVersion || host.platform,
+        cell: ({ row }) => (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ width: 16 }}>
+              <OSIcon name={`${row.original.osVersion} ${row.original.platform}`} />
+            </Box>
+            {row.original.osVersion || row.original.platform || '—'}
+          </Box>
+        ),
+      },
+    ]
+    // Only on the physical list: every machine there reports a real
+    // serial, and almost no guest does — the hypervisor sets one for
+    // nobody.
+    if (!virtual) {
+      defs.push({
+        id: 'serial',
+        header: 'Serial',
+        meta: { nowrap: true },
+        // realSerial, so the DMI placeholders every MSI board reports
+        // sort and search as the absence they are rather than as six
+        // machines sharing a serial.
+        accessorFn: (host) => realSerial(host.serial) ?? undefined,
+        cell: ({ row }) =>
+          realSerial(row.original.serial) ? (
+            <Box component="span" sx={{ fontFamily: 'monospace', fontSize: 12 }}>
+              {realSerial(row.original.serial)}
+            </Box>
+          ) : (
+            <Box component="span" sx={{ color: 'text.secondary' }}>—</Box>
+          ),
+      })
+    }
+    defs.push({
+      id: 'issues',
+      header: 'Issues',
+      meta: { align: 'right' },
+      accessorFn: (host) => host.issuesFailing || undefined,
+      cell: ({ row }) =>
+        row.original.issuesFailing > 0 ? (
+          <Box component="span" sx={{ color: 'error.main' }}>
+            {row.original.issuesFailing}
+          </Box>
+        ) : (
+          '—'
+        ),
+    })
+    defs.push({
+      id: 'seenAt',
+      header: 'Last seen',
+      meta: { nowrap: true, filterText: (host) => timeAgo(host.seenAt) },
+      // Sorts on the timestamp, reads as "3 hours ago" — coarse on
+      // purpose, since minutes or days is the answer and the clock time
+      // is arithmetic for the reader.
+      accessorFn: (host) => host.seenAt,
+      cell: ({ row }) => (
+        <Box component="span" sx={{ color: 'text.secondary' }}>
+          {timeAgo(row.original.seenAt)}
+        </Box>
+      ),
+    })
+    return defs
+  }, [virtual])
+
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
@@ -93,86 +190,26 @@ function HostsPage({ virtual }: { virtual: boolean }) {
         </Alert>
       )}
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Status</TableCell>
-              <TableCell>Host</TableCell>
-              {/* The identifying column, and it differs by kind: a VM is
-                  which instance it is, a laptop is which machine it is. */}
-              <TableCell>{virtual ? 'Instance' : 'Model'}</TableCell>
-              <TableCell>Operating system</TableCell>
-              {!virtual && <TableCell>Serial</TableCell>}
-              <TableCell align="right">Issues</TableCell>
-              <TableCell>Last seen</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {hosts.map((host) => (
-              <TableRow key={host.id} hover>
-                <TableCell>
-                  {/* The same glyph the instance lists use: an agent
-                      that's checked in recently is running, one that
-                      hasn't is stopped. */}
-                  <StatusIcon status={host.status === 'online' ? 'RUNNING' : 'TERMINATED'} />
-                </TableCell>
-                <TableCell>
-                  <Link component={RouterLink} to={`/devices/hosts/${host.id}`} underline="hover">
-                    {host.name || host.hostname || 'Unnamed host'}
-                  </Link>
-                </TableCell>
-                <TableCell>{virtual ? <InstanceCell host={host} /> : host.model || '—'}</TableCell>
-                <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box sx={{ width: 16 }}>
-                      <OSIcon name={`${host.osVersion} ${host.platform}`} />
-                    </Box>
-                    {host.osVersion || host.platform || '—'}
-                  </Box>
-                </TableCell>
-                {/* Only on the physical list: every machine there reports
-                    a real serial, and almost no guest does — the
-                    hypervisor sets one for nobody. */}
-                {!virtual && (
-                  <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
-                    {realSerial(host.serial) ?? (
-                      <Box component="span" sx={{ color: 'text.secondary' }}>
-                        —
-                      </Box>
-                    )}
-                  </TableCell>
-                )}
-                <TableCell align="right">
-                  {host.issuesFailing > 0 ? (
-                    <Box component="span" sx={{ color: 'error.main' }}>
-                      {host.issuesFailing}
-                    </Box>
-                  ) : (
-                    '—'
-                  )}
-                </TableCell>
-                {/* Coarse on purpose: minutes or days is the answer;
-                    the clock time is arithmetic for the reader. */}
-                <TableCell sx={{ color: 'text.secondary' }}>{timeAgo(host.seenAt)}</TableCell>
-              </TableRow>
-            ))}
-            {hosts.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={virtual ? 6 : 7} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                  {isLoading
-                    ? 'Loading…'
-                    : !data?.configured
-                      ? 'Nothing to show until an inventory service is connected.'
-                      : virtual
-                        ? 'No guest is reporting to your inventory service yet.'
-                        : 'Every machine reporting in is a guest this console runs.'}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <DataTable
+        rows={hosts}
+        columns={columns}
+        getRowId={(host) => host.id}
+        initialSort={[{ id: 'name', desc: false }]}
+        filterPlaceholder={
+          virtual
+            ? 'Filter by host, instance or operating system'
+            : 'Filter by host, model, operating system or serial'
+        }
+        empty={
+          isLoading
+            ? 'Loading…'
+            : !data?.configured
+              ? 'Nothing to show until an inventory service is connected.'
+              : virtual
+                ? 'No guest is reporting to your inventory service yet.'
+                : 'Every machine reporting in is a guest this console runs.'
+        }
+      />
 
       {virtual && hosts.length > 0 && (
         <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 1 }}>
