@@ -133,7 +133,6 @@ export default function AIOverviewPage() {
                   <TableCell>Provider</TableCell>
                   <TableCell align="right">Remaining</TableCell>
                   <TableCell align="right">Used</TableCell>
-                  <TableCell>Read</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -147,9 +146,6 @@ export default function AIOverviewPage() {
                     </TableCell>
                     <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                       {a.balance ? money(a.balance.unit, a.balance.used) : '—'}
-                    </TableCell>
-                    <TableCell sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>
-                      {a.balance ? new Date(a.balance.asOf).toLocaleTimeString() : '—'}
                     </TableCell>
                   </TableRow>
                 ))}
