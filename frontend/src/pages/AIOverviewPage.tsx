@@ -17,6 +17,7 @@ import TimeSeriesChart from '../components/TimeSeriesChart'
 import ProviderName from '../components/ProviderName'
 import { chart } from '../chartPalette'
 import { api } from '../api/client'
+import type { AIAccount } from '../api/client'
 
 /**
  * The AI section's front page: enough to know whether anything is
@@ -85,24 +86,9 @@ export default function AIOverviewPage() {
         />
         <Stat label="Average latency" value={stats ? formatMs(stats.avgLatencyMs) : '—'} />
         <Stat label="Tokens" value={stats ? compact(stats.totalTokens) : '—'} />
-        {accounts.map((a) => (
-          <Stat
-            key={a.id}
-            label={`${a.name} credit`}
-            value={
-              a.balance?.remaining === undefined
-                ? '—'
-                : a.balance.unit === 'USD'
-                  ? `$${a.balance.remaining.toFixed(2)}`
-                  : `${compact(a.balance.remaining)} ${a.balance.unit}`
-            }
-            alarming={Boolean(a.balance?.remaining !== undefined && a.balance.remaining < 5)}
-          />
-        ))}
       </Box>
       <Typography sx={{ fontSize: 12, color: 'text.secondary', mb: 3 }}>
-        Traffic figures cover the last 24 hours. Credit is whatever the provider last
-        reported.
+        Traffic figures cover the last 24 hours.
       </Typography>
 
       {failed > 0 && (
@@ -128,6 +114,48 @@ export default function AIOverviewPage() {
               { name: 'Failed', color: '#d93025', values: buckets.map((b) => b.failed) },
             ]}
           />
+        </Box>
+      )}
+
+      {/* A TABLE, NOT A CARD EACH. Credit is one row per provider and
+          there will be more providers; four more cards would push the
+          traffic figures off the top of the page to say four small
+          things. It also lets the units differ down a column instead of
+          across one — dollars at OpenRouter, characters at ElevenLabs,
+          and "no balance API" where that is the honest answer. */}
+      {accounts.length > 0 && (
+        <Box sx={{ mb: 3 }}>
+          <Typography sx={{ fontSize: 16, mb: 1.5 }}>Provider credit</Typography>
+          <TableContainer component={Paper} variant="outlined">
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Provider</TableCell>
+                  <TableCell align="right">Remaining</TableCell>
+                  <TableCell align="right">Used</TableCell>
+                  <TableCell>Read</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {accounts.map((a) => (
+                  <TableRow key={a.id} hover>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      <ProviderName name={a.type} />
+                    </TableCell>
+                    <TableCell align="right">
+                      <Credit account={a} />
+                    </TableCell>
+                    <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                      {a.balance ? money(a.balance.unit, a.balance.used) : '—'}
+                    </TableCell>
+                    <TableCell sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>
+                      {a.balance ? new Date(a.balance.asOf).toLocaleTimeString() : '—'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         </Box>
       )}
 
@@ -170,6 +198,43 @@ export default function AIOverviewPage() {
       )}
     </SectionLandingPage>
   )
+}
+
+/** The figure, or the reason there isn't one — the same three answers
+ *  the accounts page gives, since they are the same three facts. */
+function Credit({ account }: { account: AIAccount }) {
+  if (account.status === 'unsupported') {
+    return (
+      <Typography component="span" sx={{ fontSize: 12, color: 'text.secondary' }}>
+        no balance API
+      </Typography>
+    )
+  }
+  if (!account.balance) {
+    return (
+      <Typography component="span" sx={{ fontSize: 12, color: 'error.main' }}>
+        unreadable
+      </Typography>
+    )
+  }
+  if (account.balance.kind === 'spend' || account.balance.remaining === undefined) {
+    return <>—</>
+  }
+  const left = account.balance.remaining
+  return (
+    <Typography
+      component="span"
+      sx={{ fontSize: 13, color: left < 5 ? 'error.main' : undefined, whiteSpace: 'nowrap' }}
+    >
+      {money(account.balance.unit, left)}
+    </Typography>
+  )
+}
+
+/** In the provider's own unit, because they do not share one. */
+function money(unit: string, value: number): string {
+  if (unit === 'USD') return `$${value.toFixed(2)}`
+  return `${compact(value)} ${unit}`
 }
 
 function Stat({
