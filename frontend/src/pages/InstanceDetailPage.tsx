@@ -131,13 +131,15 @@ export default function InstanceDetailPage() {
       setError(e.message)
     },
   })
-  const refreshSnapshots = () => queryClient.invalidateQueries({ queryKey: ['snapshots'] })
+  // Rolling back and deleting a snapshot are operations, so what the
+  // page does immediately is start the bell turning; the snapshot list
+  // and the detail refresh from there when the work lands.
+  const refreshOperations = () => queryClient.invalidateQueries({ queryKey: ['operations'] })
   const rollback = useMutation({
     mutationFn: (snapshot: string) => api.rollbackInstanceSnapshot(name, snapshot),
     onSuccess: () => {
       setRollingBack(null)
-      void refreshDetail()
-      void refreshSnapshots()
+      void refreshOperations()
     },
     onError: (e: Error) => {
       setRollingBack(null)
@@ -148,7 +150,7 @@ export default function InstanceDetailPage() {
     mutationFn: (snapshot: string) => api.deleteInstanceSnapshot(name, snapshot),
     onSuccess: () => {
       setDeletingSnapshot(null)
-      void refreshSnapshots()
+      void refreshOperations()
     },
     onError: (e: Error) => {
       setDeletingSnapshot(null)
@@ -218,9 +220,16 @@ export default function InstanceDetailPage() {
     queryClient.invalidateQueries({ queryKey: ['instances'] })
   }
 
+  // A power action starts an operation, so the bell should turn now
+  // rather than at the end of its next three-second poll.
+  const started = () => {
+    invalidate()
+    queryClient.invalidateQueries({ queryKey: ['operations'] })
+  }
+
   const action = useMutation({
     mutationFn: (act: 'start' | 'stop' | 'reset') => api.instanceAction(name!, act),
-    onSuccess: invalidate,
+    onSuccess: started,
     onError: (e: Error) => setError(e.message),
   })
 

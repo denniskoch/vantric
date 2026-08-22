@@ -515,16 +515,18 @@ func (d *Driver) SetDescription(ctx context.Context, driverID, description strin
 	return hypervisor.ErrNotFound
 }
 
-func (d *Driver) Start(ctx context.Context, driverID string) error {
-	return d.transition(driverID, hypervisor.StatusStaging, hypervisor.StatusRunning, 3*time.Second)
+// The power methods return no task id: this driver's transitions happen
+// on a timer in memory, so there is nothing for the console to follow.
+func (d *Driver) Start(ctx context.Context, driverID string) (string, error) {
+	return "", d.transition(driverID, hypervisor.StatusStaging, hypervisor.StatusRunning, 3*time.Second)
 }
 
-func (d *Driver) Stop(ctx context.Context, driverID string) error {
-	return d.transition(driverID, hypervisor.StatusStopping, hypervisor.StatusTerminated, 4*time.Second)
+func (d *Driver) Stop(ctx context.Context, driverID string) (string, error) {
+	return "", d.transition(driverID, hypervisor.StatusStopping, hypervisor.StatusTerminated, 4*time.Second)
 }
 
-func (d *Driver) Reset(ctx context.Context, driverID string) error {
-	return d.transition(driverID, hypervisor.StatusStaging, hypervisor.StatusRunning, 3*time.Second)
+func (d *Driver) Reset(ctx context.Context, driverID string) (string, error) {
+	return "", d.transition(driverID, hypervisor.StatusStaging, hypervisor.StatusRunning, 3*time.Second)
 }
 
 func (d *Driver) transition(driverID string, now, then hypervisor.Status, after time.Duration) error {
@@ -701,17 +703,17 @@ func (d *Driver) ctTransition(driverID string, now, then hypervisor.Status, afte
 	return nil
 }
 
-func (d *Driver) StartContainer(ctx context.Context, driverID string) error {
+func (d *Driver) StartContainer(ctx context.Context, driverID string) (string, error) {
 	// Containers start much faster than VMs.
-	return d.ctTransition(driverID, hypervisor.StatusStaging, hypervisor.StatusRunning, 1*time.Second)
+	return "", d.ctTransition(driverID, hypervisor.StatusStaging, hypervisor.StatusRunning, 1*time.Second)
 }
 
-func (d *Driver) StopContainer(ctx context.Context, driverID string) error {
-	return d.ctTransition(driverID, hypervisor.StatusStopping, hypervisor.StatusTerminated, 2*time.Second)
+func (d *Driver) StopContainer(ctx context.Context, driverID string) (string, error) {
+	return "", d.ctTransition(driverID, hypervisor.StatusStopping, hypervisor.StatusTerminated, 2*time.Second)
 }
 
-func (d *Driver) RestartContainer(ctx context.Context, driverID string) error {
-	return d.ctTransition(driverID, hypervisor.StatusStaging, hypervisor.StatusRunning, 1*time.Second)
+func (d *Driver) RestartContainer(ctx context.Context, driverID string) (string, error) {
+	return "", d.ctTransition(driverID, hypervisor.StatusStaging, hypervisor.StatusRunning, 1*time.Second)
 }
 
 func (d *Driver) DeleteContainer(ctx context.Context, driverID string) error {

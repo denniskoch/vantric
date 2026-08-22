@@ -572,16 +572,23 @@ func mapStatus(status, lock string) hypervisor.Status {
 	}
 }
 
-func (d *Driver) power(ctx context.Context, driverID, action string) error {
+// power issues one of Proxmox's status actions and hands back the UPID
+// it answers with, so the caller can follow the task: a shutdown runs
+// until the guest is actually off, which is the part worth reporting.
+func (d *Driver) power(ctx context.Context, driverID, action string) (string, error) {
 	node, err := d.node(ctx, driverID)
 	if err != nil {
-		return err
+		return "", err
 	}
+	var upid string
 	path := apiPath("/nodes/%s/qemu/%s/status/%s", node, driverID, action)
-	return d.do(ctx, http.MethodPost, path, url.Values{}, nil)
+	if err := d.do(ctx, http.MethodPost, path, url.Values{}, &upid); err != nil {
+		return "", err
+	}
+	return upid, nil
 }
 
-func (d *Driver) Start(ctx context.Context, driverID string) error {
+func (d *Driver) Start(ctx context.Context, driverID string) (string, error) {
 	return d.power(ctx, driverID, "start")
 }
 
@@ -635,11 +642,11 @@ func (d *Driver) SetName(ctx context.Context, driverID, name string) error {
 }
 
 // Stop performs a graceful ACPI shutdown, matching GCP's Stop semantics.
-func (d *Driver) Stop(ctx context.Context, driverID string) error {
+func (d *Driver) Stop(ctx context.Context, driverID string) (string, error) {
 	return d.power(ctx, driverID, "shutdown")
 }
 
-func (d *Driver) Reset(ctx context.Context, driverID string) error {
+func (d *Driver) Reset(ctx context.Context, driverID string) (string, error) {
 	return d.power(ctx, driverID, "reboot")
 }
 
@@ -649,7 +656,7 @@ func (d *Driver) Delete(ctx context.Context, driverID string) error {
 		return err
 	}
 	// Force-stop first; Proxmox refuses to destroy a running VM.
-	_ = d.power(ctx, driverID, "stop")
+	_, _ = d.power(ctx, driverID, "stop")
 	path := apiPath("/nodes/%s/qemu/%s?purge=1&destroy-unreferenced-disks=1", node, driverID)
 	err = d.do(ctx, http.MethodDelete, path, nil, nil)
 	if err == nil {

@@ -52,9 +52,16 @@ export default function ContainerDetailPage() {
     queryClient.invalidateQueries({ queryKey: ['containers'] })
   }
 
+  // A power action starts an operation, so the bell should turn now
+  // rather than at the end of its next three-second poll.
+  const started = () => {
+    invalidate()
+    queryClient.invalidateQueries({ queryKey: ['operations'] })
+  }
+
   const action = useMutation({
     mutationFn: (act: 'start' | 'stop' | 'reset') => api.containerAction(name!, act),
-    onSuccess: invalidate,
+    onSuccess: started,
     onError: (e: Error) => setError(e.message),
   })
 

@@ -38,7 +38,9 @@ export default function InstanceSnapshotPage() {
         description: description || undefined,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['snapshots'] })
+      // The snapshot isn't there yet — the bell is following it and
+      // refreshes this list when it lands.
+      queryClient.invalidateQueries({ queryKey: ['operations'] })
       navigate(`/compute/instances/${encodeURIComponent(name)}`)
     },
     onError: (e: Error) => setError(e.message),

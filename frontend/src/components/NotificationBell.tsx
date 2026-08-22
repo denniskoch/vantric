@@ -38,7 +38,8 @@ import type { Operation } from '../api/client'
  *  says what kind of thing it touched; the query keys stay here, where
  *  they're declared. */
 const affects: Record<string, string[]> = {
-  instance: ['instances', 'instance', 'overview'],
+  instance: ['instances', 'instance', 'instanceDetail', 'overview'],
+  snapshot: ['snapshots', 'instance', 'instanceDetail'],
   container: ['containers', 'container', 'overview'],
   image: ['images', 'instances'],
   iso: ['isos'],

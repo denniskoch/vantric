@@ -1975,8 +1975,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  /** Power actions answer with an operation: a stop runs until the
+   *  guest is actually down, and the bell is where that gets reported. */
   instanceAction: (name: string, action: 'start' | 'stop' | 'reset') =>
-    request<Instance>(`/instances/${name}/${action}`, { method: 'POST' }),
+    request<Operation>(`/instances/${name}/${action}`, { method: 'POST' }),
   /** Writes notes to the hypervisor's own description field. */
   renameInstance: (name: string, newName: string) =>
     request<Instance>(`/instances/${name}/rename`, {
@@ -2027,19 +2029,22 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  /** Snapshots answer with an operation: writing a running guest's RAM
+   *  out to disk, and reading it back on a rollback, is minutes of work
+   *  that no form should sit and wait for. */
   createInstanceSnapshot: (name: string, body: { name: string; description?: string }) =>
-    request<void>(`/instances/${encodeURIComponent(name)}/snapshots`, {
+    request<Operation>(`/instances/${encodeURIComponent(name)}/snapshots`, {
       method: 'POST',
       body: JSON.stringify(body),
     }),
   /** Returns the guest to a snapshot, discarding everything since. */
   rollbackInstanceSnapshot: (name: string, snapshot: string) =>
-    request<void>(
+    request<Operation>(
       `/instances/${encodeURIComponent(name)}/snapshots/${encodeURIComponent(snapshot)}/rollback`,
       { method: 'POST' },
     ),
   deleteInstanceSnapshot: (name: string, snapshot: string) =>
-    request<void>(
+    request<Operation>(
       `/instances/${encodeURIComponent(name)}/snapshots/${encodeURIComponent(snapshot)}`,
       { method: 'DELETE' },
     ),
@@ -2158,7 +2163,7 @@ export const api = {
   listContainers: () => request<Container[]>('/containers'),
   getContainer: (name: string) => request<Container>(`/containers/${name}/`),
   containerAction: (name: string, action: 'start' | 'stop' | 'reset') =>
-    request<Container>(`/containers/${name}/${action}`, { method: 'POST' }),
+    request<Operation>(`/containers/${name}/${action}`, { method: 'POST' }),
   deleteContainer: (name: string) =>
     request<void>(`/containers/${name}/`, { method: 'DELETE' }),
   setContainerProtection: (name: string, protectedFlag: boolean) =>

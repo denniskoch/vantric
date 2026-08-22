@@ -57,10 +57,17 @@ export default function InstancesPage() {
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ['instances'] })
 
+  // A power action starts an operation, so the bell should turn now
+  // rather than at the end of its next three-second poll.
+  const started = () => {
+    invalidate()
+    queryClient.invalidateQueries({ queryKey: ['operations'] })
+  }
+
   const action = useMutation({
     mutationFn: ({ name, act }: { name: string; act: 'start' | 'stop' | 'reset' }) =>
       api.instanceAction(name, act),
-    onSuccess: invalidate,
+    onSuccess: started,
     onError: (e: Error) => setError(e.message),
   })
 
@@ -83,7 +90,7 @@ export default function InstancesPage() {
   const bulk = useMutation({
     mutationFn: ({ act, names }: { act: 'start' | 'stop' | 'reset'; names: string[] }) =>
       settle(names, (name) => api.instanceAction(name, act)),
-    onSuccess: invalidate,
+    onSuccess: started,
     onError: (e: Error) => setError(e.message),
   })
 

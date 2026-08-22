@@ -624,9 +624,16 @@ type Driver interface {
 	// call. Implementations may omit IPs here; callers use Get for
 	// per-instance detail.
 	List(ctx context.Context) ([]InstanceState, error)
-	Start(ctx context.Context, driverID string) error
-	Stop(ctx context.Context, driverID string) error
-	Reset(ctx context.Context, driverID string) error
+	// Start, Stop and Reset return the backend's task id, the way
+	// DeleteVolume and DeleteImage do, because none of the three is
+	// instantaneous: a graceful stop waits on the guest's own shutdown
+	// and a reset waits for it to come back. The console follows the
+	// task so the bell can say the machine is still stopping, rather
+	// than reporting "accepted" and leaving the list to explain the
+	// rest. A driver with nothing to follow returns an empty id.
+	Start(ctx context.Context, driverID string) (taskID string, err error)
+	Stop(ctx context.Context, driverID string) (taskID string, err error)
+	Reset(ctx context.Context, driverID string) (taskID string, err error)
 	Delete(ctx context.Context, driverID string) error
 	// SetDescription writes a guest's notes on the hypervisor, which is
 	// where they belong: the hypervisor's own console shows the same
@@ -770,8 +777,9 @@ type ContainerDriver interface {
 	CreateContainer(ctx context.Context, spec ContainerSpec) (driverID string, err error)
 	ListContainers(ctx context.Context) ([]InstanceState, error)
 	GetContainer(ctx context.Context, driverID string) (*InstanceState, error)
-	StartContainer(ctx context.Context, driverID string) error
-	StopContainer(ctx context.Context, driverID string) error
-	RestartContainer(ctx context.Context, driverID string) error
+	// The same task ids as the VM power methods, for the same reason.
+	StartContainer(ctx context.Context, driverID string) (taskID string, err error)
+	StopContainer(ctx context.Context, driverID string) (taskID string, err error)
+	RestartContainer(ctx context.Context, driverID string) (taskID string, err error)
 	DeleteContainer(ctx context.Context, driverID string) error
 }

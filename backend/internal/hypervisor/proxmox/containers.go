@@ -98,25 +98,29 @@ func (d *Driver) containerIP(ctx context.Context, node, vmid string) string {
 	return ""
 }
 
-func (d *Driver) containerPower(ctx context.Context, driverID, action string) error {
+func (d *Driver) containerPower(ctx context.Context, driverID, action string) (string, error) {
 	node, err := d.node(ctx, driverID)
 	if err != nil {
-		return err
+		return "", err
 	}
+	var upid string
 	path := apiPath("/nodes/%s/lxc/%s/status/%s", node, driverID, action)
-	return d.do(ctx, http.MethodPost, path, url.Values{}, nil)
+	if err := d.do(ctx, http.MethodPost, path, url.Values{}, &upid); err != nil {
+		return "", err
+	}
+	return upid, nil
 }
 
-func (d *Driver) StartContainer(ctx context.Context, driverID string) error {
+func (d *Driver) StartContainer(ctx context.Context, driverID string) (string, error) {
 	return d.containerPower(ctx, driverID, "start")
 }
 
 // StopContainer performs a graceful shutdown.
-func (d *Driver) StopContainer(ctx context.Context, driverID string) error {
+func (d *Driver) StopContainer(ctx context.Context, driverID string) (string, error) {
 	return d.containerPower(ctx, driverID, "shutdown")
 }
 
-func (d *Driver) RestartContainer(ctx context.Context, driverID string) error {
+func (d *Driver) RestartContainer(ctx context.Context, driverID string) (string, error) {
 	return d.containerPower(ctx, driverID, "reboot")
 }
 
@@ -126,7 +130,7 @@ func (d *Driver) DeleteContainer(ctx context.Context, driverID string) error {
 		return err
 	}
 	// Force-stop first; Proxmox refuses to destroy a running container.
-	_ = d.containerPower(ctx, driverID, "stop")
+	_, _ = d.containerPower(ctx, driverID, "stop")
 	path := apiPath("/nodes/%s/lxc/%s?purge=1&destroy-unreferenced-disks=1", node, driverID)
 	err = d.do(ctx, http.MethodDelete, path, nil, nil)
 	if err == nil {

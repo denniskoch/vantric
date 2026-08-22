@@ -593,7 +593,7 @@ func (s *Server) startNewInstance(ctx context.Context, driver hypervisor.Driver,
 	deadline := time.Now().Add(startRetryFor)
 	var err error
 	for {
-		if err = driver.Start(ctx, driverID); err == nil {
+		if _, err = driver.Start(ctx, driverID); err == nil {
 			return nil
 		}
 		if time.Now().After(deadline) || ctx.Err() != nil {
@@ -652,16 +652,17 @@ func (s *Server) instanceAction(action string) http.HandlerFunc {
 			return
 		}
 		var optimistic hypervisor.Status
+		var taskID, verb, done string
 		switch action {
 		case "start":
-			err = driver.Start(r.Context(), inst.DriverID)
-			optimistic = hypervisor.StatusStaging
+			taskID, err = driver.Start(r.Context(), inst.DriverID)
+			optimistic, verb, done = hypervisor.StatusStaging, "Starting", "Started"
 		case "stop":
-			err = driver.Stop(r.Context(), inst.DriverID)
-			optimistic = hypervisor.StatusStopping
+			taskID, err = driver.Stop(r.Context(), inst.DriverID)
+			optimistic, verb, done = hypervisor.StatusStopping, "Stopping", "Stopped"
 		case "reset":
-			err = driver.Reset(r.Context(), inst.DriverID)
-			optimistic = hypervisor.StatusStaging
+			taskID, err = driver.Reset(r.Context(), inst.DriverID)
+			optimistic, verb, done = hypervisor.StatusStaging, "Resetting", "Reset"
 		}
 		if err != nil {
 			s.fail(w, err, action)
@@ -669,8 +670,13 @@ func (s *Server) instanceAction(action string) http.HandlerFunc {
 		}
 		// Reflect the action immediately; the reconciler converges on truth.
 		_ = s.store.SetInstanceStatus(r.Context(), inst.ID, string(optimistic))
-		inst.Status = string(optimistic)
-		s.json(w, http.StatusOK, inst)
+		// A power action is not instantaneous — a graceful stop waits on
+		// the guest's own shutdown — so it reports in the bell like any
+		// other work that outlives its request.
+		op := s.ops.start(verb+" instance "+inst.Name,
+			"instance", inst.Name, inst.HypervisorID, "/compute/instances/"+inst.Name)
+		s.watchOrFinish(op, driver, taskID, done)
+		s.json(w, http.StatusAccepted, op)
 	}
 }
 

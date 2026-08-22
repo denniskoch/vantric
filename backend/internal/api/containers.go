@@ -76,24 +76,30 @@ func (s *Server) containerAction(action string) http.HandlerFunc {
 			return
 		}
 		var optimistic hypervisor.Status
+		var taskID, verb, done string
 		switch action {
 		case "start":
-			err = cd.StartContainer(r.Context(), ct.DriverID)
-			optimistic = hypervisor.StatusStaging
+			taskID, err = cd.StartContainer(r.Context(), ct.DriverID)
+			optimistic, verb, done = hypervisor.StatusStaging, "Starting", "Started"
 		case "stop":
-			err = cd.StopContainer(r.Context(), ct.DriverID)
-			optimistic = hypervisor.StatusStopping
+			taskID, err = cd.StopContainer(r.Context(), ct.DriverID)
+			optimistic, verb, done = hypervisor.StatusStopping, "Stopping", "Stopped"
 		case "reset":
-			err = cd.RestartContainer(r.Context(), ct.DriverID)
-			optimistic = hypervisor.StatusStaging
+			taskID, err = cd.RestartContainer(r.Context(), ct.DriverID)
+			optimistic, verb, done = hypervisor.StatusStaging, "Restarting", "Restarted"
 		}
 		if err != nil {
 			s.fail(w, err, action)
 			return
 		}
 		_ = s.store.SetContainerStatus(r.Context(), ct.ID, string(optimistic))
-		ct.Status = string(optimistic)
-		s.json(w, http.StatusOK, ct)
+		// Same as a VM's power actions: the task is what says when the
+		// container has actually stopped, so the bell follows it.
+		driver, _ := s.registry.Get(ct.HypervisorID)
+		op := s.ops.start(verb+" container "+ct.Name,
+			"container", ct.Name, ct.HypervisorID, "/compute/containers/"+ct.Name)
+		s.watchOrFinish(op, driver, taskID, done)
+		s.json(w, http.StatusAccepted, op)
 	}
 }
 
@@ -293,7 +299,8 @@ func (s *Server) createContainer(w http.ResponseWriter, r *http.Request) {
 		// is still a STEP of the create, so a failure to start says so
 		// instead of leaving a built container sitting stopped.
 		step("Starting " + req.Name)
-		return cd.StartContainer(ctx, driverID)
+		_, err = cd.StartContainer(ctx, driverID)
+		return err
 	})
 	s.json(w, http.StatusAccepted, op)
 }

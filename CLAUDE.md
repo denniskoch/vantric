@@ -384,6 +384,28 @@ Surface the daily 90% here and link out for the rest.
   spinning is a wizard that loses the answer when the laptop sleeps.
   Deleting an instance is still synchronous, since the record has to
   be gone before the list is right.
+- POWER IS AN OPERATION TOO, not just creation. A graceful stop waits
+  on the guest's own shutdown and a reset waits for it to come back,
+  so start, stop and reset — for instances and containers alike —
+  report in the bell rather than answering "accepted" and leaving the
+  list to explain the rest. Same for SNAPSHOTS: taking one on a
+  running guest writes its RAM out to disk and a rollback reads it
+  back, which is minutes on a machine with any memory. That is what
+  moved `Start`/`Stop`/`Reset` (and their container equivalents) from
+  returning an error to returning a TASK ID, the way `DeleteVolume`
+  and `DeleteImage` already did — a power action the console can't
+  follow is one it can only report the beginning of. A driver with
+  nothing to follow returns an empty id and `watchOrFinish` closes the
+  operation out immediately, because an operation left RUNNING with
+  nothing to advance it is the lie this package exists to avoid.
+  The two backends differ on refusals and both are honest: qemu makes
+  a task that fails with "VM 1001 already running", lxc rejects the
+  request outright with a 500, so one lands in the bell as an ERROR
+  and the other comes straight back to the page.
+  What stays synchronous is what the panel that started it has to
+  show: a disk change (seconds, and Add and Attach answer with the
+  disk's name), a resize (a config write), and the instance delete
+  above.
 - DNS mirrors the hypervisor split: `internal/dns.Provider` is the
   boundary (Cloudflare first), providers are DB records with a
   write-only token, one live provider per record in `dns.Registry`, and

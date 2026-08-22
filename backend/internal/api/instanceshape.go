@@ -1,21 +1,26 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 
 	"vantric/internal/hypervisor"
+	"vantric/internal/store"
 )
 
 // Changing what an instance IS after it exists: its sizing, and its
 // snapshots.
 //
-// Synchronous for the same reason the disk operations are — the driver
-// waits for the hypervisor's task, and the panel that started it has to
-// show the result. Editor's work: these change a resource, not a
-// credential.
+// Resizing is synchronous for the same reason the disk operations are —
+// it is a config write, and the panel that started it has to show the
+// result. SNAPSHOTS ARE NOT: taking one on a running guest writes its
+// RAM out to disk, and rolling back reads it in again, which is minutes
+// on a machine with any memory to speak of. That is work outliving its
+// request, so it reports in the bell like a clone does. Editor's work
+// either way: these change a resource, not a credential.
 
 func (s *Server) resizeInstance(w http.ResponseWriter, r *http.Request) {
 	inst, driver := s.instanceDriver(w, r)
@@ -54,22 +59,28 @@ func (s *Server) resizeInstance(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) snapshotManagerFor(w http.ResponseWriter, r *http.Request) (hypervisor.SnapshotManager, string, bool) {
+func (s *Server) snapshotManagerFor(w http.ResponseWriter, r *http.Request) (hypervisor.SnapshotManager, *store.Instance, bool) {
 	inst, driver := s.instanceDriver(w, r)
 	if driver == nil {
-		return nil, "", false
+		return nil, nil, false
 	}
-	driverID := inst.DriverID
 	manager, ok := driver.(hypervisor.SnapshotManager)
 	if !ok {
 		s.err(w, http.StatusNotImplemented, "this hypervisor doesn't do snapshots")
-		return nil, "", false
+		return nil, nil, false
 	}
-	return manager, driverID, true
+	return manager, inst, true
+}
+
+// snapshotOperation is the bell entry these three share: same resource,
+// same place to click through to, differing only in what they say.
+func (s *Server) snapshotOperation(inst *store.Instance, title string) *Operation {
+	return s.ops.start(title, "snapshot", inst.Name, inst.HypervisorID,
+		"/compute/instances/"+inst.Name)
 }
 
 func (s *Server) createInstanceSnapshot(w http.ResponseWriter, r *http.Request) {
-	manager, driverID, ok := s.snapshotManagerFor(w, r)
+	manager, inst, ok := s.snapshotManagerFor(w, r)
 	if !ok {
 		return
 	}
@@ -89,33 +100,36 @@ func (s *Server) createInstanceSnapshot(w http.ResponseWriter, r *http.Request) 
 			"a snapshot name is letters, digits, hyphens and underscores, starting with a letter")
 		return
 	}
-	if err := manager.CreateSnapshot(r.Context(), driverID, req.Name, req.Description); err != nil {
-		s.fail(w, err, "taking the snapshot")
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	op := s.snapshotOperation(inst, "Taking snapshot "+req.Name+" of "+inst.Name)
+	driverID, name, description := inst.DriverID, req.Name, req.Description
+	s.run(op, "Snapshot taken", func(ctx context.Context, step func(string)) error {
+		return manager.CreateSnapshot(ctx, driverID, name, description)
+	})
+	s.json(w, http.StatusAccepted, op)
 }
 
 func (s *Server) rollbackInstanceSnapshot(w http.ResponseWriter, r *http.Request) {
-	manager, driverID, ok := s.snapshotManagerFor(w, r)
+	manager, inst, ok := s.snapshotManagerFor(w, r)
 	if !ok {
 		return
 	}
-	if err := manager.RollbackSnapshot(r.Context(), driverID, chi.URLParam(r, "snapshot")); err != nil {
-		s.fail(w, err, "rolling back")
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	snapshot, driverID := chi.URLParam(r, "snapshot"), inst.DriverID
+	op := s.snapshotOperation(inst, "Rolling "+inst.Name+" back to "+snapshot)
+	s.run(op, "Rolled back", func(ctx context.Context, step func(string)) error {
+		return manager.RollbackSnapshot(ctx, driverID, snapshot)
+	})
+	s.json(w, http.StatusAccepted, op)
 }
 
 func (s *Server) deleteInstanceSnapshot(w http.ResponseWriter, r *http.Request) {
-	manager, driverID, ok := s.snapshotManagerFor(w, r)
+	manager, inst, ok := s.snapshotManagerFor(w, r)
 	if !ok {
 		return
 	}
-	if err := manager.DeleteSnapshot(r.Context(), driverID, chi.URLParam(r, "snapshot")); err != nil {
-		s.fail(w, err, "deleting the snapshot")
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	snapshot, driverID := chi.URLParam(r, "snapshot"), inst.DriverID
+	op := s.snapshotOperation(inst, "Deleting snapshot "+snapshot+" of "+inst.Name)
+	s.run(op, "Snapshot deleted", func(ctx context.Context, step func(string)) error {
+		return manager.DeleteSnapshot(ctx, driverID, snapshot)
+	})
+	s.json(w, http.StatusAccepted, op)
 }

@@ -234,6 +234,19 @@ func (s *Server) watchTask(op *Operation, driver hypervisor.Driver, taskID, done
 	})
 }
 
+// watchOrFinish follows a hypervisor task where there is one, and
+// closes the operation out where there isn't. Not every driver runs
+// its work as a task the console can ask about — the mock changes
+// state on a timer in memory — and an operation left RUNNING with
+// nothing to advance it is the lie this package exists to avoid.
+func (s *Server) watchOrFinish(op *Operation, driver hypervisor.Driver, taskID, done string) {
+	if taskID == "" || driver == nil {
+		s.ops.finish(op.ID, done, nil)
+		return
+	}
+	s.watchTask(op, driver, taskID, done)
+}
+
 // taskError carries the hypervisor's own words for a failed task.
 type taskError struct{ exit string }
 
