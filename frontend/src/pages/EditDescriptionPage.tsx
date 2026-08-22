@@ -94,7 +94,7 @@ export default function EditDescriptionPage({ target }: { target: DescriptionTar
       </Box>
       <PageHeader
         title={`Edit description`}
-        description={`Notes for the ${target.noun} ${name}. This is the hypervisor's own description field, so it reads the same in Proxmox.`}
+        description={`Notes for the ${target.noun} ${name}, written to the hypervisor's own description field.`}
       />
 
       {error && (

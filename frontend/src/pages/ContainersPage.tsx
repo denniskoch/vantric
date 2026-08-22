@@ -195,11 +195,6 @@ export default function ContainersPage() {
           </>
         }
       />
-      <Typography variant="body2" color="text.secondary" sx={{ mt: -1.5, mb: 2 }}>
-        System containers on your hypervisors, including any this console
-        didn't create.
-      </Typography>
-
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
           {error}

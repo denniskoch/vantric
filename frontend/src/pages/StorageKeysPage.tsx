@@ -131,7 +131,7 @@ export default function StorageKeysPage() {
             </Button>
           </>
         }
-        description="Credentials for the S3 API on each store — what a backup job or a container registry signs its requests with. The stores call these users."
+        description="Credentials for the S3 API on each store. The stores themselves call these users."
       />
 
       {error && (
