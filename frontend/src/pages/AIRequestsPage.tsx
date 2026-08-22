@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Alert, Box, Chip, MenuItem, Paper, TextField, Typography } from '@mui/material'
+import { Alert, Box, Chip, Paper, TextField, Typography } from '@mui/material'
+import SearchIcon from '@mui/icons-material/Search'
 import type { ColumnDef, SortingState } from '@tanstack/react-table'
 import DataTable from '../components/DataTable'
 import PageHeader from '../components/PageHeader'
-import SelectField from '../components/SelectField'
 import ProviderName from '../components/ProviderName'
+import FilterSelect from '../components/FilterSelect'
 import AIRequestDetail from '../components/AIRequestDetail'
 import TimeRangePicker from '../components/TimeRangePicker'
 import { ANY_TIME } from '../timeRange'
@@ -199,62 +200,54 @@ export default function AIRequestsPage() {
             setPage(0)
           }}
         />
-        <SelectField
-          label="Provider"
-          size="small"
+        <FilterSelect
           value={provider}
-          onChange={(e) => {
-            setProvider(e.target.value)
+          onChange={(v) => {
+            setProvider(v)
             setPage(0)
           }}
-          sx={{ minWidth: 180 }}
-        >
-          <MenuItem value="">Any provider</MenuItem>
-          {(filters?.providers ?? []).map((p) => (
-            <MenuItem key={p} value={p}>
-              {p}
-            </MenuItem>
-          ))}
-        </SelectField>
-        <SelectField
-          label="Model"
-          size="small"
+          anyLabel="Any provider"
+          options={(filters?.providers ?? []).map((p) => ({ value: p, label: p }))}
+        />
+        <FilterSelect
           value={model}
-          onChange={(e) => {
-            setModel(e.target.value)
+          onChange={(v) => {
+            setModel(v)
             setPage(0)
           }}
-          sx={{ minWidth: 220 }}
-        >
-          <MenuItem value="">Any model</MenuItem>
-          {(filters?.models ?? []).map((m) => (
-            <MenuItem key={m} value={m}>
-              {m}
-            </MenuItem>
-          ))}
-        </SelectField>
-        <SelectField
-          label="Status"
-          size="small"
+          anyLabel="Any model"
+          options={(filters?.models ?? []).map((m) => ({ value: m, label: m }))}
+        />
+        <FilterSelect
           value={status}
-          onChange={(e) => {
-            setStatus(e.target.value)
+          onChange={(v) => {
+            setStatus(v)
             setPage(0)
           }}
-          sx={{ minWidth: 160 }}
-        >
-          <MenuItem value="">Any status</MenuItem>
-          <MenuItem value="success">Succeeded</MenuItem>
-          <MenuItem value="error">Failed</MenuItem>
-          <MenuItem value="processing">In flight</MenuItem>
-        </SelectField>
+          anyLabel="Any status"
+          options={[
+            { value: 'success', label: 'Succeeded' },
+            { value: 'error', label: 'Failed' },
+            { value: 'processing', label: 'In flight' },
+          ]}
+        />
+        {/* The search keeps its box because it takes typing, but loses
+            its label for the same reason the selects did: a row of
+            filters shouldn't read as a form. */}
         <TextField
-          label="Search"
           size="small"
+          placeholder="Search"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value)
             setPage(0)
+          }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <SearchIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 0.75 }} />
+              ),
+            },
           }}
           sx={{ minWidth: 220 }}
         />
