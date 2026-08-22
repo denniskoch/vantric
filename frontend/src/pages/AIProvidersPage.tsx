@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Alert, Box, Chip, Typography } from '@mui/material'
+import { Alert, Box, Chip, Tooltip, Typography } from '@mui/material'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import CancelIcon from '@mui/icons-material/Cancel'
 import CellLines from '../components/CellLines'
 import type { ColumnDef } from '@tanstack/react-table'
 import DataTable from '../components/DataTable'
@@ -36,19 +38,6 @@ export default function AIProvidersPage() {
         accessorFn: (p) => p.name,
         cell: ({ row }) => <ProviderName name={row.original.name} />,
       },
-      {
-        id: 'status',
-        header: 'Status',
-        meta: { hug: true, nowrap: true },
-        accessorFn: (p) => p.status,
-        cell: ({ row }) => row.original.status || '—',
-      },
-      {
-        id: 'keys',
-        header: 'Keys',
-        meta: { align: 'right', hug: true },
-        accessorFn: (p) => p.keys.length,
-      },
       // The name and the key itself are two columns, not one cell
       // holding both. A provider with two keys stacks a line in each,
       // and top-aligned rows keep line one against line one.
@@ -72,10 +61,12 @@ export default function AIProvidersPage() {
             <CellLines>
               {row.original.keys.map((k) => (
                 <Box key={k.id} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {/* Leading, not trailing. Whether a key is in use is
+                      the first thing about it, and a badge at the end
+                      of a name only announces the unusual case — which
+                      leaves the ordinary one saying nothing. */}
+                  <KeyState enabled={k.enabled} />
                   <span>{k.name}</span>
-                  {!k.enabled && (
-                    <Chip label="disabled" size="small" sx={{ fontSize: 10, height: 18 }} />
-                  )}
                   {k.models.length > 0 && k.models[0] !== '*' && (
                     <Chip
                       label={`${k.models.length} model${k.models.length === 1 ? '' : 's'}`}
@@ -137,10 +128,25 @@ export default function AIProvidersPage() {
         columns={columns}
         getRowId={(p) => p.name}
         alignTop
-        initialSort={[{ id: 'keys', desc: true }]}
+        initialSort={[{ id: 'name', desc: false }]}
         filterPlaceholder="Filter by provider or key name"
         empty={isLoading ? 'Loading…' : 'The gateway has no providers configured.'}
       />
     </Box>
+  )
+}
+
+/** Whether the gateway will actually use this key. */
+function KeyState({ enabled }: { enabled: boolean }) {
+  return (
+    <Tooltip title={enabled ? 'In use' : 'Disabled on the gateway'}>
+      <span style={{ display: 'inline-flex' }}>
+        {enabled ? (
+          <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main', display: 'block' }} />
+        ) : (
+          <CancelIcon sx={{ fontSize: 16, color: 'error.main', display: 'block' }} />
+        )}
+      </span>
+    </Tooltip>
   )
 }
