@@ -40,6 +40,8 @@ func (s *Server) aiRoutes(r chi.Router) {
 	r.Get("/ai/requests", s.listAIRequests)
 	r.Get("/ai/stats", s.aiStats)
 	r.Get("/ai/filters", s.aiFilters)
+	r.Get("/ai/traffic", s.aiTraffic)
+	r.Get("/ai/rankings", s.aiRankings)
 }
 
 type aiGatewayView struct {
@@ -324,4 +326,30 @@ func (s *Server) aiFilters(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.json(w, http.StatusOK, filters)
+}
+
+func (s *Server) aiTraffic(w http.ResponseWriter, r *http.Request) {
+	provider := s.aiProvider(w, r)
+	if provider == nil {
+		return
+	}
+	traffic, err := provider.Traffic(r.Context(), aiQuery(r))
+	if err != nil {
+		s.fail(w, err, "AI traffic")
+		return
+	}
+	s.json(w, http.StatusOK, traffic)
+}
+
+func (s *Server) aiRankings(w http.ResponseWriter, r *http.Request) {
+	provider := s.aiProvider(w, r)
+	if provider == nil {
+		return
+	}
+	rankings, err := provider.Rankings(r.Context(), aiQuery(r))
+	if err != nil {
+		s.fail(w, err, "AI rankings")
+		return
+	}
+	s.json(w, http.StatusOK, rankings)
 }

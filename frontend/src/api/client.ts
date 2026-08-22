@@ -864,6 +864,32 @@ export interface AIStats {
   cost: number
 }
 
+/** One interval's requests. Failures are carried, not derived — an
+ *  outage should read as a block of red rather than as a dip. */
+export interface AITrafficBucket {
+  at: string
+  total: number
+  succeeded: number
+  failed: number
+}
+
+export interface AITraffic {
+  /** Stated rather than assumed: a chart labelling hourly buckets as
+   *  minutes is worse than no chart. */
+  bucketSeconds: number
+  buckets: AITrafficBucket[]
+}
+
+export interface AIModelUsage {
+  model: string
+  provider: string
+  requests: number
+  succeeded: number
+  tokens: number
+  cost: number
+  avgLatencyMs: number
+}
+
 export interface AIFilters {
   providers: string[]
   models: string[]
@@ -1865,6 +1891,9 @@ export const api = {
     request<AIRequestPage>(`/ai/requests?${aiQuery(query)}`),
   getAIStats: (query: AIRequestQuery) => request<AIStats>(`/ai/stats?${aiQuery(query)}`),
   getAIFilters: () => request<AIFilters>('/ai/filters'),
+  getAITraffic: (query: AIRequestQuery) => request<AITraffic>(`/ai/traffic?${aiQuery(query)}`),
+  getAIRankings: (query: AIRequestQuery) =>
+    request<AIModelUsage[]>(`/ai/rankings?${aiQuery(query)}`),
 
   /** Who did what. Reads aren't recorded; see the audit middleware. */
   listAudit: (params: { actor?: string; resource?: string; limit?: number } = {}) => {

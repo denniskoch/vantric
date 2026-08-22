@@ -147,6 +147,38 @@ type Option struct {
 	Name string `json:"name"`
 }
 
+// TrafficBucket is one interval's worth of requests. Failures are
+// carried separately rather than derived, because "how many" and "how
+// many went wrong" are the two questions a traffic chart is for, and
+// an outage reads as a block of red rather than as a dip.
+type TrafficBucket struct {
+	At        time.Time `json:"at"`
+	Total     int64     `json:"total"`
+	Succeeded int64     `json:"succeeded"`
+	Failed    int64     `json:"failed"`
+}
+
+// Traffic is requests over time, in whatever interval the gateway
+// buckets by — stated rather than assumed, since a chart that labels
+// hourly buckets as minutes is worse than no chart.
+type Traffic struct {
+	BucketSeconds int             `json:"bucketSeconds"`
+	Buckets       []TrafficBucket `json:"buckets"`
+}
+
+// ModelUsage is one model's share of the traffic.
+type ModelUsage struct {
+	Model     string `json:"model"`
+	Provider  string `json:"provider"`
+	Requests  int64  `json:"requests"`
+	Succeeded int64  `json:"succeeded"`
+	Tokens    int64  `json:"tokens"`
+	// Cost is what the gateway priced this model's traffic at. Zero for
+	// a local model, which is a fact rather than a gap.
+	Cost         float64 `json:"cost"`
+	AvgLatencyMS float64 `json:"avgLatencyMs"`
+}
+
 // Filters are the values worth offering as a filter, as the gateway
 // reports them — so the list of models is the list of models this
 // gateway has actually seen, not one this console keeps.
@@ -170,6 +202,10 @@ type Provider interface {
 	Stats(ctx context.Context, q RequestQuery) (*Stats, error)
 	// Filters lists the values this gateway has seen.
 	Filters(ctx context.Context) (*Filters, error)
+	// Traffic returns request counts over time for the same filter.
+	Traffic(ctx context.Context, q RequestQuery) (*Traffic, error)
+	// Rankings summarizes the traffic by model, busiest first.
+	Rankings(ctx context.Context, q RequestQuery) ([]ModelUsage, error)
 }
 
 // Registry holds one live Provider per configured record, keyed by its

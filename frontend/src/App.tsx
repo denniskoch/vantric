@@ -111,6 +111,7 @@ import AIGatewaysPage from './pages/AIGatewaysPage'
 import AIGatewayFormPage from './pages/AIGatewayFormPage'
 import AIAccountsPage from './pages/AIAccountsPage'
 import AIAccountFormPage from './pages/AIAccountFormPage'
+import AIOverviewPage from './pages/AIOverviewPage'
 
 export default function App() {
   return (
@@ -214,7 +215,7 @@ export default function App() {
           element={<RequireRole><DatabaseUserPasswordPage /></RequireRole>}
         />
         <Route path="/docker/overview" element={<SectionLandingPage />} />
-        <Route path="/ai/overview" element={<SectionLandingPage />} />
+        <Route path="/ai/overview" element={<AIOverviewPage />} />
         <Route path="/ai/requests" element={<AIRequestsPage />} />
         <Route path="/ai/accounts" element={<AIAccountsPage />} />
         <Route path="/ai/accounts/add" element={<AIAccountFormPage />} />

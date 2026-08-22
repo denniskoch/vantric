@@ -304,3 +304,70 @@ func parseTime(s string) time.Time {
 	t, _ := time.Parse(time.RFC3339Nano, s)
 	return t
 }
+
+func (p *Provider) Traffic(ctx context.Context, q ai.RequestQuery) (*ai.Traffic, error) {
+	var body struct {
+		Overview struct {
+			Requests struct {
+				BucketSizeSeconds int `json:"bucket_size_seconds"`
+				Buckets           []struct {
+					Timestamp string `json:"timestamp"`
+					Count     int64  `json:"count"`
+					Success   int64  `json:"success"`
+					Error     int64  `json:"error"`
+					Cancelled int64  `json:"cancelled"`
+				} `json:"buckets"`
+			} `json:"requests"`
+		} `json:"overview"`
+	}
+	if err := p.get(ctx, "/api/logs/dashboard", queryValues(q, false), &body); err != nil {
+		return nil, err
+	}
+	out := &ai.Traffic{BucketSeconds: body.Overview.Requests.BucketSizeSeconds}
+	for _, b := range body.Overview.Requests.Buckets {
+		out.Buckets = append(out.Buckets, ai.TrafficBucket{
+			At:        parseTime(b.Timestamp),
+			Total:     b.Count,
+			Succeeded: b.Success,
+			// A cancelled request didn't get an answer either, and
+			// counting it as neither would make the two series stop
+			// adding up to the total.
+			Failed: b.Error + b.Cancelled,
+		})
+	}
+	// The same response carries token, cost, latency and throughput
+	// buckets, and on this gateway every one of them comes back empty.
+	// They are not read here: charting five blank panels beside one
+	// real chart says the gateway is broken, which it isn't.
+	return out, nil
+}
+
+func (p *Provider) Rankings(ctx context.Context, q ai.RequestQuery) ([]ai.ModelUsage, error) {
+	var body struct {
+		Rankings []struct {
+			Model         string  `json:"model"`
+			Provider      string  `json:"provider"`
+			TotalRequests int64   `json:"total_requests"`
+			SuccessCount  int64   `json:"success_count"`
+			TotalTokens   int64   `json:"total_tokens"`
+			TotalCost     float64 `json:"total_cost"`
+			AvgLatency    float64 `json:"avg_latency"`
+		} `json:"rankings"`
+	}
+	if err := p.get(ctx, "/api/logs/rankings", queryValues(q, true), &body); err != nil {
+		return nil, err
+	}
+	out := make([]ai.ModelUsage, 0, len(body.Rankings))
+	for _, r := range body.Rankings {
+		out = append(out, ai.ModelUsage{
+			Model:        r.Model,
+			Provider:     r.Provider,
+			Requests:     r.TotalRequests,
+			Succeeded:    r.SuccessCount,
+			Tokens:       r.TotalTokens,
+			Cost:         r.TotalCost,
+			AvgLatencyMS: r.AvgLatency,
+		})
+	}
+	return out, nil
+}
