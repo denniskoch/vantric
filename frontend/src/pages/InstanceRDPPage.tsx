@@ -138,7 +138,7 @@ function Desktop({ name, credentials }: { name: string; credentials: GuacCredent
       const box = element.getBoundingClientRect()
       setStatus(
         `${received} instructions · ${drawn} images · display ` +
-          `${Math.round(box.width)}×${Math.round(box.height)}`,
+          `${Math.round(box.width)}×${Math.round(box.height)} · ${painted(element)}`,
       )
     }
     tunnel.onactivity = (opcode) => {
@@ -226,4 +226,47 @@ function Desktop({ name, credentials }: { name: string; credentials: GuacCredent
       )}
     </Box>
   )
+}
+
+
+/**
+ * Whether anything has actually been painted onto the visible canvases.
+ *
+ * The last question a black desktop leaves: are the pixels there and
+ * something is hiding them, or were they never drawn? Everything either
+ * side of this looks identical in both cases — instructions arrive, the
+ * element is the right size, the logs are clean — and no amount of
+ * reasoning about the protocol separates them. Reading the pixels does.
+ *
+ * Sampled through a tiny offscreen canvas rather than pulling a
+ * megapixel of image data once a second.
+ */
+function painted(element: HTMLElement): string {
+  const canvases = [...element.querySelectorAll('canvas')].filter(
+    (c) => c.width > 1 && c.height > 1,
+  )
+  if (canvases.length === 0) return 'no canvas'
+
+  const probe = document.createElement('canvas')
+  probe.width = 32
+  probe.height = 32
+  const ctx = probe.getContext('2d', { willReadFrequently: true })
+  if (!ctx) return `${canvases.length} canvases`
+
+  for (const canvas of canvases) {
+    ctx.clearRect(0, 0, 32, 32)
+    try {
+      ctx.drawImage(canvas, 0, 0, 32, 32)
+    } catch {
+      continue
+    }
+    const { data } = ctx.getImageData(0, 0, 32, 32)
+    for (let i = 0; i < data.length; i += 4) {
+      // Any pixel that is both opaque and not black counts as paint.
+      if (data[i + 3] > 0 && (data[i] || data[i + 1] || data[i + 2])) {
+        return `${canvases.length} canvases, painted ${canvas.width}×${canvas.height}`
+      }
+    }
+  }
+  return `${canvases.length} canvases, all blank`
 }
