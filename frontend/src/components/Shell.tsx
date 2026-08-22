@@ -26,6 +26,9 @@ import { brand } from '../branding'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { sections, sectionFor } from './nav'
+
+/** The front door. It leads the global menu and takes no star. */
+const overviewId = 'overview'
 import { api } from '../api/client'
 import NotificationBell from './NotificationBell'
 import { initialFor, useRefreshSession, useSession } from '../user'
@@ -63,7 +66,13 @@ export default function Shell() {
   const navigate = useNavigate()
   const { user, loading, signedOut } = useSession()
   const refreshSession = useRefreshSession()
-  const { favorites, isFavorite, toggle } = useFavorites()
+  const { isFavorite, toggle } = useFavorites()
+  // Everything the star applies to, which is everything but the front
+  // door. A stored favourite naming the overview is ignored rather
+  // than migrated away — it can only have come from an older build,
+  // and dropping it here costs nothing.
+  const products = sections.filter((s) => s.id !== overviewId)
+  const pinned = products.filter((s) => isFavorite(s.id))
 
   const section = sectionFor(location.pathname)
   // A section with nothing to list gets no drawer — the Cloud overview
@@ -223,34 +232,56 @@ export default function Shell() {
         }}
       >
         <Toolbar variant="dense" sx={{ minHeight: 48 }} />
-        {/* Favourites first, and the rest still listed below them —
+        {/* The overview sits above everything, including favourites,
+            and carries no star. It is where "/" lands and the page you
+            check when something is wrong — pinning the front door
+            would be pinning the thing you cannot unpin. */}
+        <List dense>
+          {sections
+            .filter((s) => s.id === overviewId)
+            .map((s) => (
+              <ListItemButton
+                key={s.id}
+                selected={section?.id === s.id}
+                onClick={() => {
+                  navigate(s.home)
+                  setGlobalNavOpen(false)
+                }}
+                sx={{ mr: 1 }}
+              >
+                <ListItemIcon sx={{ minWidth: 36 }}>
+                  <s.icon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary={s.label} />
+              </ListItemButton>
+            ))}
+        </List>
+        {/* Favourites next, and the rest still listed below them —
             pinning a section moves it up rather than hiding it from
             where it has always been. */}
-        {favorites.length > 0 && (
+        {pinned.length > 0 && (
           <>
             <GlobalNavHeading>Favorites</GlobalNavHeading>
             <List dense>
-              {sections
-                .filter((s) => isFavorite(s.id))
-                .map((s) => (
-                  <GlobalNavItem
-                    key={s.id}
-                    section={s}
-                    current={section?.id === s.id}
-                    starred
-                    onOpen={() => {
-                      navigate(s.home)
-                      setGlobalNavOpen(false)
-                    }}
-                    onToggle={() => toggle(s.id)}
-                  />
-                ))}
+              {pinned.map((s) => (
+                <GlobalNavItem
+                  key={s.id}
+                  section={s}
+                  current={section?.id === s.id}
+                  starred
+                  onOpen={() => {
+                    navigate(s.home)
+                    setGlobalNavOpen(false)
+                  }}
+                  onToggle={() => toggle(s.id)}
+                />
+              ))}
             </List>
-            <GlobalNavHeading>Products</GlobalNavHeading>
           </>
         )}
+        <GlobalNavHeading>Products</GlobalNavHeading>
         <List dense>
-          {sections.map((s) => (
+          {products.map((s) => (
             <GlobalNavItem
               key={s.id}
               section={s}
