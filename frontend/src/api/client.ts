@@ -130,7 +130,6 @@ export interface Instance {
   status: InstanceStatus
   driverId: string
   internalIp: string
-  externalIp: string
   netBridge: string
   vlanTag: number
   description: string
@@ -191,7 +190,6 @@ export interface InstanceDetail {
   memoryMb: number
   diskGb: number
   internalIp: string
-  externalIp: string
   description: string
   tags: string[] | null
   osType: string

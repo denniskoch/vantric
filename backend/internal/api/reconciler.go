@@ -295,10 +295,9 @@ func (r *Reconciler) dueForIP(current string) bool {
 // syncInstance applies observed runtime state to a managed instance.
 func (r *Reconciler) syncInstance(ctx context.Context, driver hypervisor.Driver, inst *store.Instance, state hypervisor.InstanceState) {
 	internalIP := inst.InternalIP
-	externalIP := inst.ExternalIP
 	switch {
 	case state.Status == hypervisor.StatusTerminated:
-		internalIP, externalIP = "", ""
+		internalIP = ""
 	case state.InternalIP != "":
 		internalIP = state.InternalIP
 	case state.Status == hypervisor.StatusRunning && r.dueForIP(internalIP):
@@ -306,13 +305,10 @@ func (r *Reconciler) syncInstance(ctx context.Context, driver hypervisor.Driver,
 		// throttled since agentless VMs will never answer.
 		if full, err := driver.Get(ctx, inst.DriverID); err == nil {
 			internalIP = full.InternalIP
-			if full.ExternalIP != "" {
-				externalIP = full.ExternalIP
-			}
 		}
 	}
-	if string(state.Status) != inst.Status || internalIP != inst.InternalIP || externalIP != inst.ExternalIP {
-		if err := r.store.UpdateInstanceState(ctx, inst.ID, string(state.Status), internalIP, externalIP); err != nil {
+	if string(state.Status) != inst.Status || internalIP != inst.InternalIP {
+		if err := r.store.UpdateInstanceState(ctx, inst.ID, string(state.Status), internalIP); err != nil {
 			r.log.Warn("reconciler: update failed", "name", inst.Name, "error", err)
 		}
 	}

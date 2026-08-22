@@ -123,17 +123,11 @@ export default function InstancesPage() {
       { id: 'node', header: 'Node', accessorFn: (i) => i.node },
       {
         id: 'internalIp',
-        header: 'Internal IP',
+        header: 'IP address',
         // Sorts on the address, renders the dash. Sorting on what's
         // drawn would order every guest without one under "—".
         accessorFn: (i) => i.internalIp,
         cell: ({ row }) => row.original.internalIp || '—',
-      },
-      {
-        id: 'externalIp',
-        header: 'External IP',
-        accessorFn: (i) => i.externalIp,
-        cell: ({ row }) => row.original.externalIp || '—',
       },
       {
         id: 'connect',

@@ -173,7 +173,7 @@ export default function ContainerDetailPage() {
         </Typography>
         <Table size="small">
           <TableBody>
-            <Row label="Internal IP" value={ct.internalIp || '—'} />
+            <Row label="IP address" value={ct.internalIp || '—'} />
           </TableBody>
         </Table>
         <Divider sx={{ my: 2 }} />

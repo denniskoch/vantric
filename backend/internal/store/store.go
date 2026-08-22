@@ -60,7 +60,6 @@ var migrations = []string{
 		status TEXT NOT NULL,
 		driver_id TEXT NOT NULL DEFAULT '',
 		internal_ip TEXT NOT NULL DEFAULT '',
-		external_ip TEXT NOT NULL DEFAULT '',
 		net_bridge TEXT NOT NULL DEFAULT '',
 		vlan_tag INTEGER NOT NULL DEFAULT 0,
 		description TEXT NOT NULL DEFAULT '',
@@ -352,4 +351,11 @@ var columnMigrations = []string{
 	// constant in its own implementation. Empty for Cloudflare rows
 	// that predate this.
 	`ALTER TABLE dns_providers ADD COLUMN base_url TEXT NOT NULL DEFAULT ''`,
+	// An external address is a cloud's idea: a VM there sits on a private
+	// network and is given a public address to be reached at. A guest on
+	// a hypervisor has the one address its bridge puts it on, and no
+	// driver ever filled this — so the column, and the table column above
+	// it, only ever said "—", which reads as "we looked and found none"
+	// rather than "this doesn't exist here".
+	`ALTER TABLE instances DROP COLUMN external_ip`,
 }

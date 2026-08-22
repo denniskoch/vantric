@@ -128,7 +128,7 @@ export default function ContainersPage() {
       },
       {
         id: 'internalIp',
-        header: 'Internal IP',
+        header: 'IP address',
         accessorFn: (ct) => ct.internalIp,
         cell: ({ row }) => row.original.internalIp || '—',
       },

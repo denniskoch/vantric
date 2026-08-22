@@ -625,8 +625,7 @@ export default function InstanceDetailPage() {
             <DetailSection title="Networking">
               <DetailTable
                 rows={[
-                  { label: 'Internal IP', value: inst.internalIp || '—' },
-                  { label: 'External IP', value: inst.externalIp || '—' },
+                  { label: 'IP address', value: inst.internalIp || '—' },
                 ]}
               />
               <Box sx={{ mt: 2 }}>

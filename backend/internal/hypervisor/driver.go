@@ -558,7 +558,6 @@ type InstanceState struct {
 	MemoryMB   int    `json:"memoryMb"`
 	DiskGB     int    `json:"diskGb"`
 	InternalIP string `json:"internalIp"`
-	ExternalIP string `json:"externalIp"`
 	// UptimeSeconds is 0 when the instance is stopped or the driver
 	// doesn't report it (List omits it; Get/Describe supply it).
 	UptimeSeconds int64 `json:"uptimeSeconds"`
