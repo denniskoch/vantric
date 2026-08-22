@@ -925,6 +925,38 @@ export interface AIVirtualKey {
   createdAt: string
 }
 
+/**
+ * A cap the gateway enforces, and what it applies to. Bifrost hangs
+ * both a spending budget and a rate limit off a scope plus a model
+ * pattern, so one record says who is capped, at what, on which models.
+ */
+export interface AILimit {
+  id: string
+  /** The gateway's own word: "virtual_key", "team", "customer". */
+  scope: string
+  /** Usually the virtual key's name — the same one the request log
+   *  shows as the caller. */
+  scopeName: string
+  /** "*" is the gateway's word for all models, not a name. */
+  model: string
+  budget?: {
+    max: number
+    used: number
+    /** The gateway's duration string — "1w", "1d", "1M". */
+    period: string
+    lastReset: string
+  }
+  /** Caps only. What has been used against them isn't carried: the
+   *  counter field names aren't verifiable and inventing them makes a
+   *  column nobody can diagnose. */
+  rateLimit?: {
+    maxRequests?: number
+    requestPeriod?: string
+    maxTokens?: number
+    tokenPeriod?: string
+  }
+}
+
 export interface AIFilters {
   providers: string[]
   models: string[]
@@ -1928,6 +1960,7 @@ export const api = {
   getAIFilters: () => request<AIFilters>('/ai/filters'),
   listAIGatewayProviders: () => request<AIGatewayProvider[]>('/ai/providers'),
   listAIVirtualKeys: () => request<AIVirtualKey[]>('/ai/virtual-keys'),
+  listAILimits: () => request<AILimit[]>('/ai/limits'),
   getAITraffic: (query: AIRequestQuery) => request<AITraffic>(`/ai/traffic?${aiQuery(query)}`),
   getAIRankings: (query: AIRequestQuery) =>
     request<AIModelUsage[]>(`/ai/rankings?${aiQuery(query)}`),

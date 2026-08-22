@@ -37,6 +37,7 @@ import DevicesOtherIcon from '@mui/icons-material/DevicesOther'
 import PsychologyIcon from '@mui/icons-material/Psychology'
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart'
 import PaidIcon from '@mui/icons-material/Paid'
+import SpeedIcon from '@mui/icons-material/Speed'
 import SettingsEthernetIcon from '@mui/icons-material/SettingsEthernet'
 import { createSvgIcon } from '@mui/material/utils'
 import { siDocker } from 'simple-icons'
@@ -492,6 +493,12 @@ export const sections: Section[] = [
             icon: VpnKeyIcon,
             to: '/ai/virtual-keys',
             hint: 'Which of your services may call it, and what each may reach',
+          },
+          {
+            label: 'Budgets',
+            icon: SpeedIcon,
+            to: '/ai/budgets',
+            hint: 'What each caller may spend, and how much of it is gone',
           },
         ],
       },

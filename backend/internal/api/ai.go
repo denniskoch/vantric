@@ -44,6 +44,7 @@ func (s *Server) aiRoutes(r chi.Router) {
 	r.Get("/ai/rankings", s.aiRankings)
 	r.Get("/ai/providers", s.aiGatewayProviders)
 	r.Get("/ai/virtual-keys", s.aiVirtualKeys)
+	r.Get("/ai/limits", s.aiLimits)
 }
 
 type aiGatewayView struct {
@@ -380,4 +381,17 @@ func (s *Server) aiVirtualKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.json(w, http.StatusOK, keys)
+}
+
+func (s *Server) aiLimits(w http.ResponseWriter, r *http.Request) {
+	provider := s.aiProvider(w, r)
+	if provider == nil {
+		return
+	}
+	limits, err := provider.Limits(r.Context())
+	if err != nil {
+		s.fail(w, err, "gateway limits")
+		return
+	}
+	s.json(w, http.StatusOK, limits)
 }

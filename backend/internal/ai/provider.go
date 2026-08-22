@@ -231,6 +231,55 @@ type VirtualKeyAccess struct {
 	Models []string `json:"models"`
 }
 
+// Limit is a cap the gateway enforces, and the thing it is attached
+// to. Bifrost hangs both a spending budget and a rate limit off a
+// "model config" — a scope (a virtual key, a team, a customer) plus a
+// model pattern — so one record answers "who is capped, at what, on
+// which models", and the join is the gateway's rather than ours.
+type Limit struct {
+	ID string `json:"id"`
+	// Scope is what the cap applies to, in the gateway's own word:
+	// "virtual_key", "team", "customer".
+	Scope string `json:"scope"`
+	// ScopeName is that thing's name — the virtual key's, usually, and
+	// therefore the same name the request log shows as the caller.
+	ScopeName string `json:"scopeName"`
+	// Model is the pattern it covers. "*" is the gateway's word for all
+	// of them and must not be printed raw.
+	Model     string     `json:"model"`
+	Budget    *Budget    `json:"budget,omitempty"`
+	RateLimit *RateLimit `json:"rateLimit,omitempty"`
+}
+
+// Budget is a spending cap over a period.
+type Budget struct {
+	// Max and Used are in dollars.
+	Max  float64 `json:"max"`
+	Used float64 `json:"used"`
+	// Period is the gateway's own duration string — "1w", "1d", "1M".
+	// Passed through rather than parsed: the console has nothing to add
+	// by turning "1M" into a number of days and something to get wrong.
+	Period    string    `json:"period"`
+	LastReset time.Time `json:"lastReset"`
+}
+
+// RateLimit caps how fast, rather than how much.
+//
+// ONLY THE CAPS ARE CARRIED, not what has been used against them.
+// Bifrost's create and update contracts name the four fields below, so
+// those are known; the counters on the stored row are not, and this
+// lab has no rate limit configured to read one back from. Inventing
+// field names would produce a column that is empty for a reason nobody
+// could diagnose — see the External IP that no driver ever filled.
+type RateLimit struct {
+	// Nil where that half isn't set: a limit may cap requests, tokens,
+	// or both.
+	MaxRequests   *int64 `json:"maxRequests,omitempty"`
+	RequestPeriod string `json:"requestPeriod,omitempty"`
+	MaxTokens     *int64 `json:"maxTokens,omitempty"`
+	TokenPeriod   string `json:"tokenPeriod,omitempty"`
+}
+
 // Filters are the values worth offering as a filter, as the gateway
 // reports them — so the list of models is the list of models this
 // gateway has actually seen, not one this console keeps.
@@ -263,6 +312,8 @@ type Provider interface {
 	GatewayProviders(ctx context.Context) ([]GatewayProvider, error)
 	// VirtualKeys lists the credentials the gateway issues to callers.
 	VirtualKeys(ctx context.Context) ([]VirtualKey, error)
+	// Limits lists the spending and rate caps the gateway enforces.
+	Limits(ctx context.Context) ([]Limit, error)
 }
 
 // Registry holds one live Provider per configured record, keyed by its

@@ -480,3 +480,66 @@ func (p *Provider) VirtualKeys(ctx context.Context) ([]ai.VirtualKey, error) {
 	}
 	return out, nil
 }
+
+func (p *Provider) Limits(ctx context.Context) ([]ai.Limit, error) {
+	// One call: Bifrost's model-config record carries the scope, the
+	// scope's NAME, and the budget inline — so the join from "a cap" to
+	// "whose cap" is already done. Reading /api/governance/budgets
+	// instead would hand back a model_config_id and leave the lookup
+	// here, for no gain.
+	var body struct {
+		ModelConfigs []struct {
+			ID        string `json:"id"`
+			ModelName string `json:"model_name"`
+			Scope     string `json:"scope"`
+			ScopeName string `json:"scope_name"`
+			Budgets   []struct {
+				MaxLimit      float64 `json:"max_limit"`
+				CurrentUsage  float64 `json:"current_usage"`
+				ResetDuration string  `json:"reset_duration"`
+				LastReset     string  `json:"last_reset"`
+			} `json:"budgets"`
+			RateLimit *struct {
+				TokenMaxLimit        *int64 `json:"token_max_limit"`
+				TokenResetDuration   string `json:"token_reset_duration"`
+				RequestMaxLimit      *int64 `json:"request_max_limit"`
+				RequestResetDuration string `json:"request_reset_duration"`
+			} `json:"rate_limit"`
+		} `json:"model_configs"`
+	}
+	if err := p.get(ctx, "/api/governance/model-configs", nil, &body); err != nil {
+		return nil, err
+	}
+	out := make([]ai.Limit, 0, len(body.ModelConfigs))
+	for _, mc := range body.ModelConfigs {
+		limit := ai.Limit{
+			ID:        mc.ID,
+			Scope:     mc.Scope,
+			ScopeName: mc.ScopeName,
+			Model:     mc.ModelName,
+		}
+		// A config carries a list, and every one seen here has exactly
+		// one. The first is taken rather than summed: two budgets on one
+		// scope would be a question about which applies, and adding
+		// them together would answer it wrongly.
+		if len(mc.Budgets) > 0 {
+			b := mc.Budgets[0]
+			limit.Budget = &ai.Budget{
+				Max:       b.MaxLimit,
+				Used:      b.CurrentUsage,
+				Period:    b.ResetDuration,
+				LastReset: parseTime(b.LastReset),
+			}
+		}
+		if r := mc.RateLimit; r != nil {
+			limit.RateLimit = &ai.RateLimit{
+				MaxRequests:   r.RequestMaxLimit,
+				RequestPeriod: r.RequestResetDuration,
+				MaxTokens:     r.TokenMaxLimit,
+				TokenPeriod:   r.TokenResetDuration,
+			}
+		}
+		out = append(out, limit)
+	}
+	return out, nil
+}

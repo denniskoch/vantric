@@ -114,6 +114,7 @@ import AIAccountFormPage from './pages/AIAccountFormPage'
 import AIOverviewPage from './pages/AIOverviewPage'
 import AIProvidersPage from './pages/AIProvidersPage'
 import AIVirtualKeysPage from './pages/AIVirtualKeysPage'
+import AIBudgetsPage from './pages/AIBudgetsPage'
 
 export default function App() {
   return (
@@ -221,6 +222,7 @@ export default function App() {
         <Route path="/ai/requests" element={<AIRequestsPage />} />
         <Route path="/ai/providers" element={<AIProvidersPage />} />
         <Route path="/ai/virtual-keys" element={<AIVirtualKeysPage />} />
+        <Route path="/ai/budgets" element={<AIBudgetsPage />} />
         <Route path="/ai/accounts" element={<AIAccountsPage />} />
         <Route path="/ai/accounts/add" element={<AIAccountFormPage />} />
         <Route path="/ai/accounts/:id/edit" element={<AIAccountFormPage />} />
