@@ -117,44 +117,6 @@ export default function AIOverviewPage() {
         </Box>
       )}
 
-      {/* A TABLE, NOT A CARD EACH. Credit is one row per provider and
-          there will be more providers; four more cards would push the
-          traffic figures off the top of the page to say four small
-          things. It also lets the units differ down a column instead of
-          across one — dollars at OpenRouter, characters at ElevenLabs,
-          and "no balance API" where that is the honest answer. */}
-      {accounts.length > 0 && (
-        <Box sx={{ mb: 3 }}>
-          <Typography sx={{ fontSize: 16, mb: 1.5 }}>Provider credit</Typography>
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Provider</TableCell>
-                  <TableCell align="right">Remaining</TableCell>
-                  <TableCell align="right">Used</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {accounts.map((a) => (
-                  <TableRow key={a.id} hover>
-                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                      <ProviderName name={a.type} />
-                    </TableCell>
-                    <TableCell align="right">
-                      <Credit account={a} />
-                    </TableCell>
-                    <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                      {a.balance ? money(a.balance.unit, a.balance.used) : '—'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Box>
-      )}
-
       {models.length > 0 && (
         <Box sx={{ mb: 3 }}>
           <Typography sx={{ fontSize: 16, mb: 1.5 }}>Models</Typography>
@@ -192,6 +154,49 @@ export default function AIOverviewPage() {
           </TableContainer>
         </Box>
       )}
+      {/* Last, because the two above it are one thought — the chart
+          says how much traffic there was and the table says what
+          served it. Credit is a different question and reads better
+          after that one is finished.
+
+          A TABLE, NOT A CARD EACH. Credit is one row per provider and
+          there will be more providers; four more cards would push the
+          traffic figures off the top of the page to say four small
+          things. It also lets the units differ down a column instead of
+          across one — dollars at OpenRouter, characters at ElevenLabs,
+          and "no balance API" where that is the honest answer. */}
+      {accounts.length > 0 && (
+        <Box sx={{ mb: 3 }}>
+          <Typography sx={{ fontSize: 16, mb: 1.5 }}>Provider credit</Typography>
+          <TableContainer component={Paper} variant="outlined">
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Provider</TableCell>
+                  <TableCell align="right">Remaining</TableCell>
+                  <TableCell align="right">Used</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {accounts.map((a) => (
+                  <TableRow key={a.id} hover>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      <ProviderName name={a.type} />
+                    </TableCell>
+                    <TableCell align="right">
+                      <Credit account={a} />
+                    </TableCell>
+                    <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                      {a.balance ? money(a.balance.unit, a.balance.used) : '—'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
+      )}
+
     </SectionLandingPage>
   )
 }
