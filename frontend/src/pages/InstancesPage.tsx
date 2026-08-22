@@ -267,6 +267,7 @@ export default function InstancesPage() {
       <DataTable
         rows={instances}
         columns={columns}
+        filterPlaceholder="Filter by name, node or IP address"
         getRowId={(i) => i.name}
         initialSort={[{ id: 'name', desc: false }]}
         selection={[...picked]}

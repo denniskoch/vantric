@@ -182,6 +182,7 @@ export default function HypervisorsPage() {
       <DataTable
         rows={hypervisors}
         columns={columns}
+        filterPlaceholder="Filter by name, type or endpoint"
         getRowId={(hypervisor) => hypervisor.id}
         initialSort={[{ id: 'name', desc: false }]}
         empty={isLoading ? 'Loading…' : 'No hypervisors registered. Click \"Add hypervisor\" to connect one.'}

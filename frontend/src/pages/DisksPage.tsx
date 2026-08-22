@@ -56,6 +56,7 @@ export default function DisksPage() {
       <DataTable
         rows={disks}
         columns={columns}
+        filterPlaceholder="Filter by name, guest, node or storage pool"
         getRowId={(disk) => `${disk.hypervisorId}/${disk.id}`}
         initialSort={[{ id: 'name', desc: false }]}
         empty={isLoading ? 'Loading…' : 'No disks found on your servers.'}

@@ -26,11 +26,34 @@ import {
 } from '@tanstack/react-table'
 import type {
   ColumnDef,
+  FilterFn,
+  RowData,
   RowSelectionState,
   SortingState,
   Table as TanTable,
 } from '@tanstack/react-table'
 import type { ReactNode } from 'react'
+
+/**
+ * What a column may say about itself beyond how to read and render it.
+ *
+ * Declared rather than cast, so a typo in `meta` is a compile error and
+ * filterText's argument is the row type instead of `any`.
+ */
+declare module '@tanstack/react-table' {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface ColumnMeta<TData extends RowData, TValue> {
+    /** Right-align the column; MUI wants this per cell. */
+    align?: 'left' | 'right'
+    /** Keep the value on one line — timestamps, filenames. */
+    nowrap?: boolean
+    /**
+     * The text the filter should match for this column, when what is
+     * rendered differs from what is sorted on. See searchableText.
+     */
+    filterText?: (row: TData) => string | undefined
+  }
+}
 
 /**
  * The console's table: sortable, paged, and optionally selectable.
@@ -123,6 +146,28 @@ export default function DataTable<T>({
   const rowSelection: RowSelectionState = {}
   for (const id of selection ?? []) rowSelection[id] = true
 
+  // THE FILTER SEARCHES WHAT YOU CAN SEE, which is not what the table
+  // sorts on. A date sorts on a unix timestamp and a size sorts on a
+  // byte count, and matching those raw numbers is how a filter becomes
+  // unexplainable: typing "2" hits half the rows through values printed
+  // nowhere, while "8/21" misses a row displaying exactly that.
+  //
+  // So only STRINGS take part by default — numbers are for ordering —
+  // and a column whose rendering is worth searching says so with
+  // meta.filterText. Nothing is matched that isn't on screen.
+  const searchableText = useMemo(() => {
+    const byId = new Map(normalised.map((column) => [column.id as string, column]))
+    const fn: FilterFn<T> = (row, columnId, value) => {
+      const needle = String(value).toLowerCase().trim()
+      if (!needle) return true
+      const meta = byId.get(columnId)?.meta
+      const raw = meta?.filterText ? meta.filterText(row.original) : row.getValue(columnId)
+      if (typeof raw !== 'string') return false
+      return raw.toLowerCase().includes(needle)
+    }
+    return fn
+  }, [normalised])
+
   const table = useReactTable({
     data: rows,
     columns: normalised,
@@ -138,6 +183,7 @@ export default function DataTable<T>({
     },
     defaultColumn: { sortUndefined: 'last' },
     getCoreRowModel: getCoreRowModel(),
+    globalFilterFn: searchableText,
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -268,9 +314,8 @@ export default function DataTable<T>({
 }
 
 /** Column meta carries the alignment, since MUI wants it per cell. */
-function alignOf(def: { meta?: unknown }): 'left' | 'right' {
-  const meta = def.meta as { align?: 'left' | 'right' } | undefined
-  return meta?.align === 'right' ? 'right' : 'left'
+function alignOf(def: { meta?: { align?: 'left' | 'right' } }): 'left' | 'right' {
+  return def.meta?.align === 'right' ? 'right' : 'left'
 }
 
 /**
@@ -279,9 +324,8 @@ function alignOf(def: { meta?: unknown }): 'left' | 'right' {
  * across two lines makes the row taller and the column harder to read
  * than simply letting it be as wide as it is.
  */
-function nowrapOf(def: { meta?: unknown }): 'nowrap' | undefined {
-  const meta = def.meta as { nowrap?: boolean } | undefined
-  return meta?.nowrap ? 'nowrap' : undefined
+function nowrapOf(def: { meta?: { nowrap?: boolean } }): 'nowrap' | undefined {
+  return def.meta?.nowrap ? 'nowrap' : undefined
 }
 
 function Pagination<T>({ table, options }: { table: TanTable<T>; options: number[] }) {

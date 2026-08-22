@@ -182,6 +182,7 @@ export default function VMTemplatesPage() {
       <DataTable
         rows={templates}
         columns={columns}
+        filterPlaceholder="Filter by name, operating system, node or notes"
         getRowId={(tpl) => `${tpl.hypervisorId}/${tpl.id}`}
         initialSort={[{ id: 'name', desc: false }]}
         empty={isLoading ? 'Loading…' : 'No VM templates found on your servers.'}

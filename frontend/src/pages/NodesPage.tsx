@@ -124,6 +124,7 @@ export default function NodesPage() {
       <DataTable
         rows={nodes}
         columns={columns}
+        filterPlaceholder="Filter by name or hypervisor"
         getRowId={(node) => `${node.hypervisorId}/${node.id}`}
         initialSort={[{ id: 'name', desc: false }]}
         empty={isLoading ? 'Loading…' : 'No nodes found. Add a hypervisor to see its hosts.'}

@@ -65,7 +65,7 @@ export default function CloudImagesPage() {
         id: 'size',
         header: 'Size',
         accessorFn: (image) => image.sizeBytes,
-        meta: { align: 'right' },
+        meta: { align: 'right', filterText: (image) => formatBytes(image.sizeBytes) },
         cell: ({ row }) => formatBytes(row.original.sizeBytes),
       },
       {
@@ -128,6 +128,7 @@ export default function CloudImagesPage() {
       <DataTable
         rows={images}
         columns={columns}
+        filterPlaceholder="Filter by name, datastore or node"
         getRowId={(image) => `${image.hypervisorId}/${image.id}`}
         initialSort={[{ id: 'name', desc: false }]}
         empty={isLoading ? 'Loading…' : 'No cloud images found on your servers.'}

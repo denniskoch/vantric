@@ -64,7 +64,7 @@ export default function CTTemplatesPage() {
         id: 'size',
         header: 'Size',
         accessorFn: (tpl) => tpl.sizeBytes,
-        meta: { align: 'right' },
+        meta: { align: 'right', filterText: (tpl) => formatBytes(tpl.sizeBytes) },
         cell: ({ row }) => formatBytes(row.original.sizeBytes),
       },
       {
@@ -112,6 +112,7 @@ export default function CTTemplatesPage() {
       <DataTable
         rows={templates}
         columns={columns}
+        filterPlaceholder="Filter by name, datastore or node"
         getRowId={(tpl) => `${tpl.hypervisorId}/${tpl.id}`}
         initialSort={[{ id: 'name', desc: false }]}
         empty={isLoading ? 'Loading…' : 'No container templates found on your servers.'}

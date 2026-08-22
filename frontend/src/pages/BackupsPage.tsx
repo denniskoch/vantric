@@ -51,6 +51,10 @@ export default function BackupsPage() {
         // A backup outlives its guest, so this is blank where the guest
         // is gone — and those sort last rather than leading the list.
         accessorFn: (backup) => backup.guestName,
+        // The cell shows the vmid next to the name, so searching for
+        // either finds the row. A backup of a deleted guest is only
+        // findable by its vmid, which is the case that needs it most.
+        meta: { filterText: (backup) => `${backup.guestName ?? ''} ${backup.vmid}` },
         cell: ({ row }) => (
           <>
             {row.original.guestName || (
@@ -93,7 +97,7 @@ export default function BackupsPage() {
         id: 'size',
         header: 'Size',
         accessorFn: (backup) => backup.sizeBytes,
-        meta: { align: 'right' },
+        meta: { align: 'right', filterText: (backup) => formatBytes(backup.sizeBytes) },
         cell: ({ row }) => formatBytes(row.original.sizeBytes),
       },
       {
@@ -153,6 +157,7 @@ export default function BackupsPage() {
         columns={columns}
         getRowId={(backup) => `${backup.hypervisorId}/${backup.id}`}
         initialSort={[{ id: 'createdAt', desc: true }]}
+        filterPlaceholder="Filter by guest, vmid, node, datastore, date or format"
         empty={isLoading ? 'Loading…' : 'No backups on any datastore.'}
       />
 

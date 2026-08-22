@@ -65,7 +65,7 @@ export default function ISOsPage() {
         id: 'size',
         header: 'Size',
         accessorFn: (iso) => iso.sizeBytes,
-        meta: { align: 'right' },
+        meta: { align: 'right', filterText: (iso) => formatBytes(iso.sizeBytes) },
         cell: ({ row }) => formatBytes(row.original.sizeBytes),
       },
       {
@@ -128,6 +128,7 @@ export default function ISOsPage() {
       <DataTable
         rows={isos}
         columns={columns}
+        filterPlaceholder="Filter by name, datastore or node"
         getRowId={(iso) => `${iso.hypervisorId}/${iso.id}`}
         initialSort={[{ id: 'name', desc: false }]}
         empty={isLoading ? 'Loading…' : 'No ISO images found on your servers.'}

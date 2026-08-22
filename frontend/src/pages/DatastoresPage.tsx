@@ -79,6 +79,7 @@ export default function DatastoresPage() {
       <DataTable
         rows={datastores}
         columns={columns}
+        filterPlaceholder="Filter by name, node, type or content"
         getRowId={(ds) => `${ds.hypervisorId}/${ds.id}`}
         initialSort={[{ id: 'name', desc: false }]}
         empty={isLoading ? 'Loading…' : 'No datastores found on your servers.'}

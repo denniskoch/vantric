@@ -71,6 +71,7 @@ export default function SnapshotsPage() {
       <DataTable
         rows={snapshots}
         columns={columns}
+        filterPlaceholder="Filter by VM, snapshot name, node or description"
         getRowId={(snap) => `${snap.hypervisorId}/${snap.id}`}
         initialSort={[{ id: 'vmName', desc: false }]}
         empty={isLoading ? 'Loading…' : 'No snapshots found on your servers.'}

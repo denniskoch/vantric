@@ -262,6 +262,7 @@ export default function ContainersPage() {
       <DataTable
         rows={containers}
         columns={columns}
+        filterPlaceholder="Filter by name, node or IP address"
         getRowId={(ct) => ct.name}
         initialSort={[{ id: 'name', desc: false }]}
         selection={[...picked]}
