@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Alert, Box, Chip, Typography } from '@mui/material'
+import { Alert, Box, Chip, Link, Typography } from '@mui/material'
 import type { ColumnDef } from '@tanstack/react-table'
 import DataTable from '../components/DataTable'
 import PageHeader from '../components/PageHeader'
@@ -154,9 +154,13 @@ export default function AIVirtualKeysPage() {
       />
 
       <Alert severity="info" sx={{ mb: 2 }}>
-        Cost is the gateway's own estimate, priced from its list. A router picks an
-        upstream per request, so what you were charged can be higher or lower — read it
-        as which caller is expensive, not as a bill.
+        Cost is estimated from{' '}
+        <Link href="https://getbifrost.ai/datasheet" target="_blank" rel="noreferrer">
+          the gateway's price registry
+        </Link>
+        , which is built for estimation rather than billing. A router picks an upstream
+        per request, so what you were charged can be higher or lower — read this as which
+        caller is expensive, not as a bill.
       </Alert>
 
       {error && (

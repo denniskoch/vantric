@@ -822,10 +822,14 @@ Surface the daily 90% here and link out for the rest.
   zero timestamp that parses to year 1 — left alone it renders as
   1/1/1, so it is checked for and written out. A success rate over no
   requests is likewise "—" rather than 0%.
-  COST HERE IS AN ESTIMATE AND THE PAGE SAYS SO. The gateway prices
-  traffic from its own list, and a router like OpenRouter picks an
-  upstream per request on availability and other factors, so the real
-  charge differs either way. It answers "which caller is expensive",
+  COST HERE IS AN ESTIMATE AND THE PAGE SAYS SO, with a link to the
+  price registry it comes from (getbifrost.ai/datasheet — per-token
+  costs, published for estimation rather than billing reconciliation).
+  A router like OpenRouter picks an upstream per request on
+  availability and other factors, so the real charge differs either
+  way. The registry is LINKED, NOT COPIED: holding a second price list
+  here would be a registry nobody updates, and the gateway has already
+  applied this one. It answers "which caller is expensive",
   never "what you owe" — which is also why the balance at the provider
   (below) is a different question worth asking separately.
 - WHAT'S LEFT AT A PROVIDER IS A SEPARATE SPLIT, the ninth:
