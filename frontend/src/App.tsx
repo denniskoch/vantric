@@ -106,6 +106,9 @@ import StorageInstancesPage from './pages/StorageInstancesPage'
 import StorageInstanceFormPage from './pages/StorageInstanceFormPage'
 import NodesPage from './pages/NodesPage'
 import NodeDetailPage from './pages/NodeDetailPage'
+import AIRequestsPage from './pages/AIRequestsPage'
+import AIGatewaysPage from './pages/AIGatewaysPage'
+import AIGatewayFormPage from './pages/AIGatewayFormPage'
 
 export default function App() {
   return (
@@ -210,6 +213,10 @@ export default function App() {
         />
         <Route path="/docker/overview" element={<SectionLandingPage />} />
         <Route path="/ai/overview" element={<SectionLandingPage />} />
+        <Route path="/ai/requests" element={<AIRequestsPage />} />
+        <Route path="/ai/settings/gateway" element={<AIGatewaysPage />} />
+        <Route path="/ai/settings/gateway/add" element={<AIGatewayFormPage />} />
+        <Route path="/ai/settings/gateway/:id/edit" element={<AIGatewayFormPage />} />
         <Route path="/monitoring/overview" element={<SectionLandingPage />} />
         <Route path="/iam/overview" element={<SectionLandingPage />} />
         <Route path="/iam/account" element={<MyAccountPage />} />

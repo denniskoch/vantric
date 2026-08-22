@@ -112,6 +112,9 @@ export default function DataTable<T>({
   filterPlaceholder = 'Filter',
   searchable = true,
   perPageOptions = [15, 30, 45],
+  server,
+  filterValue,
+  onFilterChange,
 }: {
   rows: T[]
   columns: ColumnDef<T, unknown>[]
@@ -134,9 +137,33 @@ export default function DataTable<T>({
   filterPlaceholder?: string
   searchable?: boolean
   perPageOptions?: number[]
+  /**
+   * Paging and sorting done by whoever holds the data, for a list too
+   * long to hold here. Every other table in this console pulls its
+   * rows and sorts them in the browser, which is right for tens of
+   * instances or thousands of CVEs and wrong for a gateway's request
+   * log, where the count is six figures and grows while you read it.
+   *
+   * Supplying this hands both jobs back: `rows` is one page, `total`
+   * is the size of the whole result, and a click on a header or a
+   * pager button becomes a request rather than a re-sort.
+   */
+  server?: {
+    total: number
+    page: number
+    pageSize: number
+    sorting: SortingState
+    onChange: (next: { page: number; pageSize: number; sorting: SortingState }) => void
+  }
+  /** Controlled filter box, for a search the server runs. */
+  filterValue?: string
+  onFilterChange?: (value: string) => void
 }) {
   const [sorting, setSorting] = useState<SortingState>(initialSort ?? [])
-  const [filter, setFilter] = useState('')
+  const [ownFilter, setOwnFilter] = useState('')
+  const controlledFilter = onFilterChange !== undefined
+  const filter = controlledFilter ? (filterValue ?? '') : ownFilter
+  const setFilter = controlledFilter ? onFilterChange : setOwnFilter
   const [expanded, setExpanded] = useState<ExpandedState>({})
   const selectionEnabled = Boolean(onSelectionChange)
 
@@ -196,8 +223,27 @@ export default function DataTable<T>({
     data: rows,
     columns: normalised,
     getRowId,
-    state: { sorting, rowSelection, globalFilter: filter, expanded },
-    onSortingChange: setSorting,
+    state: {
+      sorting: server ? server.sorting : sorting,
+      rowSelection,
+      globalFilter: filter,
+      expanded,
+      ...(server ? { pagination: { pageIndex: server.page, pageSize: server.pageSize } } : {}),
+    },
+    manualPagination: Boolean(server),
+    manualSorting: Boolean(server),
+    manualFiltering: controlledFilter,
+    ...(server ? { rowCount: server.total } : {}),
+    onSortingChange: (updater) => {
+      if (!server) {
+        setSorting(updater)
+        return
+      }
+      const next = typeof updater === 'function' ? updater(server.sorting) : updater
+      // A new sort starts at the first page: page 4 of the old order
+      // is not a place, and landing there says the click did nothing.
+      server.onChange({ page: 0, pageSize: server.pageSize, sorting: next })
+    },
     onGlobalFilterChange: setFilter,
     onExpandedChange: setExpanded,
     getRowCanExpand: (row) => Boolean(renderDetail?.(row.original)),
@@ -214,7 +260,7 @@ export default function DataTable<T>({
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: perPageOptions[0] } },
+    ...(server ? {} : { initialState: { pagination: { pageSize: perPageOptions[0] } } }),
   })
 
   const page = table.getRowModel().rows
@@ -373,7 +419,9 @@ export default function DataTable<T>({
           )}
         </TableBody>
       </Table>
-      {table.getRowCount() > 0 && <Pagination table={table} options={perPageOptions} />}
+      {table.getRowCount() > 0 && (
+        <Pagination table={table} options={perPageOptions} server={server} />
+      )}
     </TableContainer>
   )
 }
@@ -442,17 +490,39 @@ function maxWidthOf(def: { meta?: { maxWidth?: number } }) {
   return def.meta?.maxWidth
 }
 
-function Pagination<T>({ table, options }: { table: TanTable<T>; options: number[] }) {
+function Pagination<T>({
+  table,
+  options,
+  server,
+}: {
+  table: TanTable<T>
+  options: number[]
+  server?: {
+    total: number
+    page: number
+    pageSize: number
+    sorting: SortingState
+    onChange: (next: { page: number; pageSize: number; sorting: SortingState }) => void
+  }
+}) {
   const state = table.getState().pagination
   return (
     <TablePagination
       component="div"
       count={table.getRowCount()}
       page={state.pageIndex}
-      onPageChange={(_, next) => table.setPageIndex(next)}
+      onPageChange={(_, next) =>
+        server
+          ? server.onChange({ page: next, pageSize: server.pageSize, sorting: server.sorting })
+          : table.setPageIndex(next)
+      }
       rowsPerPage={state.pageSize}
       rowsPerPageOptions={options}
-      onRowsPerPageChange={(e) => table.setPageSize(Number(e.target.value))}
+      onRowsPerPageChange={(e) =>
+        server
+          ? server.onChange({ page: 0, pageSize: Number(e.target.value), sorting: server.sorting })
+          : table.setPageSize(Number(e.target.value))
+      }
     />
   )
 }

@@ -464,7 +464,30 @@ export const sections: Section[] = [
     prefix: '/ai',
     home: '/ai/overview',
     items: [{ label: 'Overview', icon: DashboardIcon, to: '/ai/overview' }],
-    groups: [],
+    groups: [
+      {
+        label: 'Observability',
+        items: [
+          {
+            label: 'Requests',
+            icon: HistoryIcon,
+            to: '/ai/requests',
+            hint: 'Every call the lab made to a model, and what answered',
+          },
+        ],
+      },
+      {
+        label: 'Settings',
+        items: [
+          {
+            label: 'Gateway',
+            icon: HubIcon,
+            to: '/ai/settings/gateway',
+            hint: 'The AI gateway this console reads',
+          },
+        ],
+      },
+    ],
     description:
       'What your lab asks of language models, and what answers: requests through the gateway, the providers behind it, and the models running on your own hardware.',
   },

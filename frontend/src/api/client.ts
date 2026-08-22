@@ -803,6 +803,81 @@ export interface InventoryProviderRequest {
   insecureTls?: boolean
 }
 
+/** A configured AI gateway — Bifrost, for now. */
+export interface AIGateway {
+  id: string
+  name: string
+  type: string
+  baseUrl: string
+  insecureTls: boolean
+  createdAt: string
+  hasToken: boolean
+  status: string
+  info?: { version: string; requests: number; authEnabled: boolean }
+  error?: string
+}
+
+export interface AIGatewayRequest {
+  name: string
+  type: string
+  baseUrl: string
+  token?: string
+  insecureTls?: boolean
+}
+
+/**
+ * One call the gateway handled. Latency and the token counts are
+ * OPTIONAL because the gateway omits them rather than sending zero — a
+ * request that failed before the model answered never had a latency,
+ * and 0 ms would read as instant.
+ */
+export interface AIRequest {
+  id: string
+  at: string
+  provider: string
+  model: string
+  status: string
+  latencyMs?: number
+  promptTokens?: number
+  completionTokens?: number
+  totalTokens?: number
+  caller?: string
+  credential?: string
+  streamed: boolean
+  kind?: string
+}
+
+export interface AIRequestPage {
+  requests: AIRequest[]
+  total: number
+}
+
+export interface AIStats {
+  requests: number
+  successRate: number
+  avgLatencyMs: number
+  totalTokens: number
+  cost: number
+}
+
+export interface AIFilters {
+  providers: string[]
+  models: string[]
+  callers: { id: string; name: string }[]
+}
+
+export interface AIRequestQuery {
+  limit?: number
+  offset?: number
+  sortBy?: string
+  order?: 'asc' | 'desc'
+  providers?: string[]
+  models?: string[]
+  callers?: string[]
+  status?: string
+  search?: string
+}
+
 /** One change, and the account that made it. */
 export interface AuditEntry {
   id: string
@@ -1541,6 +1616,22 @@ function uploadStream(
   })
 }
 
+/** The request log's filters, as a query string. Empty values are
+ *  dropped so an untouched filter doesn't narrow anything. */
+function aiQuery(q: AIRequestQuery): string {
+  const params = new URLSearchParams()
+  if (q.limit) params.set('limit', String(q.limit))
+  if (q.offset) params.set('offset', String(q.offset))
+  if (q.sortBy) params.set('sortBy', q.sortBy)
+  if (q.order) params.set('order', q.order)
+  if (q.providers?.length) params.set('providers', q.providers.join(','))
+  if (q.models?.length) params.set('models', q.models.join(','))
+  if (q.callers?.length) params.set('callers', q.callers.join(','))
+  if (q.status) params.set('status', q.status)
+  if (q.search) params.set('search', q.search)
+  return params.toString()
+}
+
 export const api = {
   // --- sign-in and this console's own accounts ---
   login: (email: string, password: string) =>
@@ -1705,6 +1796,18 @@ export const api = {
     }),
   deleteInventoryProvider: (id: string) =>
     request<void>(`/inventory/providers/${id}`, { method: 'DELETE' }),
+
+  listAIGatewayTypes: () => request<string[]>('/ai/gateway-types'),
+  listAIGateways: () => request<AIGateway[]>('/ai/gateways'),
+  createAIGateway: (body: AIGatewayRequest) =>
+    request<AIGateway>('/ai/gateways', { method: 'POST', body: JSON.stringify(body) }),
+  updateAIGateway: (id: string, body: AIGatewayRequest) =>
+    request<AIGateway>(`/ai/gateways/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteAIGateway: (id: string) => request<void>(`/ai/gateways/${id}`, { method: 'DELETE' }),
+  listAIRequests: (query: AIRequestQuery) =>
+    request<AIRequestPage>(`/ai/requests?${aiQuery(query)}`),
+  getAIStats: (query: AIRequestQuery) => request<AIStats>(`/ai/stats?${aiQuery(query)}`),
+  getAIFilters: () => request<AIFilters>('/ai/filters'),
 
   /** Who did what. Reads aren't recorded; see the audit middleware. */
   listAudit: (params: { actor?: string; resource?: string; limit?: number } = {}) => {
