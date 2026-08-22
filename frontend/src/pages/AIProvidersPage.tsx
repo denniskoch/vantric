@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Alert, Box, Chip, Typography } from '@mui/material'
+import CellLines from '../components/CellLines'
 import type { ColumnDef } from '@tanstack/react-table'
 import DataTable from '../components/DataTable'
 import PageHeader from '../components/PageHeader'
@@ -48,11 +49,15 @@ export default function AIProvidersPage() {
         meta: { align: 'right', hug: true },
         accessorFn: (p) => p.keys.length,
       },
+      // The name and the key itself are two columns, not one cell
+      // holding both. A provider with two keys stacks a line in each,
+      // and top-aligned rows keep line one against line one.
       {
-        id: 'configured',
-        header: 'Configured',
+        id: 'keyNames',
+        header: 'Key name',
         enableSorting: false,
         meta: {
+          nowrap: true,
           filterText: (p: AIGatewayProvider) => p.keys.map((k) => k.name).join(' '),
         },
         cell: ({ row }) =>
@@ -64,16 +69,10 @@ export default function AIProvidersPage() {
               no key — this provider can't be reached
             </Typography>
           ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+            <CellLines>
               {row.original.keys.map((k) => (
                 <Box key={k.id} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <span>{k.name}</span>
-                  <Typography
-                    component="span"
-                    sx={{ fontSize: 12, color: 'text.secondary', fontFamily: 'monospace' }}
-                  >
-                    {k.masked}
-                  </Typography>
                   {!k.enabled && (
                     <Chip label="disabled" size="small" sx={{ fontSize: 10, height: 18 }} />
                   )}
@@ -86,8 +85,35 @@ export default function AIProvidersPage() {
                   )}
                 </Box>
               ))}
-            </Box>
+            </CellLines>
           ),
+      },
+      {
+        id: 'keyValues',
+        header: 'Key',
+        enableSorting: false,
+        meta: { nowrap: true },
+        // A local provider needs no secret, so the gateway stores the
+        // host as the "key" and leaves its value empty — Ollama's two
+        // are machine names. Blank would read as "we didn't look", so
+        // the absence is written out.
+        cell: ({ row }) => (
+          <CellLines>
+            {row.original.keys.map((k) => (
+              <Typography
+                key={k.id}
+                sx={{
+                  fontSize: 12,
+                  color: 'text.secondary',
+                  fontFamily: k.masked ? 'monospace' : undefined,
+                  fontStyle: k.masked ? undefined : 'italic',
+                }}
+              >
+                {k.masked || 'no secret'}
+              </Typography>
+            ))}
+          </CellLines>
+        ),
       },
     ],
     [],
@@ -110,6 +136,7 @@ export default function AIProvidersPage() {
         rows={providers}
         columns={columns}
         getRowId={(p) => p.name}
+        alignTop
         initialSort={[{ id: 'keys', desc: true }]}
         filterPlaceholder="Filter by provider or key name"
         empty={isLoading ? 'Loading…' : 'The gateway has no providers configured.'}

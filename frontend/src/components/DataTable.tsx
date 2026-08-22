@@ -115,6 +115,7 @@ export default function DataTable<T>({
   server,
   filterValue,
   onFilterChange,
+  alignTop,
 }: {
   rows: T[]
   columns: ColumnDef<T, unknown>[]
@@ -158,6 +159,15 @@ export default function DataTable<T>({
   /** Controlled filter box, for a search the server runs. */
   filterValue?: string
   onFilterChange?: (value: string) => void
+  /**
+   * Align cells to the top of the row rather than its middle.
+   *
+   * A table cell centres by default, which is right while every cell
+   * is one line and wrong the moment one of them isn't: a provider
+   * holding two keys leaves its own name floating half a line down,
+   * lining up with neither of them. Set this where a column stacks.
+   */
+  alignTop?: boolean
 }) {
   const [sorting, setSorting] = useState<SortingState>(initialSort ?? [])
   const [ownFilter, setOwnFilter] = useState('')
@@ -385,6 +395,7 @@ export default function DataTable<T>({
                   align={alignOf(cell.column.columnDef)}
                   sx={{
                     whiteSpace: nowrapOf(cell.column.columnDef),
+                    ...(alignTop ? { verticalAlign: 'top' } : {}),
                     ...hugStyle(cell.column.columnDef),
                   }}
                 >
