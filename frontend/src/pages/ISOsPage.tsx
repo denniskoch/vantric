@@ -55,6 +55,7 @@ export default function ISOsPage() {
       {
         id: 'name',
         header: 'Name',
+        meta: { nowrap: true },
         accessorFn: (iso) => iso.name,
         cell: ({ row }) => <OSName name={row.original.name} />,
       },

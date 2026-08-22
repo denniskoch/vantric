@@ -55,6 +55,7 @@ export default function CloudImagesPage() {
       {
         id: 'name',
         header: 'Name',
+        meta: { nowrap: true },
         accessorFn: (image) => image.name,
         cell: ({ row }) => <OSName name={row.original.name} />,
       },

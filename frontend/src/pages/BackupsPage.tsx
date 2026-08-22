@@ -46,16 +46,6 @@ export default function BackupsPage() {
   const columns = useMemo<ColumnDef<(typeof backups)[number], unknown>[]>(
     () => [
       {
-        id: 'createdAt',
-        header: 'Created',
-        meta: { nowrap: true },
-        accessorFn: (backup) => backup.createdAt,
-        cell: ({ row }) =>
-          row.original.createdAt
-            ? new Date(row.original.createdAt * 1000).toLocaleString()
-            : '—',
-      },
-      {
         id: 'guestName',
         header: 'Guest',
         // A backup outlives its guest, so this is blank where the guest
@@ -79,6 +69,16 @@ export default function BackupsPage() {
             )}
           </>
         ),
+      },
+      {
+        id: 'createdAt',
+        header: 'Created',
+        meta: { nowrap: true },
+        accessorFn: (backup) => backup.createdAt,
+        cell: ({ row }) =>
+          row.original.createdAt
+            ? new Date(row.original.createdAt * 1000).toLocaleString()
+            : '—',
       },
       {
         id: 'guestType',

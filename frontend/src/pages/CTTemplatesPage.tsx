@@ -54,6 +54,7 @@ export default function CTTemplatesPage() {
       {
         id: 'name',
         header: 'Name',
+        meta: { nowrap: true },
         accessorFn: (tpl) => tpl.name,
         cell: ({ row }) => <OSName name={row.original.name} />,
       },
