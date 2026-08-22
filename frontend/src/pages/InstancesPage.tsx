@@ -192,7 +192,7 @@ export default function InstancesPage() {
                 startIcon={<AddBoxIcon />}
                 onClick={() => navigate('/compute/instances/create')}
               >
-                Create instance
+                Create
               </Button>
             )}
             <Button size="small" startIcon={<RefreshIcon />} onClick={() => refetch()}>
@@ -279,7 +279,7 @@ export default function InstancesPage() {
         onSelectionChange={(ids) => setPicked(new Set(ids))}
         selectable={canEdit}
         empty={
-          isLoading ? 'Loading…' : 'No virtual machines yet. Click "Create instance" to get started.'
+          isLoading ? 'Loading…' : 'No virtual machines yet.'
         }
       />
 

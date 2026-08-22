@@ -186,7 +186,7 @@ export default function ContainersPage() {
                 startIcon={<AddBoxIcon />}
                 onClick={() => navigate('/compute/containers/create')}
               >
-                Create container
+                Create
               </Button>
             )}
             <Button size="small" startIcon={<RefreshIcon />} onClick={() => refetch()}>
