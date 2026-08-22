@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   AppBar,
@@ -28,7 +29,10 @@ import { sections, sectionFor } from './nav'
 import { api } from '../api/client'
 import NotificationBell from './NotificationBell'
 import { initialFor, useRefreshSession, useSession } from '../user'
-import type { SectionItem } from './nav'
+import { useFavorites } from '../favorites'
+import StarIcon from '@mui/icons-material/Star'
+import StarBorderIcon from '@mui/icons-material/StarBorder'
+import type { Section, SectionItem } from './nav'
 
 
 const SECTION_NAV_WIDTH = 256
@@ -59,6 +63,7 @@ export default function Shell() {
   const navigate = useNavigate()
   const { user, loading, signedOut } = useSession()
   const refreshSession = useRefreshSession()
+  const { favorites, isFavorite, toggle } = useFavorites()
 
   const section = sectionFor(location.pathname)
   // A section with nothing to list gets no drawer — the Cloud overview
@@ -218,22 +223,45 @@ export default function Shell() {
         }}
       >
         <Toolbar variant="dense" sx={{ minHeight: 48 }} />
+        {/* Favourites first, and the rest still listed below them —
+            pinning a section moves it up rather than hiding it from
+            where it has always been. */}
+        {favorites.length > 0 && (
+          <>
+            <GlobalNavHeading>Favorites</GlobalNavHeading>
+            <List dense>
+              {sections
+                .filter((s) => isFavorite(s.id))
+                .map((s) => (
+                  <GlobalNavItem
+                    key={s.id}
+                    section={s}
+                    current={section?.id === s.id}
+                    starred
+                    onOpen={() => {
+                      navigate(s.home)
+                      setGlobalNavOpen(false)
+                    }}
+                    onToggle={() => toggle(s.id)}
+                  />
+                ))}
+            </List>
+            <GlobalNavHeading>Products</GlobalNavHeading>
+          </>
+        )}
         <List dense>
           {sections.map((s) => (
-            <ListItemButton
+            <GlobalNavItem
               key={s.id}
-              selected={section?.id === s.id}
-              onClick={() => {
+              section={s}
+              current={section?.id === s.id}
+              starred={isFavorite(s.id)}
+              onOpen={() => {
                 navigate(s.home)
                 setGlobalNavOpen(false)
               }}
-              sx={{ mr: 1 }}
-            >
-              <ListItemIcon sx={{ minWidth: 36 }}>
-                <s.icon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText primary={s.label} />
-            </ListItemButton>
+              onToggle={() => toggle(s.id)}
+            />
           ))}
         </List>
       </Drawer>
@@ -308,5 +336,59 @@ export default function Shell() {
         <Outlet />
       </Box>
     </Box>
+  )
+}
+
+/** A heading in the global menu — "Favorites", "Products". */
+function GlobalNavHeading({ children }: { children: ReactNode }) {
+  return (
+    <Typography
+      sx={{ fontSize: 12, fontWeight: 500, color: 'text.secondary', px: 2, pt: 1.5, pb: 0.5 }}
+    >
+      {children}
+    </Typography>
+  )
+}
+
+/**
+ * One section in the global menu, with its star.
+ *
+ * The star is a BUTTON INSIDE a button, so its click must not also
+ * navigate — stopPropagation is doing real work here, not tidying.
+ */
+function GlobalNavItem({
+  section,
+  current,
+  starred,
+  onOpen,
+  onToggle,
+}: {
+  section: Section
+  current: boolean
+  starred: boolean
+  onOpen: () => void
+  onToggle: () => void
+}) {
+  return (
+    <ListItemButton selected={current} onClick={onOpen} sx={{ mr: 1, pr: 0.5 }}>
+      <ListItemIcon sx={{ minWidth: 36 }}>
+        <section.icon fontSize="small" />
+      </ListItemIcon>
+      <ListItemText primary={section.label} />
+      <IconButton
+        size="small"
+        aria-label={starred ? `Unpin ${section.label}` : `Pin ${section.label}`}
+        onClick={(e) => {
+          e.stopPropagation()
+          onToggle()
+        }}
+      >
+        {starred ? (
+          <StarIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+        ) : (
+          <StarBorderIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+        )}
+      </IconButton>
+    </ListItemButton>
   )
 }

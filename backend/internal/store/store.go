@@ -363,6 +363,13 @@ var columnMigrations = []string{
 	// constant in its own implementation. Empty for Cloudflare rows
 	// that predate this.
 	`ALTER TABLE dns_providers ADD COLUMN base_url TEXT NOT NULL DEFAULT ''`,
+	// Which sections a person pinned to the top of the global menu. On
+	// the ACCOUNT rather than in the browser, because the console is one
+	// place you sign in to from more than one machine, and a favourite
+	// that doesn't follow you is a favourite you set twice. A JSON array
+	// of section ids: a row per favourite would be a join table for a
+	// list of at most a dozen strings nobody queries across.
+	`ALTER TABLE iam_users ADD COLUMN favorites TEXT NOT NULL DEFAULT ''`,
 	// An external address is a cloud's idea: a VM there sits on a private
 	// network and is given a public address to be reached at. A guest on
 	// a hypervisor has the one address its bridge puts it on, and no

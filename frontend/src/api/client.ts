@@ -1806,6 +1806,11 @@ export const api = {
   deleteInventoryProvider: (id: string) =>
     request<void>(`/inventory/providers/${id}`, { method: 'DELETE' }),
 
+  /** Section ids pinned to the top of the global menu, per account. */
+  listFavorites: () => request<string[]>('/favorites'),
+  setFavorites: (ids: string[]) =>
+    request<string[]>('/favorites', { method: 'PUT', body: JSON.stringify(ids) }),
+
   listAIGatewayTypes: () => request<string[]>('/ai/gateway-types'),
   listAIGateways: () => request<AIGateway[]>('/ai/gateways'),
   createAIGateway: (body: AIGatewayRequest) =>

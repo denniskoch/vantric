@@ -99,6 +99,7 @@ func ownerOnlyMatch(prefix, path string) bool {
 var selfService = []string{
 	"/api/v1/auth/password",
 	"/api/v1/ssh-key",
+	"/api/v1/favorites",
 }
 
 // guestAccess are the GETs THAT ARE NOT READS, and they are the reason

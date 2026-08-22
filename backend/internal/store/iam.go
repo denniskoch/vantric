@@ -3,6 +3,9 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"errors"
+	"strings"
 	"time"
 )
 
@@ -343,4 +346,56 @@ func (s *Store) SaveOIDCProvider(ctx context.Context, p *OIDCProvider) error {
 func (s *Store) DeleteOIDCProvider(ctx context.Context) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM auth_oidc`)
 	return err
+}
+
+// Favorites are the sections a person pinned to the top of the global
+// menu, stored on the account rather than in the browser: the console
+// is one place you sign in to from more than one machine, and a
+// favourite that doesn't follow you is a favourite you set twice.
+//
+// A JSON array of section ids. Not a join table — this is at most a
+// dozen strings, nobody queries across them, and the alternative is a
+// second table to keep in step with a list the frontend owns anyway.
+// Unknown ids are harmless: a section that no longer exists simply
+// doesn't render, which is the right outcome after a rename.
+func (s *Store) Favorites(ctx context.Context, userID string) ([]string, error) {
+	var raw string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT favorites FROM iam_users WHERE id = ?`, userID).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(raw) == "" {
+		return []string{}, nil
+	}
+	var ids []string
+	if err := json.Unmarshal([]byte(raw), &ids); err != nil {
+		// A row we can't read is not a reason to fail the page it sits
+		// behind; an empty list is the honest answer.
+		return []string{}, nil
+	}
+	return ids, nil
+}
+
+func (s *Store) SetFavorites(ctx context.Context, userID string, ids []string) error {
+	if ids == nil {
+		ids = []string{}
+	}
+	raw, err := json.Marshal(ids)
+	if err != nil {
+		return err
+	}
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE iam_users SET favorites = ?, updated_at = ? WHERE id = ?`,
+		string(raw), now(), userID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
