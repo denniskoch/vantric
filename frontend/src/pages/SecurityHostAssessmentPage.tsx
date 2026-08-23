@@ -25,6 +25,8 @@ import { severityColor, severityLabel } from '../severity'
 import { realSerial } from '../serial'
 import { installedNeedingUpdate, newestOSInEstate } from '../remediation'
 import { OSIcon } from '../components/OSName'
+import ErrorIcon from '@mui/icons-material/Error'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 
 /**
  * Assessing one endpoint at a time.
@@ -241,15 +243,20 @@ function WhatToDo({
 
   const apps = installedNeedingUpdate(detail.packages ?? [])
 
-  // SPLIT BY WHAT SOMEBODY RECOGNISES, not by how it updates. Clicking
-  // update on Edge is nothing; updating a Python that four other things
-  // import is a decision, and burying the two in one list asks for the
-  // same shrug from both. How to update each is said per row instead,
-  // where it's an instruction rather than a heading.
-  const sections = [
-    { heading: 'Applications', list: apps.filter((a) => a.kind === 'application') },
-    { heading: 'Runtimes and libraries', list: apps.filter((a) => a.kind === 'runtime') },
-  ].filter((s) => s.list.length > 0)
+  // GROUPED BY SEVERITY, because the question this page is for is what
+  // to fix first. Kind — an application you click update on, versus a
+  // runtime four other things import — still decides how much of a
+  // decision each row is, so it stays as the row's own subtitle rather
+  // than as the heading. It was the heading once; on a security page
+  // that made you read two lists to find the one critical thing.
+  const groups = bands
+    .map((band) => ({
+      band,
+      list: apps
+        .filter((a) => (a.severity || 'UNSCORED') === band.severity)
+        .sort((x, y) => y.worstScore - x.worstScore || y.count - x.count),
+    }))
+    .filter((g) => g.list.length > 0)
 
   if (!newer && apps.length === 0) return null
 
@@ -273,34 +280,50 @@ function WhatToDo({
           </Box>
         )}
 
-        {sections.map(({ heading, list }) => (
-          <Box key={heading} sx={{ mb: 2, '&:last-child': { mb: 0 } }}>
-            <Typography sx={{ fontSize: 14, mb: 0.5 }}>{heading}</Typography>
-            <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
-              {list.map((a) => (
-                <Box
-                  component="li"
-                  key={`${a.name}-${a.version}`}
-                  sx={{ fontSize: 13, py: 0.2 }}
-                >
-                  {a.version ? `${a.name} ${a.version}` : a.name}
-                  {/* The worst thing in it, coloured — what decides
-                      whether this row is today's problem. */}
-                  {a.severity && (
-                    <Box
-                      component="span"
-                      sx={{ color: severityColor[a.severity] ?? 'text.secondary', ml: 1 }}
-                    >
-                      {a.severity}
-                    </Box>
-                  )}
-                  <Box component="span" sx={{ color: 'text.disabled' }}>
-                    {' '}
-                    — {a.count} {a.count === 1 ? 'vulnerability' : 'vulnerabilities'}
-                  </Box>
-                </Box>
-              ))}
+        {groups.map(({ band, list }) => (
+          <Box key={band.severity} sx={{ mt: 2, '&:first-of-type': { mt: newer ? 2 : 0 } }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                pb: 0.75,
+                mb: 0.5,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              <SeverityMark severity={band.severity} color={band.color} />
+              <Typography sx={{ fontSize: 14, color: band.color }}>
+                {band.label} severity
+              </Typography>
             </Box>
+            {list.map((a) => (
+              <Box
+                key={`${a.name}-${a.version}`}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  gap: 2,
+                  py: 0.75,
+                }}
+              >
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{ fontSize: 14 }}>
+                    {a.version ? `${a.name} ${a.version}` : a.name}
+                  </Typography>
+                  {/* How much of a decision this update is. An
+                      application is a click; a runtime is everything
+                      that imports it. */}
+                  <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+                    {a.kind === 'runtime' ? 'Runtime / Library' : 'Application'}
+                  </Typography>
+                </Box>
+                <Typography sx={{ fontSize: 13, color: band.color, whiteSpace: 'nowrap' }}>
+                  {a.count} {a.count === 1 ? 'vulnerability' : 'vulnerabilities'}
+                </Typography>
+              </Box>
+            ))}
           </Box>
         ))}
       </Paper>
@@ -383,4 +406,13 @@ function countBySeverity(vulns: { cve: string; severity: string }[]): Record<str
     counts[counts[v.severity] === undefined ? 'UNSCORED' : v.severity] += 1
   }
   return counts
+}
+
+/** The glyph beside a severity heading. Only the two bands that demand
+ *  action get one — a mark on every heading is a mark that says
+ *  nothing, the same reason Low and Not scored are never tinted. */
+function SeverityMark({ severity, color }: { severity: string; color: string }) {
+  if (severity === 'CRITICAL') return <ErrorIcon sx={{ fontSize: 18, color }} />
+  if (severity === 'HIGH') return <WarningAmberIcon sx={{ fontSize: 18, color }} />
+  return null
 }
