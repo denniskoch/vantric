@@ -112,20 +112,27 @@ func (s *Server) listInstallers(w http.ResponseWriter, r *http.Request) {
 	}
 	// THE TOKEN IS A CREDENTIAL, and this listing used to hand it to
 	// anyone signed in. "Reads are open to anyone signed in" is the
-	// right rule for a lab's state and the wrong one for a secret:
-	// rotating the token was owner-only, because ownerOnly gates
-	// mutations, while READING it was not gated at all. A fleetd package
-	// carries the enrollment secret, so whoever holds this can enrol a
-	// host into your Fleet instance — which is precisely what a viewer
-	// is not supposed to be able to do.
+	// right rule for a lab's state and the wrong one for a secret: a
+	// fleetd package carries the enrollment secret, so whoever holds
+	// this can enrol a host into your Fleet instance.
 	//
-	// The file listing itself stays open: what packages exist is lab
-	// state, and a viewer seeing it costs nothing.
+	// THE LINE IS THE VIEWER, NOT THE OWNER. Enrolling a machine is
+	// ordinary editor work — it uses a connected backend the same way
+	// minting an object store's access key does — and this was
+	// owner-only for a while by accident rather than by argument: the
+	// reasoning written here was all about viewers while the check said
+	// owner, so an editor could UPLOAD an installer and DELETE one but
+	// not fetch either. Rotating the token stays owner-only, because
+	// that is credential management and it breaks every machine holding
+	// the old URL.
+	//
+	// The file listing itself stays open to everyone: what packages
+	// exist is lab state, and a viewer seeing it costs nothing.
 	//
 	// Minting is inside the check too. The token is created on first
 	// use, and a viewer opening this page should not be what brings a
 	// credential into existence.
-	if user := userFrom(r.Context()); user != nil && user.Role == roleOwner {
+	if user := userFrom(r.Context()); user != nil && user.Role != roleViewer {
 		token, err := s.installerToken(r.Context())
 		if err != nil {
 			s.fail(w, err, "installer token")

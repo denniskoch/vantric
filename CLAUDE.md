@@ -850,7 +850,19 @@ Surface the daily 90% here and link out for the rest.
   own key: `/api/v1/installers/{name}/download?token=`. A fleetd
   package contains the enrollment secret, so an open link would let
   anyone who can reach this console enrol a host — but a session cookie
-  is exactly what a bare machine hasn't got. The token lives in
+  is exactly what a bare machine hasn't got.
+  WHO MAY READ THE TOKEN IS GATED ON THE VIEWER, NOT THE OWNER.
+  Enrolling a machine is ordinary editor work — using a connected
+  backend, the same as minting an object store's access key — so the
+  listing hands the token to an editor and an owner and withholds it
+  from a viewer. It was owner-only for a while by accident rather than
+  by argument: the reasoning written beside the check was all about
+  viewers while the check said owner, so an editor could UPLOAD an
+  installer and DELETE one but not fetch either. ROTATING it stays
+  owner-only, since that is credential management and it breaks every
+  machine holding the old URL. The file listing itself is open to
+  everyone — what packages exist is lab state.
+  The token lives in
   `app_settings` (a key/value table so a new setting needs no
   migration), is minted on first use like the SSH key, is accepted as a
   query parameter OR a bearer header (curl and wget take either,

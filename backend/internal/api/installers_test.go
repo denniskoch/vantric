@@ -50,19 +50,20 @@ func TestListInstallersWithholdsTheTokenFromNonOwners(t *testing.T) {
 		return out
 	}
 
-	for _, role := range []string{roleViewer, roleEditor} {
-		if got := list(role).Token; got != "" {
-			t.Errorf("%s was given the download token: %q", roleLabel(role), got)
-		}
+	if got := list(roleViewer).Token; got != "" {
+		t.Errorf("a viewer was given the download token: %q", got)
 	}
 
 	// And the token is MINTED on first use, so a viewer opening the page
 	// must not be what brings the credential into existence.
 	if _, err := st.GetSetting(context.Background(), installerTokenKey); err == nil {
-		t.Error("a non-owner's listing minted the download token")
+		t.Error("a viewer's listing minted the download token")
 	}
 
-	if list(roleOwner).Token == "" {
-		t.Error("an owner was not given the download token")
+	// An editor enrols machines, which is what the token is for.
+	for _, role := range []string{roleEditor, roleOwner} {
+		if list(role).Token == "" {
+			t.Errorf("%s was not given the download token", roleLabel(role))
+		}
 	}
 }

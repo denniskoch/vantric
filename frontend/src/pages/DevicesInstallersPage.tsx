@@ -102,10 +102,10 @@ export default function DevicesInstallersPage() {
     onError: (e: Error) => setError(e.message),
   })
 
-  // Every command on this page embeds the download token, so all of them
-  // are owner-only — the backend withholds the token from anyone else and
-  // these would otherwise render a link with an empty token that fails
-  // with a 404, which reads as a broken console rather than a refusal.
+  // Every command on this page embeds the download token, and the
+  // backend withholds it from a viewer — so a viewer would otherwise be
+  // handed a link with an empty token that 404s, which reads as a
+  // broken console rather than as a refusal.
   const canFetchCommands = Boolean(data?.token)
 
   const urlFor = (name: string) =>
@@ -131,7 +131,7 @@ export default function DevicesInstallersPage() {
         description={
           canFetchCommands
             ? 'Agent packages a machine can fetch with one command. Download links carry a token.'
-            : 'Agent packages a machine can fetch with one command. The fetch commands carry the download token, which only an owner can read.'
+            : 'Agent packages a machine can fetch with one command. The fetch commands carry the download token, which this account can’t read.'
         }
         actions={
           <>
@@ -309,7 +309,7 @@ export default function DevicesInstallersPage() {
             />
           ) : (
             <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-              The command carries the download token, which only an owner can read.
+              The command carries the download token, which this account can’t read.
             </Typography>
           )}
         </Paper>
