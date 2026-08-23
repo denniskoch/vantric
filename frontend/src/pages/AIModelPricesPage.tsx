@@ -142,19 +142,24 @@ export default function AIModelPricesPage() {
         accessorFn: (m) => m.provider,
         cell: ({ row }) => <ProviderName name={row.original.provider} />,
       },
-      cost('input', 'Input', (m) => m.inputPerToken),
-      cost('output', 'Output', (m) => m.outputPerToken),
+      // THE UNIT GOES IN THE HEADER, not only in the description above
+      // the table. A column of dollar figures with no unit on it is a
+      // column you have to go and ask about — and a per-token price and
+      // a per-million price differ by six orders of magnitude, so
+      // guessing wrong is not a rounding error.
+      cost('input', 'Input $/1M', (m) => m.inputPerToken),
+      cost('output', 'Output $/1M', (m) => m.outputPerToken),
       ...(anyCacheRead
-        ? [cost('cacheRead', 'Cache read', (m) => m.cacheReadPerToken, false)]
+        ? [cost('cacheRead', 'Cache read $/1M', (m) => m.cacheReadPerToken, false)]
         : []),
       ...(anyCacheWrite
-        ? [cost('cacheWrite', 'Cache write', (m) => m.cacheWritePerToken, false)]
+        ? [cost('cacheWrite', 'Cache write $/1M', (m) => m.cacheWritePerToken, false)]
         : []),
       ...(anyContext
         ? [
             {
               id: 'context',
-              header: 'Context',
+              header: 'Context tokens',
               meta: { align: 'right' as const, nowrap: true },
               accessorFn: (m: AIModelPrice) => m.maxInputTokens ?? 0,
               cell: ({ row }: { row: { original: AIModelPrice } }) => (
@@ -163,7 +168,7 @@ export default function AIModelPricesPage() {
             } as ColumnDef<AIModelPrice, unknown>,
             {
               id: 'maxOutput',
-              header: 'Max output',
+              header: 'Max output tokens',
               meta: { align: 'right' as const, nowrap: true },
               accessorFn: (m: AIModelPrice) => m.maxOutputTokens ?? 0,
               cell: ({ row }: { row: { original: AIModelPrice } }) => (
