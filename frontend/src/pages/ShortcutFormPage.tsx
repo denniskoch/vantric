@@ -27,7 +27,6 @@ export default function ShortcutFormPage() {
 
   const [name, setName] = useState('')
   const [url, setURL] = useState('')
-  const [description, setDescription] = useState('')
   const [staged, setStaged] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -43,7 +42,6 @@ export default function ShortcutFormPage() {
     if (!existing) return
     setName(existing.name)
     setURL(existing.url)
-    setDescription(existing.description)
   }, [existing])
 
   // An object URL is a live handle on the file; leaking one per pick
@@ -62,7 +60,7 @@ export default function ShortcutFormPage() {
 
   const save = useMutation({
     mutationFn: async () => {
-      const body = { name, url, description }
+      const body = { name, url }
       const saved = editing ? await api.updateShortcut(id!, body) : await api.createShortcut(body)
       if (staged) await api.uploadShortcutIcon(saved.id, staged)
     },
@@ -118,15 +116,6 @@ export default function ShortcutFormPage() {
           error={Boolean(linkError)}
           helperText={linkError ?? 'A bare host becomes https://.'}
         />
-        <TextField
-          label="Description"
-          size="small"
-          fullWidth
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          helperText="Optional."
-        />
-
         <Box>
           <Typography sx={{ fontSize: 13, mb: 1 }}>Icon</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>

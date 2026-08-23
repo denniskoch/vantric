@@ -68,9 +68,8 @@ var shortcutIconTypes = map[string]string{
 var shortcutSchemes = []string{"http", "https", "rdp", "vnc", "ssh", "sftp", "smb"}
 
 type shortcutInput struct {
-	Name        string `json:"name"`
-	URL         string `json:"url"`
-	Description string `json:"description"`
+	Name string `json:"name"`
+	URL  string `json:"url"`
 }
 
 func (s *Server) shortcutRoutes(r chi.Router) {
@@ -93,7 +92,6 @@ func (s *Server) shortcutIconPath(icon string) string {
 // URL so a tile typed as "nas.lan" still opens.
 func validShortcut(in *shortcutInput) (string, error) {
 	in.Name = strings.TrimSpace(in.Name)
-	in.Description = strings.TrimSpace(in.Description)
 	raw := strings.TrimSpace(in.URL)
 	if in.Name == "" {
 		return "", errors.New("a shortcut needs a name")
@@ -150,9 +148,7 @@ func (s *Server) createShortcut(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, "that's as many shortcuts as one grid holds")
 		return
 	}
-	item := &store.Shortcut{
-		ID: uuid.NewString(), Name: in.Name, URL: link, Description: in.Description,
-	}
+	item := &store.Shortcut{ID: uuid.NewString(), Name: in.Name, URL: link}
 	if err := s.store.CreateShortcut(r.Context(), me.ID, item); err != nil {
 		s.fail(w, err, "saving the shortcut")
 		return
@@ -172,9 +168,7 @@ func (s *Server) updateShortcut(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	item := &store.Shortcut{
-		ID: chi.URLParam(r, "id"), Name: in.Name, URL: link, Description: in.Description,
-	}
+	item := &store.Shortcut{ID: chi.URLParam(r, "id"), Name: in.Name, URL: link}
 	if err := s.store.UpdateShortcut(r.Context(), me.ID, item); err != nil {
 		s.fail(w, err, "saving the shortcut")
 		return

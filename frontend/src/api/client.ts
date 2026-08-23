@@ -575,7 +575,6 @@ export interface Shortcut {
   id: string
   name: string
   url: string
-  description: string
   /** basename of the uploaded icon, or '' for the monogram tile */
   icon: string
   position: number
@@ -586,7 +585,6 @@ export interface Shortcut {
 export interface ShortcutInput {
   name: string
   url: string
-  description: string
 }
 
 export interface Installer {

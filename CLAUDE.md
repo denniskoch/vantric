@@ -721,8 +721,19 @@ Surface the daily 90% here and link out for the rest.
   the things there is no API to view — a NAS's own UI, a SaaS account
   with no integration yet, the vendor portal you need twice a year.
   Without somewhere to put them they live in a bookmarks bar this
-  console can't see. It sits SECOND, after the overview: what's wrong,
-  then where you were going.
+  console can't see.
+  It sits with the OVERVIEW rather than among the sections that
+  describe the lab, in the global menu's top block above Favorites
+  (`topSectionIds` in Shell): what's wrong, then where you were going,
+  then the lab. Neither of those two carries a star — pinning something
+  already at the top would pin a thing you can't unpin — and both are
+  kept out of the list below, so the menu never names either twice.
+  A TILE IS AN ICON AND A NAME, in a rectangle the size of a button.
+  It carried a description and the link's host underneath, which is two
+  lines of furniture on something you recognise by its logo; the
+  description is gone from the form and the column with it. The open
+  arrow and the actions menu SHARE ONE SLOT at the right, swapped on
+  hover, so reaching the menu doesn't shift the name.
   PERSONAL, and self-service for that reason — a viewer arranges their
   own tiles as freely as an owner does, the RBAC middleware exempts the
   whole subtree, and EVERY store call takes the account as well as the

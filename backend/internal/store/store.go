@@ -306,7 +306,6 @@ var migrations = []string{
 		user_id TEXT NOT NULL REFERENCES iam_users(id),
 		name TEXT NOT NULL,
 		url TEXT NOT NULL,
-		description TEXT NOT NULL DEFAULT '',
 		icon TEXT NOT NULL DEFAULT '',
 		position INTEGER NOT NULL DEFAULT 0,
 		created_at TEXT NOT NULL,
@@ -415,4 +414,7 @@ var columnMigrations = []string{
 	// it, only ever said "—", which reads as "we looked and found none"
 	// rather than "this doesn't exist here".
 	`ALTER TABLE instances DROP COLUMN external_ip`,
+	// A tile is an icon and a name. The second line was furniture on
+	// something the size of a button.
+	`ALTER TABLE user_shortcuts DROP COLUMN description`,
 }

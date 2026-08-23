@@ -28,7 +28,17 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { sections, sectionFor } from './nav'
 
 /** The front door. It leads the global menu and takes no star. */
+/**
+ * The two entries above Favorites, in this order.
+ *
+ * Neither is a product: the overview is the front door, and Shortcuts
+ * is your own arrangement rather than a part of the lab. Both carry no
+ * star — pinning something already at the top would pin a thing you
+ * cannot unpin — and both are kept out of the Products list, so the
+ * menu never lists either one twice.
+ */
 const overviewId = 'overview'
+const topSectionIds = [overviewId, 'shortcuts']
 import { api } from '../api/client'
 import NotificationBell from './NotificationBell'
 import { initialFor, useRefreshSession, useSession } from '../user'
@@ -67,11 +77,11 @@ export default function Shell() {
   const { user, loading, signedOut } = useSession()
   const refreshSession = useRefreshSession()
   const { isFavorite, toggle } = useFavorites()
-  // Everything the star applies to, which is everything but the front
-  // door. A stored favourite naming the overview is ignored rather
+  // Everything the star applies to, which is everything but the two
+  // above. A stored favourite naming one of them is ignored rather
   // than migrated away — it can only have come from an older build,
   // and dropping it here costs nothing.
-  const products = sections.filter((s) => s.id !== overviewId)
+  const products = sections.filter((s) => !topSectionIds.includes(s.id))
   const pinned = products.filter((s) => isFavorite(s.id))
 
   const section = sectionFor(location.pathname)
@@ -232,13 +242,14 @@ export default function Shell() {
         }}
       >
         <Toolbar variant="dense" sx={{ minHeight: 48 }} />
-        {/* The overview sits above everything, including favourites,
-            and carries no star. It is where "/" lands and the page you
-            check when something is wrong — pinning the front door
-            would be pinning the thing you cannot unpin. */}
+        {/* The overview and your shortcuts sit above everything,
+            favourites included. One is where "/" lands and the page you
+            check when something is wrong; the other is where you were
+            going. See topSectionIds. */}
         <List dense>
-          {sections
-            .filter((s) => s.id === overviewId)
+          {topSectionIds
+            .map((id) => sections.find((s) => s.id === id))
+            .filter((s) => s !== undefined)
             .map((s) => (
               <ListItemButton
                 key={s.id}

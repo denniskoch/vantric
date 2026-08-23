@@ -6,7 +6,7 @@ import AddIcon from '@mui/icons-material/Add'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
-import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import LoginIcon from '@mui/icons-material/Login'
 import { api } from '../api/client'
 import type { Shortcut } from '../api/client'
 import PageHeader from '../components/PageHeader'
@@ -117,7 +117,7 @@ export default function ShortcutsPage() {
           onDragOver={(e) => e.preventDefault()}
           sx={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
             gap: 2,
           }}
         >
@@ -211,14 +211,11 @@ function Tile({
       }}
       onDragEnd={onDragEnd}
       sx={{
-        position: 'relative',
         display: 'flex',
-        flexDirection: 'column',
         alignItems: 'center',
-        gap: 1,
-        p: 2,
-        pt: 2.5,
-        minHeight: 132,
+        gap: 1.5,
+        height: 56,
+        px: 1.5,
         textDecoration: 'none',
         color: 'inherit',
         cursor: 'pointer',
@@ -226,14 +223,35 @@ function Tile({
         // is the drop target, but reads as the one in the hand.
         opacity: held ? 0.35 : 1,
         '&:hover': { boxShadow: 1, borderColor: 'text.disabled' },
+        '&:hover .shortcut-open': { opacity: 0 },
         '&:hover .shortcut-actions': { opacity: 1 },
       }}
     >
-      <Box
-        className="shortcut-actions"
-        sx={{ position: 'absolute', top: 2, right: 2, opacity: 0, transition: 'opacity .1s' }}
+      <Icon item={item} />
+      <Typography
+        sx={{
+          fontSize: 13,
+          fontWeight: 500,
+          flex: 1,
+          minWidth: 0,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
       >
+        {item.name}
+      </Typography>
+      {/* The arrow and the menu share one slot, so hovering swaps them
+          instead of shifting the name. */}
+      <Box sx={{ position: 'relative', width: 24, height: 24, flexShrink: 0 }}>
+        <Box
+          className="shortcut-open"
+          sx={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}
+        >
+          <LoginIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+        </Box>
         <IconButton
+          className="shortcut-actions"
           size="small"
           aria-label={`Actions for ${item.name}`}
           // The tile is a link, so a click on anything inside it opens
@@ -250,55 +268,10 @@ function Tile({
             e.preventDefault()
             e.stopPropagation()
           }}
+          sx={{ position: 'absolute', inset: 0, opacity: 0, transition: 'opacity .1s' }}
         >
           <MoreVertIcon sx={{ fontSize: 16 }} />
         </IconButton>
-      </Box>
-
-      <Icon item={item} />
-
-      <Typography
-        sx={{
-          fontSize: 13,
-          fontWeight: 500,
-          textAlign: 'center',
-          lineHeight: 1.3,
-          overflowWrap: 'anywhere',
-        }}
-      >
-        {item.name}
-      </Typography>
-      {item.description && (
-        <Typography
-          sx={{
-            fontSize: 12,
-            color: 'text.secondary',
-            textAlign: 'center',
-            lineHeight: 1.35,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}
-        >
-          {item.description}
-        </Typography>
-      )}
-      <Box sx={{ flex: 1 }} />
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 0.5,
-          color: 'text.disabled',
-          fontSize: 11,
-          maxWidth: '100%',
-        }}
-      >
-        <OpenInNewIcon sx={{ fontSize: 12 }} />
-        <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {hostOf(item.url)}
-        </Box>
       </Box>
     </Paper>
   )
@@ -314,7 +287,7 @@ function Tile({
  * rather than a choice anybody has to make.
  */
 function Icon({ item }: { item: Shortcut }) {
-  const size = 44
+  const size = 32
   if (item.icon) {
     return (
       <Box
@@ -323,7 +296,7 @@ function Icon({ item }: { item: Shortcut }) {
         // icon needs something to make the URL new.
         src={`/api/v1/shortcuts/${item.id}/icon?v=${encodeURIComponent(item.updatedAt)}`}
         alt=""
-        sx={{ width: size, height: size, objectFit: 'contain', borderRadius: '4px' }}
+        sx={{ width: size, height: size, objectFit: 'contain', borderRadius: '4px', flexShrink: 0 }}
       />
     )
   }
@@ -334,10 +307,11 @@ function Icon({ item }: { item: Shortcut }) {
         width: size,
         height: size,
         borderRadius: '4px',
+        flexShrink: 0,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: 20,
+        fontSize: 15,
         fontWeight: 500,
         bgcolor: `hsl(${hue} 42% 91%)`,
         color: `hsl(${hue} 38% 32%)`,
@@ -358,13 +332,4 @@ function hashHue(name: string): number {
   let hash = 0
   for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) % 360
   return hash
-}
-
-/** The host is what identifies a link at a glance; the path is noise. */
-function hostOf(url: string): string {
-  try {
-    return new URL(url).host
-  } catch {
-    return url
-  }
 }

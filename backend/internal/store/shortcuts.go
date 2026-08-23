@@ -16,10 +16,9 @@ import (
 // day; two people with the same lab will not want the same tiles, and
 // a shared list would end up being nobody's.
 type Shortcut struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	URL         string `json:"url"`
-	Description string `json:"description"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	URL  string `json:"url"`
 	// Icon is the file's basename under <dataDir>/shortcut-icons, or
 	// empty where the tile draws a monogram instead. The bytes are a
 	// file for the same reasons the installers are: backup is `cp` and
@@ -32,12 +31,12 @@ type Shortcut struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-const shortcutCols = `id, name, url, description, icon, position, created_at, updated_at`
+const shortcutCols = `id, name, url, icon, position, created_at, updated_at`
 
 func scanShortcut(scan func(dest ...any) error) (*Shortcut, error) {
 	var s Shortcut
 	var created, updated string
-	if err := scan(&s.ID, &s.Name, &s.URL, &s.Description, &s.Icon, &s.Position,
+	if err := scan(&s.ID, &s.Name, &s.URL, &s.Icon, &s.Position,
 		&created, &updated); err != nil {
 		return nil, err
 	}
@@ -94,8 +93,8 @@ func (s *Store) CreateShortcut(ctx context.Context, userID string, item *Shortcu
 	}
 	item.Position = next
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO user_shortcuts (`+shortcutCols+`, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		item.ID, item.Name, item.URL, item.Description, item.Icon, item.Position, ts, ts, userID)
+		`INSERT INTO user_shortcuts (`+shortcutCols+`, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		item.ID, item.Name, item.URL, item.Icon, item.Position, ts, ts, userID)
 	item.CreatedAt = parseTime(ts)
 	item.UpdatedAt = item.CreatedAt
 	return err
@@ -107,9 +106,9 @@ func (s *Store) CreateShortcut(ctx context.Context, userID string, item *Shortcu
 func (s *Store) UpdateShortcut(ctx context.Context, userID string, item *Shortcut) error {
 	ts := now()
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE user_shortcuts SET name = ?, url = ?, description = ?, updated_at = ?
+		`UPDATE user_shortcuts SET name = ?, url = ?, updated_at = ?
 		 WHERE id = ? AND user_id = ?`,
-		item.Name, item.URL, item.Description, ts, item.ID, userID)
+		item.Name, item.URL, ts, item.ID, userID)
 	if err != nil {
 		return err
 	}
