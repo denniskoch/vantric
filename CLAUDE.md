@@ -358,6 +358,21 @@ Surface the daily 90% here and link out for the rest.
   these three" and "these fifteen vmids" are the same coverage in
   different clothes. On this lab the answer was 28 guests, including
   the monitoring VM, the WireGuard VM and this console's own.
+  THE SYNTAX GETS A BUILDER AND THE FIELD STAYS FREE TEXT. A calendar
+  event and a prune policy are both property strings nobody remembers
+  the spelling of, so each has a picker beside its field that writes
+  into it — and each shows the expression it produced rather than
+  hiding it, because the field is still where you tweak the answer.
+  They are POPOVERS, not modals: the modal rule here is about forms
+  that create a resource, and these are pickers on one field, the
+  shape TimeRangePicker already uses. The builder covers what people
+  schedule; the field covers what Proxmox accepts, which is much more
+  ("mon..fri 8..17,22:0/15" is a real answer) and must not be narrowed
+  to whatever the console thought of.
+  RETENTION IS DESCRIBED IN PROXMOX'S TERMS, NOT PARAPHRASED.
+  keep-daily=14 means "the newest backup of each of the last 14 days",
+  not "14 daily backups", and the two diverge the first time a run is
+  missed — so the summary says which it is.
   THE SCHEDULE IS VALIDATED BY THE THING THAT WILL RUN IT. A systemd
   calendar event has a grammar with no business being reimplemented
   here, and it resolves against the CLUSTER's timezone, not ours — so

@@ -16,6 +16,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { api } from '../api/client'
 import PageHeader from '../components/PageHeader'
 import SelectField from '../components/SelectField'
+import ScheduleBuilder from '../components/ScheduleBuilder'
+import RetentionBuilder from '../components/RetentionBuilder'
 
 /**
  * A backup job, written into the hypervisor.
@@ -193,6 +195,7 @@ export default function BackupScheduleFormPage() {
         </SelectField>
 
         <Box>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
           <TextField
             label="Schedule"
             size="small"
@@ -206,6 +209,11 @@ export default function BackupScheduleFormPage() {
                 : 'A calendar event: 21:00, sat 02:00, mon..fri 03:30.'
             }
           />
+          {/* Beside the field, not instead of it: the builder covers
+              what people schedule, the field covers what Proxmox
+              accepts. */}
+          <ScheduleBuilder onPick={setSchedule} />
+          </Box>
           {preview && preview.length > 0 && (
             <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 0.75 }}>
               Next: {preview.slice(0, 3).map((t) => new Date(t).toLocaleString()).join(' · ')}
@@ -310,18 +318,22 @@ export default function BackupScheduleFormPage() {
           )}
         </Box>
 
-        <TextField
-          label="Keep"
-          size="small"
-          fullWidth
-          value={retention}
-          onChange={(e) => setRetention(e.target.value)}
-          helperText={
-            retention.trim()
-              ? "The hypervisor's own pruning rules, comma separated."
-              : 'Blank keeps every archive forever, until the datastore fills.'
-          }
-        />
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+          <TextField
+            label="Keep"
+            size="small"
+            fullWidth
+            value={retention}
+            onChange={(e) => setRetention(e.target.value)}
+            error={retention.trim() === ''}
+            helperText={
+              retention.trim()
+                ? "The hypervisor's own pruning rules, comma separated."
+                : 'Nothing is pruned — every archive is kept until the datastore fills.'
+            }
+          />
+          <RetentionBuilder value={retention} onPick={setRetention} />
+        </Box>
         <TextField
           label="Notes template"
           size="small"
