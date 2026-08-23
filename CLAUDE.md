@@ -1,5 +1,14 @@
 # vantric
 
+**V**iews **A**cross **N** **T**ools, **R**econciled **I**n one **C**onsole.
+
+The backronym came after the name and fits better than it has any right
+to, which is why it is written down: it is the thesis of the whole
+thing. Proxmox against DNS against the IPAM, Fleet against the
+hypervisor, Zabbix against what is actually running — the RECONCILING
+is what this app owns. Every section is a view across somebody else's
+tool; the drift between them is the only thing here that is ours.
+
 Home lab VM manager that replicates the Google Cloud Console experience
 (GCP-inspired, not a pixel clone). Compute Engine–style instance management
 backed by Proxmox, with the hypervisor abstracted for future backends.
