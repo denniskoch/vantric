@@ -60,6 +60,15 @@ var ownerOnly = []string{
 	"/api/v1/storage/providers",
 	"/api/v1/ai/gateways",
 	"/api/v1/ai/accounts",
+	// A VENDOR API KEY IS A CREDENTIAL WHEREVER IT IS STORED. Adding a
+	// provider to the gateway hands OpenAI's or Anthropic's key to it,
+	// which is a standing grant of spend — the same class of thing as
+	// the tokens above, even though this one ends up in Bifrost's
+	// database rather than ours. Both spellings, because an entry
+	// without a trailing slash covers the collection and its members
+	// only and the keys hang a level deeper.
+	"/api/v1/ai/providers",
+	"/api/v1/ai/providers/",
 	"/api/v1/monitoring/providers",
 	"/api/v1/inventory/enrichment/", // an API key
 	"/api/v1/installers/token/",     // the download token

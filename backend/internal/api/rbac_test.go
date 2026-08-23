@@ -36,6 +36,12 @@ func TestOwnerOnlyCoversEveryCredentialRoute(t *testing.T) {
 		"/api/v1/ai/gateways/abc",
 		"/api/v1/ai/accounts",
 		"/api/v1/ai/accounts/abc",
+		// Connecting an upstream provider means storing its vendor key
+		// at the gateway, keys included.
+		"/api/v1/ai/providers",
+		"/api/v1/ai/providers/openai",
+		"/api/v1/ai/providers/openai/keys",
+		"/api/v1/ai/providers/openai/keys/abc",
 		"/api/v1/monitoring/providers",
 		"/api/v1/monitoring/providers/abc",
 		"/api/v1/iam/users",
@@ -54,6 +60,15 @@ func TestOwnerOnlyCoversEveryCredentialRoute(t *testing.T) {
 	// editor's to change. A prefix match made all of these owner-only,
 	// which contradicted both the role doc and the list's own comment.
 	editor := []string{
+		// Issuing a caller's credential and capping what it may spend
+		// are USING a connected backend, which is an editor's to do —
+		// the same rule that makes an object store's access keys
+		// editor work while the store's own credential is an owner's.
+		"/api/v1/ai/virtual-keys",
+		"/api/v1/ai/virtual-keys/abc",
+		"/api/v1/ai/limits",
+		"/api/v1/ai/limits/abc",
+		"/api/v1/ai/limits/abc/reset",
 		"/api/v1/database/servers/abc/databases",
 		"/api/v1/database/servers/abc/users",
 		"/api/v1/database/servers/abc/users/bob/password",

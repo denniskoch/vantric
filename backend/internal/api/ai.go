@@ -46,6 +46,24 @@ func (s *Server) aiRoutes(r chi.Router) {
 	r.Get("/ai/providers", s.aiGatewayProviders)
 	r.Get("/ai/virtual-keys", s.aiVirtualKeys)
 	r.Get("/ai/limits", s.aiLimits)
+
+	// Changing what the gateway does, rather than reading what it did —
+	// see aiwrite.go. Capabilities is what the UI asks before it offers
+	// any of it.
+	r.Get("/ai/capabilities", s.aiCapabilities)
+	r.Post("/ai/virtual-keys", s.createAIVirtualKey)
+	r.Put("/ai/virtual-keys/{id}", s.updateAIVirtualKey)
+	r.Delete("/ai/virtual-keys/{id}", s.deleteAIVirtualKey)
+	r.Post("/ai/limits", s.createAILimit)
+	r.Put("/ai/limits/{id}", s.updateAILimit)
+	r.Delete("/ai/limits/{id}", s.deleteAILimit)
+	r.Post("/ai/limits/{id}/reset", s.resetAILimitUsage)
+	r.Get("/ai/provider-types", s.aiProviderTypes)
+	r.Post("/ai/providers", s.createAIGatewayProvider)
+	r.Delete("/ai/providers/{provider}", s.deleteAIGatewayProvider)
+	r.Post("/ai/providers/{provider}/keys", s.addAIGatewayKey)
+	r.Put("/ai/providers/{provider}/keys/{keyId}", s.updateAIGatewayKey)
+	r.Delete("/ai/providers/{provider}/keys/{keyId}", s.deleteAIGatewayKey)
 }
 
 type aiGatewayView struct {

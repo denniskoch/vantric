@@ -12,11 +12,26 @@
 // the tool that already owns the data rather than inventing a second
 // copy of it.
 //
-// READ ONLY, like Network and Devices. Editing a provider's keys, a
-// virtual key's budget or a routing rule is the gateway's own job and
-// its own blast radius. What this offers is the question no other
-// console here can answer: what did the lab ask of a model, which one
-// answered, how long it took and how often it failed.
+// IT WRITES, AND THAT WAS ALWAYS THE POINT. This package began
+// read-only, which was a mistake dressed up as a principle: the app's
+// own rule is that "don't reimplement" is about the SOURCE OF TRUTH,
+// not about what may appear on screen, and a section offering a tool's
+// everyday actions is exactly what belongs here. A console you have to
+// leave to issue a key is a console you have left.
+//
+// The line is the same one every other section draws — the daily 90%
+// here, the deep and rare configuration in the tool that owns it.
+// Issuing a virtual key, capping what it may spend and connecting a
+// provider are the everyday actions; a gateway's network timeouts,
+// concurrency pools and routing rules are not, and stay in Bifrost.
+//
+// WRITES ARE OPTIONAL CAPABILITIES, one interface per resource
+// (VirtualKeyManager, LimitManager, ProviderManager), reached by type
+// assertion the way BackupDriver and ContainerDriver are. A gateway
+// that can only be read is still a gateway worth listing, and each
+// resource says for itself whether this console can change it — so a
+// missing capability renders as an absent button rather than as a
+// button that fails.
 package ai
 
 import (
@@ -353,6 +368,103 @@ type Filters struct {
 
 // Provider is the AI gateway contract. Implementations must be safe
 // for concurrent use.
+// VirtualKeyInput is a virtual key as a form supplies it.
+//
+// A SEPARATE TYPE FROM VirtualKey, because what you can set is not what
+// you can read: the gateway owns the id, the created date and every
+// activity figure, and a single struct carrying both would invite a
+// handler to pretend it could write them.
+type VirtualKeyInput struct {
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	Active      bool               `json:"active"`
+	Access      []VirtualKeyAccess `json:"access"`
+}
+
+// IssuedVirtualKey is a key the gateway has just minted.
+//
+// THE ONE MOMENT THE SECRET TRAVELS. Everywhere else this package drops
+// it — Bifrost hands the value back on its list endpoint and rendering
+// that would turn every open tab into a way to spend money. On create
+// there is no other way to get it to the person who asked for it, and
+// the same rule the object store's access keys follow applies: shown
+// once, never stored, and the page says so.
+type IssuedVirtualKey struct {
+	Key    VirtualKey `json:"key"`
+	Secret string     `json:"secret"`
+}
+
+// VirtualKeyManager is the optional capability for issuing, editing and
+// revoking the credentials a gateway hands its callers.
+type VirtualKeyManager interface {
+	CreateVirtualKey(ctx context.Context, in VirtualKeyInput) (*IssuedVirtualKey, error)
+	UpdateVirtualKey(ctx context.Context, id string, in VirtualKeyInput) error
+	DeleteVirtualKey(ctx context.Context, id string) error
+}
+
+// LimitInput is a cap as a form supplies it. Either half may be nil: a
+// record may cap spending, rate, or both.
+type LimitInput struct {
+	Scope     string     `json:"scope"`
+	ScopeID   string     `json:"scopeId"`
+	Model     string     `json:"model"`
+	Provider  string     `json:"provider"`
+	Budget    *Budget    `json:"budget"`
+	RateLimit *RateLimit `json:"rateLimit"`
+}
+
+// LimitManager is the optional capability for setting spending and rate
+// caps.
+type LimitManager interface {
+	CreateLimit(ctx context.Context, in LimitInput) (*Limit, error)
+	UpdateLimit(ctx context.Context, id string, in LimitInput) error
+	DeleteLimit(ctx context.Context, id string) error
+	// ResetLimitUsage puts the spent figure back to zero without waiting
+	// for the period to roll over. It is separate from Update because
+	// it is a decision rather than a correction — saving a form must
+	// never quietly forgive what has been spent.
+	ResetLimitUsage(ctx context.Context, id string) error
+}
+
+// GatewayKeyInput is one upstream credential as a form supplies it.
+type GatewayKeyInput struct {
+	// Value is the vendor's API key. BLANK ON EDIT MEANS KEEP: the
+	// stored one is never readable, so an empty field is the only thing
+	// an unchanged form can send, and treating it as "clear it" would
+	// break a working provider on any save. Same rule as the NVD key
+	// and every provider credential in this console.
+	Value string `json:"value"`
+	// URL is what the self-hosted providers take INSTEAD of a secret —
+	// ollama, vllm and sgl are an address, not an account. A provider
+	// that wants one and is given a key reaches nothing.
+	URL string `json:"url"`
+	// Models this key may serve. Empty means the provider's default,
+	// which for most is all of them.
+	Models  []string `json:"models"`
+	Enabled bool     `json:"enabled"`
+}
+
+// ProviderManager is the optional capability for connecting upstream
+// providers and holding their credentials.
+//
+// THERE IS NO UpdateGatewayProvider, and that is a finding rather than
+// an omission. Bifrost's provider record is a name plus network
+// timeouts, concurrency pools and raw-body flags — everything the
+// everyday user changes lives on its KEYS, and the tuning knobs are
+// exactly the deep configuration this console leaves in the tool that
+// owns it. An edit form here would offer a page of numbers nobody came
+// for.
+type ProviderManager interface {
+	// SupportedProviders lists the vendor names this gateway will
+	// accept, so the form is a picker rather than a text field.
+	SupportedProviders() []string
+	CreateGatewayProvider(ctx context.Context, name string, key GatewayKeyInput) error
+	DeleteGatewayProvider(ctx context.Context, name string) error
+	AddGatewayKey(ctx context.Context, provider string, key GatewayKeyInput) error
+	UpdateGatewayKey(ctx context.Context, provider, keyID string, key GatewayKeyInput) error
+	DeleteGatewayKey(ctx context.Context, provider, keyID string) error
+}
+
 type Provider interface {
 	// Name identifies the implementation, e.g. "bifrost".
 	Name() string
