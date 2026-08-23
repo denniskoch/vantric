@@ -402,7 +402,17 @@ export default function InstanceDetailPage() {
         <Tab label="Details" value="details" sx={{ textTransform: 'none', minHeight: 44 }} />
         <Tab label="Observability" value="observability" sx={{ textTransform: 'none', minHeight: 44 }} />
         <Tab label="OS Info" value="os" sx={{ textTransform: 'none', minHeight: 44 }} />
-        <Tab label="Backups" value="backups" sx={{ textTransform: 'none', minHeight: 44 }} />
+        {/* ONE TAB, TWO TABLES. A backup and a snapshot are both
+            restore points and the question is always which is newer —
+            side by side is that question, where a tab each makes you
+            hold one in your head while you read the other. Snapshots
+            lived under Details until now, which is why nobody could
+            find them. */}
+        <Tab
+          label="Backups & snapshots"
+          value="backups"
+          sx={{ textTransform: 'none', minHeight: 44 }}
+        />
         <Tab label="Console" value="console" sx={{ textTransform: 'none', minHeight: 44 }} />
       </Tabs>
 
@@ -781,75 +791,6 @@ export default function InstanceDetailPage() {
               </TableContainer>
             </DetailSection>
 
-            <DetailSection
-              title="Snapshots"
-              action={
-                canEdit && (
-                  <Button
-                    size="small"
-                    startIcon={<AddIcon sx={{ fontSize: 16 }} />}
-                    component={RouterLink}
-                    to={`/compute/instances/${encodeURIComponent(name)}/snapshots/new`}
-                  >
-                    Take snapshot
-                  </Button>
-                )
-              }
-            >
-              <TableContainer component={Paper} variant="outlined">
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Name</TableCell>
-                      <TableCell>Description</TableCell>
-                      <TableCell>Taken</TableCell>
-                      <TableCell>Memory</TableCell>
-                      <TableCell align="right" sx={{ width: 190 }} />
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {snapshots.map((snap) => (
-                      <TableRow key={snap.id} hover>
-                        <TableCell>{snap.name}</TableCell>
-                        <TableCell sx={{ color: 'text.secondary' }}>
-                          {snap.description || '—'}
-                        </TableCell>
-                        <TableCell sx={{ color: 'text.secondary' }}>
-                          {snap.createdAt ? timeAgo(snap.createdAt) : '—'}
-                        </TableCell>
-                        <TableCell sx={{ color: 'text.secondary' }}>
-                          {snap.includesRam ? 'Included' : 'Disks only'}
-                        </TableCell>
-                        <TableCell align="right">
-                          {canEdit && (
-                            <>
-                              <Button size="small" onClick={() => setRollingBack(snap)}>
-                                Roll back
-                              </Button>
-                              <Button
-                                size="small"
-                                color="error"
-                                onClick={() => setDeletingSnapshot(snap)}
-                              >
-                                Delete
-                              </Button>
-                            </>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {snapshots.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                          No snapshots.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </DetailSection>
-
             <DetailSection title="Security and access">
               <DetailTable
                 rows={[
@@ -1111,6 +1052,74 @@ export default function InstanceDetailPage() {
                 </TableContainer>
               </DetailSection>
             )}
+            <DetailSection
+              title="Snapshots"
+              action={
+                canEdit && (
+                  <Button
+                    size="small"
+                    startIcon={<AddIcon sx={{ fontSize: 16 }} />}
+                    component={RouterLink}
+                    to={`/compute/instances/${encodeURIComponent(name)}/snapshots/new`}
+                  >
+                    Take snapshot
+                  </Button>
+                )
+              }
+            >
+              <TableContainer component={Paper} variant="outlined">
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Name</TableCell>
+                      <TableCell>Description</TableCell>
+                      <TableCell>Taken</TableCell>
+                      <TableCell>Memory</TableCell>
+                      <TableCell align="right" sx={{ width: 190 }} />
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {snapshots.map((snap) => (
+                      <TableRow key={snap.id} hover>
+                        <TableCell>{snap.name}</TableCell>
+                        <TableCell sx={{ color: 'text.secondary' }}>
+                          {snap.description || '—'}
+                        </TableCell>
+                        <TableCell sx={{ color: 'text.secondary' }}>
+                          {snap.createdAt ? timeAgo(snap.createdAt) : '—'}
+                        </TableCell>
+                        <TableCell sx={{ color: 'text.secondary' }}>
+                          {snap.includesRam ? 'Included' : 'Disks only'}
+                        </TableCell>
+                        <TableCell align="right">
+                          {canEdit && (
+                            <>
+                              <Button size="small" onClick={() => setRollingBack(snap)}>
+                                Roll back
+                              </Button>
+                              <Button
+                                size="small"
+                                color="error"
+                                onClick={() => setDeletingSnapshot(snap)}
+                              >
+                                Delete
+                              </Button>
+                            </>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {snapshots.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                          No snapshots.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </DetailSection>
           </>
         )}
 

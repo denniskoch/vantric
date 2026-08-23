@@ -1327,6 +1327,16 @@ Surface the daily 90% here and link out for the rest.
   VM's tags. What a row fundamentally IS (hypervisor type, database
   engine, DNS provider) is primary information: plain cell text at the
   table's own size, via `BrandLabel`, never shrunk into a badge.
+- BACKUPS AND SNAPSHOTS SHARE A TAB ON A GUEST, because they are the
+  same question asked twice: what can I restore this to, and how old is
+  the newest one. A tab each makes you hold one answer in your head
+  while you go and read the other. Snapshots lived under Details until
+  this, which is why they were hard to find at all.
+  THEY STAY SEPARATE PAGES in the left nav, for the reason VM instances
+  and containers are: they LIST differently. A backup archive has a
+  datastore, a size and a format; a snapshot has a guest, a parent and
+  whether it caught the RAM. One table holding both spends half its
+  columns on dashes.
 - A COLUMN THAT RESIZES AS YOU PAGE IS A COLUMN THAT MOVED. An
   auto-layout table sizes each column to the widest cell IT CAN SEE,
   which is the widest cell on the page you are looking at — so paging
