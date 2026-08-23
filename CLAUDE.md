@@ -930,6 +930,33 @@ Surface the daily 90% here and link out for the rest.
   applied this one. It answers "which caller is expensive",
   never "what you owe" — which is also why the balance at the provider
   (below) is a different question worth asking separately.
+- THE MODEL PRICES PAGE IS NOT THAT COPY. It reads the gateway's OWN
+  RESOLVED CATALOG (`/api/models/details`) — the thing that actually
+  produced every cost figure on the Requests and Virtual keys pages —
+  rather than the registry behind it. Same rule as everywhere else: ask
+  the tool that owns the answer, and this console still keeps no prices.
+  PER MILLION TOKENS IS THE WHOLE POINT OF THE PAGE. The gateway holds
+  and multiplies by a per-token figure, and $0.000003 is not a number
+  anybody can compare — so the conversion happens at render and the
+  value crossing the driver boundary stays the gateway's. Precision
+  follows size, because a fixed two decimals rounds half the catalog to
+  $0.00.
+  TWO KINDS OF MISSING PRICE, and they read differently. On input and
+  output an absent price IS THE FINDING — that model's traffic can't be
+  costed, which is why one request in forty carries a cost — so it says
+  "not priced". On the cache columns an absence is ordinary (most
+  models have no prompt caching) and gets a dash, or four columns of
+  "not priced" bury the two where it means something.
+  A NEGATIVE COST IS A SENTINEL. OpenRouter's `auto` models carry -1,
+  because what they cost isn't knowable until the router has chosen;
+  rendered literally that is -$1,000,000.00 per million and sorts as
+  the cheapest thing in the catalog. Anything below zero reads as no
+  price — the free-model lie wearing a minus sign.
+  THE CATALOG IS PAGED, NOT ASKED FOR IN ONE BIG GULP. Bifrost serves
+  20 at a time and reports the total; asking for a number bigger than
+  any plausible catalog works until somebody connects a provider with
+  ten thousand models, and a price list missing its tail looks exactly
+  like a complete one.
 - WHAT'S LEFT AT A PROVIDER IS A SEPARATE SPLIT, the ninth:
   `internal/aiaccount.Provider`, because a gateway account and a
   provider account are different things holding different credentials.

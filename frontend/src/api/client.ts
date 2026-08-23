@@ -938,6 +938,26 @@ export interface AIModelUsage {
  *  is. This says what the gateway can reach; that says what's left. */
 /** Which resources this console can change on the connected gateway.
  *  A driver opts in per resource, so a false is an absent button. */
+/**
+ * One model in the catalog the gateway prices with.
+ *
+ * Costs are PER TOKEN and optional. Absent is not free — over half this
+ * lab's catalog carries no price, which is why one request in forty
+ * shows a cost. The per-million figure people read is computed at
+ * render; the number here is the one the gateway multiplied by.
+ */
+export interface AIModelPrice {
+  name: string
+  provider: string
+  inputPerToken?: number
+  outputPerToken?: number
+  cacheReadPerToken?: number
+  cacheWritePerToken?: number
+  maxInputTokens?: number
+  maxOutputTokens?: number
+  deprecated: boolean
+}
+
 export interface AICapabilities {
   virtualKeys: boolean
   limits: boolean
@@ -2160,6 +2180,7 @@ export const api = {
   // asked first: the backend says which of these the driver implements,
   // and the UI offers exactly those — see aiwrite.go.
   aiCapabilities: () => request<AICapabilities>('/ai/capabilities'),
+  listAIModelPrices: () => request<AIModelPrice[]>('/ai/model-prices'),
   aiProviderTypes: () => request<string[]>('/ai/provider-types'),
   createAIVirtualKey: (body: AIVirtualKeyInput) =>
     request<AIIssuedVirtualKey>('/ai/virtual-keys', {

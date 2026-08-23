@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"slices"
 	"strconv"
@@ -46,6 +47,7 @@ func (s *Server) aiRoutes(r chi.Router) {
 	r.Get("/ai/providers", s.aiGatewayProviders)
 	r.Get("/ai/virtual-keys", s.aiVirtualKeys)
 	r.Get("/ai/limits", s.aiLimits)
+	r.Get("/ai/model-prices", s.aiModelPrices)
 
 	// Changing what the gateway does, rather than reading what it did —
 	// see aiwrite.go. Capabilities is what the UI asks before it offers
@@ -227,6 +229,28 @@ func (s *Server) deleteAIGateway(w http.ResponseWriter, r *http.Request) {
 }
 
 // aiProvider resolves ?gateway=, or the only one configured.
+// aiModelPrices is the catalog the gateway prices with — read from the
+// gateway rather than from the registry behind it, since the gateway
+// has already resolved which prices it applies.
+func (s *Server) aiModelPrices(w http.ResponseWriter, r *http.Request) {
+	provider := s.aiProvider(w, r)
+	if provider == nil {
+		return
+	}
+	prices, err := provider.ModelPrices(r.Context())
+	if errors.Is(err, ai.ErrUnsupported) {
+		// Not a failure: this gateway keeps no catalog, and the page
+		// says that rather than showing an empty price list.
+		s.err(w, http.StatusNotImplemented, "this gateway doesn't publish a model catalog")
+		return
+	}
+	if err != nil {
+		s.fail(w, err, "the model catalog")
+		return
+	}
+	s.json(w, http.StatusOK, prices)
+}
+
 func (s *Server) aiProvider(w http.ResponseWriter, r *http.Request) ai.Provider {
 	if id := r.URL.Query().Get("gateway"); id != "" {
 		provider, ok := s.aiRegistry.Get(id)

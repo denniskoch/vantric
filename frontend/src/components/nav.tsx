@@ -39,6 +39,7 @@ import PsychologyIcon from '@mui/icons-material/Psychology'
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart'
 import PaidIcon from '@mui/icons-material/Paid'
 import SpeedIcon from '@mui/icons-material/Speed'
+import PriceChangeIcon from '@mui/icons-material/PriceChange'
 import SettingsEthernetIcon from '@mui/icons-material/SettingsEthernet'
 import ReportProblemIcon from '@mui/icons-material/ReportProblem'
 import { createSvgIcon } from '@mui/material/utils'
@@ -520,6 +521,14 @@ export const sections: Section[] = [
             icon: SpeedIcon,
             to: '/ai/budgets',
             hint: 'What each caller may spend, and how much of it is gone',
+          },
+          {
+            // After Budgets, because it is the other half of the same
+            // question: what a caller may spend, and what spends it.
+            label: 'Model prices',
+            icon: PriceChangeIcon,
+            to: '/ai/model-prices',
+            hint: 'What the gateway charges each call against, per million tokens',
           },
           {
             // Last in the group rather than alone under a Settings

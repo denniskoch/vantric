@@ -651,3 +651,58 @@ func (p *Provider) Request(ctx context.Context, id string) (*ai.RequestDetail, e
 	}
 	return detail, nil
 }
+
+// ModelPrices reads the catalog the gateway prices with.
+//
+// IT PAGES RATHER THAN GUESSING A CEILING. Bifrost serves this 20 at a
+// time by default and reports the total beside it, and the obvious fix
+// — ask for a number bigger than any catalog — is the kind that works
+// until somebody connects a provider with ten thousand models and the
+// price list quietly loses its tail. A truncated price list looks
+// exactly like a complete one, so the loop runs until the total is in
+// hand. For this lab that is two requests.
+func (p *Provider) ModelPrices(ctx context.Context) ([]ai.ModelPrice, error) {
+	const page = 1000
+	out := []ai.ModelPrice{}
+	for offset := 0; ; offset += page {
+		var body struct {
+			Models []struct {
+				Name            string   `json:"name"`
+				Provider        string   `json:"provider"`
+				MaxInputTokens  int64    `json:"max_input_tokens"`
+				MaxOutputTokens int64    `json:"max_output_tokens"`
+				InputCost       *float64 `json:"input_cost_per_token"`
+				OutputCost      *float64 `json:"output_cost_per_token"`
+				CacheRead       *float64 `json:"cache_read_input_token_cost"`
+				CacheWrite      *float64 `json:"cache_creation_input_token_cost"`
+				Deprecated      bool     `json:"is_deprecated"`
+			} `json:"models"`
+			Total int `json:"total"`
+		}
+		query := url.Values{
+			"limit":  []string{strconv.Itoa(page)},
+			"offset": []string{strconv.Itoa(offset)},
+		}
+		if err := p.get(ctx, "/api/models/details", query, &body); err != nil {
+			return nil, err
+		}
+		for _, m := range body.Models {
+			out = append(out, ai.ModelPrice{
+				Name:               m.Name,
+				Provider:           m.Provider,
+				InputPerToken:      m.InputCost,
+				OutputPerToken:     m.OutputCost,
+				CacheReadPerToken:  m.CacheRead,
+				CacheWritePerToken: m.CacheWrite,
+				MaxInputTokens:     m.MaxInputTokens,
+				MaxOutputTokens:    m.MaxOutputTokens,
+				Deprecated:         m.Deprecated,
+			})
+		}
+		// A page that came back empty ends the loop whatever the total
+		// says, or a gateway that miscounts spins here forever.
+		if len(body.Models) == 0 || len(out) >= body.Total {
+			return out, nil
+		}
+	}
+}

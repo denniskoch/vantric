@@ -24,6 +24,7 @@ import ShortcutsPage from './pages/ShortcutsPage'
 import AIVirtualKeyFormPage from './pages/AIVirtualKeyFormPage'
 import AIBudgetFormPage from './pages/AIBudgetFormPage'
 import AIProviderFormPage from './pages/AIProviderFormPage'
+import AIModelPricesPage from './pages/AIModelPricesPage'
 import ShortcutFormPage from './pages/ShortcutFormPage'
 import SecurityOverviewPage from './pages/SecurityOverviewPage'
 import SecurityHostAssessmentPage from './pages/SecurityHostAssessmentPage'
@@ -246,6 +247,7 @@ export default function App() {
         <Route path="/ai/providers/:provider/keys/new" element={<AIProviderFormPage />} />
         <Route path="/ai/providers/:provider/keys/:keyId" element={<AIProviderFormPage />} />
         <Route path="/ai/budgets" element={<AIBudgetsPage />} />
+        <Route path="/ai/model-prices" element={<AIModelPricesPage />} />
         <Route path="/ai/accounts" element={<AIAccountsPage />} />
         <Route path="/ai/accounts/add" element={<AIAccountFormPage />} />
         <Route path="/ai/accounts/:id/edit" element={<AIAccountFormPage />} />

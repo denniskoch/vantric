@@ -357,6 +357,42 @@ type RateLimit struct {
 	TokenPeriod   string `json:"tokenPeriod,omitempty"`
 }
 
+// ModelPrice is one model in the catalog the gateway prices with.
+//
+// THIS IS NOT A COPY OF THE PRICE LIST, and the distinction is the
+// whole reason this belongs here. The rule elsewhere is that the price
+// registry is linked and never copied — a second one would be a
+// registry nobody updates. But the GATEWAY holds a resolved catalog it
+// has already applied, refreshed on its own schedule from whichever
+// registry it is configured against, and reading that is the same move
+// every other section makes: ask the tool that owns the answer.
+//
+// COSTS ARE POINTERS AND PER TOKEN. Absent is not free: over half the
+// models in this lab's catalog carry no price at all, which is why one
+// row in forty of the request log has a cost. A zero there would say
+// "this model is free" about a model nobody has priced. The per-token
+// figure is what the gateway holds and what it multiplied by; turning
+// it into a per-million price is a DISPLAY decision and stays in the
+// UI, so the number crossing this boundary is still the gateway's.
+type ModelPrice struct {
+	Name     string `json:"name"`
+	Provider string `json:"provider"`
+
+	InputPerToken      *float64 `json:"inputPerToken,omitempty"`
+	OutputPerToken     *float64 `json:"outputPerToken,omitempty"`
+	CacheReadPerToken  *float64 `json:"cacheReadPerToken,omitempty"`
+	CacheWritePerToken *float64 `json:"cacheWritePerToken,omitempty"`
+
+	// Zero where the catalog doesn't say, which is common for the
+	// self-hosted providers.
+	MaxInputTokens  int64 `json:"maxInputTokens,omitempty"`
+	MaxOutputTokens int64 `json:"maxOutputTokens,omitempty"`
+
+	// Deprecated is the catalog's own flag — a model still listed and
+	// still priced that you should not be choosing today.
+	Deprecated bool `json:"deprecated"`
+}
+
 // Filters are the values worth offering as a filter, as the gateway
 // reports them — so the list of models is the list of models this
 // gateway has actually seen, not one this console keeps.
@@ -494,6 +530,9 @@ type Provider interface {
 	VirtualKeys(ctx context.Context, q RequestQuery) ([]VirtualKey, error)
 	// Limits lists the spending and rate caps the gateway enforces.
 	Limits(ctx context.Context) ([]Limit, error)
+	// ModelPrices returns the catalog the gateway prices traffic with.
+	// ErrUnsupported where a gateway has no catalog to report.
+	ModelPrices(ctx context.Context) ([]ModelPrice, error)
 }
 
 // Registry holds one live Provider per configured record, keyed by its
