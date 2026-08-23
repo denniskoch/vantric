@@ -1350,6 +1350,13 @@ Surface the daily 90% here and link out for the rest.
   touches every backend at once. The section has no left nav — one link
   to the page you're on is a rail that says nothing — so Shell gives a
   section with no items or groups the full window.
+- THE GLOBAL MENU'S SECOND LIST IS "ALL SECTIONS", not GCP's
+  "Products" — that word is right for a catalogue of things you buy and
+  says nothing here. Beside Favorites its job is to mark the
+  unshortened list, which is what Azure's "All services" does; the
+  console's own word for these is section, and "Services" was the other
+  candidate but already means a stored credential in Devices and
+  Monitoring.
 - Navigation model (mirrors GCP): the hamburger opens a temporary global
   menu for switching between Lab Cloud sections; each section then has a
   permanent left nav with collapsible groups (GCP-style). Sections and

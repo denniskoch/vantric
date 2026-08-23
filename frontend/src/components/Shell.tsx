@@ -34,7 +34,7 @@ import { sections, sectionFor } from './nav'
  * Neither is a product: the overview is the front door, and Shortcuts
  * is your own arrangement rather than a part of the lab. Both carry no
  * star — pinning something already at the top would pin a thing you
- * cannot unpin — and both are kept out of the Products list, so the
+ * cannot unpin — and both are kept out of the list below, so the
  * menu never lists either one twice.
  */
 const overviewId = 'overview'
@@ -81,8 +81,8 @@ export default function Shell() {
   // above. A stored favourite naming one of them is ignored rather
   // than migrated away — it can only have come from an older build,
   // and dropping it here costs nothing.
-  const products = sections.filter((s) => !topSectionIds.includes(s.id))
-  const pinned = products.filter((s) => isFavorite(s.id))
+  const listed = sections.filter((s) => !topSectionIds.includes(s.id))
+  const pinned = listed.filter((s) => isFavorite(s.id))
 
   const section = sectionFor(location.pathname)
   // A section with nothing to list gets no drawer — the Cloud overview
@@ -290,9 +290,12 @@ export default function Shell() {
             </List>
           </>
         )}
-        <GlobalNavHeading>Products</GlobalNavHeading>
+        {/* Not "Products", which is GCP's word for things you buy.
+            These are sections, and the heading's job beside Favorites
+            is to say this is the unshortened list. */}
+        <GlobalNavHeading>All sections</GlobalNavHeading>
         <List dense>
-          {products.map((s) => (
+          {listed.map((s) => (
             <GlobalNavItem
               key={s.id}
               section={s}
@@ -381,7 +384,7 @@ export default function Shell() {
   )
 }
 
-/** A heading in the global menu — "Favorites", "Products". */
+/** A heading in the global menu — "Favorites", "All sections". */
 function GlobalNavHeading({ children }: { children: ReactNode }) {
   return (
     <Typography
