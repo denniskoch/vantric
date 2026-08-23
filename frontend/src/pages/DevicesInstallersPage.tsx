@@ -15,7 +15,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Tooltip,
+  TextField,
   Typography,
 } from '@mui/material'
 import UploadIcon from '@mui/icons-material/Upload'
@@ -57,6 +57,12 @@ export default function DevicesInstallersPage() {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
   const [selected, setSelected] = useState<Installer | null>(null)
   const [deleting, setDeleting] = useState<Installer | null>(null)
+  // Which installer and which shell the command panel is showing. Held
+  // as names rather than objects so a re-fetch doesn't strand a stale
+  // one, and so an installer that no longer offers the picked shell
+  // falls back rather than blanking.
+  const [pickedName, setPickedName] = useState('')
+  const [pickedShell, setPickedShell] = useState('')
 
   const { data, isLoading } = useQuery({
     queryKey: ['installers'],
@@ -104,6 +110,13 @@ export default function DevicesInstallersPage() {
 
   const urlFor = (name: string) =>
     `${data?.baseUrl ?? ''}/api/v1/installers/${encodeURIComponent(name)}/download?token=${data?.token ?? ''}`
+
+  // The panel always has an answer while there is anything to install:
+  // an unknown name falls through to the first installer, and a shell
+  // the new installer doesn't offer falls through to its first.
+  const picked = installers.find((i) => i.name === pickedName) ?? installers[0]
+  const shells = picked ? commandsFor(picked, urlFor(picked.name)) : []
+  const shell = shells.find((c) => c.label === pickedShell) ?? shells[0]
 
   const copy = (label: string, text: string) => {
     void navigator.clipboard.writeText(text)
@@ -184,7 +197,6 @@ export default function DevicesInstallersPage() {
               <TableCell>Platform</TableCell>
               <TableCell align="right">Size</TableCell>
               <TableCell>Uploaded</TableCell>
-              <TableCell>Fetch it with</TableCell>
               <TableCell align="right" />
             </TableRow>
           </TableHead>
@@ -202,33 +214,6 @@ export default function DevicesInstallersPage() {
                 <TableCell sx={{ color: 'text.secondary' }}>{item.platform}</TableCell>
                 <TableCell align="right">{formatBytes(item.size)}</TableCell>
                 <TableCell sx={{ color: 'text.secondary' }}>{timeAgo(item.uploadedAt)}</TableCell>
-                <TableCell>
-                  {/* One button per shell, because the difference
-                      between them is exactly the thing you don't want
-                      to be remembering on a fresh box. */}
-                  <Box sx={{ display: 'flex', gap: 0.5 }}>
-                    {!canFetchCommands && (
-                      <Box component="span" sx={{ color: 'text.secondary', fontSize: 12 }}>
-                        Owner only
-                      </Box>
-                    )}
-                    {canFetchCommands &&
-                      commandsFor(item, urlFor(item.name)).map((cmd) => (
-                      <Tooltip
-                        key={cmd.label}
-                        title={copied === `${item.name}:${cmd.label}` ? 'Copied' : cmd.command}
-                      >
-                        <Button
-                          size="small"
-                          startIcon={<ContentCopyIcon sx={{ fontSize: 14 }} />}
-                          onClick={() => copy(`${item.name}:${cmd.label}`, cmd.command)}
-                        >
-                          {cmd.label}
-                        </Button>
-                      </Tooltip>
-                      ))}
-                  </Box>
-                </TableCell>
                 <TableCell align="right">
                   <IconButton
                     size="small"
@@ -244,7 +229,7 @@ export default function DevicesInstallersPage() {
             ))}
             {installers.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   {isLoading
                     ? 'Loading…'
                     : 'No installers yet. Upload the fleetd packages you build in Fleet, one per platform.'}
@@ -254,6 +239,81 @@ export default function DevicesInstallersPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* THE COMMAND IS SHOWN, NOT JUST HANDED OVER. A row of copy
+          buttons puts a command on your clipboard sight unseen, and the
+          machine you are in the middle of setting up is the wrong place
+          to be pasting something you never read. */}
+      {picked && (
+        <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 1.5, flexWrap: 'wrap' }}>
+            <TextField
+              select
+              size="small"
+              label="Installer"
+              value={picked.name}
+              onChange={(e) => setPickedName(e.target.value)}
+              sx={{ minWidth: 300 }}
+            >
+              {installers.map((item) => (
+                <MenuItem key={item.name} value={item.name}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ width: 16, display: 'flex' }}>
+                      <OSIcon name={item.platform} />
+                    </Box>
+                    {item.platform} — {item.name}
+                  </Box>
+                </MenuItem>
+              ))}
+            </TextField>
+            {/* Only where there is a choice: a Windows package has one
+                shell, and a picker with one option is furniture. */}
+            {shells.length > 1 && (
+              <TextField
+                select
+                size="small"
+                label="Shell"
+                value={shell?.label ?? ''}
+                onChange={(e) => setPickedShell(e.target.value)}
+                sx={{ minWidth: 140 }}
+              >
+                {shells.map((c) => (
+                  <MenuItem key={c.label} value={c.label}>
+                    {c.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+            <Box sx={{ flex: 1 }} />
+            <Button
+              size="small"
+              startIcon={<ContentCopyIcon sx={{ fontSize: 14 }} />}
+              disabled={!canFetchCommands}
+              onClick={() => shell && copy('command', shell.command)}
+            >
+              {copied === 'command' ? 'Copied' : 'Copy'}
+            </Button>
+          </Box>
+          {canFetchCommands ? (
+            <TextField
+              fullWidth
+              multiline
+              value={shell?.command ?? ''}
+              onFocus={(e) => e.target.select()}
+              slotProps={{
+                input: {
+                  readOnly: true,
+                  sx: { fontFamily: 'monospace', fontSize: 12, lineHeight: 1.7, py: 1 },
+                },
+              }}
+            />
+          ) : (
+            <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+              The command carries the download token, which only an owner can read.
+            </Typography>
+          )}
+        </Paper>
+      )}
 
       <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
         <MenuItem

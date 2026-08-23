@@ -726,6 +726,16 @@ Surface the daily 90% here and link out for the rest.
   from what's on disk. Uploads stream to a temp file and rename, so an
   interrupted one can't leave something truncated that looks
   installable.
+- THE COMMAND IS SHOWN BEFORE IT IS COPIED. A row of per-shell copy
+  buttons put a command on the clipboard sight unseen, with the text
+  itself only ever visible in a tooltip — and the machine you are in
+  the middle of setting up is the wrong place to be pasting something
+  you never read. It is now one panel below the list: pick the
+  installer, pick the shell where there is a choice, read the command,
+  copy it. The picks are held as NAMES and resolved every render, so an
+  unknown one falls through to the first rather than blanking the
+  panel — which is what a re-upload or a delete would otherwise do to
+  a selection made before it.
 - THE DOWNLOAD IS THE ONE ROUTE OUTSIDE THE SESSION, and it carries its
   own key: `/api/v1/installers/{name}/download?token=`. A fleetd
   package contains the enrollment secret, so an open link would let
