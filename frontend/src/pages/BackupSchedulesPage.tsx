@@ -106,9 +106,15 @@ export default function BackupSchedulesPage() {
       {
         id: 'covers',
         header: 'Covers',
-        meta: { width: 220 },
+        meta: {
+          nowrap: true,
+          // Searchable by vmid even though no vmid is drawn: somebody
+          // who knows a guest is 2030 should still find the job that
+          // holds it.
+          filterText: (j: BackupSchedule) => j.vmids.join(' '),
+        },
         enableSorting: false,
-        accessorFn: (j) => (j.all ? 'all' : j.vmids.join(' ')),
+        accessorFn: (j) => (j.all ? -1 : j.vmids.length),
         cell: ({ row }) => <Covers job={row.original} />,
       },
       {
@@ -272,27 +278,28 @@ export default function BackupSchedulesPage() {
   )
 }
 
-/** What a job backs up, in the terms it was written in. */
+/**
+ * What a job backs up — HOW MANY, not which.
+ *
+ * This printed the vmid list underneath, which on a job covering
+ * twenty-five guests is five lines of four-digit numbers that name
+ * nothing. A vmid is an identifier you look a guest up BY, not one you
+ * recognise a guest FROM. Opening the job shows the names against
+ * checkboxes, which is where that question gets a real answer.
+ */
 function Covers({ job }: { job: BackupSchedule }) {
   if (job.all) {
     return (
-      <Box>
-        <span>Every guest</span>
-        {job.exclude.length > 0 && (
-          <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
-            except {job.exclude.join(', ')}
-          </Typography>
-        )}
-      </Box>
+      <>
+        Every guest
+        {job.exclude.length > 0 && ` except ${job.exclude.length}`}
+      </>
     )
   }
   if (job.pool) return <>Pool {job.pool}</>
   return (
-    <Box sx={{ overflowWrap: 'anywhere' }}>
+    <>
       {job.vmids.length} guest{job.vmids.length === 1 ? '' : 's'}
-      <Typography sx={{ fontSize: 12, color: 'text.secondary', overflowWrap: 'anywhere' }}>
-        {job.vmids.join(', ')}
-      </Typography>
-    </Box>
+    </>
   )
 }

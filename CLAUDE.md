@@ -1327,6 +1327,16 @@ Surface the daily 90% here and link out for the rest.
   VM's tags. What a row fundamentally IS (hypervisor type, database
   engine, DNS provider) is primary information: plain cell text at the
   table's own size, via `BrandLabel`, never shrunk into a badge.
+- AN ID IS WHAT YOU LOOK A THING UP BY, NOT WHAT YOU RECOGNISE IT
+  FROM. The Covers cell printed a job's whole vmid list — five wrapped
+  lines of four-digit numbers on a job covering twenty-five guests,
+  naming none of them and pushing every other column down the page. It
+  shows the COUNT; opening the job shows the names against checkboxes,
+  which is where that question has a real answer. The ids stay
+  SEARCHABLE via `meta.filterText` — somebody who knows a guest is 2030
+  should still find the job holding it — which is the same split the
+  Backups list already makes between what a cell matches and what it
+  draws.
 - AN EMPTY TABLE KEEPS ITS HEADERS AND SAYS SO IN A ROW. A banner
   above an absent table makes you work out which table it was about,
   and two of them stack into a wall of yellow; a table that vanishes
