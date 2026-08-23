@@ -248,6 +248,14 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		r.Delete("/isos", s.deleteVolume("iso", "ISO", "iso"))
 		r.Delete("/ct-templates", s.deleteVolume("vztmpl", "CT template", "ctTemplate"))
 		r.Get("/backups", s.listBackups)
+		// The hypervisor's own vzdump jobs — read and changed here,
+		// never duplicated. See backupschedules.go.
+		r.Get("/backup-schedules", s.listBackupSchedules)
+		r.Get("/backup-schedules/gaps", s.listBackupGaps)
+		r.Get("/backup-schedules/preview", s.previewBackupSchedule)
+		r.Post("/backup-schedules", s.createBackupSchedule)
+		r.Put("/backup-schedules/{id}", s.updateBackupSchedule)
+		r.Delete("/backup-schedules/{id}", s.deleteBackupSchedule)
 		r.Delete("/backups", s.deleteVolume("backup", "backup", "backup"))
 		r.Get("/images/{id}", s.describeImage)
 		r.Post("/images/{id}/description", s.setImageDescription)

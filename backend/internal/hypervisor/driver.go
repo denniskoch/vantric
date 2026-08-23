@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"time"
 )
 
 // Status values mirror GCP Compute Engine instance states.
@@ -729,6 +730,100 @@ type DiskSpec struct {
 // rather than reporting an error.
 type BackupDriver interface {
 	Backups(ctx context.Context) ([]Backup, error)
+}
+
+// BackupSchedule is a recurring backup job the hypervisor runs.
+//
+// THE JOB IS THEIRS AND SO IS THE VOCABULARY. Schedule is a systemd
+// calendar event ("21:00", "sat 02:00", "mon..fri 03:30") passed
+// through rather than parsed — the hypervisor is what reads it, and a
+// console that reinvented the grammar would be a second one to get
+// wrong. Same for Mode and Retention.
+type BackupSchedule struct {
+	// HypervisorID is filled in by the API layer, not the driver.
+	HypervisorID string `json:"hypervisorId"`
+	ID           string `json:"id"`
+	Enabled      bool   `json:"enabled"`
+	Schedule     string `json:"schedule"`
+	// NextRun is unix seconds, 0 when the hypervisor won't say — which
+	// is what a disabled job reports, and is the honest answer.
+	NextRun int64  `json:"nextRun"`
+	Storage string `json:"storage"`
+	// Node is empty for "wherever the guest is", which is the usual
+	// case on a cluster and the only case on a single host.
+	Node string `json:"node"`
+	// Mode is the hypervisor's word: snapshot, suspend, stop.
+	Mode string `json:"mode"`
+	// All means every guest, and then Exclude is what it skips. A job
+	// is one or the other: naming guests and excluding guests are two
+	// answers to the same question.
+	All     bool   `json:"all"`
+	VMIDs   []int  `json:"vmids"`
+	Exclude []int  `json:"exclude"`
+	Pool    string `json:"pool"`
+	// Retention is the pruning policy as the hypervisor spells it —
+	// "keep-daily=14,keep-weekly=4". Empty means it keeps everything,
+	// which is a finding rather than a blank: a job with no retention
+	// fills its datastore and then starts failing.
+	Retention     string `json:"retention"`
+	Compress      string `json:"compress"`
+	NotesTemplate string `json:"notesTemplate"`
+	MailTo        string `json:"mailTo"`
+	Comment       string `json:"comment"`
+}
+
+// BackupScheduleSpec is a job as a form supplies it. Separate from
+// BackupSchedule because NextRun and the id are the hypervisor's to
+// say, and one struct carrying both invites a handler to write them.
+type BackupScheduleSpec struct {
+	Enabled       bool
+	Schedule      string
+	Storage       string
+	Node          string
+	Mode          string
+	All           bool
+	VMIDs         []int
+	Exclude       []int
+	Pool          string
+	Retention     string
+	Compress      string
+	NotesTemplate string
+	MailTo        string
+	Comment       string
+}
+
+// BackupGap is a guest no schedule covers.
+type BackupGap struct {
+	HypervisorID string `json:"hypervisorId"`
+	VMID         int    `json:"vmid"`
+	Name         string `json:"name"`
+	// Type is "qemu" or "lxc".
+	Type string `json:"type"`
+}
+
+// BackupScheduler is the optional capability for backends whose backup
+// jobs this console can read and change.
+//
+// SEPARATE FROM BackupDriver, which only lists the archives that
+// already exist. A backend can perfectly well have a catalog of
+// backups and no schedule this console understands — and the two were
+// written years apart in this codebase, the second one only after the
+// read-only rule turned out to be a gap rather than a principle.
+type BackupScheduler interface {
+	BackupSchedules(ctx context.Context) ([]BackupSchedule, error)
+	CreateBackupSchedule(ctx context.Context, spec BackupScheduleSpec) error
+	UpdateBackupSchedule(ctx context.Context, id string, spec BackupScheduleSpec) error
+	DeleteBackupSchedule(ctx context.Context, id string) error
+	// GuestsWithoutBackup is THE REASON THIS SECTION EARNS ITS PLACE.
+	// The hypervisor knows which guests no job names, and nothing in
+	// this console could work it out from the job list alone — a job
+	// covering "all except these" and a job naming fifteen vmids are
+	// the same answer wearing different clothes.
+	GuestsWithoutBackup(ctx context.Context) ([]BackupGap, error)
+	// PreviewSchedule turns a calendar expression into the next few
+	// times it fires, so a form can show what it just accepted rather
+	// than leaving you to find out on Saturday.
+	PreviewSchedule(ctx context.Context, schedule string, count int) ([]time.Time, error)
 }
 
 // ConsoleUser is the account the console signs in as, and the key it

@@ -1,0 +1,305 @@
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  Alert,
+  AlertTitle,
+  Box,
+  Button,
+  Chip,
+  IconButton,
+  Menu,
+  MenuItem,
+  Typography,
+} from '@mui/material'
+import type { ColumnDef } from '@tanstack/react-table'
+import AddIcon from '@mui/icons-material/Add'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
+import EditIcon from '@mui/icons-material/Edit'
+import DeleteIcon from '@mui/icons-material/Delete'
+import DataTable from '../components/DataTable'
+import PageHeader from '../components/PageHeader'
+import CellLines from '../components/CellLines'
+import EnabledIcon from '../components/EnabledIcon'
+import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
+import { usePermissions } from '../user'
+import { api } from '../api/client'
+import type { BackupSchedule } from '../api/client'
+
+/**
+ * The hypervisor's own backup jobs.
+ *
+ * THIS CONSOLE KEEPS NO SCHEDULE AND RUNS NOTHING. A job made here is
+ * the same job the hypervisor's own UI shows, which is the whole
+ * difference between managing a tool and replacing it — turn this
+ * console off and your backups carry on.
+ *
+ * WHAT IS COVERED BY NOTHING LEADS THE PAGE, because it is the one
+ * question the job list can't answer by being read. A job saying
+ * "everything except these three" and a job naming fifteen guests are
+ * the same coverage wearing different clothes, so the hypervisor is
+ * asked instead — and on this lab the answer was 28 guests, including
+ * the monitoring VM, the WireGuard VM and this console.
+ */
+export default function BackupSchedulesPage() {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { canEdit } = usePermissions()
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
+  const [selected, setSelected] = useState<BackupSchedule | null>(null)
+  const [deleting, setDeleting] = useState<BackupSchedule | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const { data: schedules = [], isLoading } = useQuery({
+    queryKey: ['backupSchedules'],
+    queryFn: api.listBackupSchedules,
+  })
+  const { data: gaps = [] } = useQuery({
+    queryKey: ['backupGaps'],
+    queryFn: api.listBackupGaps,
+  })
+  const { data: hypervisors = [] } = useQuery({
+    queryKey: ['hypervisors'],
+    queryFn: api.listHypervisors,
+  })
+
+  const remove = useMutation({
+    mutationFn: (job: BackupSchedule) => api.deleteBackupSchedule(job.hypervisorId, job.id),
+    onSuccess: () => {
+      setDeleting(null)
+      queryClient.invalidateQueries({ queryKey: ['backupSchedules'] })
+      queryClient.invalidateQueries({ queryKey: ['backupGaps'] })
+    },
+    onError: (e: Error) => {
+      setDeleting(null)
+      setError(e.message)
+    },
+  })
+
+  const columns = useMemo<ColumnDef<BackupSchedule, unknown>[]>(
+    () => [
+      {
+        id: 'schedule',
+        header: 'Runs',
+        meta: { width: 150 },
+        accessorFn: (j) => j.schedule,
+        cell: ({ row }) => (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <EnabledIcon
+              enabled={row.original.enabled}
+              on="Enabled"
+              off="Disabled — this job does not run"
+            />
+            <span>{row.original.schedule}</span>
+          </Box>
+        ),
+      },
+      {
+        id: 'nextRun',
+        header: 'Next run',
+        meta: { nowrap: true },
+        accessorFn: (j) => j.nextRun,
+        cell: ({ row }) =>
+          row.original.nextRun > 0 ? (
+            new Date(row.original.nextRun * 1000).toLocaleString()
+          ) : (
+            // A disabled job has no next run, and the hypervisor says so
+            // by omitting it. Repeating the reason beats a dash.
+            <Typography component="span" sx={{ fontSize: 12, color: 'text.secondary' }}>
+              not scheduled
+            </Typography>
+          ),
+      },
+      {
+        id: 'covers',
+        header: 'Covers',
+        meta: { width: 220 },
+        enableSorting: false,
+        accessorFn: (j) => (j.all ? 'all' : j.vmids.join(' ')),
+        cell: ({ row }) => <Covers job={row.original} />,
+      },
+      {
+        id: 'storage',
+        header: 'Writes to',
+        meta: { nowrap: true },
+        accessorFn: (j) => j.storage,
+      },
+      {
+        id: 'retention',
+        header: 'Keeps',
+        meta: { nowrap: true },
+        accessorFn: (j) => j.retention,
+        cell: ({ row }) =>
+          row.original.retention ? (
+            <CellLines>
+              {row.original.retention.split(',').map((rule) => (
+                <span key={rule}>{rule.trim()}</span>
+              ))}
+            </CellLines>
+          ) : (
+            // NOT A BLANK. A job with no pruning keeps every archive it
+            // ever wrote, which fills the datastore and then starts
+            // failing — quietly, since the job itself looks fine.
+            <Typography component="span" sx={{ fontSize: 12, color: '#e37400' }}>
+              everything
+            </Typography>
+          ),
+      },
+      {
+        id: 'mode',
+        header: 'Mode',
+        meta: { nowrap: true },
+        accessorFn: (j) => j.mode,
+      },
+      {
+        id: 'node',
+        header: 'Node',
+        meta: { nowrap: true },
+        accessorFn: (j) => j.node,
+        cell: ({ row }) => row.original.node || '—',
+      },
+      {
+        id: 'actions',
+        header: '',
+        enableSorting: false,
+        meta: { hug: true },
+        cell: ({ row }) => (
+          <IconButton
+            size="small"
+            aria-label={`Actions for ${row.original.id}`}
+            onClick={(e) => {
+              setMenuAnchor(e.currentTarget)
+              setSelected(row.original)
+            }}
+          >
+            <MoreVertIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        ),
+      },
+    ],
+    [],
+  )
+
+  const nameOf = (id: string) => hypervisors.find((h) => h.id === id)?.name ?? id
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <PageHeader
+        title="Backup schedules"
+        description="The backup jobs your hypervisors run. Edited here, kept there."
+        actions={
+          canEdit && (
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={() => navigate('/compute/backup-schedules/new')}
+            >
+              Create
+            </Button>
+          )
+        }
+      />
+
+      {error && (
+        <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {/* The finding, above the thing it is a finding about. */}
+      {gaps.length > 0 && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <AlertTitle sx={{ fontSize: 14 }}>
+            {gaps.length} guest{gaps.length === 1 ? '' : 's'} no schedule covers
+          </AlertTitle>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+            {gaps.map((g) => (
+              <Chip
+                key={`${g.hypervisorId}/${g.vmid}`}
+                label={`${g.name || g.vmid}`}
+                size="small"
+                title={`${g.type} ${g.vmid} on ${nameOf(g.hypervisorId)}`}
+                sx={{ fontSize: 11, height: 20 }}
+              />
+            ))}
+          </Box>
+        </Alert>
+      )}
+
+      <DataTable
+        rows={schedules}
+        columns={columns}
+        getRowId={(j) => `${j.hypervisorId}/${j.id}`}
+        alignTop
+        initialSort={[{ id: 'schedule', desc: false }]}
+        filterPlaceholder="Filter by schedule or storage"
+        empty={isLoading ? 'Loading…' : 'No backup schedules on any hypervisor.'}
+      />
+
+      <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
+        <MenuItem
+          disabled={!canEdit}
+          onClick={() => {
+            if (selected)
+              navigate(
+                `/compute/backup-schedules/${selected.id}/edit?hypervisor=${selected.hypervisorId}`,
+              )
+            setMenuAnchor(null)
+          }}
+        >
+          <EditIcon fontSize="small" sx={{ mr: 1 }} /> Edit
+        </MenuItem>
+        <MenuItem
+          disabled={!canEdit}
+          onClick={() => {
+            setDeleting(selected)
+            setMenuAnchor(null)
+          }}
+          sx={{ color: 'error.main' }}
+        >
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Delete
+        </MenuItem>
+      </Menu>
+
+      <ConfirmDeleteDialog
+        open={Boolean(deleting)}
+        title="Delete this backup schedule?"
+        body={
+          <>
+            Nothing runs at {deleting?.schedule} any more, and the guests it covered stop
+            being backed up. Archives it has already written are kept.
+          </>
+        }
+        pending={remove.isPending}
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => deleting && remove.mutate(deleting)}
+      />
+    </Box>
+  )
+}
+
+/** What a job backs up, in the terms it was written in. */
+function Covers({ job }: { job: BackupSchedule }) {
+  if (job.all) {
+    return (
+      <Box>
+        <span>Every guest</span>
+        {job.exclude.length > 0 && (
+          <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+            except {job.exclude.join(', ')}
+          </Typography>
+        )}
+      </Box>
+    )
+  }
+  if (job.pool) return <>Pool {job.pool}</>
+  return (
+    <Box sx={{ overflowWrap: 'anywhere' }}>
+      {job.vmids.length} guest{job.vmids.length === 1 ? '' : 's'}
+      <Typography sx={{ fontSize: 12, color: 'text.secondary', overflowWrap: 'anywhere' }}>
+        {job.vmids.join(', ')}
+      </Typography>
+    </Box>
+  )
+}

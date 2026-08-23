@@ -319,14 +319,49 @@ Surface the daily 90% here and link out for the rest.
   future drivers without containers stay simple. Proxmox's
   cluster/resources?type=vm returns BOTH qemu and lxc: always filter by
   the resource Type field.
-- Backups are READ AND DELETE ONLY: the hypervisor's own backup jobs
-  write them, this console lists what exists and removes what you no
-  longer want. Listing is the optional `hypervisor.BackupDriver`
+- Backup ARCHIVES are read and delete only: the hypervisor's own backup
+  jobs write them, this console lists what exists and removes what you
+  no longer want. Listing is the optional `hypervisor.BackupDriver`
   capability (type assertion), so a driver without a backup catalog
   stays simple and its hypervisors contribute nothing rather than erroring.
   A backup outlives its guest, so the archive carries the vmid and
   guest type; the name is resolved from the cluster where the guest
   still exists and left blank where it doesn't.
+- BACKUP SCHEDULES ARE THE JOBS, and this console reads and edits them
+  without keeping one of its own. A job made here is the same vzdump
+  job the hypervisor's UI shows, so turning this console off does not
+  stop your backups — the difference between managing a tool and
+  replacing it. `hypervisor.BackupScheduler` is a SEPARATE capability
+  from BackupDriver: listing the archives and changing the jobs are
+  different powers, and a backend can have the first without the
+  second.
+  WHAT NO JOB COVERS LEADS THE PAGE, and the HYPERVISOR answers it
+  (`GuestsNotInBackup`). Working it out from the job list here would be
+  reimplementing the thing that already knows — "everything except
+  these three" and "these fifteen vmids" are the same coverage in
+  different clothes. On this lab the answer was 28 guests, including
+  the monitoring VM, the WireGuard VM and this console's own.
+  THE SCHEDULE IS VALIDATED BY THE THING THAT WILL RUN IT. A systemd
+  calendar event has a grammar with no business being reimplemented
+  here, and it resolves against the CLUSTER's timezone, not ours — so
+  the field is sent to the hypervisor as typed and the next five runs
+  come back, which validates it and answers the question you had.
+  A JOB THAT COVERS NOTHING IS REFUSED. Proxmox accepts one and runs it
+  forever backing nothing up, which is worse than an error because it
+  looks like coverage.
+  THREE THINGS THE LIBRARY GOT WRONG, all found against a real cluster.
+  `prune-backups` is documented as a property string and comes back as
+  an OBJECT once retention is configured, which fails go-proxmox
+  v0.8.1's decode and makes every job on that hypervisor invisible —
+  so the list is decoded here with a type that takes either shape (not
+  fixed upstream; 0.8.1 is newest). `Enabled` is a bool tagged
+  `omitempty`, so `false` is DROPPED and Proxmox defaults a new job to
+  ON — asking for a job that doesn't run yet and silently getting one
+  that does. It is written by hand on create and on update. And an
+  omitted field on update means "leave it alone", not "clear it", so
+  emptying retention or a notes template needs Proxmox's own `delete`
+  list — otherwise the form saves, changes nothing, and comes back
+  still showing the old value.
 - THE GUEST AGENT HAS TO BE IN THE IMAGE, and Debian/Ubuntu cloud
   images don't ship it. `enableAgent` on a build only sets `agent=1` on
   the VM, which is the hypervisor's half; the guest half is

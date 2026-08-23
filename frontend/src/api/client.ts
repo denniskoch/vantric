@@ -958,6 +958,59 @@ export interface AIModelPrice {
   deprecated: boolean
 }
 
+/** A recurring backup job the hypervisor runs. The console reads and
+ *  edits it; it never keeps a schedule of its own. */
+export interface BackupSchedule {
+  hypervisorId: string
+  id: string
+  enabled: boolean
+  /** A systemd calendar event, passed through: "21:00", "sat 02:00". */
+  schedule: string
+  /** Unix seconds, 0 where the hypervisor won't say — a disabled job. */
+  nextRun: number
+  storage: string
+  /** Empty for "wherever the guest is". */
+  node: string
+  mode: string
+  all: boolean
+  vmids: number[]
+  exclude: number[]
+  pool: string
+  /** The hypervisor's own pruning string. Empty means it keeps
+   *  everything, which is a finding rather than a blank. */
+  retention: string
+  compress: string
+  notesTemplate: string
+  mailTo: string
+  comment: string
+}
+
+export interface BackupScheduleInput {
+  enabled: boolean
+  schedule: string
+  storage: string
+  node: string
+  mode: string
+  all: boolean
+  vmids: number[]
+  exclude: number[]
+  pool: string
+  retention: string
+  compress: string
+  notesTemplate: string
+  mailTo: string
+  comment: string
+}
+
+/** A guest no schedule covers. The hypervisor works this out — see
+ *  GuestsWithoutBackup. */
+export interface BackupGap {
+  hypervisorId: string
+  vmid: number
+  name: string
+  type: string
+}
+
 export interface AICapabilities {
   virtualKeys: boolean
   limits: boolean
@@ -2181,6 +2234,25 @@ export const api = {
   // and the UI offers exactly those — see aiwrite.go.
   aiCapabilities: () => request<AICapabilities>('/ai/capabilities'),
   listAIModelPrices: () => request<AIModelPrice[]>('/ai/model-prices'),
+
+  listBackupSchedules: () => request<BackupSchedule[]>('/backup-schedules'),
+  listBackupGaps: () => request<BackupGap[]>('/backup-schedules/gaps'),
+  previewBackupSchedule: (hypervisor: string, schedule: string) =>
+    request<string[]>(
+      `/backup-schedules/preview?hypervisor=${hypervisor}&schedule=${encodeURIComponent(schedule)}`,
+    ),
+  createBackupSchedule: (hypervisor: string, body: BackupScheduleInput) =>
+    request<void>(`/backup-schedules?hypervisor=${hypervisor}`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateBackupSchedule: (hypervisor: string, id: string, body: BackupScheduleInput) =>
+    request<void>(`/backup-schedules/${id}?hypervisor=${hypervisor}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  deleteBackupSchedule: (hypervisor: string, id: string) =>
+    request<void>(`/backup-schedules/${id}?hypervisor=${hypervisor}`, { method: 'DELETE' }),
   aiProviderTypes: () => request<string[]>('/ai/provider-types'),
   createAIVirtualKey: (body: AIVirtualKeyInput) =>
     request<AIIssuedVirtualKey>('/ai/virtual-keys', {

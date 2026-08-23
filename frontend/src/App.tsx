@@ -25,6 +25,8 @@ import AIVirtualKeyFormPage from './pages/AIVirtualKeyFormPage'
 import AIBudgetFormPage from './pages/AIBudgetFormPage'
 import AIProviderFormPage from './pages/AIProviderFormPage'
 import AIModelPricesPage from './pages/AIModelPricesPage'
+import BackupSchedulesPage from './pages/BackupSchedulesPage'
+import BackupScheduleFormPage from './pages/BackupScheduleFormPage'
 import ShortcutFormPage from './pages/ShortcutFormPage'
 import SecurityOverviewPage from './pages/SecurityOverviewPage'
 import SecurityHostAssessmentPage from './pages/SecurityHostAssessmentPage'
@@ -317,6 +319,9 @@ export default function App() {
         <Route path="/compute/disks" element={<DisksPage />} />
         <Route path="/compute/snapshots" element={<SnapshotsPage />} />
         <Route path="/compute/backups" element={<BackupsPage />} />
+        <Route path="/compute/backup-schedules" element={<BackupSchedulesPage />} />
+        <Route path="/compute/backup-schedules/new" element={<BackupScheduleFormPage />} />
+        <Route path="/compute/backup-schedules/:id/edit" element={<BackupScheduleFormPage />} />
         <Route path="/compute/isos" element={<ISOsPage />} />
         <Route
           path="/compute/isos/add"

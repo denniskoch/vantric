@@ -10,6 +10,7 @@ import DnsIcon from '@mui/icons-material/Dns'
 import LayersIcon from '@mui/icons-material/Layers'
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
 import BackupIcon from '@mui/icons-material/Backup'
+import EventRepeatIcon from '@mui/icons-material/EventRepeat'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
 import DiscFullIcon from '@mui/icons-material/DiscFull'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
@@ -245,6 +246,14 @@ export const sections: Section[] = [
             icon: BackupIcon,
             to: '/compute/backups',
             hint: 'Guest backup archives held on your datastores',
+          },
+          {
+            // After Backups, because the archives are what you look for
+            // and the jobs are what you change when they aren't there.
+            label: 'Backup schedules',
+            icon: EventRepeatIcon,
+            to: '/compute/backup-schedules',
+            hint: "Your hypervisors' backup jobs, and what no job covers",
           },
         ],
       },
