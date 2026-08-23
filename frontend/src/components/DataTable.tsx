@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Box,
   Checkbox,
@@ -119,6 +119,7 @@ export default function DataTable<T>({
   initialSort,
   selection,
   onSelectionChange,
+  onFilteredChange,
   selectable,
   empty,
   renderDetail,
@@ -138,6 +139,17 @@ export default function DataTable<T>({
   /** Selected row ids. Omit for a table nothing is selected in. */
   selection?: string[]
   onSelectionChange?: (ids: string[]) => void
+  /**
+   * Every row id the filter currently matches, ACROSS PAGES.
+   *
+   * The header checkbox selects the page and nothing else, which is
+   * upstream's behaviour and the right default — but it leaves a bulk
+   * action stuck at one page at a time, and the whole point of
+   * selecting rows is to act on the set you just narrowed to. A page
+   * that wants to offer "select all N" needs to know what N is, and
+   * only the table knows: the filtering happens in here.
+   */
+  onFilteredChange?: (ids: string[]) => void
   /** False disables the boxes without removing the column, e.g. for a viewer. */
   selectable?: boolean
   empty?: ReactNode
@@ -287,6 +299,19 @@ export default function DataTable<T>({
   })
 
   const page = table.getRowModel().rows
+
+  // The filtered set, reported up so a page can offer "select all N".
+  // Compared as a joined string rather than by array identity, since
+  // the row model is rebuilt on every render and would otherwise fire
+  // this forever.
+  const filteredIDs = table.getFilteredRowModel().rows.map((r) => r.id)
+  const filteredKey = filteredIDs.join()
+  const lastFiltered = useRef<string | null>(null)
+  useEffect(() => {
+    if (!onFilteredChange || lastFiltered.current === filteredKey) return
+    lastFiltered.current = filteredKey
+    onFilteredChange(filteredKey === '' ? [] : filteredKey.split(','))
+  }, [filteredKey, onFilteredChange])
   const columnCount =
     table.getAllLeafColumns().length + (selectionEnabled ? 1 : 0) + (renderDetail ? 1 : 0)
 

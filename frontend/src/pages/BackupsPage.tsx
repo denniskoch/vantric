@@ -5,10 +5,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
   Box,
+  Button,
   Chip,
   IconButton,
+  Paper,
   Tooltip,
+  Typography,
 } from '@mui/material'
+import CloseIcon from '@mui/icons-material/Close'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { api } from '../api/client'
 import type { Backup } from '../api/client'
@@ -18,14 +22,28 @@ import TimeRangePicker from '../components/TimeRangePicker'
 import { ANY_TIME, inRange } from '../timeRange'
 import type { TimeRange } from '../timeRange'
 import { formatBytes } from '../format'
+import { settle } from '../bulk'
+import { usePermissions } from '../user'
 
 const guestLabels: Record<string, string> = { qemu: 'VM', lxc: 'CT' }
+
+/** An archive's identity here. See removeMany for why it is composite. */
+const rowID = (b: Backup) => `${b.hypervisorId}/${b.id}`
 
 export default function BackupsPage() {
   const [range, setRange] = useState<TimeRange>(ANY_TIME)
   const queryClient = useQueryClient()
   const [confirming, setConfirming] = useState<Backup | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { canEdit } = usePermissions()
+  // Ids rather than rows: the list is polled, and holding the objects
+  // would keep a selection pointing at archives that have since gone.
+  const [picked, setPicked] = useState<string[]>([])
+  const [confirmingBulk, setConfirmingBulk] = useState(false)
+  // Every archive the filter matches, across pages — so narrowing to
+  // one dead guest's vmid and clearing the lot is one click rather
+  // than one per page.
+  const [matching, setMatching] = useState<string[]>([])
 
   const { data: backups = [], isLoading } = useQuery({
     queryKey: ['backups'],
@@ -47,12 +65,52 @@ export default function BackupsPage() {
     },
   })
 
+  // ONE OUTCOME FOR N DELETES, the rule the instance list already
+  // follows: every call is issued, none abandoned because an earlier
+  // one failed, and what comes back names how many of how many.
+  const removeMany = useMutation({
+    mutationFn: (items: Backup[]) => {
+      // KEYED BY hypervisorId/volid, NOT by the volid alone. Both of
+      // this lab's hypervisors write to a datastore called `synology`
+      // and their vmids overlap, so two archives can carry the same
+      // volume id — and a lookup on that would delete one of them
+      // twice and leave the other.
+      const byRow = new Map(items.map((b) => [rowID(b), b]))
+      return settle([...byRow.keys()], (key) => {
+        const b = byRow.get(key)!
+        return api.deleteBackup(b.hypervisorId, b.node, b.id)
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['backups'] })
+      setConfirmingBulk(false)
+      setPicked([])
+    },
+    onError: (e: Error) => {
+      queryClient.invalidateQueries({ queryKey: ['backups'] })
+      setConfirmingBulk(false)
+      setPicked([])
+      setError(e.message)
+    },
+  })
+
   // An archive's date is the thing you narrow a backup list by, and
   // the text box can only match the date as it happens to be spelled.
   const shown = useMemo(
     () => backups.filter((b) => inRange(range, b.createdAt)),
     [backups, range],
   )
+
+  const selected = shown.filter((b) => picked.includes(rowID(b)))
+  // THE ELIGIBLE SUBSET, not a refusal: the hypervisor won't delete a
+  // protected archive, so a mixed selection deletes the rest and the
+  // bar says how many it left alone.
+  const deletable = selected.filter((b) => !b.protected)
+  const held = selected.length - deletable.length
+  const totalBytes = deletable.reduce((sum, b) => sum + b.sizeBytes, 0)
+  // An archive whose guest is still there. Blank means the guest is
+  // gone, which is the case this page's bulk delete exists for.
+  const live = deletable.filter((b) => b.guestName !== '')
 
   const columns = useMemo<ColumnDef<(typeof backups)[number], unknown>[]>(
     () => [
@@ -164,10 +222,59 @@ export default function BackupsPage() {
         <TimeRangePicker value={range} onChange={setRange} />
       </Box>
 
+      {canEdit && selected.length > 0 && (
+        <Paper
+          variant="outlined"
+          sx={{
+            mb: 1,
+            px: 1,
+            py: 0.5,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+            bgcolor: 'surface.infoTint',
+            borderColor: '#d2e3fc',
+          }}
+        >
+          <IconButton size="small" aria-label="Clear selection" onClick={() => setPicked([])}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+          <Typography sx={{ fontSize: 13, color: 'text.primary', mx: 1 }}>
+            {selected.length}
+          </Typography>
+          {held > 0 && (
+            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+              {held} protected on the hypervisor and will be left alone
+            </Typography>
+          )}
+          {matching.length > selected.length && (
+            <Button size="small" onClick={() => setPicked(matching)}>
+              Select all {matching.length}
+            </Button>
+          )}
+          <Box sx={{ flex: 1 }} />
+          <Typography sx={{ fontSize: 12, color: 'text.secondary', mr: 1 }}>
+            {formatBytes(totalBytes)}
+          </Typography>
+          <Button
+            size="small"
+            startIcon={<DeleteIcon />}
+            disabled={deletable.length === 0 || removeMany.isPending}
+            onClick={() => setConfirmingBulk(true)}
+            sx={{ color: deletable.length === 0 ? undefined : '#d93025' }}
+          >
+            Delete
+          </Button>
+        </Paper>
+      )}
+
       <DataTable
         rows={shown}
         columns={columns}
-        getRowId={(backup) => `${backup.hypervisorId}/${backup.id}`}
+        selection={picked}
+        onSelectionChange={setPicked}
+        onFilteredChange={setMatching}
+        getRowId={rowID}
         initialSort={[{ id: 'createdAt', desc: true }]}
         filterPlaceholder="Filter by guest, vmid, node, datastore, date or format"
         empty={isLoading ? 'Loading…' : 'No backups on any datastore.'}
@@ -187,6 +294,49 @@ export default function BackupsPage() {
         onCancel={() => setConfirming(null)}
         onConfirm={() => confirming && remove.mutate(confirming)}
       />
+
+      {/* The same typed phrase the single delete asks for. A bulk
+          delete is the one that most needs reading twice, and the
+          count is the thing to read. */}
+      <ConfirmDeleteDialog
+        open={confirmingBulk}
+        title={`Delete ${deletable.length} backup${deletable.length === 1 ? '' : 's'}?`}
+        body={
+          <>
+            {formatBytes(totalBytes)} across {guestCount(deletable)}. The guests aren't
+            touched, but these restore points are gone.
+            {/* THE HAZARD IN THE OBVIOUS WORKFLOW. Clearing out a dead
+                guest means filtering by its vmid — and a vmid is only
+                unique within one hypervisor, so the same number can
+                belong to a guest that is alive and well on the other.
+                Saying which live guests are in the selection is the
+                difference between tidying up and deleting the backups
+                of something you still run. */}
+            {live.length > 0 && (
+              <Box sx={{ mt: 1, color: '#b06000' }}>
+                {live.length} of these belong to guests that still exist:{' '}
+                {[...new Set(live.map((b) => b.guestName))].join(', ')}.
+              </Box>
+            )}
+          </>
+        }
+        confirmPhrase="I UNDERSTAND"
+        confirmLabel="to delete these restore points"
+        pending={removeMany.isPending}
+        onCancel={() => setConfirmingBulk(false)}
+        onConfirm={() => removeMany.mutate(deletable)}
+      />
     </Box>
   )
+}
+
+/** How many guests a set of archives belongs to — the number that says
+ *  whether you are clearing out one deleted VM or half the lab. */
+function guestCount(items: Backup[]): string {
+  // hypervisorId AND vmid: a vmid is unique within one hypervisor, and
+  // this lab has the same number in use on both.
+  const guests = new Set(items.map((b) => `${b.hypervisorId}/${b.vmid}`))
+  return guests.size === 1
+    ? `1 guest`
+    : `${guests.size} guests`
 }

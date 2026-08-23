@@ -1194,6 +1194,22 @@ Surface the daily 90% here and link out for the rest.
   TEXT timestamps, no engine-specific types. Postgres is planned, not wired.
 - Frontend talks only to `/api/v1` via `src/api/client.ts` (typed client);
   server state lives in TanStack Query (3s polling), not local state.
+- SELECT-ALL TAKES THE PAGE; "SELECT ALL N" TAKES THE FILTER. The
+  header checkbox selects the visible page and nothing else, which is
+  upstream's behaviour and the right default — but the reason you
+  narrowed a list was to act on what you narrowed to, and clearing 28
+  archives fifteen at a time is the clicking the bulk interface was
+  meant to remove. `DataTable.onFilteredChange` reports the matched ids
+  across pages, and the action bar offers the rest as one button.
+- A BULK DELETE SAYS WHAT IS IN IT, not just how many. On backups the
+  obvious workflow — filter by a dead guest's vmid, select, delete —
+  has a trap under it: A VMID IS ONLY UNIQUE WITHIN ONE HYPERVISOR, and
+  this lab has 2030 in use on both, one dead and one very much alive.
+  So the confirmation names the live guests caught in the selection,
+  and anything keyed on an archive keys on hypervisorId AND the id —
+  both hypervisors here write to a datastore called `synology`, so the
+  volume ids themselves collide and a lookup on one alone would delete
+  the same archive twice and leave its twin.
 - SELECTING ROWS RAISES AN ACTION BAR, GCP's model: the checkbox
   column is the bulk interface, and the bar above the table carries a
   count, a clear button and the actions that apply. Each action runs
