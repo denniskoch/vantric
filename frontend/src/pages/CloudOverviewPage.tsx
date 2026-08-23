@@ -36,10 +36,11 @@ export default function CloudOverviewPage() {
     <Box sx={{ p: 3, maxWidth: 1100 }}>
       <PageHeader
         title="Cloud overview"
-        // The page's job first, the name second — the backronym's words
-        // in order, lowercase, so it reads as a sentence and winks at
-        // anyone who already knows what the initials spell.
-        description="What's wrong right now: views across N tools, reconciled in one console."
+        // The name, as a sentence. Deliberately NOT "what's wrong": this
+        // page reports an all-clear as readily as a problem, and a
+        // heading that only promises bad news makes the good kind read
+        // like an empty box.
+        description="Now showing views across N tools, reconciled in one console."
       />
 
       {error && (
