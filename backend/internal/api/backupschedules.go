@@ -198,6 +198,31 @@ func (s *Server) updateBackupSchedule(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// addGuestsToBackupSchedule is the wizard's one write: guests that
+// nothing covers, into a job that already runs.
+func (s *Server) addGuestsToBackupSchedule(w http.ResponseWriter, r *http.Request) {
+	scheduler, ok := s.scheduler(w, r)
+	if !ok {
+		return
+	}
+	var body struct {
+		VMIDs []int `json:"vmids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		s.err(w, http.StatusBadRequest, "expected a list of guests")
+		return
+	}
+	if len(body.VMIDs) == 0 {
+		s.err(w, http.StatusBadRequest, "no guests to add")
+		return
+	}
+	if err := scheduler.AddGuestsToSchedule(r.Context(), chi.URLParam(r, "id"), body.VMIDs); err != nil {
+		s.fail(w, err, "adding the guests to the schedule")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Server) deleteBackupSchedule(w http.ResponseWriter, r *http.Request) {
 	scheduler, ok := s.scheduler(w, r)
 	if !ok {

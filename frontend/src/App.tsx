@@ -26,6 +26,7 @@ import AIBudgetFormPage from './pages/AIBudgetFormPage'
 import AIProviderFormPage from './pages/AIProviderFormPage'
 import AIModelPricesPage from './pages/AIModelPricesPage'
 import BackupSchedulesPage from './pages/BackupSchedulesPage'
+import BackupCoveragePage from './pages/BackupCoveragePage'
 import BackupScheduleFormPage from './pages/BackupScheduleFormPage'
 import ShortcutFormPage from './pages/ShortcutFormPage'
 import SecurityOverviewPage from './pages/SecurityOverviewPage'
@@ -320,6 +321,7 @@ export default function App() {
         <Route path="/compute/snapshots" element={<SnapshotsPage />} />
         <Route path="/compute/backups" element={<BackupsPage />} />
         <Route path="/compute/backup-schedules" element={<BackupSchedulesPage />} />
+        <Route path="/compute/backup-schedules/coverage" element={<BackupCoveragePage />} />
         <Route path="/compute/backup-schedules/new" element={<BackupScheduleFormPage />} />
         <Route path="/compute/backup-schedules/:id/edit" element={<BackupScheduleFormPage />} />
         <Route path="/compute/isos" element={<ISOsPage />} />

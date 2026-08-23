@@ -255,6 +255,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		r.Get("/backup-schedules/preview", s.previewBackupSchedule)
 		r.Post("/backup-schedules", s.createBackupSchedule)
 		r.Put("/backup-schedules/{id}", s.updateBackupSchedule)
+		r.Post("/backup-schedules/{id}/guests", s.addGuestsToBackupSchedule)
 		r.Delete("/backup-schedules/{id}", s.deleteBackupSchedule)
 		r.Delete("/backups", s.deleteVolume("backup", "backup", "backup"))
 		r.Get("/images/{id}", s.describeImage)

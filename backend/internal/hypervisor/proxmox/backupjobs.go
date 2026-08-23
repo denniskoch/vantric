@@ -241,6 +241,52 @@ func boolInt(b bool) int {
 	return 0
 }
 
+// AddGuestsToSchedule merges guests into a job's list.
+//
+// READ, MERGE, WRITE ONE KEY. Proxmox takes a partial PUT, so the body
+// carries `vmid` alone — no `delete` list, nothing else touched. The
+// read is what makes it a merge rather than a replace, and it is why
+// this cannot be done from the browser without risking everything else
+// on the job.
+func (d *Driver) AddGuestsToSchedule(ctx context.Context, id string, vmids []int) error {
+	var jobs []backupJob
+	if err := d.sdk.Get(ctx, "/cluster/backup", &jobs); err != nil {
+		return fmt.Errorf("proxmox: reading backup job %s: %w", id, err)
+	}
+	var job *backupJob
+	for i := range jobs {
+		if jobs[i].ID == id {
+			job = &jobs[i]
+			break
+		}
+	}
+	if job == nil {
+		return fmt.Errorf("proxmox: no backup job %s", id)
+	}
+	// A job that already takes everything has nothing to add to, and
+	// writing a vmid list onto it would NARROW it — the opposite of
+	// what was asked for.
+	if job.All == 1 {
+		return fmt.Errorf("proxmox: backup job %s already covers every guest", id)
+	}
+
+	merged := vmidList(job.VMID)
+	seen := map[int]bool{}
+	for _, v := range merged {
+		seen[v] = true
+	}
+	for _, v := range vmids {
+		if !seen[v] {
+			seen[v] = true
+			merged = append(merged, v)
+		}
+	}
+	sort.Ints(merged)
+
+	return d.sdk.Put(ctx, "/cluster/backup/"+id,
+		map[string]any{"vmid": vmidString(merged)}, nil)
+}
+
 func (d *Driver) DeleteBackupSchedule(ctx context.Context, id string) error {
 	return d.sdk.Delete(ctx, "/cluster/backup/"+id, nil)
 }

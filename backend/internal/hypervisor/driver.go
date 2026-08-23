@@ -824,6 +824,15 @@ type BackupScheduler interface {
 	// times it fires, so a form can show what it just accepted rather
 	// than leaving you to find out on Saturday.
 	PreviewSchedule(ctx context.Context, schedule string, count int) ([]time.Time, error)
+	// AddGuestsToSchedule puts guests into a job that already exists.
+	//
+	// ITS OWN CALL RATHER THAN AN UPDATE, and that is a safety
+	// property, not a convenience. Update writes the whole job and
+	// clears what a form left blank; a caller that wanted to add two
+	// guests and rebuilt the spec from a stale copy would wipe the
+	// retention policy on its way past. This touches the guest list
+	// and nothing else.
+	AddGuestsToSchedule(ctx context.Context, id string, vmids []int) error
 }
 
 // ConsoleUser is the account the console signs in as, and the key it

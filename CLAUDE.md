@@ -335,6 +335,23 @@ Surface the daily 90% here and link out for the rest.
   from BackupDriver: listing the archives and changing the jobs are
   different powers, and a backend can have the first without the
   second.
+  WHAT NO JOB COVERS IS AN ALERT, NOT A LIST. Twenty-eight names in
+  chips is a wall you read by scrolling and then leave anyway to act on
+  — so the schedules page keeps the NUMBER and hands you a page that
+  can do something about it: filters by hypervisor, node and kind, and
+  one action, adding the selection to a job that already runs. Adding
+  beats creating: a second job at a second time is how a lab ends up
+  with two retention policies and no idea which applies.
+  ADDING GUESTS IS ITS OWN DRIVER CALL, and that is a safety property.
+  Update writes the whole job and CLEARS what a form left blank, so a
+  caller that rebuilt a spec to append two guests would take the
+  retention policy with it. `AddGuestsToSchedule` reads, merges,
+  de-duplicates and writes the `vmid` key alone — no `delete` list,
+  nothing else touched. It also refuses a job already set to `all`,
+  where writing a guest list would NARROW the job rather than widen it.
+  A GUEST ONLY JOINS A JOB ON ITS OWN HYPERVISOR, so a selection
+  spanning two says so instead of offering a picker that would write
+  the wrong thing.
   WHAT NO JOB COVERS LEADS THE PAGE, and the HYPERVISOR answers it
   (`GuestsNotInBackup`). Working it out from the job list here would be
   reimplementing the thing that already knows — "everything except

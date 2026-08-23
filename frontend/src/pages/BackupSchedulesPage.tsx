@@ -3,10 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
-  AlertTitle,
   Box,
   Button,
-  Chip,
   IconButton,
   Menu,
   MenuItem,
@@ -58,11 +56,6 @@ export default function BackupSchedulesPage() {
     queryKey: ['backupGaps'],
     queryFn: api.listBackupGaps,
   })
-  const { data: hypervisors = [] } = useQuery({
-    queryKey: ['hypervisors'],
-    queryFn: api.listHypervisors,
-  })
-
   const remove = useMutation({
     mutationFn: (job: BackupSchedule) => api.deleteBackupSchedule(job.hypervisorId, job.id),
     onSuccess: () => {
@@ -180,8 +173,6 @@ export default function BackupSchedulesPage() {
     [],
   )
 
-  const nameOf = (id: string) => hypervisors.find((h) => h.id === id)?.name ?? id
-
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
@@ -207,23 +198,25 @@ export default function BackupSchedulesPage() {
         </Alert>
       )}
 
-      {/* The finding, above the thing it is a finding about. */}
+      {/* THE FINDING, NOT THE LIST. Twenty-eight names in chips is a
+          wall you read by scrolling and act on by going somewhere else
+          anyway — so the alert says the number and hands you the page
+          that can do something about it. */}
       {gaps.length > 0 && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          <AlertTitle sx={{ fontSize: 14 }}>
-            {gaps.length} guest{gaps.length === 1 ? '' : 's'} no schedule covers
-          </AlertTitle>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-            {gaps.map((g) => (
-              <Chip
-                key={`${g.hypervisorId}/${g.vmid}`}
-                label={`${g.name || g.vmid}`}
-                size="small"
-                title={`${g.type} ${g.vmid} on ${nameOf(g.hypervisorId)}`}
-                sx={{ fontSize: 11, height: 20 }}
-              />
-            ))}
-          </Box>
+        <Alert
+          severity="warning"
+          sx={{ mb: 2 }}
+          action={
+            <Button
+              size="small"
+              color="inherit"
+              onClick={() => navigate('/compute/backup-schedules/coverage')}
+            >
+              Review
+            </Button>
+          }
+        >
+          {gaps.length} guest{gaps.length === 1 ? '' : 's'} no schedule covers
         </Alert>
       )}
 

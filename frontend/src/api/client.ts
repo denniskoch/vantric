@@ -2251,6 +2251,11 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(body),
     }),
+  addGuestsToBackupSchedule: (hypervisor: string, id: string, vmids: number[]) =>
+    request<void>(`/backup-schedules/${id}/guests?hypervisor=${hypervisor}`, {
+      method: 'POST',
+      body: JSON.stringify({ vmids }),
+    }),
   deleteBackupSchedule: (hypervisor: string, id: string) =>
     request<void>(`/backup-schedules/${id}?hypervisor=${hypervisor}`, { method: 'DELETE' }),
   aiProviderTypes: () => request<string[]>('/ai/provider-types'),
