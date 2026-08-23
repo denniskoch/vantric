@@ -295,7 +295,9 @@ function WhatToDo({
             >
               <SeverityMark severity={band.severity} color={band.color} />
               <Typography sx={{ fontSize: 14, color: band.color }}>
-                {band.label} severity
+                {/* "Not scored" is already a whole phrase; the others
+                    are adjectives that need the noun. */}
+                {band.severity === 'UNSCORED' ? band.label : `${band.label} severity`}
               </Typography>
             </Box>
             {list.map((a) => (
