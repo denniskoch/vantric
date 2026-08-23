@@ -27,6 +27,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
 import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import DeleteIcon from '@mui/icons-material/Delete'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import EditIcon from '@mui/icons-material/Edit'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { api } from '../api/client'
@@ -960,98 +961,19 @@ export default function InstanceDetailPage() {
 
         {tab === 'backups' && (
           <>
-            {backupsLoading && (
-              <Typography color="text.secondary">Loading backups…</Typography>
-            )}
-            {backups?.error && (
-              <Alert severity="warning" sx={{ mb: 2 }}>
-                {backups.error}
-              </Alert>
-            )}
-            {backups && !backups.supported && (
-              <Alert severity="info" sx={{ mb: 2 }}>
-                This hypervisor keeps no backup catalog.
-              </Alert>
-            )}
-            {/* Never backed up is a finding about the guest, not an
-                empty table — the hypervisor's job either covers this
-                one or it doesn't. */}
-            {backups?.supported && !backups.error && backups.backups.length === 0 && (
-              <Alert severity="warning" sx={{ mb: 2 }}>
-                No backups exist for this instance.
-              </Alert>
-            )}
-            {backups && backups.stale && (
-              <Alert severity="warning" sx={{ mb: 2 }}>
-                The newest backup is more than {backups.staleAfterDays} days old.
-              </Alert>
-            )}
-            {backups && backups.backups.length > 0 && (
-              <DetailSection
-                title={`${backups.backups.length} backup${
-                  backups.backups.length === 1 ? '' : 's'
-                }`}
-              >
-                <TableContainer component={Paper} variant="outlined">
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Created</TableCell>
-                        <TableCell>Datastore</TableCell>
-                        <TableCell align="right">Size</TableCell>
-                        <TableCell>Format</TableCell>
-                        <TableCell>Archive</TableCell>
-                        <TableCell align="right" />
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {backups.backups.map((backup) => (
-                        <TableRow key={backup.id} hover>
-                          <TableCell>
-                            {backup.createdAt
-                              ? new Date(backup.createdAt * 1000).toLocaleString()
-                              : '—'}
-                          </TableCell>
-                          <TableCell>{backup.storage}</TableCell>
-                          <TableCell align="right">
-                            {formatBytes(backup.sizeBytes)}
-                          </TableCell>
-                          <TableCell sx={{ color: 'text.secondary' }}>
-                            {backup.format || '—'}
-                          </TableCell>
-                          <TableCell
-                            sx={{ fontFamily: 'monospace', fontSize: 11, color: 'text.secondary' }}
-                          >
-                            {backup.name}
-                          </TableCell>
-                          <TableCell align="right">
-                            {canEdit && (
-                              <Tooltip
-                                title={
-                                  backup.protected
-                                    ? 'Protected on the hypervisor'
-                                    : 'Delete this restore point'
-                                }
-                              >
-                                <span>
-                                  <IconButton
-                                    size="small"
-                                    disabled={backup.protected}
-                                    onClick={() => setDeletingBackup(backup)}
-                                  >
-                                    <DeleteIcon fontSize="small" />
-                                  </IconButton>
-                                </span>
-                              </Tooltip>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </DetailSection>
-            )}
+            {/* SNAPSHOTS FIRST: they are the restore point you took on
+                purpose, minutes ago, before doing something. A backup is
+                the one that happened overnight without you. When you
+                open this tab in a hurry it is almost always the first
+                one you want.
+
+                NO BANNERS. Both tables keep their headers and say what
+                they are missing in a row of their own — a banner above
+                an absent table makes you work out which table it was
+                about, and two of them stack into a wall. The warning
+                icon sits on the backups row alone: a guest with no
+                snapshots is ordinary, a guest with no backups is a
+                finding. */}
             <DetailSection
               title="Snapshots"
               action={
@@ -1110,11 +1032,101 @@ export default function InstanceDetailPage() {
                       </TableRow>
                     ))}
                     {snapshots.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                          No snapshots.
+                      <EmptyRow columns={5}>No snapshots for this instance</EmptyRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </DetailSection>
+
+            <DetailSection
+              title="Backups"
+              action={
+                // The staleness lives beside the count rather than in a
+                // banner of its own: it is a fact about the rows below,
+                // and it belongs where you are already looking.
+                backups?.stale ? (
+                  <Typography sx={{ fontSize: 12, color: '#b06000' }}>
+                    Newest is over {backups.staleAfterDays} days old
+                  </Typography>
+                ) : undefined
+              }
+            >
+              {backups?.error && (
+                <Alert severity="error" sx={{ mb: 1 }}>
+                  {backups.error}
+                </Alert>
+              )}
+              <TableContainer component={Paper} variant="outlined">
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Created</TableCell>
+                      <TableCell>Datastore</TableCell>
+                      <TableCell align="right">Size</TableCell>
+                      <TableCell>Format</TableCell>
+                      <TableCell>Archive</TableCell>
+                      <TableCell align="right" />
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {(backups?.backups ?? []).map((backup) => (
+                      <TableRow key={backup.id} hover>
+                        <TableCell>
+                          {backup.createdAt
+                            ? new Date(backup.createdAt * 1000).toLocaleString()
+                            : '—'}
+                        </TableCell>
+                        <TableCell>{backup.storage}</TableCell>
+                        <TableCell align="right">{formatBytes(backup.sizeBytes)}</TableCell>
+                        <TableCell sx={{ color: 'text.secondary' }}>
+                          {backup.format || '—'}
+                        </TableCell>
+                        <TableCell
+                          sx={{ fontFamily: 'monospace', fontSize: 11, color: 'text.secondary' }}
+                        >
+                          {backup.name}
+                        </TableCell>
+                        <TableCell align="right">
+                          {canEdit && (
+                            <Tooltip
+                              title={
+                                backup.protected
+                                  ? 'Protected on the hypervisor'
+                                  : 'Delete this restore point'
+                              }
+                            >
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  disabled={backup.protected}
+                                  onClick={() => setDeletingBackup(backup)}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          )}
                         </TableCell>
                       </TableRow>
+                    ))}
+                    {(backups?.backups ?? []).length === 0 && (
+                      <EmptyRow
+                        columns={6}
+                        // THREE DIFFERENT NOTHINGS, and only one is the
+                        // guest's problem. Still loading is not an
+                        // answer; a hypervisor with no backup catalog is
+                        // a fact about the backend; no backups where
+                        // there could be some is the finding, and the
+                        // only one that gets the icon.
+                        warn={Boolean(backups?.supported) && !backups?.error}
+                      >
+                        {backupsLoading
+                          ? 'Loading…'
+                          : backups && !backups.supported
+                            ? 'This hypervisor keeps no backup catalog'
+                            : 'No backups for this instance'}
+                      </EmptyRow>
                     )}
                   </TableBody>
                 </Table>
@@ -1122,7 +1134,6 @@ export default function InstanceDetailPage() {
             </DetailSection>
           </>
         )}
-
         {tab === 'os' && (
           <>
             {osLoading && <Typography color="text.secondary">Loading OS info…</Typography>}
@@ -1296,5 +1307,34 @@ export default function InstanceDetailPage() {
         onConfirm={() => deletingBackup && removeBackup.mutate(deletingBackup)}
       />
     </Box>
+  )
+}
+
+/**
+ * What a table says when it has nothing, said inside the table.
+ *
+ * The headers stay up either way — a table that vanishes when empty
+ * makes you wonder whether it failed to load, and a banner above the
+ * gap makes you work out which table it was talking about.
+ */
+function EmptyRow({
+  columns,
+  warn,
+  children,
+}: {
+  columns: number
+  /** An absence worth noticing, rather than an ordinary one. */
+  warn?: boolean
+  children: ReactNode
+}) {
+  return (
+    <TableRow>
+      <TableCell colSpan={columns} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+          {warn && <WarningAmberIcon sx={{ fontSize: 16, color: '#e37400' }} />}
+          {children}
+        </Box>
+      </TableCell>
+    </TableRow>
   )
 }

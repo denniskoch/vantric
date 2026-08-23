@@ -1327,9 +1327,22 @@ Surface the daily 90% here and link out for the rest.
   VM's tags. What a row fundamentally IS (hypervisor type, database
   engine, DNS provider) is primary information: plain cell text at the
   table's own size, via `BrandLabel`, never shrunk into a badge.
+- AN EMPTY TABLE KEEPS ITS HEADERS AND SAYS SO IN A ROW. A banner
+  above an absent table makes you work out which table it was about,
+  and two of them stack into a wall of yellow; a table that vanishes
+  entirely makes you wonder whether it failed to load. So the headers
+  stay up and the nothing is a row inside them — with a WARNING ICON
+  only where the absence is a finding. On a guest, no snapshots is
+  ordinary and no backups is not, so only the second one gets it. Three
+  different nothings hide under that empty backups table and only one
+  earns the icon: still loading is not an answer, a hypervisor with no
+  backup catalog is a fact about the backend, and no backups where
+  there could be some is the finding.
 - BACKUPS AND SNAPSHOTS SHARE A TAB ON A GUEST, because they are the
   same question asked twice: what can I restore this to, and how old is
-  the newest one. A tab each makes you hold one answer in your head
+  the newest one. SNAPSHOTS GO FIRST — the one you took on purpose
+  minutes ago, before doing something, ahead of the one that happened
+  overnight without you. A tab each makes you hold one answer in your head
   while you go and read the other. Snapshots lived under Details until
   this, which is why they were hard to find at all.
   THEY STAY SEPARATE PAGES in the left nav, for the reason VM instances
