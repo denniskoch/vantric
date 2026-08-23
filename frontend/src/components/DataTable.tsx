@@ -64,6 +64,19 @@ declare module '@tanstack/react-table' {
      */
     maxWidth?: number
     /**
+     * PIN the column to a width, so it is the same on every page.
+     *
+     * An auto-layout table sizes a column to the widest cell IT CAN
+     * SEE, which is the widest cell on the page you are looking at —
+     * so paging through a list of model names moves every column left
+     * and right under the cursor. `maxWidth` alone doesn't fix it: it
+     * stops a column growing, and the one that jumps is usually
+     * SHRINKING on the page where the longest name happens to be
+     * short. This sets both ends, so the content box is exactly this
+     * wide whatever is in it.
+     */
+    width?: number
+    /**
      * The text the filter should match for this column, when what is
      * rendered differs from what is sorted on. See searchableText.
      */
@@ -335,7 +348,8 @@ export default function DataTable<T>({
                     key={header.id}
                     align={alignOf(header.column.columnDef)}
                     sx={{
-                      width: header.column.columnDef.size,
+                      width: fixedWidthOf(header.column.columnDef) ?? header.column.columnDef.size,
+                      ...fixedStyle(header.column.columnDef),
                       whiteSpace: nowrapOf(header.column.columnDef),
                       ...hugStyle(header.column.columnDef),
                     }}
@@ -399,7 +413,18 @@ export default function DataTable<T>({
                     ...hugStyle(cell.column.columnDef),
                   }}
                 >
-                  {maxWidthOf(cell.column.columnDef) ? (
+                  {fixedWidthOf(cell.column.columnDef) ? (
+                    <Box
+                      sx={{
+                        width: fixedWidthOf(cell.column.columnDef),
+                        minWidth: fixedWidthOf(cell.column.columnDef),
+                        maxWidth: fixedWidthOf(cell.column.columnDef),
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </Box>
+                  ) : maxWidthOf(cell.column.columnDef) ? (
                     <Box sx={{ maxWidth: maxWidthOf(cell.column.columnDef), overflow: 'hidden' }}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </Box>
@@ -499,6 +524,23 @@ function hugStyle(def: { meta?: { hug?: boolean } }) {
  */
 function maxWidthOf(def: { meta?: { maxWidth?: number } }) {
   return def.meta?.maxWidth
+}
+
+function fixedWidthOf(def: { meta?: { width?: number } }) {
+  return def.meta?.width
+}
+
+/**
+ * The header's half of a pinned column.
+ *
+ * The body cell gets a block of exactly this width, which fixes what
+ * the auto-layout algorithm sees as the column's content. The header
+ * still has to agree, or a long header word becomes the widest thing in
+ * the column and sets the width itself.
+ */
+function fixedStyle(def: { meta?: { width?: number } }) {
+  const width = def.meta?.width
+  return width ? { minWidth: width, maxWidth: width } : undefined
 }
 
 function Pagination<T>({

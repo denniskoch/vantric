@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
@@ -233,12 +233,12 @@ export default function AIVirtualKeysPage() {
 
       <Alert severity="info" sx={{ mb: 2 }}>
         Cost is estimated from{' '}
-        <Link href="https://getbifrost.ai/datasheet" target="_blank" rel="noreferrer">
-          the gateway's price registry
+        <Link component={RouterLink} to="/ai/model-prices">
+          the prices your gateway charges against
         </Link>
-        , which is built for estimation rather than billing. A router picks an upstream
-        per request, so what you were charged can be higher or lower — read this as which
-        caller is expensive, not as a bill.
+        . A router picks an upstream per request, so
+        what you were charged can be higher or lower — read this as which caller is
+        expensive, not as a bill.
       </Alert>
 
       {error && (

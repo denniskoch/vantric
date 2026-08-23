@@ -1244,6 +1244,17 @@ Surface the daily 90% here and link out for the rest.
   VM's tags. What a row fundamentally IS (hypervisor type, database
   engine, DNS provider) is primary information: plain cell text at the
   table's own size, via `BrandLabel`, never shrunk into a badge.
+- A COLUMN THAT RESIZES AS YOU PAGE IS A COLUMN THAT MOVED. An
+  auto-layout table sizes each column to the widest cell IT CAN SEE,
+  which is the widest cell on the page you are looking at — so paging
+  a list of model names slides every column left and right under the
+  cursor. `meta.maxWidth` does NOT fix it: that stops a column growing,
+  and the one that jumps is usually SHRINKING on the page where the
+  longest value happens to be short. `meta.width` pins both ends, on
+  the header cell AND on a block inside each body cell, because a long
+  header word will otherwise become the widest thing in the column and
+  set the width itself. Pin the text columns; the numeric ones are
+  stable on their own.
 - ROWS ARE 28px AND THAT IS THE HOUSE STYLE — a floor, set as
   `height` on the small table cell, which a table treats as a minimum.
   It's set rather than shrinking controls further, because a row

@@ -108,13 +108,27 @@ export default function AIModelPricesPage() {
       {
         id: 'name',
         header: 'Model',
-        meta: { nowrap: true },
+        // PINNED, because model names run from "gpt-4" to
+        // "anthropic/claude-opus-4-1-20250805:thinking" and an
+        // auto-layout table sizes this column to whichever page you are
+        // looking at — so every other column slides sideways as you
+        // page. The chip keeps its space; the name is what truncates.
+        meta: { width: 340 },
         accessorFn: (m) => m.name,
         cell: ({ row }) => (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {row.original.name}
+            <Box
+              component="span"
+              sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            >
+              {row.original.name}
+            </Box>
             {row.original.deprecated && (
-              <Chip label="deprecated" size="small" sx={{ fontSize: 10, height: 18 }} />
+              <Chip
+                label="deprecated"
+                size="small"
+                sx={{ fontSize: 10, height: 18, flexShrink: 0 }}
+              />
             )}
           </Box>
         ),
@@ -122,7 +136,9 @@ export default function AIModelPricesPage() {
       {
         id: 'provider',
         header: 'Provider',
-        meta: { nowrap: true },
+        // Pinned for the same reason, one column over: "huggingface"
+        // and "xai" are the two ends of it.
+        meta: { width: 130 },
         accessorFn: (m) => m.provider,
         cell: ({ row }) => <ProviderName name={row.original.provider} />,
       },
