@@ -14,6 +14,10 @@
 backend/installers/
 data/installers/
 
+# Uploaded shortcut icons — same story, one directory over.
+backend/shortcut-icons/
+data/shortcut-icons/
+
 # Go
 backend/server
 
