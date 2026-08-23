@@ -728,6 +728,11 @@ Surface the daily 90% here and link out for the rest.
   then the lab. Neither of those two carries a star — pinning something
   already at the top would pin a thing you can't unpin — and both are
   kept out of the list below, so the menu never names either twice.
+  A LOGO ARRIVES WITH ITS OWN MARGIN, so the tile's padding was being
+  paid twice — a wordmark is mostly whitespace at its edges. The mark
+  gets that space back rather than the border, and the MONOGRAM
+  fallback is inset to match: a tint block filling the whole slot reads
+  as the biggest thing in the grid beside logos that don't.
   A TILE IS AN ICON AND A NAME, in a rectangle the size of a button.
   It carried a description and the link's host underneath, which is two
   lines of furniture on something you recognise by its logo; the

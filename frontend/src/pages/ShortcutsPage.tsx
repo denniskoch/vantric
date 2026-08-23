@@ -117,7 +117,7 @@ export default function ShortcutsPage() {
           onDragOver={(e) => e.preventDefault()}
           sx={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
             gap: 2,
           }}
         >
@@ -213,9 +213,9 @@ function Tile({
       sx={{
         display: 'flex',
         alignItems: 'center',
-        gap: 1.5,
-        height: 56,
-        px: 1.5,
+        gap: 1.25,
+        height: 64,
+        px: 1,
         textDecoration: 'none',
         color: 'inherit',
         cursor: 'pointer',
@@ -287,7 +287,10 @@ function Tile({
  * rather than a choice anybody has to make.
  */
 function Icon({ item }: { item: Shortcut }) {
-  const size = 32
+  // A LOGO ARRIVES WITH ITS OWN MARGIN. A wordmark PNG is mostly
+  // whitespace at the edges, so the tile's padding was being paid
+  // twice — the mark gets the space back rather than the border.
+  const size = 44
   if (item.icon) {
     return (
       <Box
@@ -304,14 +307,18 @@ function Icon({ item }: { item: Shortcut }) {
   return (
     <Box
       sx={{
-        width: size,
-        height: size,
+        // Optically matched to a logo rather than measured to one: an
+        // uploaded mark carries its own margin, so a tint block filling
+        // the whole slot reads as the biggest thing in the grid.
+        width: size - 8,
+        height: size - 8,
+        mx: '4px',
         borderRadius: '4px',
         flexShrink: 0,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: 15,
+        fontSize: 19,
         fontWeight: 500,
         bgcolor: `hsl(${hue} 42% 91%)`,
         color: `hsl(${hue} 38% 32%)`,
