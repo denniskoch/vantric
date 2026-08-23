@@ -910,6 +910,17 @@ Surface the daily 90% here and link out for the rest.
   monitoring is the expected state), and the Zabbix server registers
   ITSELF at 127.0.0.1, so its own VM always reads unmonitored — a
   quirk worth knowing before chasing it.
+  SEVERITY WEARS ZABBIX'S OWN COLOURS, which is the same decision as
+  carrying its words: somebody who knows what Average looks like there
+  should not have to read the label here. It is the one place this
+  console leaves its own palette, so the six values are written down
+  rather than approximated from the theme, and they tint a label at the
+  house radius with no border — the chip rule, not a pill and not a
+  filled cell. Keyed on the WORD, never the rank: rank is only "higher
+  is worse" and says nothing about how many steps a service uses, so a
+  provider with four levels would land on the wrong colour. An
+  unrecognised word gets no tint, the way a vendor with no logo gets no
+  mark.
   THE FRONT DOOR GETS ONE LINE — "zabbix reports N problems at High or
   worse", unsuppressed only — never the individual problems: the
   overview derives findings from what the console itself observes, and

@@ -136,6 +136,7 @@ export default function MonitoringProblemsPage() {
             rows={shown}
             columns={columns}
             getRowId={(p) => p.id}
+            alignTop
             initialSort={[{ id: 'severity', desc: true }]}
             filterPlaceholder="Filter by problem or host"
             empty={
@@ -148,16 +149,53 @@ export default function MonitoringProblemsPage() {
   )
 }
 
-/** Zabbix's word, weighted like the CVE bands: colour only where it
- *  demands attention, so the colours stay information. */
+/**
+ * Zabbix's word on Zabbix's colour.
+ *
+ * THE PALETTE IS THEIRS, and carrying it is the same decision as
+ * carrying the vocabulary: somebody who knows what Average looks like
+ * in Zabbix should not have to read the word here. It is a deliberate
+ * exception to this console's own palette, which is why the values are
+ * written down rather than approximated from the theme.
+ *
+ * Keyed on the WORD, not the rank. Rank is "higher is worse" and says
+ * nothing about how many steps a service uses — a provider with four
+ * levels would land on the wrong colour. An unrecognised word gets no
+ * tint at all, the same answer the provider marks give a vendor with no
+ * logo.
+ */
+const zabbixSeverity: Record<string, string> = {
+  Disaster: '#e45959',
+  High: '#e97659',
+  Average: '#ffa059',
+  Warning: '#ffc859',
+  Information: '#7499ff',
+  'Not classified': '#97aab3',
+}
+
 function Severity({ problem }: { problem: MonitoringProblem }) {
-  const color =
-    problem.rank >= 4 ? '#d93025' : problem.rank === 3 ? '#e37400' : 'text.primary'
+  const tint = zabbixSeverity[problem.severity]
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <Typography component="span" sx={{ fontSize: 13, color, whiteSpace: 'nowrap' }}>
+      <Box
+        component="span"
+        sx={{
+          fontSize: 13,
+          px: 0.75,
+          py: 0.25,
+          // Cells are top-aligned, so the tint's own padding would push
+          // this word two pixels below the problem text beside it.
+          mt: '-2px',
+          // The house radius, and no border — a tint is a label, not a
+          // pill.
+          borderRadius: '4px',
+          whiteSpace: 'nowrap',
+          bgcolor: tint,
+          color: tint ? '#202124' : 'text.primary',
+        }}
+      >
         {problem.severity}
-      </Typography>
+      </Box>
       {problem.suppressed && (
         <Chip label="suppressed" size="small" sx={{ fontSize: 10, height: 18 }} />
       )}
