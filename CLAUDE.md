@@ -716,6 +716,33 @@ Surface the daily 90% here and link out for the rest.
   CISA's `vulnerabilityName` is shown where it exists, because "Apache
   Log4j2 Remote Code Execution Vulnerability" says more in six words
   than any description does in sixty.
+- SHORTCUTS ARE WHERE THE PANE OF GLASS ADMITS ITS EDGES. Every other
+  section is a view onto a tool's API; this one is a grid of links to
+  the things there is no API to view — a NAS's own UI, a SaaS account
+  with no integration yet, the vendor portal you need twice a year.
+  Without somewhere to put them they live in a bookmarks bar this
+  console can't see. It sits SECOND, after the overview: what's wrong,
+  then where you were going.
+  PERSONAL, and self-service for that reason — a viewer arranges their
+  own tiles as freely as an owner does, the RBAC middleware exempts the
+  whole subtree, and EVERY store call takes the account as well as the
+  id, so somebody else's shortcut is indistinguishable from one that
+  doesn't exist. That is the entire access model, which is why there is
+  deliberately no lookup by id alone.
+  THE ICON IS A FILE beside the database, named after the shortcut's own
+  id — the same reasons the installers are files, plus one: nothing is
+  fetched from the site a tile points at. Reading a favicon would mean
+  this console making requests to wherever a user typed, which is a
+  different thing from the backends it is configured to talk to, so a
+  tile with no icon draws a monogram tinted by a hash of its name. The
+  URL scheme is an ALLOWLIST (http, https, and the desktop handlers this
+  app already emits) because the value ends up in an href and
+  `javascript:` is a link as far as the browser is concerned. An SVG is
+  served under `default-src 'none'; sandbox`, since it is a document
+  that could carry script and its URL is a URL somebody can open.
+  REORDERING WRITES THE WHOLE ARRANGEMENT in one transaction: dragging
+  one tile changes the index of every tile it passed, so a partial write
+  is how two rows end up claiming the same slot.
 - INSTALLERS ARE THE ONE THING THIS CONSOLE OWNS. Everywhere else it
   is a view onto somebody else's source of truth; agent packages are
   files it holds, because Fleet builds installers without hosting them

@@ -102,6 +102,9 @@ var selfService = []string{
 	"/api/v1/auth/password",
 	"/api/v1/ssh-key",
 	"/api/v1/favorites",
+	// Somebody's own tiles. A prefix rather than an exact path, so the
+	// icon and the ordering come with it.
+	"/api/v1/shortcuts",
 }
 
 // guestAccess are the GETs THAT ARE NOT READS, and they are the reason

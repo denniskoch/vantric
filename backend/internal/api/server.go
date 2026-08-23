@@ -273,6 +273,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		r.Put("/ssh-key", s.importMySSHKey)
 		r.Get("/favorites", s.myFavorites)
 		r.Put("/favorites", s.setMyFavorites)
+		s.shortcutRoutes(r)
 		r.Get("/hypervisor-types", s.listHypervisorTypes)
 		r.Get("/hypervisors", s.listHypervisors)
 		r.Post("/hypervisors", s.createHypervisor)

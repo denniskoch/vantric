@@ -42,6 +42,34 @@ export function urlError(value: string): string | null {
 }
 
 /**
+ * A shortcut's link. Looser than urlError above, because this is a
+ * bookmark rather than an API endpoint: a bare host is what people
+ * type, and the backend fills in https for it.
+ *
+ * The scheme list mirrors shortcutSchemes in the API, which refuses
+ * anything else whatever this says — an allowlist rather than a
+ * blocklist, since the value ends up in an href and `javascript:` is a
+ * link as far as the browser is concerned.
+ */
+const shortcutSchemes = ['http', 'https', 'rdp', 'vnc', 'ssh', 'sftp', 'smb']
+
+export function shortcutLinkError(value: string): string | null {
+  const link = value.trim()
+  if (!link) return null
+  const match = /^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//.exec(link)
+  if (!match) {
+    // No scheme: it becomes https://, so it only has to look like a host.
+    return /^[a-zA-Z0-9]/.test(link) && !/\s/.test(link)
+      ? null
+      : 'That doesn\u2019t look like a link'
+  }
+  if (!shortcutSchemes.includes(match[1].toLowerCase())) {
+    return 'Links can be ' + shortcutSchemes.join(', ')
+  }
+  return link.length > match[0].length ? null : 'That link has no address after the scheme'
+}
+
+/**
  * The name part of a DNS record, relative to its zone: blank or "@"
  * for the apex, otherwise labels like "www" or "api.dev". Underscores
  * are allowed because names like _dmarc are ordinary.

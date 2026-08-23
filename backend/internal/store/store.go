@@ -298,6 +298,21 @@ var migrations = []string{
 		created_at TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	)`,
+	// Somebody's own tiles, for the systems this console doesn't reach.
+	// Per account, and every query is scoped by user_id — see
+	// shortcuts.go.
+	`CREATE TABLE IF NOT EXISTS user_shortcuts (
+		id TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL REFERENCES iam_users(id),
+		name TEXT NOT NULL,
+		url TEXT NOT NULL,
+		description TEXT NOT NULL DEFAULT '',
+		icon TEXT NOT NULL DEFAULT '',
+		position INTEGER NOT NULL DEFAULT 0,
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_user_shortcuts_user ON user_shortcuts(user_id, position)`,
 	// Sessions live server-side so signing out, or disabling an account,
 	// takes effect immediately — which a self-contained token can't do.
 	`CREATE TABLE IF NOT EXISTS iam_sessions (

@@ -26,6 +26,7 @@ import PersonIcon from '@mui/icons-material/Person'
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
 import GroupIcon from '@mui/icons-material/Group'
 import AppsIcon from '@mui/icons-material/Apps'
+import GridViewIcon from '@mui/icons-material/GridView'
 import DevicesIcon from '@mui/icons-material/Devices'
 import ShieldIcon from '@mui/icons-material/Shield'
 import HubIcon from '@mui/icons-material/Hub'
@@ -114,7 +115,26 @@ export const sections: Section[] = [
     groups: [],
   },
   {
-    // Second, above Compute: the overview answers "is anything broken",
+    // Second, and personal: after "what's wrong" comes "where was I
+    // going", before any of the sections that describe the lab.
+    //
+    // It is the one section that isn't a view onto another tool's API,
+    // because it is the view onto the gaps between them — a NAS's own
+    // UI, a SaaS account with no integration here yet. No left nav: one
+    // page, and Shell gives a section with no items the full window.
+    id: 'shortcuts',
+    label: 'Shortcuts',
+    icon: GridViewIcon,
+    prefix: '/shortcuts',
+    home: '/shortcuts',
+    // No landing page renders this, and the page itself needs no
+    // caption: a grid of labelled tiles says what it is.
+    description: '',
+    items: [],
+    groups: [],
+  },
+  {
+    // Third, above Compute: the overview answers "is anything broken",
     // this is where "is anything exposed" will go.
     //
     // Google's name, kept deliberately — every other section here is

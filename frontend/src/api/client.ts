@@ -571,6 +571,24 @@ export interface SecurityOverview {
   error?: string
 }
 
+export interface Shortcut {
+  id: string
+  name: string
+  url: string
+  description: string
+  /** basename of the uploaded icon, or '' for the monogram tile */
+  icon: string
+  position: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ShortcutInput {
+  name: string
+  url: string
+  description: string
+}
+
 export interface Installer {
   name: string
   size: number
@@ -1982,6 +2000,24 @@ export const api = {
   /** What the inventory service knows about this guest's insides. */
   instanceInventory: (name: string) =>
     request<InstanceInventory>(`/instances/${name}/inventory`),
+
+  listShortcuts: () => request<Shortcut[]>('/shortcuts'),
+  createShortcut: (body: ShortcutInput) =>
+    request<Shortcut>('/shortcuts', { method: 'POST', body: JSON.stringify(body) }),
+  updateShortcut: (id: string, body: ShortcutInput) =>
+    request<Shortcut>(`/shortcuts/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteShortcut: (id: string) => request<void>(`/shortcuts/${id}`, { method: 'DELETE' }),
+  /** The whole arrangement at once — see SetShortcutOrder. */
+  reorderShortcuts: (ids: string[]) =>
+    request<void>('/shortcuts/order', { method: 'PUT', body: JSON.stringify(ids) }),
+  uploadShortcutIcon: (id: string, file: File) =>
+    request<Shortcut>(`/shortcuts/${id}/icon?filename=${encodeURIComponent(file.name)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: file,
+    }),
+  deleteShortcutIcon: (id: string) =>
+    request<void>(`/shortcuts/${id}/icon`, { method: 'DELETE' }),
 
   listInstallers: () => request<Installers>('/installers'),
   /** Streams the file with progress; the bytes leave this machine. */

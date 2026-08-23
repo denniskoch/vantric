@@ -20,6 +20,8 @@ import BuildTemplatePage from './pages/BuildTemplatePage'
 import CTTemplatesPage from './pages/CTTemplatesPage'
 import OverviewPage from './pages/OverviewPage'
 import CloudOverviewPage from './pages/CloudOverviewPage'
+import ShortcutsPage from './pages/ShortcutsPage'
+import ShortcutFormPage from './pages/ShortcutFormPage'
 import SecurityOverviewPage from './pages/SecurityOverviewPage'
 import SecurityHostAssessmentPage from './pages/SecurityHostAssessmentPage'
 import NotFoundPage from './pages/NotFoundPage'
@@ -133,6 +135,9 @@ export default function App() {
         {/* The console opens on the overview, not on a resource list. */}
         <Route path="/" element={<Navigate to="/overview" replace />} />
         <Route path="/overview" element={<CloudOverviewPage />} />
+        <Route path="/shortcuts" element={<ShortcutsPage />} />
+        <Route path="/shortcuts/new" element={<ShortcutFormPage />} />
+        <Route path="/shortcuts/:id/edit" element={<ShortcutFormPage />} />
         <Route path="/security/overview" element={<SecurityOverviewPage />} />
         <Route path="/compute/overview" element={<OverviewPage />} />
         <Route path="/devices/overview" element={<SectionLandingPage />} />
