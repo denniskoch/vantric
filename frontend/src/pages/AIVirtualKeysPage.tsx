@@ -1,6 +1,23 @@
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Alert, Box, Chip, Link, Typography } from '@mui/material'
+import { useNavigate } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  IconButton,
+  Link,
+  Menu,
+  MenuItem,
+  Typography,
+} from '@mui/material'
+import AddIcon from '@mui/icons-material/Add'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
+import EditIcon from '@mui/icons-material/Edit'
+import DeleteIcon from '@mui/icons-material/Delete'
+import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
+import { usePermissions } from '../user'
 import type { ColumnDef } from '@tanstack/react-table'
 import DataTable from '../components/DataTable'
 import PageHeader from '../components/PageHeader'
@@ -29,6 +46,29 @@ export default function AIVirtualKeysPage() {
   // is expensive, which has never been used — are about the whole life
   // of a credential, not about this week.
   const [range, setRange] = useState<TimeRange>(ANY_TIME)
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { canEdit } = usePermissions()
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
+  const [selected, setSelected] = useState<AIVirtualKey | null>(null)
+  const [deleting, setDeleting] = useState<AIVirtualKey | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  // What the gateway lets this console change. A driver that only
+  // reads renders no buttons rather than buttons that fail.
+  const { data: can } = useQuery({ queryKey: ['aiCapabilities'], queryFn: api.aiCapabilities })
+
+  const remove = useMutation({
+    mutationFn: (id: string) => api.deleteAIVirtualKey(id),
+    onSuccess: () => {
+      setDeleting(null)
+      queryClient.invalidateQueries({ queryKey: ['aiVirtualKeys'] })
+    },
+    onError: (e: Error) => {
+      setDeleting(null)
+      setActionError(e.message)
+    },
+  })
   const { data: keys = [], isLoading, error } = useQuery({
     queryKey: ['aiVirtualKeys', range.since, range.until],
     queryFn: () => api.listAIVirtualKeys({ since: range.since, until: range.until }),
@@ -149,6 +189,24 @@ export default function AIVirtualKeysPage() {
             </CellLines>
           ),
       },
+      {
+        id: 'actions',
+        header: '',
+        enableSorting: false,
+        meta: { hug: true },
+        cell: ({ row }) => (
+          <IconButton
+            size="small"
+            aria-label={`Actions for ${row.original.name}`}
+            onClick={(e) => {
+              setMenuAnchor(e.currentTarget)
+              setSelected(row.original)
+            }}
+          >
+            <MoreVertIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        ),
+      },
     ],
     [],
   )
@@ -158,6 +216,19 @@ export default function AIVirtualKeysPage() {
       <PageHeader
         title="Virtual keys"
         description="The credentials your gateway issues to callers, what each may reach, and what each has actually done."
+        actions={
+          can?.virtualKeys &&
+          canEdit && (
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={() => navigate('/ai/virtual-keys/new')}
+            >
+              Create
+            </Button>
+          )
+        }
       />
 
       <Alert severity="info" sx={{ mb: 2 }}>
@@ -176,6 +247,12 @@ export default function AIVirtualKeysPage() {
         </Alert>
       )}
 
+      {actionError && (
+        <Alert severity="error" onClose={() => setActionError(null)} sx={{ mb: 2 }}>
+          {actionError}
+        </Alert>
+      )}
+
       <Box sx={{ display: 'flex', mb: 2 }}>
         <TimeRangePicker value={range} onChange={setRange} />
       </Box>
@@ -188,6 +265,38 @@ export default function AIVirtualKeysPage() {
         initialSort={[{ id: 'requests', desc: true }]}
         filterPlaceholder="Filter by name or provider"
         empty={isLoading ? 'Loading…' : 'The gateway has issued no virtual keys.'}
+      />
+
+      <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
+        <MenuItem
+          disabled={!can?.virtualKeys || !canEdit}
+          onClick={() => {
+            if (selected) navigate(`/ai/virtual-keys/${selected.id}/edit`)
+            setMenuAnchor(null)
+          }}
+        >
+          <EditIcon fontSize="small" sx={{ mr: 1 }} /> Edit
+        </MenuItem>
+        <MenuItem
+          disabled={!can?.virtualKeys || !canEdit}
+          onClick={() => {
+            setDeleting(selected)
+            setMenuAnchor(null)
+          }}
+          sx={{ color: 'error.main' }}
+        >
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Revoke
+        </MenuItem>
+      </Menu>
+
+      <ConfirmDeleteDialog
+        open={Boolean(deleting)}
+        title={`Revoke ${deleting?.name}?`}
+        confirmPhrase={deleting?.name}
+        body="Anything still signing with this key stops working immediately."
+        pending={remove.isPending}
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => deleting && remove.mutate(deleting.id)}
       />
     </Box>
   )

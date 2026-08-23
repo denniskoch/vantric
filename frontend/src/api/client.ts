@@ -936,6 +936,53 @@ export interface AIModelUsage {
 /** A model provider as the GATEWAY has it configured — a different
  *  thing from the account at that provider, which is what AIAccount
  *  is. This says what the gateway can reach; that says what's left. */
+/** Which resources this console can change on the connected gateway.
+ *  A driver opts in per resource, so a false is an absent button. */
+export interface AICapabilities {
+  virtualKeys: boolean
+  limits: boolean
+  providers: boolean
+}
+
+export interface AIVirtualKeyInput {
+  name: string
+  description: string
+  active: boolean
+  access: { provider: string; models: string[] }[]
+}
+
+/** A key the gateway has just minted. THE ONE MOMENT THE SECRET
+ *  TRAVELS — it is never carried on any other response, and the page
+ *  that shows it says so. */
+export interface AIIssuedVirtualKey {
+  key: AIVirtualKey
+  secret: string
+}
+
+export interface AILimitInput {
+  scope: string
+  scopeId: string
+  model: string
+  provider: string
+  budget: { max: number; period: string } | null
+  rateLimit: {
+    maxRequests?: number | null
+    requestPeriod?: string
+    maxTokens?: number | null
+    tokenPeriod?: string
+  } | null
+}
+
+export interface AIGatewayKeyInput {
+  /** Blank on edit means keep: the stored one is never readable, so an
+   *  empty field is all an unchanged form can send. */
+  value: string
+  /** What the self-hosted providers take instead of a secret. */
+  url: string
+  models: string[]
+  enabled: boolean
+}
+
 export interface AIGatewayProvider {
   name: string
   /** The gateway's own word, passed through rather than mapped. */
@@ -2108,6 +2155,46 @@ export const api = {
   listAIVirtualKeys: (query: AIRequestQuery = {}) =>
     request<AIVirtualKey[]>(`/ai/virtual-keys?${aiQuery(query)}`),
   listAILimits: () => request<AILimit[]>('/ai/limits'),
+
+  // Changing what the gateway is configured to do. Capabilities is
+  // asked first: the backend says which of these the driver implements,
+  // and the UI offers exactly those — see aiwrite.go.
+  aiCapabilities: () => request<AICapabilities>('/ai/capabilities'),
+  aiProviderTypes: () => request<string[]>('/ai/provider-types'),
+  createAIVirtualKey: (body: AIVirtualKeyInput) =>
+    request<AIIssuedVirtualKey>('/ai/virtual-keys', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateAIVirtualKey: (id: string, body: AIVirtualKeyInput) =>
+    request<void>(`/ai/virtual-keys/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteAIVirtualKey: (id: string) =>
+    request<void>(`/ai/virtual-keys/${id}`, { method: 'DELETE' }),
+  createAILimit: (body: AILimitInput) =>
+    request<AILimit>('/ai/limits', { method: 'POST', body: JSON.stringify(body) }),
+  updateAILimit: (id: string, body: AILimitInput) =>
+    request<void>(`/ai/limits/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteAILimit: (id: string) => request<void>(`/ai/limits/${id}`, { method: 'DELETE' }),
+  resetAILimitUsage: (id: string) =>
+    request<void>(`/ai/limits/${id}/reset`, { method: 'POST' }),
+  createAIGatewayProvider: (body: { name: string; key: AIGatewayKeyInput }) =>
+    request<void>('/ai/providers', { method: 'POST', body: JSON.stringify(body) }),
+  deleteAIGatewayProvider: (name: string) =>
+    request<void>(`/ai/providers/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  addAIGatewayKey: (provider: string, body: AIGatewayKeyInput) =>
+    request<void>(`/ai/providers/${encodeURIComponent(provider)}/keys`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateAIGatewayKey: (provider: string, keyId: string, body: AIGatewayKeyInput) =>
+    request<void>(`/ai/providers/${encodeURIComponent(provider)}/keys/${keyId}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  deleteAIGatewayKey: (provider: string, keyId: string) =>
+    request<void>(`/ai/providers/${encodeURIComponent(provider)}/keys/${keyId}`, {
+      method: 'DELETE',
+    }),
   getAITraffic: (query: AIRequestQuery) => request<AITraffic>(`/ai/traffic?${aiQuery(query)}`),
   getAIRankings: (query: AIRequestQuery) =>
     request<AIModelUsage[]>(`/ai/rankings?${aiQuery(query)}`),

@@ -1,14 +1,22 @@
-import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Alert, Box, Chip, Typography } from '@mui/material'
-import CellLines from '../components/CellLines'
-import EnabledIcon from '../components/EnabledIcon'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Alert, Box, Button, Chip, IconButton, Menu, MenuItem, Typography } from '@mui/material'
 import type { ColumnDef } from '@tanstack/react-table'
+import AddIcon from '@mui/icons-material/Add'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
+import EditIcon from '@mui/icons-material/Edit'
+import DeleteIcon from '@mui/icons-material/Delete'
+import VpnKeyIcon from '@mui/icons-material/VpnKey'
 import DataTable from '../components/DataTable'
 import PageHeader from '../components/PageHeader'
 import ProviderName from '../components/ProviderName'
+import CellLines from '../components/CellLines'
+import EnabledIcon from '../components/EnabledIcon'
+import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
+import { usePermissions } from '../user'
 import { api } from '../api/client'
-import type { AIGatewayProvider } from '../api/client'
+import type { AIGatewayKey, AIGatewayProvider } from '../api/client'
 
 /**
  * What the gateway can reach, and with which credentials.
@@ -27,6 +35,49 @@ export default function AIProvidersPage() {
     queryFn: api.listAIGatewayProviders,
     refetchInterval: 5 * 60_000,
   })
+
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { canAdmin } = usePermissions()
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
+  const [selected, setSelected] = useState<AIGatewayProvider | null>(null)
+  const [dropping, setDropping] = useState<AIGatewayProvider | null>(null)
+  const [droppingKey, setDroppingKey] = useState<{ provider: string; key: AIGatewayKey } | null>(
+    null,
+  )
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  const { data: can } = useQuery({ queryKey: ['aiCapabilities'], queryFn: api.aiCapabilities })
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['aiGatewayProviders'] })
+
+  const disconnect = useMutation({
+    mutationFn: (name: string) => api.deleteAIGatewayProvider(name),
+    onSuccess: () => {
+      setDropping(null)
+      invalidate()
+    },
+    onError: (e: Error) => {
+      setDropping(null)
+      setActionError(e.message)
+    },
+  })
+  const removeKey = useMutation({
+    mutationFn: (t: { provider: string; keyId: string }) =>
+      api.deleteAIGatewayKey(t.provider, t.keyId),
+    onSuccess: () => {
+      setDroppingKey(null)
+      invalidate()
+    },
+    onError: (e: Error) => {
+      setDroppingKey(null)
+      setActionError(e.message)
+    },
+  })
+
+  // WRITING IS OWNER-ONLY HERE, unlike virtual keys and budgets: a
+  // provider carries a vendor API key, which is a standing grant of
+  // spend. The middleware enforces it; this only decides what to offer.
+  const mayEdit = Boolean(can?.providers) && canAdmin
 
   const columns = useMemo<ColumnDef<AIGatewayProvider, unknown>[]>(
     () => [
@@ -69,7 +120,29 @@ export default function AIProvidersPage() {
                     on="In use"
                     off="Disabled on the gateway"
                   />
-                  <span>{k.name}</span>
+                  <Box
+                    component={mayEdit ? 'button' : 'span'}
+                    onClick={
+                      mayEdit
+                        ? () => navigate(`/ai/providers/${row.original.name}/keys/${k.id}`)
+                        : undefined
+                    }
+                    sx={
+                      mayEdit
+                        ? {
+                            border: 0,
+                            background: 'none',
+                            p: 0,
+                            font: 'inherit',
+                            color: 'primary.main',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                          }
+                        : undefined
+                    }
+                  >
+                    {k.name}
+                  </Box>
                   {k.models.length > 0 && k.models[0] !== '*' && (
                     <Chip
                       label={`${k.models.length} model${k.models.length === 1 ? '' : 's'}`}
@@ -109,8 +182,26 @@ export default function AIProvidersPage() {
           </CellLines>
         ),
       },
+      {
+        id: 'actions',
+        header: '',
+        enableSorting: false,
+        meta: { hug: true },
+        cell: ({ row }) => (
+          <IconButton
+            size="small"
+            aria-label={`Actions for ${row.original.name}`}
+            onClick={(e) => {
+              setMenuAnchor(e.currentTarget)
+              setSelected(row.original)
+            }}
+          >
+            <MoreVertIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        ),
+      },
     ],
-    [],
+    [mayEdit, navigate],
   )
 
   return (
@@ -118,11 +209,29 @@ export default function AIProvidersPage() {
       <PageHeader
         title="Providers"
         description="The model providers your gateway is configured to reach, and the keys it holds for each."
+        actions={
+          mayEdit && (
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={() => navigate('/ai/providers/new')}
+            >
+              Connect
+            </Button>
+          )
+        }
       />
 
       {error && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           {(error as Error).message}
+        </Alert>
+      )}
+
+      {actionError && (
+        <Alert severity="error" onClose={() => setActionError(null)} sx={{ mb: 2 }}>
+          {actionError}
         </Alert>
       )}
 
@@ -134,6 +243,70 @@ export default function AIProvidersPage() {
         initialSort={[{ id: 'name', desc: false }]}
         filterPlaceholder="Filter by provider or key name"
         empty={isLoading ? 'Loading…' : 'The gateway has no providers configured.'}
+      />
+
+      <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
+        <MenuItem
+          disabled={!mayEdit}
+          onClick={() => {
+            if (selected) navigate(`/ai/providers/${selected.name}/keys/new`)
+            setMenuAnchor(null)
+          }}
+        >
+          <VpnKeyIcon fontSize="small" sx={{ mr: 1 }} /> Add key
+        </MenuItem>
+        {/* One key is the ordinary case, so editing it is one click
+            from here as well as from the name in the row. */}
+        <MenuItem
+          disabled={!mayEdit || selected?.keys.length !== 1}
+          onClick={() => {
+            if (selected) navigate(`/ai/providers/${selected.name}/keys/${selected.keys[0].id}`)
+            setMenuAnchor(null)
+          }}
+        >
+          <EditIcon fontSize="small" sx={{ mr: 1 }} /> Edit key
+        </MenuItem>
+        <MenuItem
+          disabled={!mayEdit || selected?.keys.length !== 1}
+          onClick={() => {
+            if (selected) setDroppingKey({ provider: selected.name, key: selected.keys[0] })
+            setMenuAnchor(null)
+          }}
+          sx={{ color: 'error.main' }}
+        >
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Remove key
+        </MenuItem>
+        <MenuItem
+          disabled={!mayEdit}
+          onClick={() => {
+            setDropping(selected)
+            setMenuAnchor(null)
+          }}
+          sx={{ color: 'error.main' }}
+        >
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Disconnect provider
+        </MenuItem>
+      </Menu>
+
+      <ConfirmDeleteDialog
+        open={Boolean(dropping)}
+        title={`Disconnect ${dropping?.name}?`}
+        confirmPhrase={dropping?.name}
+        body="The gateway loses this provider and the keys it holds for it. Anything routed here stops working."
+        pending={disconnect.isPending}
+        onCancel={() => setDropping(null)}
+        onConfirm={() => dropping && disconnect.mutate(dropping.name)}
+      />
+
+      <ConfirmDeleteDialog
+        open={Boolean(droppingKey)}
+        title={`Remove ${droppingKey?.key.name}?`}
+        body={`${droppingKey?.provider} loses this credential. The provider stays connected.`}
+        pending={removeKey.isPending}
+        onCancel={() => setDroppingKey(null)}
+        onConfirm={() =>
+          droppingKey && removeKey.mutate({ provider: droppingKey.provider, keyId: droppingKey.key.id })
+        }
       />
     </Box>
   )

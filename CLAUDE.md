@@ -831,9 +831,44 @@ Surface the daily 90% here and link out for the rest.
   factory maps type → implementation. It exists because a lab holding
   an OpenAI key, an Anthropic key and an Ollama box can ask each one
   what it served and get three answers sharing no vocabulary and no
-  clock; the gateway in front of them saw the lot. READ ONLY, like
-  Network — the daily 90% here, and adding a provider or rotating an
-  upstream key stays in the gateway's own console.
+  clock; the gateway in front of them saw the lot.
+  IT WRITES, AND THE READ-ONLY RULE THAT USED TO SIT HERE WAS WRONG.
+  This console is not an observability tool; unifying services means
+  changing them, and the thesis at the top already said so — "don't
+  reimplement" is about the SOURCE OF TRUTH, not about what may appear
+  on screen. A console you have to leave to issue a key is a console
+  you have left. Virtual keys, budgets and providers are create, edit
+  and delete here, and the line stays where every other section draws
+  it: the daily 90%, with a gateway's network timeouts, concurrency
+  pools and routing rules left in Bifrost.
+  WRITES ARE THREE OPTIONAL CAPABILITIES — VirtualKeyManager,
+  LimitManager, ProviderManager — by type assertion like BackupDriver,
+  one per resource so a driver can offer some and not others.
+  `/ai/capabilities` is what the UI asks before it renders a button, so
+  a missing capability is an ABSENT button rather than one that fails.
+  A NEW VIRTUAL KEY'S SECRET IS SHOWN ONCE and nowhere else. The rule
+  below still holds — the list endpoint's plaintext value is dropped —
+  but on create there is no other way to hand it to whoever asked, so
+  the create response carries it, the page says it is the only time,
+  and nothing stores it. The object store's access keys, again.
+  A PROVIDER HAS NO EDIT FORM, deliberately: Bifrost's provider record
+  is a name plus tuning knobs, and everything an ordinary user changes
+  about a provider IS one of its KEYS, which are a separate endpoint
+  (PUT /api/providers/{name} refuses a body carrying `keys` at all).
+  CREATE ROLLS BACK, because Bifrost accepts a provider record for a
+  vendor it cannot serve and only refuses at the key — "unsupported
+  provider: …" — leaving an inert half-provider behind. Unlike the
+  object store, where a key with no policy is still a key you can fix,
+  a provider with no key reaches nothing, so the record is removed and
+  the error is the gateway's own sentence. The vendor list is a
+  constant in the DRIVER because no endpoint serves it: a suggestion
+  for the picker, never a gate, so a vendor Bifrost gains later still
+  works if you type it.
+  ROLES SPLIT THIS SECTION. Issuing a virtual key and capping its spend
+  are USING a connected backend — an editor's, the same as minting an
+  object store's access key. Connecting an upstream provider stores a
+  vendor API key, which is a standing grant of spend and an owner's,
+  even though it lands in Bifrost's database rather than ours.
   The TOKEN IS OPTIONAL, alone among the backends: Bifrost ships with
   its management API open, so demanding a credential would make the
   common deployment the unsupported one. When auth IS on, a virtual

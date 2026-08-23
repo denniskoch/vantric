@@ -21,6 +21,9 @@ import CTTemplatesPage from './pages/CTTemplatesPage'
 import OverviewPage from './pages/OverviewPage'
 import CloudOverviewPage from './pages/CloudOverviewPage'
 import ShortcutsPage from './pages/ShortcutsPage'
+import AIVirtualKeyFormPage from './pages/AIVirtualKeyFormPage'
+import AIBudgetFormPage from './pages/AIBudgetFormPage'
+import AIProviderFormPage from './pages/AIProviderFormPage'
 import ShortcutFormPage from './pages/ShortcutFormPage'
 import SecurityOverviewPage from './pages/SecurityOverviewPage'
 import SecurityHostAssessmentPage from './pages/SecurityHostAssessmentPage'
@@ -233,6 +236,15 @@ export default function App() {
         <Route path="/ai/requests" element={<AIRequestsPage />} />
         <Route path="/ai/providers" element={<AIProvidersPage />} />
         <Route path="/ai/virtual-keys" element={<AIVirtualKeysPage />} />
+        {/* Changing the gateway. Forms get their own page, like every
+            other form here — a modal is for confirmation only. */}
+        <Route path="/ai/virtual-keys/new" element={<AIVirtualKeyFormPage />} />
+        <Route path="/ai/virtual-keys/:id/edit" element={<AIVirtualKeyFormPage />} />
+        <Route path="/ai/budgets/new" element={<AIBudgetFormPage />} />
+        <Route path="/ai/budgets/:id/edit" element={<AIBudgetFormPage />} />
+        <Route path="/ai/providers/new" element={<AIProviderFormPage />} />
+        <Route path="/ai/providers/:provider/keys/new" element={<AIProviderFormPage />} />
+        <Route path="/ai/providers/:provider/keys/:keyId" element={<AIProviderFormPage />} />
         <Route path="/ai/budgets" element={<AIBudgetsPage />} />
         <Route path="/ai/accounts" element={<AIAccountsPage />} />
         <Route path="/ai/accounts/add" element={<AIAccountFormPage />} />
