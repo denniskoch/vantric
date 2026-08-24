@@ -160,6 +160,23 @@ Go server serves the SPA with client-route fallback:
 docker compose up -d --build   # everything on :8080
 ```
 
+Or pull a built image instead of building one. CI publishes to GHCR on
+every merge:
+
+| Tag | What it is |
+|---|---|
+| `edge` | The tip of `main`, rebuilt on every merge |
+| `sha-abc1234` | One commit, for pinning exactly |
+| `1.2.3`, `1.2` | A release, and the minor line it belongs to |
+| `latest` | The newest release — **not** the tip of `main` |
+
+```bash
+docker pull ghcr.io/denniskoch/vantric:edge
+```
+
+There are no releases yet, so `edge` is the one to use and `latest`
+doesn't exist. `linux/amd64` and `linux/arm64` are both published.
+
 Settings are environment variables — there's no config file. Copy the
 sample and edit it; compose reads `.env` automatically:
 

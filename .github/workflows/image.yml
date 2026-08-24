@@ -49,15 +49,32 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE }}
-          # `latest` follows main. A version tag also publishes the
-          # major.minor it belongs to, so a deploy can pin as loosely or
-          # as tightly as it wants.
+          # WHAT EACH TAG PROMISES, which is the only thing that makes
+          # a tag useful:
+          #
+          #   edge        the tip of main, rebuilt on every merge
+          #   main        the same thing under the branch's own name
+          #   sha-abc1234 one commit, for pinning exactly
+          #   1.2.3 1.2   a release, and the minor line it belongs to
+          #   latest      the newest release — NOT the tip of main
+          #
+          # `latest` meaning "newest release" is the convention Docker's
+          # own images follow, and the reason to bother is that the two
+          # rules collide otherwise: point it at main as well and the
+          # first tagged release publishes `latest` twice in the same
+          # minute, from different code, with whichever job finishes
+          # last winning. Until there is a release, `edge` is the tag to
+          # pull and `latest` does not exist — which is honest.
+          #
+          # A pre-release (v1.0.0-rc1) publishes its own version and is
+          # deliberately kept out of `latest`.
           tags: |
+            type=edge,branch=main
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' && !contains(github.ref_name, '-') }}
             type=sha,format=short
 
       - uses: docker/build-push-action@v6
