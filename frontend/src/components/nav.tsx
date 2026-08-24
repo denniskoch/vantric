@@ -100,6 +100,18 @@ export interface Section {
 // Global navigation: one entry per product section. Adding a section
 // here gives it a global-menu entry and its own permanent left nav.
 export const sections: Section[] = [
+// THE ORDER IS A WALK THROUGH THE LAB, not a ranking. It runs: what is
+// wrong (overview), where you were going (shortcuts), how you find out
+// something is wrong (security, monitoring), the machines, their data,
+// how they connect, the services running on them, and last this console
+// itself — IAM and the documentation describe the app rather than the
+// lab, and belong at the bottom for that reason.
+//
+// THE PAIRS ARE THE POINT, and each was split apart before: DNS sat six
+// entries from Network, Docker five from Compute, and Security and
+// Monitoring — the two sections that answer the same question — were at
+// opposite ends of the list.
+
   {
     // The front door, and first for that reason: the only page that
     // answers "what's wrong right now" without knowing where to look.
@@ -200,6 +212,48 @@ export const sections: Section[] = [
     ],
   },
   {
+    // Zabbix's own vocabulary for its pages — Problems, Hosts — the
+    // same rule the Network section follows for UniFi's. Triggers,
+    // templates and dashboards stay in Zabbix, where their blast
+    // radius is; the daily 90% here is what's on fire and who isn't
+    // being watched.
+    id: 'monitoring',
+    label: 'Monitoring',
+    icon: MonitorHeartIcon,
+    prefix: '/monitoring',
+    home: '/monitoring/overview',
+    items: [
+      { label: 'Overview', icon: DashboardIcon, to: '/monitoring/overview' },
+      {
+        label: 'Problems',
+        icon: ReportProblemIcon,
+        to: '/monitoring/problems',
+        hint: "What the monitoring service says is wrong, and since when",
+      },
+      {
+        label: 'Hosts',
+        icon: DevicesOtherIcon,
+        to: '/monitoring/hosts',
+        hint: 'What it watches, joined to the instances this console runs',
+      },
+    ],
+    groups: [
+      {
+        label: 'Settings',
+        items: [
+          {
+            label: 'Monitoring service',
+            icon: MonitorHeartIcon,
+            to: '/monitoring/settings/service',
+            hint: 'The monitoring service this console reads',
+          },
+        ],
+      },
+    ],
+    description:
+      "What your monitoring service says is on fire, and which guests aren't being watched at all.",
+  },
+  {
     id: 'compute',
     label: 'Compute',
     icon: MemoryIcon,
@@ -295,6 +349,62 @@ export const sections: Section[] = [
         ],
       },
     ],
+  },
+  {
+    id: 'docker',
+    label: 'Docker',
+    icon: DockerIcon,
+    prefix: '/docker',
+    home: '/docker/overview',
+    items: [{ label: 'Overview', icon: DashboardIcon, to: '/docker/overview' }],
+    groups: [
+      {
+        label: 'Workloads',
+        items: [
+          {
+            label: 'Containers',
+            icon: Inventory2Icon,
+            to: '/docker/containers',
+            hint: 'Every container across your hosts, grouped by compose stack',
+          },
+        ],
+      },
+      {
+        label: 'Resources',
+        items: [
+          {
+            label: 'Images',
+            icon: LayersIcon,
+            to: '/docker/images',
+            hint: 'What is pulled, what it costs in disk, and what nothing uses',
+          },
+          {
+            label: 'Volumes',
+            icon: FolderSpecialIcon,
+            to: '/docker/volumes',
+            hint: 'Where container data actually lives',
+          },
+          {
+            label: 'Networks',
+            icon: LanIcon,
+            to: '/docker/networks',
+            hint: 'Bridges the containers talk over',
+          },
+        ],
+      },
+      {
+        label: 'Settings',
+        items: [
+          {
+            label: 'Docker hosts',
+            icon: SettingsEthernetIcon,
+            to: '/docker/settings/hosts',
+            hint: 'The daemons this console reaches, and the certificate each must present',
+          },
+        ],
+      },
+    ],
+    description: 'Container workloads running on your Docker hosts.',
   },
   {
     // Devices, not Compute: Compute means machines this console runs,
@@ -394,6 +504,35 @@ export const sections: Section[] = [
     description: 'Shared storage for the lab, beyond the disks attached to instances.',
   },
   {
+    id: 'databases',
+    label: 'Databases',
+    icon: DatasetIcon,
+    prefix: '/databases',
+    home: '/databases/overview',
+    items: [{ label: 'Overview', icon: DashboardIcon, to: '/databases/overview' }],
+    groups: [
+      {
+        label: 'SQL',
+        items: [
+          {
+            label: 'Instances',
+            icon: StorageIcon,
+            to: '/databases/instances',
+            hint: 'Database servers this console connects to',
+          },
+          {
+            label: 'Databases',
+            icon: TableChartIcon,
+            to: '/databases/databases',
+            hint: 'Every database across your instances',
+          },
+        ],
+      },
+    ],
+    description:
+      'Database servers running in your lab, with the databases, users and connections inside them.',
+  },
+  {
     id: 'network',
     label: 'Network',
     icon: LanIcon,
@@ -442,73 +581,21 @@ export const sections: Section[] = [
       'The networks your lab runs on — VLANs and their subnets, what holds an address, and the hardware carrying it.',
   },
   {
-    id: 'databases',
-    label: 'Databases',
-    icon: DatasetIcon,
-    prefix: '/databases',
-    home: '/databases/overview',
-    items: [{ label: 'Overview', icon: DashboardIcon, to: '/databases/overview' }],
+    id: 'dns',
+    label: 'DNS',
+    icon: TravelExploreIcon,
+    prefix: '/dns',
+    home: '/dns/overview',
+    items: [{ label: 'Overview', icon: DashboardIcon, to: '/dns/overview' }],
     groups: [
       {
-        label: 'SQL',
+        label: 'Zones',
         items: [
           {
-            label: 'Instances',
-            icon: StorageIcon,
-            to: '/databases/instances',
-            hint: 'Database servers this console connects to',
-          },
-          {
-            label: 'Databases',
-            icon: TableChartIcon,
-            to: '/databases/databases',
-            hint: 'Every database across your instances',
-          },
-        ],
-      },
-    ],
-    description:
-      'Database servers running in your lab, with the databases, users and connections inside them.',
-  },
-  {
-    id: 'docker',
-    label: 'Docker',
-    icon: DockerIcon,
-    prefix: '/docker',
-    home: '/docker/overview',
-    items: [{ label: 'Overview', icon: DashboardIcon, to: '/docker/overview' }],
-    groups: [
-      {
-        label: 'Workloads',
-        items: [
-          {
-            label: 'Containers',
-            icon: Inventory2Icon,
-            to: '/docker/containers',
-            hint: 'Every container across your hosts, grouped by compose stack',
-          },
-        ],
-      },
-      {
-        label: 'Resources',
-        items: [
-          {
-            label: 'Images',
-            icon: LayersIcon,
-            to: '/docker/images',
-            hint: 'What is pulled, what it costs in disk, and what nothing uses',
-          },
-          {
-            label: 'Volumes',
-            icon: FolderSpecialIcon,
-            to: '/docker/volumes',
-            hint: 'Where container data actually lives',
-          },
-          {
-            label: 'Networks',
-            icon: LanIcon,
-            to: '/docker/networks',
-            hint: 'Bridges the containers talk over',
+            label: 'Zones',
+            icon: PublicIcon,
+            to: '/dns/zones',
+            hint: 'Domains managed through your DNS providers',
           },
         ],
       },
@@ -516,15 +603,72 @@ export const sections: Section[] = [
         label: 'Settings',
         items: [
           {
-            label: 'Docker hosts',
-            icon: SettingsEthernetIcon,
-            to: '/docker/settings/hosts',
-            hint: 'The daemons this console reaches, and the certificate each must present',
+            label: 'Providers',
+            icon: VpnKeyIcon,
+            to: '/dns/providers',
+            hint: 'DNS accounts this console manages zones through',
           },
         ],
       },
     ],
-    description: 'Container workloads running on your Docker hosts.',
+    description: 'Internal name resolution for lab services.',
+  },
+  {
+    id: 'identity',
+    label: 'Identity Platform',
+    icon: FingerprintIcon,
+    prefix: '/identity',
+    home: '/identity/overview',
+    items: [{ label: 'Overview', icon: DashboardIcon, to: '/identity/overview' }],
+    groups: [
+      {
+        label: 'Directory',
+        items: [
+          {
+            label: 'Users',
+            icon: PersonIcon,
+            to: '/identity/users',
+            hint: 'Accounts that can sign in to your services',
+          },
+          {
+            label: 'Groups',
+            icon: GroupIcon,
+            to: '/identity/groups',
+            hint: 'What membership grants, and who has it',
+          },
+        ],
+      },
+      {
+        label: 'Access',
+        items: [
+          {
+            label: 'Applications',
+            icon: AppsIcon,
+            to: '/identity/applications',
+            hint: 'Services users sign in to through this provider',
+          },
+          {
+            label: 'Events',
+            icon: HistoryIcon,
+            to: '/identity/events',
+            hint: 'Logins, failures and changes, newest first',
+          },
+        ],
+      },
+      {
+        label: 'Settings',
+        items: [
+          {
+            label: 'Providers',
+            icon: VpnKeyIcon,
+            to: '/identity/providers',
+            hint: 'The identity service this console reads',
+          },
+        ],
+      },
+    ],
+    description:
+      'The identity provider your lab services sign in through — users, groups, applications and login events.',
   },
   {
     // GCP's own name for this group, which is the point: a lab that
@@ -617,48 +761,6 @@ export const sections: Section[] = [
       'What your lab asks of language models, and what answers: requests through the gateway, the providers behind it, and the models running on your own hardware.',
   },
   {
-    // Zabbix's own vocabulary for its pages — Problems, Hosts — the
-    // same rule the Network section follows for UniFi's. Triggers,
-    // templates and dashboards stay in Zabbix, where their blast
-    // radius is; the daily 90% here is what's on fire and who isn't
-    // being watched.
-    id: 'monitoring',
-    label: 'Monitoring',
-    icon: MonitorHeartIcon,
-    prefix: '/monitoring',
-    home: '/monitoring/overview',
-    items: [
-      { label: 'Overview', icon: DashboardIcon, to: '/monitoring/overview' },
-      {
-        label: 'Problems',
-        icon: ReportProblemIcon,
-        to: '/monitoring/problems',
-        hint: "What the monitoring service says is wrong, and since when",
-      },
-      {
-        label: 'Hosts',
-        icon: DevicesOtherIcon,
-        to: '/monitoring/hosts',
-        hint: 'What it watches, joined to the instances this console runs',
-      },
-    ],
-    groups: [
-      {
-        label: 'Settings',
-        items: [
-          {
-            label: 'Monitoring service',
-            icon: MonitorHeartIcon,
-            to: '/monitoring/settings/service',
-            hint: 'The monitoring service this console reads',
-          },
-        ],
-      },
-    ],
-    description:
-      "What your monitoring service says is on fire, and which guests aren't being watched at all.",
-  },
-  {
     // This console's own access control: who may sign in here and what
     // they may do. Distinct from Identity Platform, which manages the
     // identity provider the lab's services authenticate against.
@@ -703,96 +805,6 @@ export const sections: Section[] = [
       'Who can use this console and what they can do.',
   },
   {
-    id: 'identity',
-    label: 'Identity Platform',
-    icon: FingerprintIcon,
-    prefix: '/identity',
-    home: '/identity/overview',
-    items: [{ label: 'Overview', icon: DashboardIcon, to: '/identity/overview' }],
-    groups: [
-      {
-        label: 'Directory',
-        items: [
-          {
-            label: 'Users',
-            icon: PersonIcon,
-            to: '/identity/users',
-            hint: 'Accounts that can sign in to your services',
-          },
-          {
-            label: 'Groups',
-            icon: GroupIcon,
-            to: '/identity/groups',
-            hint: 'What membership grants, and who has it',
-          },
-        ],
-      },
-      {
-        label: 'Access',
-        items: [
-          {
-            label: 'Applications',
-            icon: AppsIcon,
-            to: '/identity/applications',
-            hint: 'Services users sign in to through this provider',
-          },
-          {
-            label: 'Events',
-            icon: HistoryIcon,
-            to: '/identity/events',
-            hint: 'Logins, failures and changes, newest first',
-          },
-        ],
-      },
-      {
-        label: 'Settings',
-        items: [
-          {
-            label: 'Providers',
-            icon: VpnKeyIcon,
-            to: '/identity/providers',
-            hint: 'The identity service this console reads',
-          },
-        ],
-      },
-    ],
-    description:
-      'The identity provider your lab services sign in through — users, groups, applications and login events.',
-  },
-  {
-    id: 'dns',
-    label: 'DNS',
-    icon: TravelExploreIcon,
-    prefix: '/dns',
-    home: '/dns/overview',
-    items: [{ label: 'Overview', icon: DashboardIcon, to: '/dns/overview' }],
-    groups: [
-      {
-        label: 'Zones',
-        items: [
-          {
-            label: 'Zones',
-            icon: PublicIcon,
-            to: '/dns/zones',
-            hint: 'Domains managed through your DNS providers',
-          },
-        ],
-      },
-      {
-        label: 'Settings',
-        items: [
-          {
-            label: 'Providers',
-            icon: VpnKeyIcon,
-            to: '/dns/providers',
-            hint: 'DNS accounts this console manages zones through',
-          },
-        ],
-      },
-    ],
-    description: 'Internal name resolution for lab services.',
-  },
-  {
     // Last, and deliberately apart from the sections it describes: this
     // is the one place in the console that isn't a view onto the lab.
     id: 'docs',
@@ -820,8 +832,7 @@ export const sections: Section[] = [
       },
     ],
     description: 'How to set up the things this console talks to.',
-  },
-]
+  },]
 
 export function sectionFor(pathname: string): Section | undefined {
   return sections.find((s) => pathname.startsWith(s.prefix))
