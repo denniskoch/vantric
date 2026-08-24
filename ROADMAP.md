@@ -57,3 +57,49 @@ both halves.
   become real. See the note in CLAUDE.md.
 - **Moving a guest between hypervisors.** Backup-and-restore works
   today by hand; Proxmox's `remote-migrate` is still experimental.
+
+## New sections
+
+Each is a tool a lab already runs, and each has a reason it is not
+built yet. Monitoring, Storage, Devices and Docker were on this list and
+are sections now.
+
+- **CI/CD over Woodpecker**: pipelines are console-shaped — a table of
+  recent runs, red or green, with a link out to the failing step.
+  Woodpecker has a REST API and an API token per user; Forgejo
+  supplies the repositories behind it. Triggering a rebuild is the one
+  write worth having; editing pipeline YAML stays in the repo.
+- **Certificates via TLSentinel**: expiry is a classic homelab outage
+  and nothing here tracks it. TLSentinel already monitors endpoints,
+  grades TLS configuration and alerts on expiry, and issues personal
+  API keys — the same credential shape every other provider in this
+  app uses. The section lists endpoints with days-to-expiry and grade,
+  and links out for the PKI toolbox and trust matrix.
+- **PowerDNS as an internal provider**: `dns.Provider` already has room
+  for it, but three things need doing first. A provider record has no
+  endpoint — Cloudflare's is a constant — so self-hosted providers need
+  `baseUrl` (and a self-signed TLS opt-out) the way servers have. Auth
+  is an `X-API-Key` header rather than a bearer token. And PowerDNS is
+  natively RRset-shaped: one PATCH replaces a whole set, so the
+  per-record diffing that `saveDNSRecordSet` does for Cloudflare should
+  move behind the interface — `SaveRecordSet`/`DeleteRecordSet` on the
+  provider, with Cloudflare doing its own diff. Cheaper to change while
+  Cloudflare is the only implementation. Cloudflare-only fields (the
+  proxy toggle, full/partial setup) then want a capability check so the
+  form can hide what a provider doesn't have, the way `ContainerDriver`
+  works for hypervisors.
+- **Display and serial consoles**: SSH and RDP are already proxied in
+  the browser; the display (noVNC) and serial consoles are not, and
+  `guacd` is already running for the RDP path. The
+  instance detail view has a Console tab holding all three, and for now
+  those two link out to the hypervisor's own console — Proxmox exposes
+  `vncproxy`/`termproxy` as websockets with a one-time ticket, so
+  bringing them in-app is the same shape as the SSH bridge. Serial
+  needs a serial port on the VM, which the Console tab reports because
+  it's the usual reason the option is missing.
+- **CT provisioning**: create flow for containers (template picker,
+  rootfs storage/size, unprivileged flag) — the CT Templates page
+  already lists the sources.
+- **Create from ISO**: an alternative boot source in the VM create flow.
+- **CT template downloads**: Proxmox's appliance repo (`aplinfo`) would
+  give CT Templates the same import flow ISOs now have.
