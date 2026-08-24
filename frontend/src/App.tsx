@@ -27,6 +27,7 @@ import AIProviderFormPage from './pages/AIProviderFormPage'
 import AIModelPricesPage from './pages/AIModelPricesPage'
 import BackupSchedulesPage from './pages/BackupSchedulesPage'
 import BackupCoveragePage from './pages/BackupCoveragePage'
+import RestoreBackupPage from './pages/RestoreBackupPage'
 import DockerContainersPage from './pages/DockerContainersPage'
 import { DockerImagesPage, DockerNetworksPage, DockerVolumesPage } from './pages/DockerResourcePages'
 import DockerHostsPage from './pages/DockerHostsPage'
@@ -331,6 +332,7 @@ export default function App() {
         <Route path="/compute/disks" element={<DisksPage />} />
         <Route path="/compute/snapshots" element={<SnapshotsPage />} />
         <Route path="/compute/backups" element={<BackupsPage />} />
+        <Route path="/compute/backups/restore" element={<RestoreBackupPage />} />
         <Route path="/compute/backup-schedules" element={<BackupSchedulesPage />} />
         <Route path="/compute/backup-schedules/coverage" element={<BackupCoveragePage />} />
         <Route path="/compute/backup-schedules/new" element={<BackupScheduleFormPage />} />

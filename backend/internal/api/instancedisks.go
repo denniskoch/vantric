@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -133,6 +134,87 @@ func (s *Server) deleteInstanceDisk(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := manager.DeleteDisk(r.Context(), driverID, chi.URLParam(r, "disk")); err != nil {
 		s.fail(w, err, "deleting the disk")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// deleteDisk removes a volume from the datastore-wide Disks list.
+//
+// THE STATE IS RE-READ, NOT TRUSTED FROM THE CLIENT. A disk's
+// attachment decides both whether it may be deleted and by which call,
+// and the page that offered the button may have been looking at a
+// ten-second-old list. So the driver is asked again and the answer
+// decides — which also means a disk re-attached since the page loaded
+// is refused rather than destroyed.
+func (s *Server) deleteDisk(w http.ResponseWriter, r *http.Request) {
+	hypervisorID := r.URL.Query().Get("hypervisor")
+	id := r.URL.Query().Get("id")
+	if hypervisorID == "" || id == "" {
+		s.err(w, http.StatusBadRequest, "which disk, on which hypervisor?")
+		return
+	}
+	driver, ok := s.registry.Get(hypervisorID)
+	if !ok {
+		s.err(w, http.StatusNotFound, "no such hypervisor")
+		return
+	}
+	disks, err := driver.Disks(r.Context())
+	if err != nil {
+		s.fail(w, err, "disks")
+		return
+	}
+	var disk *hypervisor.Disk
+	for i := range disks {
+		if disks[i].ID == id {
+			disk = &disks[i]
+			break
+		}
+	}
+	if disk == nil {
+		s.err(w, http.StatusNotFound, "that disk is no longer there")
+		return
+	}
+
+	switch disk.Attachment {
+	case hypervisor.DiskAttached:
+		// The two-step is the safety, and it is the same refusal the
+		// driver makes — said here so the answer names the guest.
+		s.err(w, http.StatusConflict,
+			"that disk is attached to "+disk.InUseBy+" — detach it there first")
+
+	case hypervisor.DiskDetached:
+		manager, ok := driver.(hypervisor.DiskManager)
+		if !ok {
+			s.err(w, http.StatusNotImplemented, "this hypervisor can't change disks")
+			return
+		}
+		vmid, slot, found := strings.Cut(disk.ID, "/")
+		if !found {
+			s.err(w, http.StatusBadRequest, "that disk id names no guest")
+			return
+		}
+		if err := manager.DeleteDisk(r.Context(), vmid, slot); err != nil {
+			s.fail(w, err, "deleting the disk")
+			return
+		}
+
+	case hypervisor.DiskOrphaned:
+		// No guest to ask, so it goes through the datastore — the same
+		// call that removes an ISO.
+		taskID, err := driver.DeleteVolume(r.Context(), disk.Node, disk.VolumeID)
+		if err != nil {
+			s.fail(w, err, "deleting the disk")
+			return
+		}
+		op := s.ops.start("Deleting disk "+disk.Name,
+			"disk", disk.Name, hypervisorID, "/compute/disks")
+		s.watchOrFinish(op, driver, taskID, "Deleted "+disk.Name)
+		s.json(w, http.StatusAccepted, op)
+		return
+
+	default:
+		s.err(w, http.StatusBadRequest, "that disk is in a state this console doesn't know")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

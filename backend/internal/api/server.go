@@ -246,6 +246,8 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		r.Get("/bridges", s.listBridges)
 		r.Get("/images", s.listImages)
 		r.Get("/disks", s.listDisks)
+		// Deleting one is dispatched on what holds it — see deleteDisk.
+		r.Delete("/disks", s.deleteDisk)
 		r.Get("/snapshots", s.listSnapshots)
 		r.Get("/isos", s.listISOs)
 		r.Post("/isos/download", s.downloadISO)
@@ -255,6 +257,9 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		r.Get("/backups", s.listBackups)
 		// The hypervisor's own vzdump jobs — read and changed here,
 		// never duplicated. See backupschedules.go.
+		// Turning an archive back into a guest — see backups.go.
+		r.Post("/backups/restore", s.restoreBackup)
+		r.Get("/backups/next-vmid", s.nextVMID)
 		r.Get("/backup-schedules", s.listBackupSchedules)
 		r.Get("/backup-schedules/gaps", s.listBackupGaps)
 		r.Get("/backup-schedules/preview", s.previewBackupSchedule)

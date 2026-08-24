@@ -125,16 +125,50 @@ type Image struct {
 }
 
 // Disk is a virtual disk attached to an instance.
+// Disk is one volume on a datastore, and WHAT HOLDS IT is the field
+// that matters.
+//
+// The list used to carry attached disks only, which made it a page of
+// things that can never be deleted — DeleteDisk refuses anything in a
+// slot, deliberately, because a caller one typo from destroying a
+// running guest's disk is not a caller to trust. Meanwhile the volumes
+// that CAN be deleted, and the ones actually worth finding, appeared
+// nowhere: a detached disk still costs its space, and a volume whose VM
+// was removed out-of-band costs it forever with nothing pointing at it.
 type Disk struct {
 	// HypervisorID is filled in by the API layer, not the driver.
 	HypervisorID string `json:"hypervisorId"`
 	ID           string `json:"id"`      // driver-scoped, e.g. "101/scsi0"
 	Name         string `json:"name"`    // volume name, e.g. "vm-101-disk-0"
-	InUseBy      string `json:"inUseBy"` // VM name the disk is attached to
+	InUseBy      string `json:"inUseBy"` // VM name, empty when nothing has it
 	Node         string `json:"node"`
 	Storage      string `json:"storage"` // storage pool
 	SizeGB       int    `json:"sizeGb"`
+	// Attachment is one of AttachedDisk, DetachedDisk or OrphanedDisk,
+	// and decides both what may be done to the volume and by which
+	// call — see the API's disk delete.
+	Attachment string `json:"attachment"`
+	// VolumeID is the datastore's own reference, "local-lvm:vm-101-disk-0".
+	// It is how an orphan is deleted, since there is no VM to ask.
+	VolumeID string `json:"volumeId"`
 }
+
+// What holds a volume. Named DiskAttached rather than AttachedDisk
+// because AttachedDisk is already a type — a disk as one instance's
+// config sees it, which is a different thing from this.
+const (
+	// DiskAttached is in a VM's disk slot and in use. Refused for
+	// deletion: detaching first is the two-step that makes this safe.
+	DiskAttached = "attached"
+	// DiskDetached is still in the VM's config as unusedN — Proxmox
+	// keeps a detached volume there rather than dropping it — so it
+	// costs space and belongs to a guest that isn't using it.
+	DiskDetached = "detached"
+	// DiskOrphaned is on the datastore with no VM referencing it at
+	// all, which is what a guest deleted outside this console leaves
+	// behind. THE FINDING: nothing else in the lab reports these.
+	DiskOrphaned = "orphaned"
+)
 
 // Volume is a file on a datastore. ISOs, container templates and cloud
 // images differ only in content type, so they share this shape.
@@ -589,9 +623,9 @@ type Driver interface {
 	// UploadISO streams an image to the hypervisor. content is consumed
 	// as it arrives; implementations must not buffer it whole.
 	UploadISO(ctx context.Context, spec ISOUploadSpec, content io.Reader) (taskID string, err error)
-	// DeleteVolume removes a storage volume (an ISO or a container
-	// template) by volume id. taskID may be empty when the backend
-	// deletes synchronously.
+	// DeleteVolume removes a storage volume — an ISO, a container
+	// template, or an orphaned disk — by volume id. taskID may be empty
+	// when the backend deletes synchronously.
 	DeleteVolume(ctx context.Context, node, volumeID string) (taskID string, err error)
 	// Bridges lists the network bridges instances can attach to.
 	Bridges(ctx context.Context) ([]Bridge, error)
@@ -799,6 +833,48 @@ type BackupGap struct {
 	Name         string `json:"name"`
 	// Type is "qemu" or "lxc".
 	Type string `json:"type"`
+}
+
+// RestoreSpec is a backup being turned back into a guest.
+type RestoreSpec struct {
+	Node string
+	// VolumeID is the archive, "synology:backup/vzdump-qemu-…".
+	VolumeID string
+	// GuestType is "qemu" or "lxc". A backup outlives its guest, so
+	// this comes off the archive rather than from any live record.
+	GuestType string
+	// VMID the guest is restored as. A FREE ONE BY DEFAULT — see
+	// NextVMID — because restoring beside the original is the answer
+	// most of the time and the only one that cannot lose anything.
+	VMID int
+	// Storage the disks land on. Empty means wherever the archive says,
+	// which is where they were.
+	Storage string
+	// Overwrite replaces the guest already at VMID. THE DESTRUCTIVE
+	// ONE: Proxmox deletes that guest and its disks before unpacking,
+	// so this is off unless somebody has said the name out loud.
+	Overwrite bool
+	// Start powers the guest on once it is unpacked. Off by default,
+	// unlike a create: a restored guest may hold the same address, the
+	// same hostname and the same cluster identity as one still running,
+	// and two of those on one network is its own outage.
+	Start bool
+}
+
+// BackupRestorer is the optional capability for backends that can turn
+// an archive back into a guest.
+//
+// SEPARATE FROM BackupDriver AND BackupScheduler, which is three
+// capabilities over one subject and deliberate: listing what exists,
+// changing what runs, and destroying-and-rebuilding a guest are three
+// very different powers, and a backend may have any of them without
+// the others.
+type BackupRestorer interface {
+	RestoreBackup(ctx context.Context, spec RestoreSpec) (taskID string, err error)
+	// NextVMID is a guest id nothing is using, so the safe restore is
+	// the one the form offers first. Asked of the hypervisor because
+	// only it knows what is taken across the whole cluster.
+	NextVMID(ctx context.Context) (int, error)
 }
 
 // BackupScheduler is the optional capability for backends whose backup

@@ -319,6 +319,46 @@ Surface the daily 90% here and link out for the rest.
   future drivers without containers stay simple. Proxmox's
   cluster/resources?type=vm returns BOTH qemu and lxc: always filter by
   the resource Type field.
+- A DISK IS LISTED IN ALL THREE STATES IT CAN BE IN, and the list used
+  to hold only the undeletable one. It carried attached disks alone —
+  exactly the set `DeleteDisk` refuses, and rightly, since the detach
+  is the two-step that stops a typo destroying a running guest's disk.
+  Meanwhile the volumes that cost space for nothing appeared on no page
+  here OR in Proxmox: a DETACHED disk, which Proxmox parks in the
+  config as `unusedN`, and an ORPHAN, which is what a guest deleted
+  out-of-band leaves on the datastore.
+  AN ORPHAN IS DEFINED BY THE VMID, NOT BY THE CONFIG, and that was
+  learned by asking a real cluster. "No config mentions this volume"
+  finds fourteen false positives here: thirteen cloud-init drives,
+  because `ide2: …,media=cdrom` was skipped BEFORE being counted as a
+  reference, and one snapshot's saved RAM, because a live guest owns
+  volumes its CURRENT config never names — the state a snapshot wrote
+  and the disks older snapshots still point at. So a volume is an
+  orphan only when no config references it AND no guest with its vmid
+  exists at all.
+  DELETING ONE DISPATCHES ON THE STATE, RE-READ AT DELETE TIME rather
+  than trusted from the page: attached is refused and names the guest,
+  detached goes through the guest's config, and an orphan goes through
+  the datastore — the same call that removes an ISO, since there is no
+  guest left to ask.
+- A BACKUP RESTORES BESIDE THE ORIGINAL BY DEFAULT. The form opens with
+  a free guest id already in it (`/cluster/nextid`), so pressing Restore
+  without touching anything makes a second guest and cannot lose
+  data — which is what you want for "what was in this backup" and for
+  bringing back something somebody deleted. Overwriting is the other
+  thing entirely: Proxmox deletes the guest and its disks before
+  unpacking, so it appears only once the id you typed belongs to
+  something, it makes you type that guest's name, and it is REFUSED
+  outright while the guest is running — the same rule instance deletion
+  follows, for the same reason.
+  STARTING IT IS OFF, unlike a create. A restored guest can carry the
+  same address, hostname and cluster identity as one still running, and
+  two of those on one network is its own outage.
+  TWO ENDPOINTS AND TWO SPELLINGS. A VM restore is a create with
+  `archive`; a container restore is a create with `ostemplate` AND
+  `restore=1` — and without that flag the same field means "build a
+  fresh container from this template", which doesn't fail, it just
+  makes an empty container named after your backup.
 - Backup ARCHIVES are read and delete only: the hypervisor's own backup
   jobs write them, this console lists what exists and removes what you
   no longer want. Listing is the optional `hypervisor.BackupDriver`

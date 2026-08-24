@@ -1444,6 +1444,11 @@ export interface Disk {
   node: string
   storage: string
   sizeGb: number
+  /** attached | detached | orphaned — what holds this volume, and what
+   *  may be done to it. */
+  attachment: string
+  /** The datastore's own reference, how an orphan is deleted. */
+  volumeId: string
 }
 
 export interface Snapshot {
@@ -2155,6 +2160,10 @@ export const api = {
   describeImage: (hypervisorId: string, imageId: string) =>
     request<InstanceDetail>(`/images/${imageId}?hypervisor=${hypervisorId}`),
   listDisks: () => request<Disk[]>('/disks'),
+  deleteDisk: (hypervisor: string, id: string) =>
+    request<void>(`/disks?hypervisor=${hypervisor}&id=${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
   listSnapshots: () => request<Snapshot[]>('/snapshots'),
   listISOs: () => request<ISO[]>('/isos'),
   downloadISO: (hypervisorId: string, body: ISODownloadRequest) =>
@@ -2355,6 +2364,19 @@ export const api = {
     request<{ logs: string }>(`/docker/containers/${id}/logs?host=${host}&lines=${lines}`),
   dockerContainerAction: (host: string, id: string, action: string) =>
     request<void>(`/docker/containers/${id}/${action}?host=${host}`, { method: 'POST' }),
+
+  restoreBackup: (body: {
+    hypervisorId: string
+    node: string
+    volumeId: string
+    guestType: string
+    vmid: number
+    storage: string
+    overwrite: boolean
+    start: boolean
+  }) => request<Operation>('/backups/restore', { method: 'POST', body: JSON.stringify(body) }),
+  nextVMID: (hypervisor: string) =>
+    request<{ vmid: number }>(`/backups/next-vmid?hypervisor=${hypervisor}`),
 
   listBackupSchedules: () => request<BackupSchedule[]>('/backup-schedules'),
   listBackupGaps: () => request<BackupGap[]>('/backup-schedules/gaps'),

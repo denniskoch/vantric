@@ -327,3 +327,59 @@ func (d *Driver) PreviewSchedule(ctx context.Context, schedule string, count int
 	}
 	return out, nil
 }
+
+var _ hypervisor.BackupRestorer = (*Driver)(nil)
+
+// NextVMID asks the cluster for a guest id nothing is using.
+func (d *Driver) NextVMID(ctx context.Context) (int, error) {
+	var id json.Number
+	if err := d.sdk.Get(ctx, "/cluster/nextid", &id); err != nil {
+		return 0, fmt.Errorf("proxmox: asking for a free vmid: %w", err)
+	}
+	n, err := id.Int64()
+	if err != nil {
+		return 0, fmt.Errorf("proxmox: %q is not a vmid: %w", id, err)
+	}
+	return int(n), nil
+}
+
+// RestoreBackup unpacks an archive into a guest.
+//
+// TWO ENDPOINTS AND TWO SPELLINGS FOR THE SAME THING. A VM restore is a
+// create with `archive` set; a container restore is a create with
+// `ostemplate` set AND `restore=1`, because without that flag the same
+// field means "build a fresh container from this template". Getting it
+// wrong doesn't fail — it makes an empty container named after your
+// backup.
+//
+// `force` IS THE DESTRUCTIVE FLAG and is only ever what the caller
+// asked for: it tells Proxmox to delete the guest already at that vmid
+// before unpacking. Everything else about this call is additive.
+func (d *Driver) RestoreBackup(ctx context.Context, spec hypervisor.RestoreSpec) (string, error) {
+	body := map[string]any{
+		"vmid":  spec.VMID,
+		"start": boolInt(spec.Start),
+	}
+	if spec.Storage != "" {
+		body["storage"] = spec.Storage
+	}
+	if spec.Overwrite {
+		body["force"] = 1
+	}
+
+	kind := "qemu"
+	if spec.GuestType == "lxc" {
+		kind = "lxc"
+		body["ostemplate"] = spec.VolumeID
+		body["restore"] = 1
+	} else {
+		body["archive"] = spec.VolumeID
+	}
+
+	var taskID string
+	path := fmt.Sprintf("/nodes/%s/%s", spec.Node, kind)
+	if err := d.sdk.Post(ctx, path, body, &taskID); err != nil {
+		return "", fmt.Errorf("proxmox: restoring %s: %w", spec.VolumeID, err)
+	}
+	return taskID, nil
+}

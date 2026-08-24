@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import DataTable from '../components/DataTable'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -14,6 +15,7 @@ import {
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import DeleteIcon from '@mui/icons-material/Delete'
+import RestoreIcon from '@mui/icons-material/SettingsBackupRestore'
 import { api } from '../api/client'
 import type { Backup } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
@@ -36,6 +38,7 @@ export default function BackupsPage() {
   const [confirming, setConfirming] = useState<Backup | null>(null)
   const [error, setError] = useState<string | null>(null)
   const { canEdit } = usePermissions()
+  const navigate = useNavigate()
   // Ids rather than rows: the list is polled, and holding the objects
   // would keep a selection pointing at archives that have since gone.
   const [picked, setPicked] = useState<string[]>([])
@@ -185,27 +188,49 @@ export default function BackupsPage() {
         enableSorting: false,
         meta: { align: 'right', hug: true },
         cell: ({ row }) => (
-          <Tooltip
-            title={
-              row.original.protected
-                ? 'Protected on the hypervisor — clear that first'
-                : 'Delete this archive'
-            }
-          >
-            <span>
-              <IconButton
-                size="small"
-                disabled={row.original.protected || remove.isPending}
-                onClick={() => setConfirming(row.original)}
-              >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+            {/* Restore before delete, and not only alphabetically: an
+                archive exists to be restored, and deleting one is the
+                thing you do to the ones you no longer need. */}
+            <Tooltip title="Restore this archive">
+              <span>
+                <IconButton
+                  size="small"
+                  disabled={!canEdit}
+                  onClick={() =>
+                    navigate(
+                      `/compute/backups/restore?hypervisor=${row.original.hypervisorId}` +
+                        `&volume=${encodeURIComponent(row.original.id)}` +
+                        `&node=${encodeURIComponent(row.original.node)}`,
+                    )
+                  }
+                >
+                  <RestoreIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip
+              title={
+                row.original.protected
+                  ? 'Protected on the hypervisor — clear that first'
+                  : 'Delete this archive'
+              }
+            >
+              <span>
+                <IconButton
+                  size="small"
+                  disabled={row.original.protected || remove.isPending}
+                  onClick={() => setConfirming(row.original)}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+          </Box>
         ),
       },
     ],
-    [remove.isPending],
+    [remove.isPending, canEdit, navigate],
   )
 
   return (
