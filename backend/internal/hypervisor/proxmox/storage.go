@@ -2,7 +2,9 @@ package proxmox
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -238,6 +240,71 @@ func (d *Driver) Datastores(ctx context.Context) ([]hypervisor.Datastore, error)
 	return datastores, nil
 }
 
+// flexBool is a Proxmox flag that arrives as a NUMBER where the docs
+// and every other field say boolean.
+//
+// `protected` on a backup comes back as 1, not true — and only once
+// some archive is actually protected, so a lab that has never set one
+// never sees it. Decoding that into a plain bool fails the whole
+// response, which took out every archive on a hypervisor the moment the
+// first protected backup existed. Absent is false, which is what
+// Proxmox means by omitting it.
+type flexBool bool
+
+func (b *flexBool) UnmarshalJSON(raw []byte) error {
+	var asBool bool
+	if err := json.Unmarshal(raw, &asBool); err == nil {
+		*b = flexBool(asBool)
+		return nil
+	}
+	var asNumber json.Number
+	if err := json.Unmarshal(raw, &asNumber); err != nil {
+		return err
+	}
+	n, err := asNumber.Int64()
+	if err != nil {
+		return err
+	}
+	*b = n != 0
+	return nil
+}
+
+// flexInt64 is a Proxmox number that arrives as a STRING on some
+// storage backends.
+//
+// `ctime` and `size` come back as integers from an NFS datastore and as
+// quoted strings from LVM — and the same swallowed-decode path that hid
+// the protected flag hid this too, so orphaned disks on those pools
+// were never listed at all. Found only because the skip started
+// logging.
+type flexInt64 int64
+
+func (n *flexInt64) UnmarshalJSON(raw []byte) error {
+	var asNumber json.Number
+	if err := json.Unmarshal(raw, &asNumber); err == nil {
+		v, err := asNumber.Int64()
+		if err != nil {
+			return err
+		}
+		*n = flexInt64(v)
+		return nil
+	}
+	var asString string
+	if err := json.Unmarshal(raw, &asString); err != nil {
+		return err
+	}
+	if asString == "" {
+		*n = 0
+		return nil
+	}
+	v, err := json.Number(asString).Int64()
+	if err != nil {
+		return err
+	}
+	*n = flexInt64(v)
+	return nil
+}
+
 // contentItem is one volume of a given content type on a datastore.
 type contentItem struct {
 	VolID     string
@@ -269,21 +336,30 @@ func (d *Driver) storageContent(ctx context.Context, contentType string) ([]cont
 			continue
 		}
 		var content []struct {
-			VolID string `json:"volid"`
-			Size  int64  `json:"size"`
-			CTime int64  `json:"ctime"`
+			VolID string    `json:"volid"`
+			Size  flexInt64 `json:"size"`
+			CTime flexInt64 `json:"ctime"`
 			// Backups report which guest they came from and how they
 			// were written; other content types leave these empty.
-			VMID      int    `json:"vmid"`
-			Format    string `json:"format"`
-			Notes     string `json:"notes"`
-			Protected bool   `json:"protected"`
-			Subtype   string `json:"subtype"`
+			VMID      int      `json:"vmid"`
+			Format    string   `json:"format"`
+			Notes     string   `json:"notes"`
+			Protected flexBool `json:"protected"`
+			Subtype   string   `json:"subtype"`
 		}
 		// content is a query value, not a path segment — see apiPath.
 		path := apiPath("/nodes/%s/storage/%s/content", s.Node, s.Storage) +
 			"?content=" + url.QueryEscape(contentType)
 		if err := d.do(ctx, http.MethodGet, path, nil, &content); err != nil {
+			// LOGGED, NOT ONLY SKIPPED. This `continue` is right — one
+			// datastore that will not answer should not empty the page
+			// — but silent it meant a DECODE bug on a single field read
+			// as "that datastore holds nothing", and twenty-five
+			// archives vanished from the console while sitting safely
+			// on the disk. A skip that says nothing is indistinguishable
+			// from an empty shelf.
+			slog.Warn("proxmox: storage content unreadable",
+				"node", s.Node, "storage", s.Storage, "content", contentType, "error", err)
 			continue
 		}
 		for _, c := range content {
@@ -300,12 +376,12 @@ func (d *Driver) storageContent(ctx context.Context, contentType string) ([]cont
 				Name:      name,
 				Node:      s.Node,
 				Storage:   s.Storage,
-				SizeBytes: c.Size,
-				CreatedAt: c.CTime,
+				SizeBytes: int64(c.Size),
+				CreatedAt: int64(c.CTime),
 				VMID:      c.VMID,
 				Format:    c.Format,
 				Notes:     c.Notes,
-				Protected: c.Protected,
+				Protected: bool(c.Protected),
 				Subtype:   c.Subtype,
 			})
 		}

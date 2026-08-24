@@ -267,6 +267,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		r.Post("/backup-schedules/{id}/guests", s.addGuestsToBackupSchedule)
 		r.Delete("/backup-schedules/{id}", s.deleteBackupSchedule)
 		r.Delete("/backups", s.deleteVolume("backup", "backup", "backup"))
+		r.Post("/backups/protection", s.setBackupProtection)
 		r.Get("/images/{id}", s.describeImage)
 		r.Post("/images/{id}/description", s.setImageDescription)
 		r.Delete("/images/{id}", s.deleteImage)
@@ -338,6 +339,8 @@ func (s *Server) protectedRoutes(r chi.Router) {
 			// DELETE, not POST: this one destroys the volume.
 			r.Delete("/disks/{disk}", s.deleteInstanceDisk)
 			r.Post("/resize", s.resizeInstance)
+			// An archive written now, rather than by a job — see backups.go.
+			r.Post("/backups", s.takeBackup)
 			r.Post("/snapshots", s.createInstanceSnapshot)
 			r.Post("/snapshots/{snapshot}/rollback", s.rollbackInstanceSnapshot)
 			r.Delete("/snapshots/{snapshot}", s.deleteInstanceSnapshot)

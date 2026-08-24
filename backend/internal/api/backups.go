@@ -1,10 +1,14 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/go-chi/chi/v5"
+	"time"
 
 	"vantric/internal/hypervisor"
 )
@@ -161,6 +165,161 @@ func (s *Server) restoreBackup(w http.ResponseWriter, r *http.Request) {
 	}
 	op := s.ops.start("Restoring "+label,
 		"instance", label, in.HypervisorID, "/compute/instances")
-	s.watchOrFinish(op, driver, taskID, "Restored "+label)
+	// Watched here rather than through watchOrFinish, because a restore
+	// has something to do once the task lands — see claimRestored.
+	hypervisorID, vmid, guestType := in.HypervisorID, spec.VMID, spec.GuestType
+	s.run(op, "Restored "+label, func(ctx context.Context, _ func(string)) error {
+		if err := awaitTask(ctx, driver, taskID); err != nil {
+			return err
+		}
+		s.claimRestored(ctx, hypervisorID, vmid, guestType)
+		return nil
+	})
 	s.json(w, http.StatusAccepted, op)
+}
+
+// claimRestored takes deletion protection back off a guest this console
+// just restored.
+//
+// THE RECONCILER GETS THERE FIRST, and it is right to: a guest that
+// appears on a hypervisor without this console creating it is adopted,
+// and adopted guests are protected so that a record the console never
+// meant to own cannot be deleted by accident. A restore is the one case
+// where that reads wrong — you asked for this guest, deliberately, and
+// it arrives locked. Creating an instance has the same race and solves
+// it the same way, with ClaimInstance.
+//
+// BEST EFFORT AND QUIET. The restore succeeded either way; if the
+// record has not appeared within a few sweeps, or the update fails, the
+// guest is simply protected — which is a click to undo and not worth
+// failing a completed operation over.
+func (s *Server) claimRestored(ctx context.Context, hypervisorID string, vmid int, guestType string) {
+	id := strconv.Itoa(vmid)
+	for attempt := 0; attempt < 15; attempt++ {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(2 * time.Second):
+		}
+		if guestType == "lxc" {
+			if ct, err := s.store.GetContainerByDriverID(ctx, hypervisorID, id); err == nil && ct != nil {
+				if ct.Protected {
+					_ = s.store.SetContainerProtection(ctx, ct.ID, false)
+				}
+				return
+			}
+			continue
+		}
+		if inst, err := s.store.GetInstanceByDriverID(ctx, hypervisorID, id); err == nil && inst != nil {
+			if inst.Protected {
+				_ = s.store.SetInstanceProtection(ctx, inst.ID, false)
+			}
+			return
+		}
+	}
+}
+
+// takeBackup writes one archive now, for the guest named in the path.
+//
+// AD-HOC BACKUPS ARE WHY A SCHEDULE IS NOT ENOUGH. The nightly job runs
+// at 21:00; the moment you want a restore point is the ten minutes
+// before you upgrade something. Same vzdump, same archive, same list —
+// it is only the trigger that differs.
+func (s *Server) takeBackup(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Storage   string `json:"storage"`
+		Mode      string `json:"mode"`
+		Notes     string `json:"notes"`
+		Protected bool   `json:"protected"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		s.err(w, http.StatusBadRequest, "expected a backup")
+		return
+	}
+	if strings.TrimSpace(in.Storage) == "" {
+		s.err(w, http.StatusBadRequest, "pick somewhere to write it")
+		return
+	}
+
+	name := chi.URLParam(r, "instance")
+	guestType := "qemu"
+	var hypervisorID, node, driverID string
+	if inst, err := s.store.GetInstance(r.Context(), name); err == nil && inst != nil {
+		hypervisorID, node, driverID = inst.HypervisorID, inst.Node, inst.DriverID
+	} else if ct, err := s.store.GetContainer(r.Context(), chi.URLParam(r, "container")); err == nil && ct != nil {
+		hypervisorID, node, driverID, guestType = ct.HypervisorID, ct.Node, ct.DriverID, "lxc"
+		name = ct.Name
+	} else {
+		s.err(w, http.StatusNotFound, "no such guest")
+		return
+	}
+	_ = guestType // vzdump takes a vmid; which kind it is, it works out itself.
+
+	driver, ok := s.registry.Get(hypervisorID)
+	if !ok {
+		s.err(w, http.StatusNotFound, "no such hypervisor")
+		return
+	}
+	runner, ok := driver.(hypervisor.BackupRunner)
+	if !ok {
+		s.err(w, http.StatusNotImplemented, "this hypervisor can't take a backup from here")
+		return
+	}
+	vmid, err := strconv.Atoi(driverID)
+	if err != nil {
+		s.err(w, http.StatusBadRequest, "that guest has no id this hypervisor would recognise")
+		return
+	}
+
+	mode := in.Mode
+	if mode == "" {
+		mode = "snapshot"
+	}
+	taskID, err := runner.RunBackup(r.Context(), hypervisor.BackupSpec{
+		Node: node, VMID: vmid, Storage: in.Storage, Mode: mode,
+		Compress: "zstd", Notes: in.Notes, Protected: in.Protected,
+	})
+	if err != nil {
+		s.fail(w, err, "taking the backup")
+		return
+	}
+	op := s.ops.start("Backing up "+name, "backup", name, hypervisorID, "/compute/backups")
+	s.watchOrFinish(op, driver, taskID, "Backed up "+name)
+	s.json(w, http.StatusAccepted, op)
+}
+
+// setBackupProtection exempts an archive from retention, or stops.
+//
+// THE WAY BACK FROM THE CHECKBOX. Taking an ad-hoc backup offers to
+// keep it regardless of retention, and a protected archive is one the
+// hypervisor refuses to delete — so without this the console could
+// create archives it was then unable to remove.
+func (s *Server) setBackupProtection(w http.ResponseWriter, r *http.Request) {
+	driver := s.driverForHypervisor(w, r)
+	if driver == nil {
+		return
+	}
+	runner, ok := driver.(hypervisor.BackupRunner)
+	if !ok {
+		s.err(w, http.StatusNotImplemented, "this hypervisor can't change that from here")
+		return
+	}
+	q := r.URL.Query()
+	node, volume := q.Get("node"), q.Get("volume")
+	if node == "" || volume == "" {
+		s.err(w, http.StatusBadRequest, "node and volume are required")
+		return
+	}
+	var in struct {
+		Protected bool `json:"protected"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		s.err(w, http.StatusBadRequest, "expected protected true or false")
+		return
+	}
+	if err := runner.SetBackupProtection(r.Context(), node, volume, in.Protected); err != nil {
+		s.fail(w, err, "changing protection")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

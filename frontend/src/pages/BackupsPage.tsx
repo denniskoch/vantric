@@ -16,6 +16,8 @@ import {
 import CloseIcon from '@mui/icons-material/Close'
 import DeleteIcon from '@mui/icons-material/Delete'
 import RestoreIcon from '@mui/icons-material/SettingsBackupRestore'
+import LockIcon from '@mui/icons-material/Lock'
+import LockOpenIcon from '@mui/icons-material/LockOpen'
 import { api } from '../api/client'
 import type { Backup } from '../api/client'
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog'
@@ -52,6 +54,15 @@ export default function BackupsPage() {
     queryKey: ['backups'],
     queryFn: api.listBackups,
     refetchInterval: 60000,
+  })
+
+  // A protected archive is one the hypervisor refuses to delete, so the
+  // console has to be able to clear the flag it can set.
+  const protect = useMutation({
+    mutationFn: (v: { b: Backup; on: boolean }) =>
+      api.setBackupProtection(v.b.hypervisorId, v.b.node, v.b.id, v.on),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['backups'] }),
+    onError: (e: Error) => setError(e.message),
   })
 
   const remove = useMutation({
@@ -210,8 +221,25 @@ export default function BackupsPage() {
             </Tooltip>
             <Tooltip
               title={
+                row.original.protected ? 'Keeping this one. Click to stop.' : 'Keep regardless of retention'
+              }
+            >
+              <IconButton
+                size="small"
+                disabled={!canEdit || protect.isPending}
+                onClick={() => protect.mutate({ b: row.original, on: !row.original.protected })}
+              >
+                {row.original.protected ? (
+                  <LockIcon sx={{ fontSize: 16, color: '#b06000' }} />
+                ) : (
+                  <LockOpenIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                )}
+              </IconButton>
+            </Tooltip>
+            <Tooltip
+              title={
                 row.original.protected
-                  ? 'Protected on the hypervisor — clear that first'
+                  ? 'Protected — stop keeping it first'
                   : 'Delete this archive'
               }
             >
@@ -229,7 +257,7 @@ export default function BackupsPage() {
         ),
       },
     ],
-    [remove.isPending, canEdit, navigate],
+    [remove.isPending, protect.isPending, canEdit, navigate],
   )
 
   return (

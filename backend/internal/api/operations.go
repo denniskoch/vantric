@@ -210,28 +210,35 @@ func (s *Server) run(op *Operation, done string, work func(ctx context.Context, 
 // to the browser to poll, which made every page that started one
 // responsible for watching it.
 func (s *Server) watchTask(op *Operation, driver hypervisor.Driver, taskID, done string) {
-	s.run(op, done, func(ctx context.Context, step func(string)) error {
-		ticker := time.NewTicker(opPoll)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-ticker.C:
-				status, err := driver.TaskStatus(ctx, taskID)
-				if err != nil {
-					return err
-				}
-				if status.Running {
-					continue
-				}
-				if !status.Succeeded {
-					return &taskError{exit: status.ExitStatus}
-				}
-				return nil
-			}
-		}
+	s.run(op, done, func(ctx context.Context, _ func(string)) error {
+		return awaitTask(ctx, driver, taskID)
 	})
+}
+
+// awaitTask blocks until a hypervisor task ends, and is separate from
+// watchTask so an operation can do something of its own once the task
+// lands — a restore claims the guest it just made. See restoreBackup.
+func awaitTask(ctx context.Context, driver hypervisor.Driver, taskID string) error {
+	ticker := time.NewTicker(opPoll)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			status, err := driver.TaskStatus(ctx, taskID)
+			if err != nil {
+				return err
+			}
+			if status.Running {
+				continue
+			}
+			if !status.Succeeded {
+				return &taskError{exit: status.ExitStatus}
+			}
+			return nil
+		}
+	}
 }
 
 // watchOrFinish follows a hypervisor task where there is one, and

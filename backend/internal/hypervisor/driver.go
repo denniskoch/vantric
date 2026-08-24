@@ -882,6 +882,51 @@ type BackupRestorer interface {
 	NextVMID(ctx context.Context) (int, error)
 }
 
+// BackupSpec is one backup, taken now.
+type BackupSpec struct {
+	Node string
+	VMID int
+	// Storage must hold backups. Unlike a scheduled job there is no
+	// default worth guessing: a lab with two datastores has an answer
+	// and it is not for this console to pick one.
+	Storage string
+	// Mode is snapshot, suspend or stop.
+	Mode string
+	// Compress is the archive format — "zstd" for anything written
+	// today.
+	Compress string
+	// Notes is what the archive is labelled with, so an ad-hoc backup
+	// says why it was taken rather than looking like a stray run of the
+	// nightly job.
+	Notes string
+	// Protected exempts the archive from the retention that would
+	// otherwise prune it. The reason to take one by hand is usually
+	// that something is about to happen, which is exactly the archive a
+	// keep-daily rule should not quietly remove in a fortnight.
+	Protected bool
+}
+
+// BackupRunner is the optional capability for taking a backup now,
+// rather than waiting for a job to come round.
+//
+// A FOURTH BACKUP CAPABILITY, and each is a different power over the
+// same subject: BackupDriver lists what exists, BackupScheduler
+// changes what runs, BackupRestorer turns an archive back into a
+// guest, and this writes one. A backend can have any of them without
+// the others.
+type BackupRunner interface {
+	RunBackup(ctx context.Context, spec BackupSpec) (taskID string, err error)
+	// SetBackupProtection exempts an archive from retention, or stops
+	// exempting it.
+	//
+	// IT LIVES HERE BECAUSE OFFERING THE FLAG WITHOUT IT IS A TRAP. A
+	// protected archive is one the hypervisor refuses to delete, so a
+	// console that can set the flag and not clear it has made an
+	// archive it can never remove — which is exactly what happened the
+	// first time this was tried.
+	SetBackupProtection(ctx context.Context, node, volumeID string, protected bool) error
+}
+
 // BackupScheduler is the optional capability for backends whose backup
 // jobs this console can read and change.
 //

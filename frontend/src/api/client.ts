@@ -2365,6 +2365,28 @@ export const api = {
   dockerContainerAction: (host: string, id: string, action: string) =>
     request<void>(`/docker/containers/${id}/${action}?host=${host}`, { method: 'POST' }),
 
+  /** Clear or set an archive's exemption from retention. The way back
+   *  from the checkbox on Take backup — a protected archive is one the
+   *  hypervisor refuses to delete. */
+  setBackupProtection: (hypervisor: string, node: string, volume: string, isProtected: boolean) =>
+    request<void>(
+      `/backups/protection?hypervisor=${hypervisor}&node=${encodeURIComponent(node)}` +
+        `&volume=${encodeURIComponent(volume)}`,
+      { method: 'POST', body: JSON.stringify({ protected: isProtected }) },
+    ),
+
+  /** One archive, written now. The guest can be an instance or a
+   *  container — vzdump takes a vmid either way. */
+  takeBackup: (
+    kind: 'instances' | 'containers',
+    name: string,
+    body: { storage: string; mode: string; notes: string; protected: boolean },
+  ) =>
+    request<Operation>(`/${kind}/${encodeURIComponent(name)}/backups`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
   /** Restore as a new guest (name required) or replace the original.
    *  No guest id anywhere: the backend picks a free one. */
   restoreBackup: (body: {

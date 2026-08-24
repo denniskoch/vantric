@@ -1042,14 +1042,26 @@ export default function InstanceDetailPage() {
             <DetailSection
               title="Backups"
               action={
-                // The staleness lives beside the count rather than in a
-                // banner of its own: it is a fact about the rows below,
-                // and it belongs where you are already looking.
-                backups?.stale ? (
-                  <Typography sx={{ fontSize: 12, color: '#b06000' }}>
-                    Newest is over {backups.staleAfterDays} days old
-                  </Typography>
-                ) : undefined
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  {/* The staleness sits beside the count rather than in
+                      a banner of its own: it is a fact about the rows
+                      below, and belongs where you are already looking. */}
+                  {backups?.stale && (
+                    <Typography sx={{ fontSize: 12, color: '#b06000' }}>
+                      Newest is over {backups.staleAfterDays} days old
+                    </Typography>
+                  )}
+                  {canEdit && (
+                    <Button
+                      size="small"
+                      startIcon={<AddIcon sx={{ fontSize: 16 }} />}
+                      component={RouterLink}
+                      to={`/compute/instances/${encodeURIComponent(name)}/backups/new`}
+                    >
+                      Take backup
+                    </Button>
+                  )}
+                </Box>
               }
             >
               {backups?.error && (

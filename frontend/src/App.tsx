@@ -28,6 +28,7 @@ import AIModelPricesPage from './pages/AIModelPricesPage'
 import BackupSchedulesPage from './pages/BackupSchedulesPage'
 import BackupCoveragePage from './pages/BackupCoveragePage'
 import RestoreBackupPage from './pages/RestoreBackupPage'
+import TakeBackupPage from './pages/TakeBackupPage'
 import DockerContainersPage from './pages/DockerContainersPage'
 import { DockerImagesPage, DockerNetworksPage, DockerVolumesPage } from './pages/DockerResourcePages'
 import DockerHostsPage from './pages/DockerHostsPage'
@@ -380,6 +381,14 @@ export default function App() {
         <Route
           path="/compute/instances/:name/snapshots/new"
           element={<RequireRole><InstanceSnapshotPage /></RequireRole>}
+        />
+        <Route
+          path="/compute/instances/:name/backups/new"
+          element={<RequireRole><TakeBackupPage /></RequireRole>}
+        />
+        <Route
+          path="/compute/containers/:name/backups/new"
+          element={<RequireRole><TakeBackupPage /></RequireRole>}
         />
         <Route
           path="/compute/instances/:name/disks/add"

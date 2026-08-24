@@ -40,6 +40,11 @@ import (
 
 func main() {
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	// The drivers carry no logger of their own — they are libraries, and
+	// threading one through every call to report the rare skip would be
+	// noise. They use slog's default instead, so a swallowed error still
+	// says something. See storageContent.
+	slog.SetDefault(log)
 	cfg := config.Load()
 	// Honoured, but said out loud: silently accepting the old names
 	// forever is how a rename never finishes.

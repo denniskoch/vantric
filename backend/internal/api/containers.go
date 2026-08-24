@@ -28,6 +28,7 @@ func (s *Server) containerRoutes(r chi.Router) {
 		r.Post("/stop", s.containerAction("stop"))
 		r.Post("/reset", s.containerAction("reset"))
 		r.Post("/protection", s.setContainerProtection)
+		r.Post("/backups", s.takeBackup)
 	})
 }
 

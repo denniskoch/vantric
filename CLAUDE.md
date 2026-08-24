@@ -319,6 +319,33 @@ Surface the daily 90% here and link out for the rest.
   future drivers without containers stay simple. Proxmox's
   cluster/resources?type=vm returns BOTH qemu and lxc: always filter by
   the resource Type field.
+- AN AD-HOC BACKUP IS THE SAME vzdump, TRIGGERED BY HAND. The nightly
+  job runs at 21:00; the moment you want a restore point is the ten
+  minutes before you upgrade something. `remove=0` is the important
+  parameter — vzdump's default is to prune the storage to the retention
+  policy as it goes, which for a backup taken deliberately before doing
+  something risky could delete the very archives you were keeping.
+  KEEPING IT IS OFFERED AND MUST BE REVOCABLE. A protected archive is
+  one the hypervisor REFUSES to delete, so a console that sets the flag
+  and cannot clear it has made an archive it can never remove — which is
+  exactly what happened the first time this was tried. The list carries
+  a lock toggle for that reason, and `SetBackupProtection` sits on the
+  same capability as taking one.
+- TWO SILENT DECODE FAILURES HID BEHIND ONE `continue`, and they are the
+  reason `storageContent` now logs what it skips. Proxmox reports
+  `protected` as the NUMBER 1 rather than true, and only once some
+  archive actually is protected — so a lab that has never set one never
+  meets it. Decoding that into a plain `bool` failed the WHOLE response,
+  and twenty-five archives vanished from the console while sitting
+  safely on the disk. The skip made it look like an empty datastore.
+  Turning the skip into a warning immediately surfaced the second: an
+  NFS datastore reports `ctime` and `size` as integers and an LVM one
+  reports them as QUOTED STRINGS, so orphaned disks on those pools had
+  never been listed at all. `flexBool` and `flexInt64` take either
+  shape, and both are pinned by tests. The lesson is the `continue`:
+  skipping one datastore so a page still renders is right, doing it
+  silently is not — a skip that says nothing is indistinguishable from
+  an empty shelf.
 - A DISK IS LISTED IN ALL THREE STATES IT CAN BE IN, and the list used
   to hold only the undeletable one. It carried attached disks alone —
   exactly the set `DeleteDisk` refuses, and rightly, since the detach

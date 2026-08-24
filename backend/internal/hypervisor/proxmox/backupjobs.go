@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -391,4 +392,56 @@ func (d *Driver) RestoreBackup(ctx context.Context, spec hypervisor.RestoreSpec)
 		return "", fmt.Errorf("proxmox: restoring %s: %w", spec.VolumeID, err)
 	}
 	return taskID, nil
+}
+
+var _ hypervisor.BackupRunner = (*Driver)(nil)
+
+// RunBackup writes one archive now.
+//
+// `remove=0` IS THE IMPORTANT ONE. vzdump's default is to prune the
+// storage to the retention policy as it goes — which for a backup you
+// took by hand, before doing something risky, could delete the very
+// archives you were keeping. An ad-hoc backup adds; it does not tidy.
+func (d *Driver) RunBackup(ctx context.Context, spec hypervisor.BackupSpec) (string, error) {
+	body := map[string]any{
+		"vmid":    spec.VMID,
+		"storage": spec.Storage,
+		"mode":    spec.Mode,
+		"remove":  0,
+	}
+	if spec.Compress != "" {
+		body["compress"] = spec.Compress
+	}
+	if spec.Notes != "" {
+		body["notes-template"] = spec.Notes
+	}
+	if spec.Protected {
+		body["protected"] = 1
+	}
+	var taskID string
+	path := fmt.Sprintf("/nodes/%s/vzdump", spec.Node)
+	if err := d.sdk.Post(ctx, path, body, &taskID); err != nil {
+		return "", fmt.Errorf("proxmox: backing up %d: %w", spec.VMID, err)
+	}
+	return taskID, nil
+}
+
+// SetBackupProtection flips an archive's exemption from retention.
+func (d *Driver) SetBackupProtection(ctx context.Context, node, volumeID string, protected bool) error {
+	// The volume id is a PATH SEGMENT here, and it contains a colon and
+	// a slash — "nas-b4f2:backup/vzdump-…". Proxmox wants it escaped as
+	// one segment rather than split into two.
+	path := fmt.Sprintf("/nodes/%s/storage/%s/content/%s",
+		url.PathEscape(node), url.PathEscape(storageOf(volumeID)), url.PathEscape(volumeID))
+	body := map[string]any{"protected": boolInt(protected)}
+	if err := d.sdk.Put(ctx, path, body, nil); err != nil {
+		return fmt.Errorf("proxmox: protecting %s: %w", volumeID, err)
+	}
+	return nil
+}
+
+// storageOf takes the datastore off the front of a volume id.
+func storageOf(volumeID string) string {
+	name, _, _ := strings.Cut(volumeID, ":")
+	return name
 }
