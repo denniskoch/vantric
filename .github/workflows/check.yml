@@ -1,0 +1,45 @@
+# What `make check` does, on every push and pull request.
+#
+# THE SAME COMMAND, NOT A SECOND DEFINITION OF IT. The Makefile is what
+# people run before committing, so CI runs that rather than listing the
+# steps again here — a pipeline that checks something subtly different
+# from the local command is how "works on my machine" gets written down
+# and blessed.
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push supersedes the first: nobody needs the results for a
+# commit that has already been replaced.
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        # `npm ci` rather than install: it fails on a lockfile that
+        # disagrees with package.json instead of quietly resolving
+        # something the developer never had.
+        working-directory: frontend
+        run: npm ci
+
+      - run: make check

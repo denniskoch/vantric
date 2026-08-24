@@ -39,10 +39,7 @@ check: frontend/node_modules ## Format, build, vet, test and type-check — what
 build: check ## Alias for check; there is no separate build step
 	@:
 
-up: ## Build and run it in Docker (:8080, plus the tunnel)
-	@[ -n "$$TUNNEL_TOKEN" ] || grep -qs '^TUNNEL_TOKEN=.' .env || { \
-		echo "note: TUNNEL_TOKEN isn't set in .env, so cloudflared will"; \
-		echo "      restart until it is. The app itself is unaffected."; }
+up: ## Build and run it in Docker (:8080)
 	docker compose up -d --build
 	@echo "→ http://localhost:8080"
 

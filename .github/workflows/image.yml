@@ -1,0 +1,77 @@
+# Build the container image, and publish it from main and from tags.
+#
+# PULL REQUESTS BUILD BUT DO NOT PUSH. The thing worth knowing about a
+# proposed change is whether the image still builds; publishing one from
+# code nobody has merged is how a registry ends up holding tags that
+# correspond to nothing.
+name: image
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # GHCR, because the repository is already here and GITHUB_TOKEN
+  # already authenticates against it — no credential to store, and none
+  # to rotate.
+  REGISTRY: ghcr.io
+  IMAGE: ${{ github.repository }}
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Sign in to the registry
+        # Skipped for a pull request, which has no write token and
+        # nothing to push.
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE }}
+          # `latest` follows main. A version tag also publishes the
+          # major.minor it belongs to, so a deploy can pin as loosely or
+          # as tightly as it wants.
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          # amd64 for the hypervisors, arm64 because a lab has an Apple
+          # or a Pi in it somewhere. Both are cheap here: the Go binary
+          # cross-compiles and the frontend build is architecture-blind.
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Branding is baked in at build time, and an image published
+          # for everyone is built unbranded — a fork should not inherit
+          # somebody else's name in its title bar.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

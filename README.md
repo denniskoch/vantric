@@ -212,31 +212,44 @@ data` once.
 
 ### Reaching it from outside the lab
 
-`cloudflared` runs alongside the app, so the console is published
-through a Cloudflare Tunnel without opening a port or holding a
-certificate. Create the tunnel in Zero Trust → Networks → Tunnels, point
-its public hostname at `http://app:8080`, and put the token in `.env` as
-`TUNNEL_TOKEN`. Without a token that container restarts until you set
-one; the app itself doesn't care.
+**Nothing here publishes it for you.** A Cloudflare Tunnel, Caddy,
+nginx, Traefik, Tailscale — all reasonable, and shipping one in the
+compose file everybody runs would be choosing for you and leaving the
+rest to delete it. Point whichever you use at the app: `http://app:8080`
+if it shares the compose network, or the published port if it doesn't.
 
-**Set `VANTRIC_SITE_URL` when you do this.** Behind the tunnel the request
-reaches the app addressed to `app:8080`, so anything the outside world
-must agree with — the OIDC redirect URI in particular — would be built
-from that and rejected by your identity provider:
+Two settings matter whichever you pick.
+
+**`VANTRIC_SITE_URL`** — the address people actually reach this console
+at. Behind a proxy the request arrives addressed to `app:8080`, so
+anything the outside world has to agree with is built from that and
+rejected. The OIDC redirect URI is the one that bites; the sign-on page
+shows the URI the *server* computed, which is the one to register:
 
 ```
 VANTRIC_SITE_URL=https://console.example.com
 ```
 
-**Put an Access policy in front of it.** This console holds credentials
-for every backend in your lab and can open a root-capable shell on your
-guests. It shouldn't be a URL anyone can reach.
+**`VANTRIC_TRUSTED_PROXIES`** — a forwarding header is believed only
+from a peer named here, and it defaults to trusting nothing. Left unset
+behind a proxy, every action in the audit log is attributed to the
+proxy rather than to a person:
 
-The session cookie sorts itself out through the tunnel: it's marked
-`Secure` when the request arrives over HTTPS or with
-`X-Forwarded-Proto: https`, which cloudflared sets. On plain http over
-the LAN it isn't, because a Secure cookie there is simply never sent —
-which looks like a sign-in loop with no explanation.
+```
+VANTRIC_TRUSTED_PROXIES=172.16.0.0/12
+```
+
+**Put access control in front of it.** This console holds credentials
+for every backend in your lab and can open a root-capable shell on your
+guests. It shouldn't be a URL anyone can reach — a Cloudflare Access
+policy, Tailscale ACLs, basic auth at the proxy, whatever your front
+door offers.
+
+The session cookie sorts itself out: it's marked `Secure` when the
+request arrives over HTTPS or with `X-Forwarded-Proto: https`, which
+every proxy above sets. On plain http over the LAN it isn't, because a
+Secure cookie there is simply never sent — which looks like a sign-in
+loop with no explanation.
 
 ## Architecture
 

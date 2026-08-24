@@ -1733,14 +1733,20 @@ Surface the daily 90% here and link out for the rest.
   The settings page shows the redirect URI THE SERVER computes rather
   than one the browser derives, since behind a proxy the two disagree
   and only the server's is the one to register.
-- PUBLISHING IS A CLOUDFLARE TUNNEL. `cloudflared` is an ordinary
-  service in the one compose file — NO PROFILES, here or anywhere: a
-  service you have to remember a flag to start is a service you'll
-  think is missing. It needs `TUNNEL_TOKEN` in .env and restarts
-  without one, which is noisy but visible. Every service carries a
-  `container_name` (`cloud-console`, `cloud-console-tunnel`,
-  `cloud-console-guacd`) so
-  `docker logs cloud-console` is the same command on every host —
+- NOTHING IN THE COMPOSE FILE PUBLISHES THIS, and that is deliberate.
+  It shipped a `cloudflared` service for a while, which was picking an
+  answer for everybody: a tunnel, Caddy, nginx, Traefik and Tailscale
+  are all reasonable ways to reach the console from outside, and the
+  four you don't use are four services to delete. The compose file
+  holds what the APP needs — itself and guacd — and the README says
+  what any of them have to be told: `VANTRIC_SITE_URL`, because behind
+  a proxy the request arrives addressed to `app:8080` and the OIDC
+  redirect would be built from that; and `VANTRIC_TRUSTED_PROXIES`, or
+  every action in the audit log is attributed to the proxy.
+  STILL NO PROFILES for what remains: a service you have to remember a
+  flag to start is a service you'll think is missing. Every service carries a
+  `container_name` (`vantric`, `vantric-tunnel`, `vantric-guacd`) so
+  `docker logs vantric` is the same command on every host —
   compose otherwise names them after the checkout directory, which
   differs between machines. It reaches `http://app:8080`
   over the compose network; the published port stays for the LAN. `isTLS` already honours `X-Forwarded-Proto`,

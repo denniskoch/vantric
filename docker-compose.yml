@@ -10,8 +10,8 @@ services:
     # Named, so it's the same container wherever this is checked out —
     # compose otherwise derives it from the directory, and this repo
     # lives at ~/…/vantric on one machine and
-    # /opt/cloud-console on another.
-    container_name: cloud-console
+    # /opt/vantric on another.
+    container_name: vantric
     build:
       context: .
       # Branding is baked in at build time — a logo is an asset the
@@ -52,7 +52,7 @@ services:
   # with a reason, not a console that won't start — the same tolerance
   # it has for any unreachable backend.
   guacd:
-    container_name: cloud-console-guacd
+    container_name: vantric-guacd
     # Pinned by the MULTI-ARCH manifest digest, same rule as the tunnel
     # below: the tag is there to be read, the digest is what binds, and
     # this one still runs on an arm64 host and an amd64 one. 1.6.0 is
@@ -64,36 +64,10 @@ services:
       - path: .env
         required: false
 
-  # Reaching the console from outside the lab, without opening a port.
-  # The tunnel is created in Cloudflare Zero Trust and points at
-  # http://app:8080 over this network; the app's published port stays
-  # for reaching it on the LAN.
-  #
-  # Needs TUNNEL_TOKEN in .env. Without one this container restarts in a
-  # loop and the app carries on regardless — noisy, but visible, which
-  # beats a service that quietly isn't there.
-  #
-  # PUT ACCESS IN FRONT OF IT. This console holds credentials for every
-  # backend in your lab and can open a root-capable shell on your
-  # guests; a Zero Trust policy is what stands between that and the
-  # public internet.
-  cloudflared:
-    container_name: cloud-console-tunnel
-    # PINNED, because :latest on the service that terminates your public
-    # entry point means a `docker compose pull` can swap it for something
-    # nobody looked at. The tag is there to be read, the digest is what
-    # actually binds — and it is the MULTI-ARCH manifest digest, not one
-    # of the per-architecture ones, so this still runs on an arm64 host
-    # and an amd64 one.
-    #
-    # Bump it deliberately: cloudflared does get deprecated by Cloudflare
-    # eventually, and a pin nobody revisits is how the tunnel stops one
-    # day for reasons that look like anything but this line. Newest tag
-    # and digest: https://hub.docker.com/r/cloudflare/cloudflared/tags
-    image: cloudflare/cloudflared:2026.8.2@sha256:0aa26e284f05e6c77ae375b8c9c11d9eb6a448fb7bcd8d40f31cb6176189eb38
-    command: tunnel --no-autoupdate run
-    environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
-    depends_on:
-      - app
-    restart: unless-stopped
+# NOTHING HERE PUBLISHES THIS. How the console is reached from outside
+# the lab is your choice — a Cloudflare Tunnel, Caddy, nginx, Traefik,
+# Tailscale — and shipping one of them in the file everybody runs would
+# be picking for you and leaving the rest to delete it. Point whichever
+# you use at this app on the compose network, or at the published port
+# above, and set VANTRIC_SITE_URL and VANTRIC_TRUSTED_PROXIES when you
+# do. See "Reaching it from outside the lab" in the README.
