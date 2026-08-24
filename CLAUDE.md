@@ -341,16 +341,29 @@ Surface the daily 90% here and link out for the rest.
   detached goes through the guest's config, and an orphan goes through
   the datastore — the same call that removes an ISO, since there is no
   guest left to ask.
-- A BACKUP RESTORES BESIDE THE ORIGINAL BY DEFAULT. The form opens with
-  a free guest id already in it (`/cluster/nextid`), so pressing Restore
-  without touching anything makes a second guest and cannot lose
-  data — which is what you want for "what was in this backup" and for
-  bringing back something somebody deleted. Overwriting is the other
-  thing entirely: Proxmox deletes the guest and its disks before
-  unpacking, so it appears only once the id you typed belongs to
-  something, it makes you type that guest's name, and it is REFUSED
-  outright while the guest is running — the same rule instance deletion
-  follows, for the same reason.
+- A RESTORE ASKS TWO QUESTIONS AND NEITHER IS A GUEST ID. Restore as a
+  new guest, which needs a NAME, or replace the one the backup came
+  from, which needs nothing. The first version asked for a vmid with
+  the next free one prefilled — which is what Proxmox's own dialog does
+  and is wrong here for the reason machine types were wrong: a vmid is
+  an artefact of the hypervisor, every other page in this console names
+  guests rather than numbering them, and the person restoring has no
+  context for the number. Veeam, Azure Backup and AWS Backup all ask
+  these same two questions.
+  THE NAME IS REQUIRED FOR CORRECTNESS, not tidiness. `instances.name`
+  is UNIQUE, so a restore alongside a guest that still exists produces
+  two guests answering to one name and the reconciler adopts one and
+  fails on the other. Proxmox spells it `name` for a VM and `hostname`
+  for a container, and a restore that sets neither keeps the archive's.
+  THE ARCHIVE IS READ, NOT DESCRIBED BY THE CALLER: which node it is
+  on, which guest it came from and whether that was a VM or a container
+  are facts about the file, and trusting a client for the guest type
+  means a mistyped one silently builds an empty container named after
+  your backup.
+  REPLACING IS REFUSED WHILE THE GUEST RUNS, the same rule instance
+  deletion follows — Proxmox deletes the guest and its disks before it
+  unpacks. It is offered only when the original still exists, which a
+  backup routinely outlives.
   STARTING IT IS OFF, unlike a create. A restored guest can carry the
   same address, hostname and cluster identity as one still running, and
   two of those on one network is its own outage.

@@ -9,6 +9,8 @@ import {
   FormControlLabel,
   MenuItem,
   Paper,
+  Radio,
+  RadioGroup,
   TextField,
   Typography,
 } from '@mui/material'
@@ -21,16 +23,16 @@ import { formatBytes } from '../format'
 /**
  * Turning an archive back into a guest.
  *
- * A PAGE, NOT A DIALOG, and not only because of the house rule: this is
- * the form with the most dangerous checkbox in the console on it, and a
- * dialog is where people click through without reading.
+ * TWO ANSWERS, AND NEITHER MENTIONS A GUEST ID. This asked for one at
+ * first, prefilled with the next free number, which is what Proxmox's
+ * own dialog does — and it is wrong here for the reason machine types
+ * were: a vmid is an artefact of the hypervisor, and every other page
+ * in this console names guests instead of numbering them. Veeam, Azure
+ * Backup and AWS Backup all ask the same two questions this does.
  *
- * THE SAFE RESTORE IS THE DEFAULT. It arrives with a free guest id
- * already filled in, so the thing that happens if you press Restore
- * without touching anything is a second guest beside the original —
- * which cannot lose data and is what you want most of the time.
- * Replacing the original is a deliberate second choice that makes you
- * type its name.
+ * A NAME IS REQUIRED FOR A NEW GUEST, and not for tidiness: restoring
+ * alongside a guest that still exists would otherwise produce two of
+ * them answering to one name, and instance names here are unique.
  */
 export default function RestoreBackupPage() {
   const [search] = useSearchParams()
@@ -39,51 +41,40 @@ export default function RestoreBackupPage() {
 
   const hypervisorId = search.get('hypervisor') ?? ''
   const volumeId = search.get('volume') ?? ''
-  const node = search.get('node') ?? ''
 
-  const [vmid, setVMID] = useState('')
+  const [mode, setMode] = useState<'new' | 'replace'>('new')
+  const [name, setName] = useState('')
   const [storage, setStorage] = useState('')
-  const [overwrite, setOverwrite] = useState(false)
   const [confirmName, setConfirmName] = useState('')
   const [start, setStart] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const { data: backups = [] } = useQuery({ queryKey: ['backups'], queryFn: api.listBackups })
   const { data: instances = [] } = useQuery({ queryKey: ['instances'], queryFn: api.listInstances })
+  const { data: containers = [] } = useQuery({ queryKey: ['containers'], queryFn: api.listContainers })
   const { data: datastores = [] } = useQuery({ queryKey: ['datastores'], queryFn: api.listDatastores })
-  const { data: free } = useQuery({
-    queryKey: ['nextVMID', hypervisorId],
-    queryFn: () => api.nextVMID(hypervisorId),
-    enabled: hypervisorId !== '',
-  })
 
   const archive = backups.find((b) => b.hypervisorId === hypervisorId && b.id === volumeId)
 
-  // The free id, once, as the starting value — not as a live default,
-  // or a background refetch would overwrite what somebody typed.
-  useEffect(() => {
-    if (free && vmid === '') setVMID(String(free.vmid))
-  }, [free])
+  // The guest this archive came from, if it is still there. Its absence
+  // is why "replace" is not always on offer: a backup outlives its
+  // guest, and that is the case restores exist for.
+  const original =
+    archive &&
+    [...instances, ...containers].find(
+      (g) => g.hypervisorId === hypervisorId && g.driverId === String(archive.vmid),
+    )
+  const originalRunning = original?.status === 'RUNNING' || original?.status === 'STAGING'
 
-  // What is at the id being restored onto, if anything. This is the
-  // whole difference between "a second copy" and "that guest is gone".
-  const target = instances.find(
-    (i) => i.hypervisorId === hypervisorId && i.driverId === vmid.trim(),
-  )
-  const targetRunning = target?.status === 'RUNNING' || target?.status === 'STAGING'
+  useEffect(() => {
+    if (archive && name === '') setName(`${archive.guestName || archive.vmid}-restored`)
+  }, [archive])
+
+  const taken = [...instances, ...containers].some((g) => g.name === name.trim())
 
   const restore = useMutation({
     mutationFn: () =>
-      api.restoreBackup({
-        hypervisorId,
-        node,
-        volumeId,
-        guestType: archive?.guestType ?? 'qemu',
-        vmid: Number(vmid),
-        storage,
-        overwrite,
-        start,
-      }),
+      api.restoreBackup({ hypervisorId, volumeId, mode, name, storage, start }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['operations'] })
       queryClient.invalidateQueries({ queryKey: ['instances'] })
@@ -92,12 +83,13 @@ export default function RestoreBackupPage() {
     onError: (e: Error) => setError(e.message),
   })
 
-  const idValid = /^\d+$/.test(vmid.trim()) && Number(vmid) > 0
-  const namedCorrectly = !target || !overwrite || confirmName === target.name
-  const ready = idValid && (!target || overwrite) && namedCorrectly && !targetRunning
+  const ready =
+    mode === 'new'
+      ? name.trim() !== '' && !taken
+      : Boolean(original) && !originalRunning && confirmName === original?.name
 
   return (
-    <Box sx={{ p: 3, maxWidth: 760 }}>
+    <Box sx={{ p: 3, maxWidth: 720 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
         <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate('/compute/backups')}>
           Backups
@@ -113,7 +105,6 @@ export default function RestoreBackupPage() {
 
       <Paper variant="outlined" sx={{ p: 3, display: 'grid', gap: 2.5 }}>
         <Box>
-          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>Restoring</Typography>
           <Typography sx={{ fontFamily: 'monospace', fontSize: 12, overflowWrap: 'anywhere' }}>
             {archive?.name ?? volumeId}
           </Typography>
@@ -123,33 +114,69 @@ export default function RestoreBackupPage() {
               {archive.createdAt
                 ? `, taken ${new Date(archive.createdAt * 1000).toLocaleString()}`
                 : ''}
-              {archive.guestName ? ` from ${archive.guestName}` : ''} · {archive.guestType} ·{' '}
-              {node}
+              {archive.guestName ? `, from ${archive.guestName}` : ''}
             </Typography>
           )}
         </Box>
 
-        <TextField
-          label="Restore as guest ID"
-          size="small"
-          fullWidth
-          value={vmid}
-          onChange={(e) => {
-            setVMID(e.target.value)
-            setOverwrite(false)
-            setConfirmName('')
-          }}
-          error={vmid !== '' && !idValid}
-          helperText={
-            !idValid && vmid !== ''
-              ? 'A guest id is a number'
-              : target
-                ? `In use by ${target.name}`
-                : free
-                  ? `${free.vmid} is free`
-                  : ' '
-          }
-        />
+        <RadioGroup value={mode} onChange={(e) => setMode(e.target.value as 'new' | 'replace')}>
+          <FormControlLabel
+            value="new"
+            control={<Radio size="small" />}
+            label={<Typography sx={{ fontSize: 14 }}>Restore as a new guest</Typography>}
+          />
+          {mode === 'new' && (
+            <Box sx={{ pl: 4, pb: 1 }}>
+              <TextField
+                label="Name"
+                size="small"
+                fullWidth
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                error={taken}
+                helperText={taken ? 'That name is taken' : ' '}
+              />
+            </Box>
+          )}
+
+          {/* Only where there is something to replace. A backup outlives
+              its guest, and that is the case this page exists for. */}
+          <FormControlLabel
+            value="replace"
+            disabled={!original}
+            control={<Radio size="small" />}
+            label={
+              <Typography sx={{ fontSize: 14 }}>
+                {original ? `Replace ${original.name}` : 'Replace the original'}
+                {!original && (
+                  <Typography component="span" sx={{ fontSize: 12, color: 'text.secondary', ml: 1 }}>
+                    it no longer exists
+                  </Typography>
+                )}
+              </Typography>
+            }
+          />
+        </RadioGroup>
+
+        {mode === 'replace' && original && (
+          <Alert severity="warning">
+            <Typography sx={{ fontSize: 13, mb: 1 }}>
+              {original.name} and its disks are deleted first.
+            </Typography>
+            {originalRunning ? (
+              <Typography sx={{ fontSize: 13}}>It is running. Stop it first.</Typography>
+            ) : (
+              <TextField
+                size="small"
+                fullWidth
+                value={confirmName}
+                onChange={(e) => setConfirmName(e.target.value)}
+                label={`Type ${original.name} to confirm`}
+                sx={{ bgcolor: 'background.paper' }}
+              />
+            )}
+          </Alert>
+        )}
 
         <SelectField
           label="Storage"
@@ -168,64 +195,16 @@ export default function RestoreBackupPage() {
             ))}
         </SelectField>
 
-        {/* THE DANGEROUS PATH, and it only appears once the id you typed
-            actually belongs to something. Offering it against a free id
-            would be offering to overwrite nothing. */}
-        {target && (
-          <Alert severity="warning">
-            <Typography sx={{ fontSize: 13, mb: 1 }}>
-              Restoring over <strong>{target.name}</strong> deletes it and its disks first.
-            </Typography>
-            {targetRunning ? (
-              // The same rule instance deletion follows: destroying
-              // disks under a running machine is refused, not warned
-              // about.
-              <Typography sx={{ fontSize: 13 }}>
-                It is running. Stop it, or pick a free guest ID.
-              </Typography>
-            ) : (
-              <>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={overwrite}
-                      onChange={(e) => {
-                        setOverwrite(e.target.checked)
-                        setConfirmName('')
-                      }}
-                    />
-                  }
-                  label={
-                    <Typography sx={{ fontSize: 14 }}>Replace {target.name}</Typography>
-                  }
-                />
-                {overwrite && (
-                  <TextField
-                    size="small"
-                    fullWidth
-                    value={confirmName}
-                    onChange={(e) => setConfirmName(e.target.value)}
-                    placeholder={target.name}
-                    label={`Type ${target.name} to confirm`}
-                    sx={{ mt: 1, bgcolor: 'background.paper' }}
-                  />
-                )}
-              </>
-            )}
-          </Alert>
-        )}
-
-        {/* OFF BY DEFAULT, unlike a create. A restored guest can carry
-            the same address, hostname and cluster identity as one still
-            running, and two of those on a network is its own outage. */}
         <FormControlLabel
           control={<Checkbox checked={start} onChange={(e) => setStart(e.target.checked)} />}
           label={
             <Typography sx={{ fontSize: 14 }}>
               Start after restoring
-              <Typography component="span" sx={{ fontSize: 12, color: 'text.secondary', ml: 1 }}>
-                it may hold the original's address and hostname
-              </Typography>
+              {mode === 'new' && (
+                <Typography component="span" sx={{ fontSize: 12, color: 'text.secondary', ml: 1 }}>
+                  it may hold the original's address and hostname
+                </Typography>
+              )}
             </Typography>
           }
         />
@@ -236,11 +215,11 @@ export default function RestoreBackupPage() {
       >
         <Button
           variant="contained"
-          color={overwrite ? 'error' : 'primary'}
+          color={mode === 'replace' ? 'error' : 'primary'}
           disabled={!ready || restore.isPending}
           onClick={() => restore.mutate()}
         >
-          {overwrite ? `Replace ${target?.name}` : 'Restore'}
+          {mode === 'replace' ? `Replace ${original?.name ?? ''}` : 'Restore'}
         </Button>
         <Button onClick={() => navigate('/compute/backups')}>Cancel</Button>
       </Box>

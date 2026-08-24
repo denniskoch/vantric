@@ -367,13 +367,22 @@ func (d *Driver) RestoreBackup(ctx context.Context, spec hypervisor.RestoreSpec)
 		body["force"] = 1
 	}
 
+	// The two guests spell their name differently, and a restore that
+	// sets neither keeps the archive's — which is the original's, and
+	// is how you end up with two guests answering to one name.
 	kind := "qemu"
 	if spec.GuestType == "lxc" {
 		kind = "lxc"
 		body["ostemplate"] = spec.VolumeID
 		body["restore"] = 1
+		if spec.Name != "" {
+			body["hostname"] = spec.Name
+		}
 	} else {
 		body["archive"] = spec.VolumeID
+		if spec.Name != "" {
+			body["name"] = spec.Name
+		}
 	}
 
 	var taskID string

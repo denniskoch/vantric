@@ -200,8 +200,7 @@ export default function BackupsPage() {
                   onClick={() =>
                     navigate(
                       `/compute/backups/restore?hypervisor=${row.original.hypervisorId}` +
-                        `&volume=${encodeURIComponent(row.original.id)}` +
-                        `&node=${encodeURIComponent(row.original.node)}`,
+                        `&volume=${encodeURIComponent(row.original.id)}`,
                     )
                   }
                 >

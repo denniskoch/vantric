@@ -2365,18 +2365,16 @@ export const api = {
   dockerContainerAction: (host: string, id: string, action: string) =>
     request<void>(`/docker/containers/${id}/${action}?host=${host}`, { method: 'POST' }),
 
+  /** Restore as a new guest (name required) or replace the original.
+   *  No guest id anywhere: the backend picks a free one. */
   restoreBackup: (body: {
     hypervisorId: string
-    node: string
     volumeId: string
-    guestType: string
-    vmid: number
+    mode: 'new' | 'replace'
+    name: string
     storage: string
-    overwrite: boolean
     start: boolean
   }) => request<Operation>('/backups/restore', { method: 'POST', body: JSON.stringify(body) }),
-  nextVMID: (hypervisor: string) =>
-    request<{ vmid: number }>(`/backups/next-vmid?hypervisor=${hypervisor}`),
 
   listBackupSchedules: () => request<BackupSchedule[]>('/backup-schedules'),
   listBackupGaps: () => request<BackupGap[]>('/backup-schedules/gaps'),

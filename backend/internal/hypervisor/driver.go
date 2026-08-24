@@ -843,10 +843,15 @@ type RestoreSpec struct {
 	// GuestType is "qemu" or "lxc". A backup outlives its guest, so
 	// this comes off the archive rather than from any live record.
 	GuestType string
-	// VMID the guest is restored as. A FREE ONE BY DEFAULT — see
-	// NextVMID — because restoring beside the original is the answer
-	// most of the time and the only one that cannot lose anything.
+	// VMID the guest is restored as. Chosen by the API layer, not
+	// typed: a guest id is an artefact of the hypervisor and this
+	// console names guests everywhere else.
 	VMID int
+	// Name the restored guest takes. REQUIRED FOR A NEW GUEST, and not
+	// merely for tidiness: without it a restore of a guest that still
+	// exists produces two with the same name, and this console's
+	// instance names are unique.
+	Name string
 	// Storage the disks land on. Empty means wherever the archive says,
 	// which is where they were.
 	Storage string

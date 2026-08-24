@@ -2,9 +2,9 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"vantric/internal/hypervisor"
 )
@@ -15,27 +15,34 @@ import (
 
 // restoreBackup turns an archive back into a guest.
 //
-// THE SAFE ANSWER IS THE DEFAULT. A restore beside the original, at a
-// free vmid, cannot lose anything and is what you want most of the
-// time — checking what was in a backup, or bringing back a guest
-// somebody removed. Overwriting the guest that is there now is the
-// other thing entirely: Proxmox deletes it and its disks before it
-// unpacks, so it is off unless explicitly asked for, and the UI makes
-// you type the name.
+// TWO ANSWERS, AND NEITHER MENTIONS A GUEST ID. Restore as a new guest,
+// which needs a name, or replace the one the backup came from, which
+// does not. Every other page in this console names guests rather than
+// numbering them — a vmid is an artefact of the hypervisor, the way a
+// machine type was an artefact of GCP — so the free id is worked out
+// here instead of typed there.
 //
-// IT IS AN OPERATION. Unpacking tens of gigabytes takes as long as it
-// takes, so the handler validates, starts it, and answers with
-// something the bell can follow.
+// THE NAME IS NOT COSMETIC. A restore alongside a guest that still
+// exists would otherwise produce two of them answering to one name, and
+// this console's instance names are unique; the reconciler would adopt
+// one and fail on the other.
+//
+// REPLACING IS THE DESTRUCTIVE ONE. Proxmox deletes the guest and its
+// disks before it unpacks, so it is refused while that guest is
+// running — the same rule instance deletion follows.
+//
+// IT IS AN OPERATION: unpacking tens of gigabytes takes as long as it
+// takes, so this validates, starts it, and answers with something the
+// bell can follow.
 func (s *Server) restoreBackup(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		HypervisorID string `json:"hypervisorId"`
-		Node         string `json:"node"`
 		VolumeID     string `json:"volumeId"`
-		GuestType    string `json:"guestType"`
-		VMID         int    `json:"vmid"`
-		Storage      string `json:"storage"`
-		Overwrite    bool   `json:"overwrite"`
-		Start        bool   `json:"start"`
+		// Mode is "new" or "replace".
+		Mode    string `json:"mode"`
+		Name    string `json:"name"`
+		Storage string `json:"storage"`
+		Start   bool   `json:"start"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		s.err(w, http.StatusBadRequest, "expected a restore")
@@ -51,67 +58,91 @@ func (s *Server) restoreBackup(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusNotImplemented, "this hypervisor can't restore from here")
 		return
 	}
-	if in.VolumeID == "" || in.Node == "" {
-		s.err(w, http.StatusBadRequest, "which archive, on which node?")
+
+	// THE ARCHIVE IS READ, NOT DESCRIBED BY THE CALLER. Which node it
+	// is on, which guest it came from and whether that guest was a VM
+	// or a container are all facts about the file — trusting a client
+	// for them means a mistyped guest type silently builds an empty
+	// container named after your backup.
+	catalog, ok := driver.(hypervisor.BackupDriver)
+	if !ok {
+		s.err(w, http.StatusNotImplemented, "this hypervisor keeps no backup catalog")
 		return
 	}
-	if in.VMID <= 0 {
-		s.err(w, http.StatusBadRequest, "a restore needs a guest id to restore as")
+	archives, err := catalog.Backups(r.Context())
+	if err != nil {
+		s.fail(w, err, "the backup catalog")
+		return
+	}
+	var archive *hypervisor.Backup
+	for i := range archives {
+		if archives[i].ID == in.VolumeID {
+			archive = &archives[i]
+			break
+		}
+	}
+	if archive == nil {
+		s.err(w, http.StatusNotFound, "that archive is no longer there")
 		return
 	}
 
-	// THE CONSOLE'S OWN GUARD, not the hypervisor's. Proxmox refuses a
-	// vmid in use unless force is set — but it would happily accept
-	// force against a RUNNING guest and delete it mid-flight. Requiring
-	// it to be stopped is the same rule instance deletion follows, and
-	// for the same reason: destroying disks under a running machine is
-	// a decision that should be made twice.
-	if existing, err := s.store.GetInstanceByDriverID(r.Context(),
-		in.HypervisorID, strconv.Itoa(in.VMID)); err == nil && existing != nil {
-		if !in.Overwrite {
+	spec := hypervisor.RestoreSpec{
+		Node: archive.Node, VolumeID: archive.ID, GuestType: archive.GuestType,
+		Storage: in.Storage, Start: in.Start,
+	}
+	existing, _ := s.store.GetInstanceByDriverID(r.Context(),
+		in.HypervisorID, strconv.Itoa(archive.VMID))
+
+	switch in.Mode {
+	case "replace":
+		if existing == nil {
 			s.err(w, http.StatusConflict,
-				fmt.Sprintf("%d is already %s — pick a free id, or choose to replace it",
-					in.VMID, existing.Name))
+				"there is no guest to replace — restore it as a new one")
 			return
 		}
 		if existing.Status == string(hypervisor.StatusRunning) ||
 			existing.Status == string(hypervisor.StatusStaging) {
 			s.err(w, http.StatusConflict,
-				fmt.Sprintf("%s is running — stop it before restoring over it", existing.Name))
+				existing.Name+" is running. Stop it first.")
 			return
 		}
+		spec.VMID = archive.VMID
+		spec.Overwrite = true
+		// No name: replacing keeps the guest's own.
+
+	case "new", "":
+		spec.Name = strings.TrimSpace(in.Name)
+		if spec.Name == "" {
+			s.err(w, http.StatusBadRequest, "a name is required")
+			return
+		}
+		if taken, _ := s.store.GetInstance(r.Context(), spec.Name); taken != nil {
+			s.err(w, http.StatusConflict, spec.Name+" is already taken")
+			return
+		}
+		id, err := restorer.NextVMID(r.Context())
+		if err != nil {
+			s.fail(w, err, "a free guest id")
+			return
+		}
+		spec.VMID = id
+
+	default:
+		s.err(w, http.StatusBadRequest, "restore as a new guest, or replace the original")
+		return
 	}
 
-	taskID, err := restorer.RestoreBackup(r.Context(), hypervisor.RestoreSpec{
-		Node: in.Node, VolumeID: in.VolumeID, GuestType: in.GuestType,
-		VMID: in.VMID, Storage: in.Storage, Overwrite: in.Overwrite, Start: in.Start,
-	})
+	taskID, err := restorer.RestoreBackup(r.Context(), spec)
 	if err != nil {
 		s.fail(w, err, "restoring the backup")
 		return
 	}
-	op := s.ops.start(fmt.Sprintf("Restoring %d from backup", in.VMID),
-		"instance", strconv.Itoa(in.VMID), in.HypervisorID, "/compute/instances")
-	s.watchOrFinish(op, driver, taskID, fmt.Sprintf("Restored %d", in.VMID))
+	label := spec.Name
+	if label == "" && existing != nil {
+		label = existing.Name
+	}
+	op := s.ops.start("Restoring "+label,
+		"instance", label, in.HypervisorID, "/compute/instances")
+	s.watchOrFinish(op, driver, taskID, "Restored "+label)
 	s.json(w, http.StatusAccepted, op)
-}
-
-// nextVMID offers the free guest id a restore defaults to.
-func (s *Server) nextVMID(w http.ResponseWriter, r *http.Request) {
-	driver, ok := s.registry.Get(r.URL.Query().Get("hypervisor"))
-	if !ok {
-		s.err(w, http.StatusNotFound, "no such hypervisor")
-		return
-	}
-	restorer, ok := driver.(hypervisor.BackupRestorer)
-	if !ok {
-		s.err(w, http.StatusNotImplemented, "this hypervisor doesn't hand out guest ids")
-		return
-	}
-	id, err := restorer.NextVMID(r.Context())
-	if err != nil {
-		s.fail(w, err, "a free guest id")
-		return
-	}
-	s.json(w, http.StatusOK, map[string]int{"vmid": id})
 }

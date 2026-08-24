@@ -259,7 +259,6 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		// never duplicated. See backupschedules.go.
 		// Turning an archive back into a guest — see backups.go.
 		r.Post("/backups/restore", s.restoreBackup)
-		r.Get("/backups/next-vmid", s.nextVMID)
 		r.Get("/backup-schedules", s.listBackupSchedules)
 		r.Get("/backup-schedules/gaps", s.listBackupGaps)
 		r.Get("/backup-schedules/preview", s.previewBackupSchedule)
