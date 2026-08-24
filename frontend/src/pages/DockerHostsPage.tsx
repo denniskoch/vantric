@@ -70,7 +70,6 @@ export default function DockerHostsPage() {
       <Box sx={{ p: 3 }}>
         <PageHeader
           title="Docker hosts"
-          description="The daemons this console reaches, and the certificate each one must present."
           actions={
             <Button
               variant="contained"

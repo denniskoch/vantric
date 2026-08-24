@@ -104,7 +104,7 @@ export default function DisksPage() {
               <Tooltip
                 title={
                   attached
-                    ? `Attached to ${row.original.inUseBy} — detach it there first`
+                    ? `Attached to ${row.original.inUseBy}. Detach it first.`
                     : 'Delete this volume'
                 }
               >
@@ -151,9 +151,9 @@ export default function DisksPage() {
             here rather than as a banner, and absent when it is zero. */}
         {reclaimable.length > 0 && (
           <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
-            {reclaimable.length} volume{reclaimable.length === 1 ? '' : 's'} nothing is using
+            {reclaimable.length} unused
             {reclaimable.some((d) => d.sizeGb > 0) &&
-              `, ${reclaimable.reduce((n, d) => n + d.sizeGb, 0)} GB`}
+              ` · ${reclaimable.reduce((n, d) => n + d.sizeGb, 0)} GB`}
           </Typography>
         )}
       </Box>
@@ -173,8 +173,8 @@ export default function DisksPage() {
         confirmPhrase={deleting?.name}
         body={
           deleting?.attachment === 'orphaned'
-            ? 'Nothing references this volume, but its contents are gone for good — and a guest deleted out-of-band is the usual reason it looks unreferenced.'
-            : `${deleting?.inUseBy} is not using this volume, but it is still in that guest's config. Deleting it destroys the data on it.`
+            ? 'Nothing references this volume. Its contents are gone for good.'
+            : `${deleting?.inUseBy} is not using this volume. Its contents are gone for good.`
         }
         pending={remove.isPending}
         onCancel={() => setDeleting(null)}

@@ -144,21 +144,21 @@ export default function RestoreBackupPage() {
             !idValid && vmid !== ''
               ? 'A guest id is a number'
               : target
-                ? `${vmid} is currently ${target.name}`
+                ? `In use by ${target.name}`
                 : free
-                  ? `${free.vmid} is free — restoring here leaves the original alone`
+                  ? `${free.vmid} is free`
                   : ' '
           }
         />
 
         <SelectField
-          label="Put the disks on"
+          label="Storage"
           size="small"
           fullWidth
           value={storage}
           onChange={(e) => setStorage(e.target.value)}
         >
-          <MenuItem value="">Wherever the backup says</MenuItem>
+          <MenuItem value="">Same as the backup</MenuItem>
           {datastores
             .filter((d) => d.hypervisorId === hypervisorId && (d.content ?? '').includes('images'))
             .map((d) => (
@@ -174,15 +174,14 @@ export default function RestoreBackupPage() {
         {target && (
           <Alert severity="warning">
             <Typography sx={{ fontSize: 13, mb: 1 }}>
-              <strong>{target.name}</strong> is at {vmid}. Restoring over it deletes that guest
-              and its disks first — everything on it since this backup was taken is gone.
+              Restoring over <strong>{target.name}</strong> deletes it and its disks first.
             </Typography>
             {targetRunning ? (
               // The same rule instance deletion follows: destroying
               // disks under a running machine is refused, not warned
               // about.
               <Typography sx={{ fontSize: 13 }}>
-                It is running. Stop it first, or pick a free guest id.
+                It is running. Stop it, or pick a free guest ID.
               </Typography>
             ) : (
               <>
@@ -223,9 +222,9 @@ export default function RestoreBackupPage() {
           control={<Checkbox checked={start} onChange={(e) => setStart(e.target.checked)} />}
           label={
             <Typography sx={{ fontSize: 14 }}>
-              Start it once restored
+              Start after restoring
               <Typography component="span" sx={{ fontSize: 12, color: 'text.secondary', ml: 1 }}>
-                it may hold the same address and hostname as the original
+                it may hold the original's address and hostname
               </Typography>
             </Typography>
           }
@@ -244,9 +243,6 @@ export default function RestoreBackupPage() {
           {overwrite ? `Replace ${target?.name}` : 'Restore'}
         </Button>
         <Button onClick={() => navigate('/compute/backups')}>Cancel</Button>
-        <Typography sx={{ alignSelf: 'center', fontSize: 12, color: 'text.secondary' }}>
-          Unpacking takes a while — it reports in the notification bell.
-        </Typography>
       </Box>
     </Box>
   )

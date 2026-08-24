@@ -184,7 +184,7 @@ export default function BackupScheduleFormPage() {
             setStorage('')
             setVMIDs([])
           }}
-          helperText={editing ? 'A job belongs to the hypervisor that runs it.' : undefined}
+          helperText={editing ? 'Fixed once created.' : undefined}
         >
           <MenuItem value="">Pick one</MenuItem>
           {hypervisors.map((h) => (
@@ -328,8 +328,8 @@ export default function BackupScheduleFormPage() {
             error={retention.trim() === ''}
             helperText={
               retention.trim()
-                ? "The hypervisor's own pruning rules, comma separated."
-                : 'Nothing is pruned — every archive is kept until the datastore fills.'
+                ? "Comma separated."
+                : 'Nothing is pruned. Archives accumulate until the datastore fills.'
             }
           />
           <RetentionBuilder value={retention} onPick={setRetention} />
@@ -340,7 +340,7 @@ export default function BackupScheduleFormPage() {
           fullWidth
           value={notesTemplate}
           onChange={(e) => setNotesTemplate(e.target.value)}
-          helperText="What each archive is labelled with. {{guestname}} is the usual."
+          helperText="{{guestname}} is the usual."
         />
         <TextField
           label="Email results to"

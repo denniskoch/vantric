@@ -119,7 +119,7 @@ export default function DockerHostFormPage() {
             fullWidth
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
-            helperText="Where the daemon's front door listens — capstan, a socket proxy, or Docker's own TLS port."
+            helperText="https://host:9443"
           />
           <TextField
             label="Token"
@@ -131,7 +131,7 @@ export default function DockerHostFormPage() {
             helperText={
               editing
                 ? 'Leave blank to keep the stored token.'
-                : 'The bearer token the front door expects. Leave blank if it takes none.'
+                : 'Leave blank if the host takes none.'
             }
           />
 
@@ -144,7 +144,7 @@ export default function DockerHostFormPage() {
                 value={fingerprint}
                 onChange={(e) => setFingerprint(e.target.value)}
                 slotProps={{ input: { sx: { fontFamily: 'monospace', fontSize: 12 } } }}
-                helperText="SHA-256 of the certificate this host must present. Colons optional."
+                helperText="SHA-256 of the host's certificate. Colons optional."
               />
               <Button
                 size="small"
@@ -167,8 +167,8 @@ export default function DockerHostFormPage() {
                 {/* The whole point of the confirmation: this value came
                     over the network we are trying not to trust. */}
                 <Typography sx={{ fontSize: 12, mb: 1 }}>
-                  Check it against the host itself before accepting — capstan prints it at
-                  startup, and on a Proxmox node <code>pvenode cert info</code> shows it.
+                  Check it against the host before accepting. capstan prints it at startup;
+                  on a Proxmox node, <code>pvenode cert info</code>.
                 </Typography>
                 <Button size="small" variant="outlined" onClick={() => setFingerprint(seen.fingerprint)}>
                   Use this fingerprint
@@ -218,9 +218,6 @@ export default function DockerHostFormPage() {
             {editing ? 'Save' : 'Connect'}
           </Button>
           <Button onClick={() => navigate('/docker/settings/hosts')}>Cancel</Button>
-          <Typography sx={{ alignSelf: 'center', fontSize: 12, color: 'text.secondary' }}>
-            The host is contacted before the record is saved.
-          </Typography>
         </Box>
       </Box>
     </RequireRole>

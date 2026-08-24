@@ -266,8 +266,7 @@ export default function BackupSchedulesPage() {
         title="Delete this backup schedule?"
         body={
           <>
-            Nothing runs at {deleting?.schedule} any more, and the guests it covered stop
-            being backed up. Archives it has already written are kept.
+            The guests it covered stop being backed up. Existing archives are kept.
           </>
         }
         pending={remove.isPending}

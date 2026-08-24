@@ -221,7 +221,7 @@ export default function BackupCoveragePage() {
           <Box sx={{ flex: 1 }} />
           {spans.length > 1 ? (
             <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
-              These are on {spans.length} hypervisors — a job only takes guests from its own.
+              A job only takes guests from its own hypervisor.
             </Typography>
           ) : jobs.length === 0 ? (
             <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
