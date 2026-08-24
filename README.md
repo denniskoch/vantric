@@ -16,12 +16,25 @@ vocabulary, so you stop jumping between fifteen consoles.
 
 | Section | Backed by | What you get |
 |---|---|---|
-| **Compute** | Proxmox VE | VM and LXC instances, disks, snapshots, backups, templates, ISOs, browser SSH |
+| **Cloud overview** | everything below | What's wrong right now, without knowing where to look |
+| **Shortcuts** | you | Your own tiles, for the tools with no API to put in a section |
+| **Security** | FleetDM, NVD, CISA KEV | CVEs across the estate, and which of them are actually being exploited |
+| **Monitoring** | Zabbix | Problems, and which running guests nothing is watching *(read-only)* |
+| **Compute** | Proxmox VE | VMs, containers, disks, snapshots, backups and their schedules, templates, ISOs, nodes, browser SSH and RDP |
+| **Docker** | capstan, socket proxy, Docker TLS | Containers by compose stack, images, volumes, networks, logs |
+| **Devices** | FleetDM | Physical and virtual machines the agent found, joined to the guests here by SMBIOS UUID *(read-only)* |
+| **Storage** | RustFS (S3) | Buckets, objects, quotas, access keys, and which buckets are public |
 | **Databases** | PostgreSQL, MySQL/MariaDB | Servers you already run: databases, tables, users, permissions |
-| **Network** | UniFi | Sites, WiFi, networks, WAN/internet, VPN, devices, clients (read-only) |
+| **Network** | UniFi | Sites, WiFi, networks, WAN/internet, VPN, devices, clients *(read-only)*, and your own IPAM |
 | **DNS** | Cloudflare | Zones and record sets |
 | **Identity Platform** | authentik | Users, groups, applications, events |
-| **IAM & Admin** | this app | Who may use *this* console, and your own account |
+| **Artificial Intelligence** | Bifrost, provider accounts | Request log, virtual keys, budgets, model prices, and what's left at each provider |
+| **IAM & Admin** | this app | Who may use *this* console, the audit log, and your own account |
+| **Documentation** | this app | The notes that ship with it |
+
+Marked read-only where it is; everywhere else the console writes. The
+line is the same in every section — the everyday actions live here, and
+a tool's deep, rare configuration stays in the tool that owns it.
 
 - **Backend**: Go — REST API (chi), SQLite storage, pluggable drivers per section
 - **Frontend**: React + TypeScript + MUI (Vite)
@@ -78,11 +91,42 @@ to it from there.
 | To connect | Go to | You'll need |
 |---|---|---|
 | Proxmox | Compute → Settings → Hypervisors | API token (see below) |
+| Docker | Docker → Settings → Docker hosts | A front door for the socket, and its certificate fingerprint (see below) |
 | PostgreSQL / MySQL | Databases → Instances → Add | Host, port, a user that can read the catalog |
+| RustFS / S3 | Storage → Settings | Access key and secret; the admin API gives capacity and IAM |
+| FleetDM | Devices → Settings → Inventory service | An **API-only** user's token — one copied from a browser session is the usual mistake |
+| Zabbix | Monitoring → Settings | A token whose role allows `host.get`, `problem.get` and `event.get` |
+| Bifrost | AI → Gateway → Connection | Nothing, if its management API is open; otherwise the admin credential — a virtual key will not do |
+| Provider accounts | AI → Billing → Provider accounts | A key per provider. Four of ten report a real balance, and the page says which |
 | Cloudflare | DNS → Providers | API token that can read and edit zones |
 | authentik | Identity Platform → Providers | Admin API token |
 | UniFi | Network → Controller | API key, or a local account on the controller |
 | Single sign-on | IAM & Admin → Single sign-on | An OIDC application: issuer URL, client ID, and the redirect URI the page shows you |
+
+Every one of them is verified against the real service before the record
+is stored, so a saved backend is a working backend. Credentials are
+write-only in every direction: the API exposes whether one is set, never
+what it is.
+
+### Self-signed certificates
+
+Most of a home lab is self-signed, and "ignore TLS errors" means
+anything on the network path can read the token you just stored. Where a
+record offers a **certificate fingerprint**, use it: the console then
+accepts exactly that certificate and nothing else, which needs no CA.
+
+Read the real value off the host rather than trusting the one the form
+fetched for you — that came over the network you are trying not to
+trust:
+
+```bash
+openssl x509 -in /etc/pve/local/pve-ssl.pem -pubkey -noout | \
+  openssl x509 -fingerprint -sha256 -noout       # or: pvenode cert info
+```
+
+A host that later presents a different certificate reads as its own
+state, not as "unreachable" — those look identical as red dots and only
+one of them means somebody is in the middle.
 
 ### Proxmox
 
@@ -133,10 +177,15 @@ cp .env.example .env
 | `VANTRIC_LISTEN` | `0.0.0.0:8080` | Set by the image |
 | `VANTRIC_DB_DRIVER` / `VANTRIC_DB_DSN` | `sqlite`, `/data/vantric.db` | Set by the image |
 | `VANTRIC_STATIC_DIR` | `/app/static` | Set by the image |
+| `VANTRIC_GUACD_ADDR` | `guacd:4822` | The RDP/VNC proxy. It authenticates nothing, so it has no published port — reachable only on the compose network |
+| `VANTRIC_TRUSTED_PROXIES` | *nothing* | Forwarding headers are believed only from a peer named here, so the audit log records who connected rather than who said they did. Set it behind the tunnel |
 
-That's the whole list. Everything else — hypervisors, DNS providers,
-database servers, authentik, UniFi, single sign-on — is added in the UI,
-not configured here.
+That's the whole list, and it is deliberately short: everything about
+the *lab* rather than the app is a record you add in the UI. The
+pre-rename `LCM_*` spellings are still honoured and warned about at
+startup — config being environment-only means a deploy that renamed them
+without a fallback would not fail, it would come up on defaults with an
+empty database, which is worse.
 
 Or set them inline:
 
@@ -197,13 +246,23 @@ backend/
   internal/
     api/                 REST handlers (chi), auth middleware, reconciler loop,
                          browser-SSH websocket bridge
-    config/              YAML + VANTRIC_* env config
+    config/              VANTRIC_* environment settings — there is no config file
     store/               SQLite persistence (portable SQL, Postgres planned)
     hypervisor/          Driver interface — mock/ and proxmox/
     database/            Driver interface — postgres/ and mysql/
     dns/                 Provider interface — cloudflare/
     identity/            Provider interface — authentik/
     network/             Provider interface — unifi/
+    docker/              Provider interface — engine/ (one driver, three front doors)
+    storage/             Provider interface — rustfs/
+    inventory/           Provider interface — fleet/
+    monitoring/          Provider interface — zabbix/
+    ai/                  Provider interface — bifrost/
+    aiaccount/           Provider interface — openrouter/, deepseek/, elevenlabs/
+    nvd/  kev/           public CVE references: scores, and what is being exploited
+    guac/                the Guacamole protocol, for RDP and VNC in the browser
+    tlspin/              verify a host by its certificate, not by a CA
+    registry/            one live driver per stored record, keyed by its id
 frontend/
   src/
     api/client.ts        typed API client; every call goes through it
@@ -226,9 +285,9 @@ Design notes:
   hypervisor owns runtime state (status, IPs); the store owns metadata.
   A reconciler syncs driver → store every 2s and the UI polls the API
   every 3s, so handlers never poll a hypervisor to answer a read.
-- **Listings span every backend** and stamp each row with the server,
-  provider or site it came from — one that errors is skipped and
-  logged, not fatal to the page.
+- **Listings span every backend** and stamp each row with the
+  hypervisor, provider, host or site it came from — one that errors is
+  skipped and logged, not fatal to the page.
 - **Sessions are rows, not tokens.** Signing out, disabling an account
   or changing a password takes effect on the next request rather than
   whenever a token would have expired.
@@ -246,105 +305,50 @@ cd backend  && go build ./... && go vet ./...     # build + vet
 cd frontend && npx tsc -b && npm run build        # type-check + build
 ```
 
-Both must pass before a commit. Changes are verified against real
-backends rather than by a test suite; the one exception is
-`internal/store/instances_test.go`, covering a create/reconciler race
-that can't be reproduced on demand — `go test ./...` runs it.
+`make check` runs both plus `go test ./...`, and must pass before a
+commit.
+
+Most behaviour is verified against real backends rather than by a suite,
+because most of it is somebody else's API answering. The tests that do
+exist earn their place by covering what a live check can't: the
+create/reconciler race, RBAC route coverage (a renamed route once
+silently left a credential unguarded), and a growing set of **decoders
+pinning what a backend actually sends** — Proxmox reporting `protected`
+as `1` rather than `true`, `ctime` as a quoted string on one storage
+type and an integer on another, a fingerprint pasted in any of four
+shapes. Every one of those was a silent wrong answer before it was a
+test.
+
+There is also a live test against a real hypervisor, skipped unless told
+where one is, which takes its credential from the console's own database
+so running it never puts a token on a command line:
+
+```bash
+VANTRIC_TEST_NODE=pve1 go test ./internal/hypervisor/proxmox -run Live -v
+```
 
 ## API
 
-Base path `/api/v1`. Everything except `/auth/login`, `/auth/logout`
-and `/auth/me` needs a session cookie:
+Base path `/api/v1`, JSON throughout, a session cookie on everything
+except `/auth/{login,logout,me}`, `/auth/providers`, the OIDC round trip,
+and the installer download — which carries its own token, because a
+machine being enrolled has no session.
 
-- `POST /auth/login` (email + password → session cookie),
-  `POST /auth/logout`, `GET /auth/me`, `POST /auth/password`
-  (change your own, needs the current one)
-- `GET /auth/providers` — which sign-in doors exist, read before anyone
-  is signed in; `GET /auth/oidc/start` and `GET /auth/oidc/callback`
-  are the round trip through the identity provider
-- `GET/PUT/DELETE /iam/oidc` — the single sign-on configuration
-- `GET /iam/roles`, `GET/POST /iam/users`,
-  `GET/PUT/DELETE /iam/users/{id}`, `PUT /iam/users/{id}/password`
-- `GET /zones`, `GET /images`, `GET /isos`, `GET /ct-templates`,
-  `GET /datastores`, `GET /disks`, `GET /snapshots` — span every
-  registered server, each item stamped with `serverId`; `?server=`
-  narrows to one (used by the create flows)
-- `POST /isos/download` (hypervisor fetches a URL itself),
-  `POST /isos/upload` (raw body streamed through to the hypervisor),
-  `DELETE /isos?server=&zone=&volume=`,
-  `DELETE /ct-templates?server=&zone=&volume=`,
-  `DELETE /images/{id}?server=` (destroys a template VM),
-  `GET /tasks/{taskId}` for import progress
-- `GET /backups` — guest backup archives across every server that
-  keeps a catalog (`hypervisor.BackupDriver`), newest first;
-  `DELETE /backups?server=&zone=&volume=`
-- `GET /bridges` — network bridges per node, for the NIC pickers
-- `GET /cloud-images`, `POST /cloud-images/{download,upload}`,
-  `DELETE /cloud-images?server=&zone=&volume=` (disk images in a
-  datastore's `import` content)
-- `POST /vm-templates/build` + `GET /vm-templates/builds/{id}` — builds
-  a cloud-init template from a disk image, tracked step by step
-- `GET /servers`, `POST /servers`, `PUT/DELETE /servers/{id}`,
-  `GET /server-types`
-- `GET /images/{id}?server=` — a template's own configuration, which is
-  what a clone of it inherits; the create flow fills its defaults from
-  this
-- `GET/POST /instances`
-- `GET/DELETE /instances/{name}/`
-- `POST /instances/{name}/{start|stop|reset|protection}`
-- `GET /instances/{name}/ssh` — websocket carrying a terminal; the
-  first frame is `{username, cols, rows}`, later frames are
-  `{type: data|resize}`
-- `GET /ssh-key` — YOUR public key (each account has its own, minted on
-  first use), `POST /ssh-key/rotate` to replace it with a fresh pair,
-  `PUT /ssh-key` to import one you already have. Guests normally get the
-  key on their own: when authentication fails, the console creates your
-  account there through the hypervisor's guest agent and retries once
-  (`ssh.provision`, on by default; needs `VM.Monitor` on the Proxmox
-  token)
-- `GET /instances/{name}/{describe|metrics|os-info}` — live hypervisor
-  reads for the detail view (`metrics` takes `?timeframe=hour|day|week|month`)
-- `GET /database/engines`, `GET /database/servers`,
-  `POST /database/servers`, `GET/PUT/DELETE /database/servers/{id}`
-- `GET /database/databases` (spans servers, `?server=` narrows),
-  `POST /database/servers/{id}/databases`,
-  `DELETE /database/servers/{id}/databases/{name}`
-- `GET/POST /database/servers/{id}/users`,
-  `PUT /database/servers/{id}/users/{name}/password`,
-  `DELETE /database/servers/{id}/users/{name}`
-- `GET /database/servers/{id}/databases/{name}/tables`,
-  `GET /database/servers/{id}/databases/{name}/grants` — inside one
-  database, read on demand for its detail view
-- `PUT /database/servers/{id}/databases/{name}/access` — grant a user
-  read/readwrite/full on one database, optionally creating that user in
-  the same call; `DELETE …/access?user=&host=` revokes
-- `GET /database/servers/{id}/connections`
-- `GET /network/provider-types`, `GET /network/providers`,
-  `POST /network/providers`, `PUT/DELETE /network/providers/{id}`
-- `GET /network/{sites,networks,wifi,clients,devices}` — read across
-  every site the controller manages, each row stamped with its site;
-  defaults to the only controller when `?provider=` is absent
-- `GET /identity/provider-types`, `GET /identity/providers`,
-  `POST /identity/providers`, `PUT/DELETE /identity/providers/{id}`
-- `GET/POST /identity/users`,
-  `POST /identity/users/{id}/{recovery,active,password}`
-- `GET /identity/groups`, `POST /identity/groups/{id}/members`,
-  `DELETE /identity/groups/{id}/members/{userId}`
-- `GET /identity/applications`, `GET /identity/events?limit=`
-- `GET /dns/providers`, `POST /dns/providers`,
-  `PUT/DELETE /dns/providers/{id}`, `GET /dns/provider-types`,
-  `GET /dns/accounts?provider=`
-- `GET /dns/zones` (spans providers), `POST /dns/zones?provider=`,
-  `GET /dns/zones/{id}?provider=`,
-  `GET /dns/zones/{id}/records?provider=`,
-  `PUT /dns/zones/{id}/record-sets?provider=`,
-  `DELETE /dns/zones/{id}/record-sets?provider=&name=&type=`,
-  `DELETE /dns/zones/{id}?provider=`
-- `GET /containers`, `GET/DELETE /containers/{name}/`,
-  `POST /containers/{name}/{start|stop|reset|protection}`
+**The router is the list.** `backend/internal/api/server.go` registers
+every route in one place and is the only description of them that cannot
+go out of date. This file used to enumerate them and spent most of its
+life wrong — a second registry nobody updates is worse than no registry,
+which is the rule this whole project is built on.
 
-Projects (GCP-style resource grouping) were dropped pre-ship and may
-return as a post-ship enhancement.
+The shapes worth knowing before you read it:
+
+| | |
+|---|---|
+| **Catalog listings** | `/instances`, `/disks`, `/backups`, `/snapshots`, `/datastores`, `/dns/zones`, `/docker/containers` and the rest span **every** connected backend and stamp each row with the one it came from. `?hypervisor=`, `?provider=`, `?host=` narrows to one. A backend that errors is skipped and logged, never fatal to the page |
+| **Long work answers 202** | A clone, a restore, an import, a power action: the handler validates, starts, and returns an `Operation`. `GET /operations` is what the notification bell reads |
+| **Credentials are write-only** | Every backend record exposes `hasToken` or `hasSecret`, never the value. Sending a blank one on update keeps what is stored |
+| **Optional powers are type assertions** | A driver either implements a capability or doesn't, and the API answers 501 by name rather than failing. Docker is the exception worth knowing: whether a host accepts writes is a property of the far end, so it is discovered by asking |
+| **Roles** | Reads are open to anyone signed in. Changing a resource needs an editor; storing a credential or changing who may sign in needs an owner. Enforcement is middleware, and `rbac_test.go` names the routes that must stay covered |
 
 ## Building a template from a cloud image
 
@@ -384,12 +388,9 @@ New sections, each one a tool the lab already runs. Work on what's
 already here — gaps, correlations and the road to publishing — is in
 [ROADMAP.md](ROADMAP.md).
 
-- **Observability over Zabbix**: the Cloud overview answers "what's
-  broken right now" from the backends already connected, but only for
-  what this console can see itself — reachability, disk pressure,
-  missing agents, stale backups. Zabbix knows the rest: read its API
-  for current problems, host availability and recent triggers rather
-  than drawing new graphs next to its old ones.
+Monitoring (Zabbix), Storage (S3), Devices (FleetDM/osquery) and Docker
+were all on this list and are sections now.
+
 - **CI/CD over Woodpecker**: pipelines are console-shaped — a table of
   recent runs, red or green, with a link out to the failing step.
   Woodpecker has a REST API and an API token per user; Forgejo
@@ -402,18 +403,6 @@ already here — gaps, correlations and the road to publishing — is in
   app uses. The section lists endpoints with days-to-expiry and grade,
   and links out for the PKI toolbox and trust matrix. (Its own
   database, tlsentinel-dev, is already on rowlf-pg.)
-- **Object storage**: the `s3` container and the Synology are invisible
-  here except as a name in a Proxmox datastore list, while every
-  backup lands on the latter. Build against the S3 API itself rather
-  than any one server — ListBuckets, sizes and object counts are
-  standard, and only MinIO's admin API for users and policies isn't,
-  so a section that stays on plain S3 works against whatever is
-  running. Garage is the intended backend (AGPL, Rust, built for
-  self-hosting); versitygw is the alternative if the point is to put
-  an S3 face on storage that already exists rather than a second data
-  silo. DSM's API reports volume health and capacity but needs a
-  session login with a dedicated read-only account, since it has no
-  token auth.
 - **PowerDNS as an internal provider**: `dns.Provider` already has room
   for it, but three things need doing first. A provider record has no
   endpoint — Cloudflare's is a constant — so self-hosted providers need
@@ -427,14 +416,9 @@ already here — gaps, correlations and the road to publishing — is in
   proxy toggle, full/partial setup) then want a capability check so the
   form can hide what a provider doesn't have, the way `ContainerDriver`
   works for hypervisors.
-- **osquery**: run osquery on guests and surface it in the console, so
-  OS Info goes beyond what the QEMU guest agent reports — installed
-  packages, listening ports, users, running processes — and becomes
-  queryable fleet-wide rather than per-VM. Would need an agent-install
-  story (cloud-init) plus a collection endpoint; the OS Info tab is the
-  natural home for it.
-- **Display and serial consoles**: SSH is already proxied in the
-  browser; the display (noVNC) and serial consoles are not. The
+- **Display and serial consoles**: SSH and RDP are already proxied in
+  the browser; the display (noVNC) and serial consoles are not, and
+  `guacd` is already running for the RDP path. The
   instance detail view has a Console tab holding all three, and for now
   those two link out to the hypervisor's own console — Proxmox exposes
   `vncproxy`/`termproxy` as websockets with a one-time ticket, so
