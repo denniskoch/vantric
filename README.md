@@ -1,5 +1,14 @@
 # vantric
 
+**V**iews **A**cross **N** **T**ools, **R**econciled **I**n one **C**onsole.
+
+The backronym came after the name and fits better than it has any right
+to, which is why it stuck: it is the thesis of the whole thing. Proxmox
+against DNS against the IPAM, Fleet against the hypervisor, Zabbix
+against what is actually running — the *reconciling* is what this app
+owns. Every section is a view across somebody else's tool; the drift
+between them is the only thing here that is ours.
+
 A single pane of glass over the tools already running in your home lab,
 wearing a Google Cloud Console–inspired UI. It doesn't reimplement what
 those tools do — it connects to them and presents them in one
@@ -94,7 +103,7 @@ Concept mapping:
 
 | Console concept | Proxmox |
 |---|---|
-| Zone | Cluster node |
+| Node | Cluster node (this was called a Zone once; GCP's zone is a datacenter, not one box) |
 | Image | Template VM (create instances = full clone) |
 | Instance status | GCP-style: `PROVISIONING`, `STAGING`, `RUNNING`, `STOPPING`, `TERMINATED` |
 
