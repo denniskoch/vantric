@@ -21,6 +21,7 @@ import (
 	"vantric/internal/aiaccount"
 	"vantric/internal/database"
 	"vantric/internal/dns"
+	"vantric/internal/docker"
 	"vantric/internal/hypervisor"
 	"vantric/internal/identity"
 	"vantric/internal/inventory"
@@ -87,6 +88,8 @@ type Server struct {
 	networkRegistry *network.Registry
 	// storageRegistry holds the live object stores (RustFS).
 	storageRegistry *storage.Registry
+	// dockerRegistry holds the live Docker hosts, one driver per record.
+	dockerRegistry *docker.Registry
 	// inventoryRegistry holds the live device inventory services
 	// (FleetDM) — what's installed inside the guests.
 	inventoryRegistry *inventory.Registry
@@ -143,6 +146,7 @@ func New(
 	networkRegistry *network.Registry,
 	inventoryRegistry *inventory.Registry,
 	storageRegistry *storage.Registry,
+	dockerRegistry *docker.Registry,
 	aiRegistry *ai.Registry,
 	aiAccountRegistry *aiaccount.Registry,
 	monitoringRegistry *monitoring.Registry,
@@ -160,6 +164,7 @@ func New(
 		identityRegistry: identityRegistry, networkRegistry: networkRegistry,
 		inventoryRegistry:  inventoryRegistry,
 		storageRegistry:    storageRegistry,
+		dockerRegistry:     dockerRegistry,
 		aiRegistry:         aiRegistry,
 		aiAccountRegistry:  aiAccountRegistry,
 		monitoringRegistry: monitoringRegistry,
@@ -300,6 +305,7 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		s.monitoringRoutes(r)
 		s.installerRoutes(r)
 		s.storageRoutes(r)
+		s.dockerRoutes(r)
 
 		r.Get("/instances", s.listInstances)
 		r.Post("/instances", s.createInstance)

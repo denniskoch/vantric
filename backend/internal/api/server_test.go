@@ -13,6 +13,7 @@ import (
 	"vantric/internal/aiaccount"
 	"vantric/internal/database"
 	"vantric/internal/dns"
+	"vantric/internal/docker"
 	"vantric/internal/hypervisor"
 	"vantric/internal/identity"
 	"vantric/internal/inventory"
@@ -40,7 +41,7 @@ func TestNewServerAnswersOnTheRoutesThatRunBeforeASession(t *testing.T) {
 	srv := New(st,
 		hypervisor.NewRegistry(), dns.NewRegistry(), database.NewRegistry(),
 		identity.NewRegistry(), network.NewRegistry(), inventory.NewRegistry(),
-		storage.NewRegistry(), ai.NewRegistry(), aiaccount.NewRegistry(),
+		storage.NewRegistry(), docker.NewRegistry(), ai.NewRegistry(), aiaccount.NewRegistry(),
 		monitoring.NewRegistry(),
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		"", dir, "", "", SSHOptions{}, "guacd:4822")

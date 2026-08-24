@@ -298,6 +298,19 @@ var migrations = []string{
 		created_at TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	)`,
+	// Docker daemons, reached through whatever front door each one has.
+	// The token is optional and the fingerprint is how a self-signed
+	// certificate is trusted — see internal/tlspin.
+	`CREATE TABLE IF NOT EXISTS docker_hosts (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL,
+		base_url TEXT NOT NULL,
+		token TEXT NOT NULL DEFAULT '',
+		fingerprint TEXT NOT NULL DEFAULT '',
+		insecure_tls INTEGER NOT NULL DEFAULT 0,
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	)`,
 	// Somebody's own tiles, for the systems this console doesn't reach.
 	// Per account, and every query is scoped by user_id — see
 	// shortcuts.go.

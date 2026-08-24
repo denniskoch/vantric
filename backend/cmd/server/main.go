@@ -21,6 +21,8 @@ import (
 	dbfactory "vantric/internal/database/factory"
 	"vantric/internal/dns"
 	dnsfactory "vantric/internal/dns/factory"
+	"vantric/internal/docker"
+	dockerfactory "vantric/internal/docker/factory"
 	"vantric/internal/hypervisor"
 	"vantric/internal/hypervisor/factory"
 	"vantric/internal/identity"
@@ -96,10 +98,13 @@ func main() {
 	storageRegistry := storage.NewRegistry()
 	loadStorageRegistry(ctx, st, storageRegistry, log)
 
+	dockerRegistry := docker.NewRegistry()
+	loadDockerRegistry(ctx, st, dockerRegistry, log)
+
 	// The console's SSH key lives beside the database.
 	dataDir := filepath.Dir(cfg.Database.DSN)
 	server := api.New(st, registry, dnsRegistry, dbRegistry, identityRegistry,
-		networkRegistry, inventoryRegistry, storageRegistry, aiRegistry, aiAccountRegistry,
+		networkRegistry, inventoryRegistry, storageRegistry, dockerRegistry, aiRegistry, aiAccountRegistry,
 		monitoringRegistry,
 		log, cfg.StaticDir, dataDir, cfg.SiteURL,
 		cfg.TrustedProxies,
@@ -325,4 +330,25 @@ func loadStorageRegistry(ctx context.Context, st *store.Store, registry *storage
 		registry.Set(providers[i].ID, provider)
 	}
 	log.Info("storage registry loaded", "providers", len(providers))
+}
+
+// loadDockerRegistry builds one driver per stored Docker host. A host
+// that won't build is logged and skipped, not fatal: the console starts
+// with the rest of the lab visible and that one reading "unknown",
+// which is the same tolerance every other backend gets.
+func loadDockerRegistry(ctx context.Context, st *store.Store, reg *docker.Registry, log *slog.Logger) {
+	hosts, err := st.ListDockerHosts(ctx)
+	if err != nil {
+		log.Error("listing Docker hosts", "error", err)
+		return
+	}
+	for i := range hosts {
+		provider, err := dockerfactory.Build(&hosts[i])
+		if err != nil {
+			log.Error("building Docker host", "host", hosts[i].Name, "error", err)
+			continue
+		}
+		reg.Set(hosts[i].ID, provider)
+	}
+	log.Info("docker registry loaded", "hosts", len(hosts))
 }
