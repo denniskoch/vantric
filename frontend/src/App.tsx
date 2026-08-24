@@ -27,6 +27,10 @@ import AIProviderFormPage from './pages/AIProviderFormPage'
 import AIModelPricesPage from './pages/AIModelPricesPage'
 import BackupSchedulesPage from './pages/BackupSchedulesPage'
 import BackupCoveragePage from './pages/BackupCoveragePage'
+import DockerContainersPage from './pages/DockerContainersPage'
+import { DockerImagesPage, DockerNetworksPage, DockerVolumesPage } from './pages/DockerResourcePages'
+import DockerHostsPage from './pages/DockerHostsPage'
+import DockerHostFormPage from './pages/DockerHostFormPage'
 import BackupScheduleFormPage from './pages/BackupScheduleFormPage'
 import ShortcutFormPage from './pages/ShortcutFormPage'
 import SecurityOverviewPage from './pages/SecurityOverviewPage'
@@ -236,6 +240,13 @@ export default function App() {
           element={<RequireRole><DatabaseUserPasswordPage /></RequireRole>}
         />
         <Route path="/docker/overview" element={<SectionLandingPage />} />
+        <Route path="/docker/containers" element={<DockerContainersPage />} />
+        <Route path="/docker/images" element={<DockerImagesPage />} />
+        <Route path="/docker/volumes" element={<DockerVolumesPage />} />
+        <Route path="/docker/networks" element={<DockerNetworksPage />} />
+        <Route path="/docker/settings/hosts" element={<DockerHostsPage />} />
+        <Route path="/docker/settings/hosts/new" element={<DockerHostFormPage />} />
+        <Route path="/docker/settings/hosts/:id/edit" element={<DockerHostFormPage />} />
         <Route path="/ai/overview" element={<AIOverviewPage />} />
         <Route path="/ai/requests" element={<AIRequestsPage />} />
         <Route path="/ai/providers" element={<AIProvidersPage />} />

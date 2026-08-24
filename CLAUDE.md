@@ -904,6 +904,62 @@ Surface the daily 90% here and link out for the rest.
   don't serve it at all, so `ErrUnsupported` is a distinct answer from
   an error: a missing feature reads as one, and the per-instance list
   keeps working because it comes from host detail.
+- DOCKER IS THE ELEVENTH SPLIT, and the first where the TRANSPORT IS A
+  FIELD rather than a driver. `internal/docker.Provider` is the
+  boundary and there is exactly one implementation, `engine`, because
+  the socket is root on the host and every safe way to reach it —
+  capstan (a bearer-token proxy), a plain docker-socket-proxy on a
+  private network, Docker's own TLS listener — speaks the SAME Engine
+  API. So a record is a URL, an optional token and an optional pinned
+  certificate, and the factory has one branch.
+  WHETHER A HOST TAKES WRITES IS DISCOVERED, NOT CONFIGURED. Everywhere
+  else an optional power is a type assertion, because the DRIVER either
+  has it or doesn't; here the same driver is accepted on one host and
+  refused on another depending on how each front door was started. So
+  the far end is asked — with the gentlest write there is, unpausing a
+  container id that cannot exist — and `ErrWriteDisabled` is a
+  different answer from a failure. `ErrForbidden` is a third: an
+  endpoint no setting will ever enable, so the UI must not offer to
+  turn it on.
+  COMPOSE LABELS ARE THE ONLY RECORD OF A STACK. The daemon has no idea
+  six containers are two projects; `com.docker.compose.project` and
+  `.service` are, so they carry through as Stack and Service. Health is
+  parsed out of Docker's status PROSE ("Up 2 weeks (healthy)") because
+  the list endpoint carries no field for it, and is EMPTY rather than
+  red where a container declares no healthcheck — not being asked is
+  not the same as failing.
+  WHAT EARNS THE SECTION is the join: a Docker host is a guest this
+  console already knows, matched on the hostname the daemon reports, so
+  a container list can say which VM it runs inside. Weaker than the
+  SMBIOS UUID that joins instances to inventory hosts, and said so.
+- CERTIFICATE PINNING IS THE ANSWER TO `insecureTLS`, and
+  `internal/tlspin` is where it lives. Every backend record here
+  carries that flag and in this lab most have it set — BOTH Proxmox
+  hypervisors do — which means anything on the LAN can stand between
+  the console and a hypervisor and collect a root token. A pin closes
+  that without a CA: read the fingerprint off the host once, store it,
+  and a substituted certificate fails the handshake.
+  THE CERTIFICATE, NOT THE PUBLIC KEY. Pinning the key would survive a
+  renewal that reuses it, which sounds better and mostly isn't — a
+  self-hosted certificate is a ten-year self-signed one nobody will
+  renew, and the tools that do renew (Proxmox ACME, pvecm updatecerts)
+  make a fresh key anyway. "The certificate changed" is the event worth
+  hearing about regardless.
+  `InsecureSkipVerify` IS SET ON PURPOSE and is not the hole it looks
+  like: it switches off the CHAIN check, which a self-signed cert could
+  never pass, and `VerifyPeerCertificate` then does a stricter job.
+  Hostname and expiry go with it deliberately — a pinned certificate is
+  identified by BEING that certificate.
+  A MISMATCH IS ITS OWN STATUS, never "unreachable". A host presenting
+  the wrong certificate and a host that is switched off are the same
+  red dot in a console with two states, and exactly one of them means
+  somebody is in the middle.
+  READING THE FINGERPRINT OVER THE NETWORK IS THE UNSAFE MOMENT and the
+  form says so: it is trust-on-first-use, only as good as the path
+  being clean right now, which is the assumption pinning exists to
+  remove. It is offered because a pin nobody can obtain is a pin nobody
+  sets — beside the command that prints the real one, with the
+  comparison left to the operator.
 - THE AI GATEWAY is the same split an eighth time:
   `internal/ai.Provider` is the boundary (Bifrost first), gateways are
   DB records, one live provider per record in `ai.Registry`, and a

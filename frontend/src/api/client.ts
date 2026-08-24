@@ -1011,6 +1011,104 @@ export interface BackupGap {
   type: string
 }
 
+export interface DockerHost {
+  id: string
+  name: string
+  baseUrl: string
+  hasToken: boolean
+  /** SHA-256 of the certificate this host must present. */
+  fingerprint: string
+  insecureTls: boolean
+  /** connected | unreachable | mismatch | unknown. `mismatch` is its
+   *  own state: a host presenting the wrong certificate and one that is
+   *  switched off look identical as red dots, and only one of them
+   *  means somebody is in the middle. */
+  status: string
+  info?: DockerInfo
+  error?: string
+  /** The guest this daemon runs inside, matched on hostname. */
+  instance?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DockerInfo {
+  name: string
+  os: string
+  kernel: string
+  arch: string
+  cpus: number
+  memoryBytes: number
+  containers: number
+  running: number
+  images: number
+  version: string
+  apiVersion: string
+  /** Whether the far end accepts changes — discovered, not configured. */
+  writable: boolean
+}
+
+export interface DockerHostInput {
+  name: string
+  baseUrl: string
+  /** Blank on edit keeps the stored one. */
+  token: string
+  fingerprint: string
+  insecureTls: boolean
+}
+
+export interface DockerContainer {
+  hostId: string
+  id: string
+  name: string
+  image: string
+  imageId: string
+  command: string
+  createdAt: number
+  /** Docker's own word: running, exited, paused, restarting, created. */
+  state: string
+  /** The sentence Docker composes — "Up 2 weeks (healthy)" — kept for
+   *  the uptime, which no other field on the list carries. */
+  status: string
+  /** healthy | unhealthy | starting, and EMPTY where the container
+   *  declares no healthcheck. Not the same as unhealthy. */
+  health?: string
+  ports: { ip?: string; public: number; private: number; type: string }[]
+  /** From the compose labels, the only record that these containers
+   *  are one stack. */
+  stack?: string
+  service?: string
+}
+
+export interface DockerImage {
+  hostId: string
+  id: string
+  /** Empty for a dangling image — what `image prune` reclaims. */
+  tags: string[]
+  sizeBytes: number
+  createdAt: number
+  inUse: number
+}
+
+export interface DockerVolume {
+  hostId: string
+  name: string
+  driver: string
+  mountpoint: string
+  createdAt: string
+  stack?: string
+}
+
+export interface DockerNetwork {
+  hostId: string
+  id: string
+  name: string
+  driver: string
+  scope: string
+  internal: boolean
+  stack?: string
+}
+
 export interface AICapabilities {
   virtualKeys: boolean
   limits: boolean
@@ -2234,6 +2332,29 @@ export const api = {
   // and the UI offers exactly those — see aiwrite.go.
   aiCapabilities: () => request<AICapabilities>('/ai/capabilities'),
   listAIModelPrices: () => request<AIModelPrice[]>('/ai/model-prices'),
+
+  listDockerHosts: () => request<DockerHost[]>('/docker/hosts'),
+  createDockerHost: (body: DockerHostInput) =>
+    request<DockerHost>('/docker/hosts', { method: 'POST', body: JSON.stringify(body) }),
+  updateDockerHost: (id: string, body: DockerHostInput) =>
+    request<DockerHost>(`/docker/hosts/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteDockerHost: (id: string) => request<void>(`/docker/hosts/${id}`, { method: 'DELETE' }),
+  /** The certificate a host is presenting right now, for the operator
+   *  to confirm against the host itself. Trust-on-first-use — the form
+   *  says so. */
+  peekDockerHost: (baseUrl: string) =>
+    request<{ fingerprint: string; subject: string; notAfter: string }>('/docker/hosts/peek', {
+      method: 'POST',
+      body: JSON.stringify({ baseUrl }),
+    }),
+  listDockerContainers: () => request<DockerContainer[]>('/docker/containers'),
+  listDockerImages: () => request<DockerImage[]>('/docker/images'),
+  listDockerVolumes: () => request<DockerVolume[]>('/docker/volumes'),
+  listDockerNetworks: () => request<DockerNetwork[]>('/docker/networks'),
+  dockerContainerLogs: (host: string, id: string, lines = 200) =>
+    request<{ logs: string }>(`/docker/containers/${id}/logs?host=${host}&lines=${lines}`),
+  dockerContainerAction: (host: string, id: string, action: string) =>
+    request<void>(`/docker/containers/${id}/${action}?host=${host}`, { method: 'POST' }),
 
   listBackupSchedules: () => request<BackupSchedule[]>('/backup-schedules'),
   listBackupGaps: () => request<BackupGap[]>('/backup-schedules/gaps'),

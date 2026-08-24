@@ -477,7 +477,53 @@ export const sections: Section[] = [
     prefix: '/docker',
     home: '/docker/overview',
     items: [{ label: 'Overview', icon: DashboardIcon, to: '/docker/overview' }],
-    groups: [],
+    groups: [
+      {
+        label: 'Workloads',
+        items: [
+          {
+            label: 'Containers',
+            icon: Inventory2Icon,
+            to: '/docker/containers',
+            hint: 'Every container across your hosts, grouped by compose stack',
+          },
+        ],
+      },
+      {
+        label: 'Resources',
+        items: [
+          {
+            label: 'Images',
+            icon: LayersIcon,
+            to: '/docker/images',
+            hint: 'What is pulled, what it costs in disk, and what nothing uses',
+          },
+          {
+            label: 'Volumes',
+            icon: FolderSpecialIcon,
+            to: '/docker/volumes',
+            hint: 'Where container data actually lives',
+          },
+          {
+            label: 'Networks',
+            icon: LanIcon,
+            to: '/docker/networks',
+            hint: 'Bridges the containers talk over',
+          },
+        ],
+      },
+      {
+        label: 'Settings',
+        items: [
+          {
+            label: 'Docker hosts',
+            icon: SettingsEthernetIcon,
+            to: '/docker/settings/hosts',
+            hint: 'The daemons this console reaches, and the certificate each must present',
+          },
+        ],
+      },
+    ],
     description: 'Container workloads running on your Docker hosts.',
   },
   {
