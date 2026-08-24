@@ -25,5 +25,13 @@ backend/server
 node_modules/
 frontend/dist/
 
+# macOS folder metadata. One of these was committed once and is the
+# reason this section exists — Finder writes them into any directory it
+# has been asked to display.
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
 # Claude Code session state
 .claude/scheduled_tasks.lock
