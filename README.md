@@ -421,6 +421,32 @@ build — must pass before a commit. See [Development](#development) for
 what that runs, and [ROADMAP.md](ROADMAP.md) for work that is understood
 but not built.
 
+## How this was built
+
+vantric is written with AI assistance — Claude, working in this
+repository — and the commit history records it: 376 of 378 commits
+carry a `Co-Authored-By` trailer naming the model.
+
+Two things follow that are worth knowing before trusting it with
+credentials.
+
+The reasoning is written down. Design decisions live in comments beside
+the code they govern and in `CLAUDE.md`, including the ones that were
+wrong first: why an orphaned disk is defined by its guest id rather than
+by the config that mentions it, why a restore asks for a name instead of
+a guest id, why one silently swallowed decode error hid twenty-five
+backups. Where a rule exists, so does the failure that produced it.
+
+Behaviour is verified against real systems rather than mocks. Most of
+what this console does is somebody else's API answering, and the bugs
+that matter are the ones where the documentation and the implementation
+disagree — a hypervisor reporting `protected` as `1` rather than `true`,
+or a timestamp as a quoted string on one storage backend and an integer
+on another. Those are found by asking a real cluster, and the tests that
+exist mostly pin what a backend actually sent.
+
+Responsibility for what ships here is the maintainer's, not the tool's.
+
 ## License
 
 [GNU Affero General Public License v3.0](LICENSE).
