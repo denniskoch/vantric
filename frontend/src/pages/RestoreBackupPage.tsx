@@ -71,6 +71,7 @@ export default function RestoreBackupPage() {
   }, [archive])
 
   const taken = [...instances, ...containers].some((g) => g.name === name.trim())
+  const isContainer = archive?.guestType === 'lxc'
 
   const restore = useMutation({
     mutationFn: () =>
@@ -83,10 +84,12 @@ export default function RestoreBackupPage() {
     onError: (e: Error) => setError(e.message),
   })
 
+  const storageOK = !isContainer || storage !== ''
   const ready =
-    mode === 'new'
+    storageOK &&
+    (mode === 'new'
       ? name.trim() !== '' && !taken
-      : Boolean(original) && !originalRunning && confirmName === original?.name
+      : Boolean(original) && !originalRunning && confirmName === original?.name)
 
   return (
     <Box sx={{ p: 3, maxWidth: 720 }}>
@@ -178,16 +181,27 @@ export default function RestoreBackupPage() {
           </Alert>
         )}
 
+        {/* A CONTAINER HAS TO BE TOLD. Omitting this on a VM restore
+            puts the disks back where the archive says; a container
+            restore defaults to `local` instead and fails there. The
+            pools differ too — a container needs rootdir, a VM images. */}
         <SelectField
           label="Storage"
           size="small"
           fullWidth
           value={storage}
           onChange={(e) => setStorage(e.target.value)}
+          error={isContainer && storage === ''}
+          helperText={isContainer && storage === '' ? 'Required for a container' : ' '}
         >
-          <MenuItem value="">Same as the backup</MenuItem>
+          {!isContainer && <MenuItem value="">Same as the backup</MenuItem>}
+          {isContainer && <MenuItem value="">Pick one</MenuItem>}
           {datastores
-            .filter((d) => d.hypervisorId === hypervisorId && (d.content ?? '').includes('images'))
+            .filter(
+              (d) =>
+                d.hypervisorId === hypervisorId &&
+                (d.content ?? '').includes(isContainer ? 'rootdir' : 'images'),
+            )
             .map((d) => (
               <MenuItem key={d.name} value={d.name}>
                 {d.name}

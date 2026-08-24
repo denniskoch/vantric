@@ -86,6 +86,16 @@ func (s *Server) restoreBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A CONTAINER HAS TO BE TOLD WHERE TO GO. Omitting storage on a VM
+	// restore puts the disks back where the archive's config says; a
+	// container restore defaults to `local` instead, and on a host
+	// whose `local` holds no container directories that fails at
+	// Proxmox with a message about directories rather than about the
+	// field nobody filled in.
+	if archive.GuestType == "lxc" && in.Storage == "" {
+		s.err(w, http.StatusBadRequest, "a container restore needs a storage pool")
+		return
+	}
 	spec := hypervisor.RestoreSpec{
 		Node: archive.Node, VolumeID: archive.ID, GuestType: archive.GuestType,
 		Storage: in.Storage, Start: in.Start,
@@ -116,7 +126,15 @@ func (s *Server) restoreBackup(w http.ResponseWriter, r *http.Request) {
 			s.err(w, http.StatusBadRequest, "a name is required")
 			return
 		}
+		// BOTH TABLES. A container and a VM are separate records here,
+		// and checking only instances let an LXC restore straight past
+		// this into a duplicate — which the hypervisor happily accepts
+		// and the reconciler then trips over.
 		if taken, _ := s.store.GetInstance(r.Context(), spec.Name); taken != nil {
+			s.err(w, http.StatusConflict, spec.Name+" is already taken")
+			return
+		}
+		if taken, _ := s.store.GetContainer(r.Context(), spec.Name); taken != nil {
 			s.err(w, http.StatusConflict, spec.Name+" is already taken")
 			return
 		}

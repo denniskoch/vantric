@@ -360,6 +360,17 @@ Surface the daily 90% here and link out for the rest.
   are facts about the file, and trusting a client for the guest type
   means a mistyped one silently builds an empty container named after
   your backup.
+  A CONTAINER RESTORE MUST BE TOLD ITS STORAGE. Omitting it on a VM
+  puts the disks back where the archive's config says; a container
+  defaults to `local` instead, and fails at Proxmox with a message
+  about container directories rather than about the field nobody
+  filled in. The pools differ too — a container wants `rootdir`
+  content, a VM `images` — so the picker is filtered by which the
+  archive is.
+  THE NAME CHECK HAS TO LOOK IN BOTH TABLES. Containers and instances
+  are separate records here, and checking only instances let an LXC
+  restore straight past it into a duplicate name — caught by trying it
+  against a real archive.
   REPLACING IS REFUSED WHILE THE GUEST RUNS, the same rule instance
   deletion follows — Proxmox deletes the guest and its disks before it
   unpacks. It is offered only when the original still exists, which a
