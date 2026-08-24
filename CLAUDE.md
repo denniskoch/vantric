@@ -1793,6 +1793,27 @@ Surface the daily 90% here and link out for the rest.
   credentials are typed per session and travel as the socket's FIRST
   FRAME — the rule ssh.go already follows, and for the same reason:
   query parameters land in proxy logs. Nothing is stored.
+- BRANDING IS A STORED SETTING, NOT A BUILD ARGUMENT. It was three
+  `VITE_BRAND_*` variables baked into the bundle, on the reasoning that
+  a logo is an asset the bundler has to see and whoever builds the image
+  is whoever sets the name. That stopped being true the moment CI
+  published one: rebranding `ghcr.io/…/vantric:edge` would have meant
+  building your own copy, which is the opposite of what publishing an
+  image is for. Name, suffix and wordmark live in `app_settings` and
+  `<dataDir>/brand/`, and IAM & Admin → Branding changes them.
+  IT IS READ BEFORE SIGN-IN, deliberately — the sign-in page wears it,
+  and a console that showed its owner's name only once you were inside
+  would be branding the wrong half. `GET /branding` and the logo sit
+  outside `requireAuth` beside `/auth/providers`; what that exposes is a
+  name, to somebody who has already reached the page, and the browser
+  tab said it anyway. CHANGING it is owner-only: not a credential, but
+  console-wide configuration.
+  AN UNSET SUFFIX IS THE DEFAULT AND AN EMPTY ONE IS A CHOICE, which is
+  why the read checks `GetSetting`'s error rather than the string: "no
+  suffix" and "never configured" are different answers and a zero value
+  cannot tell them apart. `index.html` still carries the project's own
+  title so a tab is right before any JavaScript runs, and Shell corrects
+  it once the console's own name has arrived.
 - THE DATABASE IS A FILE IN A DIRECTORY, not a named volume:
   `./data/vantric.db` under Docker, `backend/vantric.db` under `make
   dev`. One SQLite file holds everything — accounts, every backend

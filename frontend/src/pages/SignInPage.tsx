@@ -4,7 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { Alert, Box, Button, Divider, Paper, TextField, Typography } from '@mui/material'
 import { api } from '../api/client'
 import { useRefreshSession } from '../user'
-import { brand } from '../branding'
+import { brandLogoURL, useBranding } from '../branding'
 
 /**
  * Local sign-in — the console's own account table.
@@ -15,6 +15,7 @@ import { brand } from '../branding'
  * exactly when that service is what's broken.
  */
 export default function SignInPage() {
+  const brand = useBranding()
   const navigate = useNavigate()
   const location = useLocation()
   const refreshSession = useRefreshSession()
@@ -68,8 +69,8 @@ export default function SignInPage() {
         onSubmit={submit}
         sx={{ p: 4, width: '100%', maxWidth: 400 }}
       >
-        {brand.logo ? (
-          <Box component="img" src={brand.logo} alt="" sx={{ height: 24, mb: 3 }} />
+        {brand.hasLogo ? (
+          <Box component="img" src={brandLogoURL(brand.version)} alt="" sx={{ height: 24, mb: 3 }} />
         ) : (
           <Typography variant="h5" sx={{ mb: 3 }}>
             {brand.name}

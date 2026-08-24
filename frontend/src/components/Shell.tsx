@@ -22,7 +22,7 @@ import {
 } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import SearchIcon from '@mui/icons-material/Search'
-import { brand } from '../branding'
+import { brandLogoURL, documentTitle, useBranding } from '../branding'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { sections, sectionFor } from './nav'
@@ -77,6 +77,13 @@ export default function Shell() {
   const { user, loading, signedOut } = useSession()
   const refreshSession = useRefreshSession()
   const { isFavorite, toggle } = useFavorites()
+  const brand = useBranding()
+
+  // The tab is set from index.html before any JavaScript runs, so a
+  // rebranded console corrects it once its own name has arrived.
+  useEffect(() => {
+    document.title = documentTitle(brand)
+  }, [brand])
   // Everything the star applies to, which is everything but the two
   // above. A stored favourite naming one of them is ignored rather
   // than migrated away — it can only have come from an older build,
@@ -118,10 +125,10 @@ export default function Shell() {
           >
             <MenuIcon />
           </IconButton>
-          {brand.logo ? (
+          {brand.hasLogo ? (
             <Box
               component="img"
-              src={brand.logo}
+              src={brandLogoURL(brand.version)}
               alt={brand.name}
               sx={{ height: 18, display: 'block' }}
             />

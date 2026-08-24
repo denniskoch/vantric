@@ -1,3 +1,4 @@
+import type { Branding } from '../branding'
 // Typed client for the vantric REST API.
 
 /** A role in this console — not in the identity provider it manages. */
@@ -2341,6 +2342,16 @@ export const api = {
   // and the UI offers exactly those — see aiwrite.go.
   aiCapabilities: () => request<AICapabilities>('/ai/capabilities'),
   listAIModelPrices: () => request<AIModelPrice[]>('/ai/model-prices'),
+
+  setBranding: (body: { name: string; suffix: string }) =>
+    request<Branding>('/branding', { method: 'PUT', body: JSON.stringify(body) }),
+  uploadBrandLogo: (file: File) =>
+    request<Branding>(`/branding/logo?filename=${encodeURIComponent(file.name)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: file,
+    }),
+  deleteBrandLogo: () => request<Branding>('/branding/logo', { method: 'DELETE' }),
 
   listDockerHosts: () => request<DockerHost[]>('/docker/hosts'),
   createDockerHost: (body: DockerHostInput) =>

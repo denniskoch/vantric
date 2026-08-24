@@ -4,28 +4,6 @@ Work that is understood but not done. Anything here has a reason it
 isn't built yet, written next to it — a roadmap that only lists
 features is a wish list.
 
-## Before going public
-
-### True OSS branding
-
-`VITE_BRAND_*` already means a default build says Vantric rather than
-KochLabs, and no occurrence of the word survives in the bundle. What
-doesn't hold yet is the **asset**: `branding.ts` imports the KochLabs
-SVG unconditionally into its logo map, so a default build still
-carries roughly 3 KB of a wordmark it never renders.
-
-Harmless to run, wrong to publish — a project's own artifact
-shouldn't contain someone else's mark at all, whether or not it's
-drawn. The fix is to stop importing it statically: either a dynamic
-`import()` keyed on `VITE_BRAND_LOGO`, or a convention where the build
-reads whatever SVG sits at an unversioned path and falls back to text.
-The second also means a fork adds its logo without editing code, which
-is the better answer for the same effort.
-
-Related: the KochLabs SVGs live in `frontend/src/assets/brand/`. Once
-the import is dynamic they can move out of the repo entirely and be
-mounted at build time.
-
 ## Correlations the console is placed to make
 
 Each of these joins two backends already connected, and none needs a

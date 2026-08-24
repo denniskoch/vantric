@@ -207,6 +207,10 @@ func (s *Server) Router() http.Handler {
 		// Which doors exist, and the round trip through the identity
 		// provider — all necessarily reachable before anyone is signed in.
 		r.Get("/auth/providers", s.authProviders)
+		// Whose console this says it is. Outside the session because
+		// the SIGN-IN PAGE wears it — see branding.go.
+		r.Get("/branding", s.getBranding)
+		r.Get("/branding/logo", s.brandLogo)
 		r.Get("/auth/oidc/start", s.oidcStart)
 		r.Get("/auth/oidc/callback", s.oidcCallback)
 
@@ -290,6 +294,11 @@ func (s *Server) protectedRoutes(r chi.Router) {
 		r.Get("/ssh-key", s.mySSHKey)
 		r.Post("/ssh-key/rotate", s.rotateMySSHKey)
 		r.Put("/ssh-key", s.importMySSHKey)
+		// Changing it is console-wide configuration, so it sits with the
+		// other things only an owner may change.
+		r.Put("/branding", s.setBranding)
+		r.Post("/branding/logo", s.uploadBrandLogo)
+		r.Delete("/branding/logo", s.deleteBrandLogo)
 		r.Get("/favorites", s.myFavorites)
 		r.Put("/favorites", s.setMyFavorites)
 		s.shortcutRoutes(r)

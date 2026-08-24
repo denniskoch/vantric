@@ -11,6 +11,7 @@ import IAMUsersPage from './pages/IAMUsersPage'
 import IAMUserFormPage from './pages/IAMUserFormPage'
 import IAMPasswordPage from './pages/IAMPasswordPage'
 import IAMSignOnPage from './pages/IAMSignOnPage'
+import BrandingPage from './pages/BrandingPage'
 import IAMActivityPage from './pages/IAMActivityPage'
 import MyAccountPage from './pages/MyAccountPage'
 import MyPasswordPage from './pages/MyPasswordPage'
@@ -285,6 +286,7 @@ export default function App() {
         <Route path="/iam/account/ssh-key" element={<MySSHKeyPage />} />
         <Route path="/iam/users" element={<RequireRole admin><IAMUsersPage /></RequireRole>} />
         <Route path="/iam/sign-on" element={<RequireRole admin><IAMSignOnPage /></RequireRole>} />
+        <Route path="/iam/branding" element={<BrandingPage />} />
         <Route path="/iam/activity" element={<IAMActivityPage />} />
         <Route path="/iam/users/create" element={<RequireRole admin><IAMUserFormPage /></RequireRole>} />
         <Route path="/iam/users/:id/edit" element={<RequireRole admin><IAMUserFormPage /></RequireRole>} />

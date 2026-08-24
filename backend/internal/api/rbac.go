@@ -50,7 +50,9 @@ const (
 // credential route isn't covered, because a string that silently stops
 // matching is not something to leave to a reader's eye.
 var ownerOnly = []string{
-	"/api/v1/iam/",             // accounts, roles, SSO
+	"/api/v1/iam/",     // accounts, roles, SSO
+	"/api/v1/branding", // what this console calls itself
+	"/api/v1/branding/",
 	"/api/v1/hypervisors",      // hypervisor credentials
 	"/api/v1/dns/providers",    // and the rest of the backends
 	"/api/v1/database/servers", // (the servers themselves, not what's in them)

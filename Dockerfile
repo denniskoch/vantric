@@ -8,11 +8,9 @@ WORKDIR /src/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
-# Whose console this says it is. Unset builds as Vantric, which is what
-# a fork should get; compose passes these through from .env.
-ARG VITE_BRAND_NAME
-ARG VITE_BRAND_SUFFIX
-ARG VITE_BRAND_LOGO
+# Nothing about branding is baked in. Whose console this says it is, and
+# its wordmark, are stored settings changed in IAM & Admin → Branding —
+# so a published image can be rebranded without building your own.
 RUN npm run build
 
 # Build the backend (pure Go, no cgo — modernc sqlite).

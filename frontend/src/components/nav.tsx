@@ -22,6 +22,7 @@ import PublicIcon from '@mui/icons-material/Public'
 import VpnKeyIcon from '@mui/icons-material/VpnKey'
 import TableChartIcon from '@mui/icons-material/TableChart'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
+import PaletteIcon from '@mui/icons-material/Palette'
 import FingerprintIcon from '@mui/icons-material/Fingerprint'
 import PersonIcon from '@mui/icons-material/Person'
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
@@ -791,6 +792,12 @@ export const sections: Section[] = [
             icon: VpnKeyIcon,
             to: '/iam/sign-on',
             hint: "Sign in through the lab's identity provider",
+          },
+          {
+            label: 'Branding',
+            icon: PaletteIcon,
+            to: '/iam/branding',
+            hint: 'What this console calls itself',
           },
           {
             label: 'Activity',
