@@ -20,15 +20,22 @@ func (d *Driver) Tables(ctx context.Context, dbName string) ([]database.Table, e
 	// TABLE_ROWS is the engine's estimate for InnoDB and can be off by
 	// a wide margin; it's still the only free answer, and a console
 	// shouldn't COUNT(*) someone's production table on page load.
+	//
+	// VIEWS ARE LISTED TOO. Filtering on BASE TABLE hid three of them
+	// in this lab's `romm` database — present on the server, on no page
+	// here. They come back with NULL for rows, size and engine, which
+	// is the truth about a view rather than a gap, so the kind travels
+	// with the row and the UI shows a dash instead of a zero.
 	rows, err := d.db.QueryContext(ctx, `
 		SELECT table_name,
+		       table_type,
 		       COALESCE(table_rows, 0),
 		       COALESCE(data_length, 0) + COALESCE(index_length, 0),
 		       COALESCE(engine, ''),
 		       COALESCE(table_collation, ''),
 		       COALESCE(table_comment, '')
 		FROM information_schema.tables
-		WHERE table_schema = ? AND table_type = 'BASE TABLE'
+		WHERE table_schema = ? AND table_type IN ('BASE TABLE', 'VIEW')
 		ORDER BY table_name`, dbName)
 	if err != nil {
 		return nil, err
@@ -38,9 +45,14 @@ func (d *Driver) Tables(ctx context.Context, dbName string) ([]database.Table, e
 	tables := []database.Table{}
 	for rows.Next() {
 		var t database.Table
-		if err := rows.Scan(&t.Name, &t.Rows, &t.SizeBytes, &t.Engine,
+		var tableType string
+		if err := rows.Scan(&t.Name, &tableType, &t.Rows, &t.SizeBytes, &t.Engine,
 			&t.Collation, &t.Comment); err != nil {
 			return nil, err
+		}
+		t.Kind = database.KindTable
+		if tableType == "VIEW" {
+			t.Kind = database.KindView
 		}
 		// MySQL has no schema layer inside a database and no per-table
 		// owner; leaving them blank is honest, and the UI drops the
@@ -137,16 +149,35 @@ func levelPrivileges(level database.AccessLevel) string {
 	return ""
 }
 
+// grantee spells the thing being granted to, which is NOT always
+// name@host.
+//
+// A ROLE HAS NO HOST, and addressing one as though it did fails —
+// `'devrole'@”` and `'devrole'@'%'` are both "Can't find any matching
+// row in the user table". A role is a bare quoted name.
+//
+// The host is not defaulted to '%' for an ordinary account either.
+// 'bob'@'localhost' and 'bob'@'%' are two different accounts, so
+// filling in a blank host with the wildcard doesn't grant broadly, it
+// names an account that usually doesn't exist and fails the same way.
+// A caller that has an account has its host; a blank one is only ever
+// right for a role.
+func (d *Driver) grantee(ctx context.Context, name, host string) string {
+	if host == "" && d.roleNames(ctx)[name] {
+		return quoteLiteral(name)
+	}
+	if host == "" {
+		host = "%"
+	}
+	return quoteLiteral(name) + "@" + quoteLiteral(host)
+}
+
 func (d *Driver) GrantAccess(ctx context.Context, spec database.AccessSpec) error {
 	privileges := levelPrivileges(spec.Level)
 	if privileges == "" {
 		return fmt.Errorf("mysql: unknown access level %q", spec.Level)
 	}
-	host := spec.Host
-	if host == "" {
-		host = "%"
-	}
-	account := quoteLiteral(spec.User) + "@" + quoteLiteral(host)
+	account := d.grantee(ctx, spec.User, spec.Host)
 
 	// Clear first, so lowering someone's access is a reduction rather
 	// than an addition on top of what they already had.
@@ -161,10 +192,7 @@ func (d *Driver) GrantAccess(ctx context.Context, spec database.AccessSpec) erro
 }
 
 func (d *Driver) RevokeAccess(ctx context.Context, dbName, user, host string) error {
-	if host == "" {
-		host = "%"
-	}
-	if err := d.revokeOn(ctx, dbName, quoteLiteral(user)+"@"+quoteLiteral(host)); err != nil {
+	if err := d.revokeOn(ctx, dbName, d.grantee(ctx, user, host)); err != nil {
 		return fmt.Errorf("mysql: %w", err)
 	}
 	return nil

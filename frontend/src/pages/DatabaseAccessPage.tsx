@@ -12,6 +12,7 @@ import {
 import { api } from '../api/client'
 import type { AccessLevel } from '../api/client'
 import FormPage from '../components/FormPage'
+import { hostPatternError } from '../validation'
 
 /**
  * Granting a user access to one database — and creating that user in
@@ -46,7 +47,12 @@ export default function DatabaseAccessPage() {
   const [user, setUser] = useState(params.get('user') ?? '')
   const [createUser, setCreateUser] = useState(false)
   const [password, setPassword] = useState('')
-  const [host, setHost] = useState('%')
+  // Only asked about when CREATING an account. Picking an existing one
+  // takes its host from the account itself — see identityValue below.
+  // The host arrives alongside the user when coming from a grant row,
+  // because it is half of which account that grant belongs to. '%' is
+  // only the default for an account being created here.
+  const [host, setHost] = useState(params.get('host') ?? '%')
   const [level, setLevel] = useState<AccessLevel>('readwrite')
   const [error, setError] = useState<string | null>(null)
 
@@ -63,12 +69,32 @@ export default function DatabaseAccessPage() {
 
   // MySQL identities are name@host; PostgreSQL roles are just a name.
   const isMySQL = server?.type === 'mysql'
+
+  /**
+   * WHICH ACCOUNT IS ONE ANSWER, NOT TWO.
+   *
+   * The picker showed "bob@localhost" and set the value to "bob",
+   * throwing the host away — while a separate Host field defaulted to
+   * "%". So granting to any account not already at % addressed
+   * 'bob'@'%', which usually doesn't exist, and MySQL answered "Can't
+   * find any matching row in the user table". The wildcard looked like
+   * a safe default and was actually a different account.
+   *
+   * The identity travels as the pair it is. A MariaDB ROLE has no host
+   * at all, and its empty half has to survive the round trip — a role
+   * is granted to as a bare name, and '@%' bolted onto one fails the
+   * same way.
+   */
+  const identityValue = (u: { name: string; host: string }) => `${u.name}\u0000${u.host}`
+  const selectedIdentity = users.find((u) => u.name === user && (!isMySQL || u.host === host))
+  const grantable = users.filter((u) => !u.system)
   const back = `/databases/instances/${id}/databases/${encodeURIComponent(name)}`
 
   const save = useMutation({
     mutationFn: () =>
       api.grantDatabaseAccess(id, name, {
         user: user.trim(),
+        // A role's empty host is meaningful and must not become '%'.
         host: isMySQL ? host.trim() : '',
         level,
         createUser,
@@ -82,12 +108,28 @@ export default function DatabaseAccessPage() {
     onError: (e: Error) => setError(e.message),
   })
 
-  const nameTaken = createUser && users.some((u) => u.name === user.trim())
-  const userError = nameTaken ? 'A user with that name already exists' : ''
+  const hostError = isMySQL && createUser ? hostPatternError(host) : null
+  // ON MYSQL THE COLLISION IS THE PAIR. 'app'@'10.0.0.5' and
+  // 'app'@'%' are two different accounts, and creating the second when
+  // the first exists is an ordinary thing to want — refusing it on the
+  // name alone would block exactly the case the host field is for.
+  const nameTaken =
+    createUser &&
+    users.some(
+      (u) => u.name === user.trim() && (!isMySQL || u.host === host.trim()),
+    )
+  const userError = nameTaken
+    ? isMySQL
+      ? 'That user already exists on this host'
+      : 'A user with that name already exists'
+    : ''
   const passwordError =
     createUser && password && password.length < 8 ? 'At least 8 characters' : ''
   const incomplete =
-    !user.trim() || Boolean(userError) || (createUser && password.length < 8)
+    !user.trim() ||
+    Boolean(userError) ||
+    Boolean(hostError) ||
+    (createUser && password.length < 8)
 
   return (
     <FormPage
@@ -139,18 +181,32 @@ export default function DatabaseAccessPage() {
         <TextField
           select
           label="User"
-          value={user}
-          onChange={(e) => setUser(e.target.value)}
+          value={selectedIdentity ? identityValue(selectedIdentity) : ''}
+          onChange={(e) => {
+            const picked = grantable.find((u) => identityValue(u) === e.target.value)
+            setUser(picked?.name ?? '')
+            setHost(picked?.host ?? '')
+          }}
           size="small"
           fullWidth
+          helperText={
+            selectedIdentity?.role
+              ? 'A role — grant it here, then grant the role to whoever needs it'
+              : isMySQL
+                ? 'The account, including where it connects from'
+                : undefined
+          }
         >
-          {users
-            .filter((u) => !u.system)
-            .map((u) => (
-              <MenuItem key={`${u.name}@${u.host}`} value={u.name}>
-                {isMySQL && u.host ? `${u.name}@${u.host}` : u.name}
-              </MenuItem>
-            ))}
+          {grantable.map((u) => (
+            <MenuItem key={identityValue(u)} value={identityValue(u)}>
+              {isMySQL && u.host ? `${u.name}@${u.host}` : u.name}
+              {u.role && (
+                <Box component="span" sx={{ color: 'text.secondary', ml: 1 }}>
+                  role
+                </Box>
+              )}
+            </MenuItem>
+          ))}
         </TextField>
       )}
 
@@ -168,12 +224,17 @@ export default function DatabaseAccessPage() {
         />
       )}
 
-      {isMySQL && (
+      {/* Only when CREATING one. For an account that already exists the
+          host is not a question — it is half of which account you
+          picked, and asking again is how you end up naming one that
+          isn't there. */}
+      {isMySQL && createUser && (
         <TextField
           label="Host"
           value={host}
           onChange={(e) => setHost(e.target.value)}
-          helperText="Where this user may connect from. % is anywhere."
+          error={Boolean(hostError)}
+          helperText={hostError || 'Where this user may connect from. % is anywhere.'}
           size="small"
           fullWidth
         />

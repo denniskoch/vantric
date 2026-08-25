@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	mysqldriver "github.com/go-sql-driver/mysql"
@@ -31,6 +32,9 @@ type Config struct {
 type Driver struct {
 	cfg Config
 	db  *sql.DB
+	// mu guards lock, which is discovered on first use.
+	mu   sync.Mutex
+	lock lockShape
 }
 
 // tlsParam maps the app's SSL modes onto the MySQL driver's.
@@ -195,6 +199,90 @@ func (d *Driver) sessionCounts(ctx context.Context) (map[string]int, error) {
 	return counts, rows.Err()
 }
 
+// lockShape is how this server records a locked account. The two
+// engines this driver serves keep the same fact in different places,
+// and neither can read the other's — so it is DISCOVERED on the first
+// listing rather than configured, the same rule the UniFi driver
+// follows for its API prefix.
+//
+//   - MySQL 5.7.6+ : mysql.user.account_locked, an ENUM('N','Y')
+//   - MariaDB 10.4+: mysql.global_priv, JSON, key $.account_locked —
+//     ABSENT when the account is not locked, which is not the same as
+//     present-and-false. A key left at its default is omitted.
+//
+// Older servers of either family have no lock at all, and there
+// `lockNone` is the honest answer: every account really can log in.
+type lockShape int
+
+const (
+	lockUnknown lockShape = iota
+	lockColumn
+	lockGlobalPriv
+	lockNone
+)
+
+// lockedAccounts returns the accounts this server considers locked,
+// keyed by user\x00host.
+func (d *Driver) lockedAccounts(ctx context.Context) map[string]bool {
+	locked := map[string]bool{}
+	scan := func(q string) error {
+		rows, err := d.db.QueryContext(ctx, q)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var user, host string
+			if err := rows.Scan(&user, &host); err != nil {
+				return err
+			}
+			locked[user+"\x00"+host] = true
+		}
+		return rows.Err()
+	}
+
+	const columnQuery = `SELECT user, host FROM mysql.user WHERE account_locked = 'Y'`
+	const globalPrivQuery = `SELECT user, host FROM mysql.global_priv
+	                          WHERE JSON_VALUE(Priv, '$.account_locked') = 1`
+
+	d.mu.Lock()
+	shape := d.lock
+	d.mu.Unlock()
+
+	switch shape {
+	case lockColumn:
+		if err := scan(columnQuery); err == nil {
+			return locked
+		}
+	case lockGlobalPriv:
+		if err := scan(globalPrivQuery); err == nil {
+			return locked
+		}
+	case lockNone:
+		return locked
+	}
+
+	// First time, or the remembered shape stopped working (a server
+	// upgraded under us). Try both and remember which answered.
+	for _, attempt := range []struct {
+		shape lockShape
+		query string
+	}{{lockColumn, columnQuery}, {lockGlobalPriv, globalPrivQuery}} {
+		if err := scan(attempt.query); err == nil {
+			d.mu.Lock()
+			d.lock = attempt.shape
+			d.mu.Unlock()
+			return locked
+		}
+		// A failed attempt may have added rows before erroring.
+		clear(locked)
+	}
+	d.mu.Lock()
+	d.lock = lockNone
+	d.mu.Unlock()
+	return locked
+}
+
 func (d *Driver) Users(ctx context.Context) ([]database.User, error) {
 	// mysql.user is a table in MySQL and a view in MariaDB 10.4+; these
 	// columns exist in both. Reading it needs SELECT on the mysql
@@ -221,7 +309,6 @@ func (d *Driver) Users(ctx context.Context) ([]database.User, error) {
 		u.Replication = repl == "Y"
 		// A MySQL account exists in order to connect, and 0 means
 		// unlimited — which this app reports as -1.
-		u.CanLogin = true
 		u.ConnectionLimit = -1
 		if maxConns > 0 {
 			u.ConnectionLimit = maxConns
@@ -229,7 +316,46 @@ func (d *Driver) Users(ctx context.Context) ([]database.User, error) {
 		u.System = systemUser(u.Name)
 		users = append(users, u)
 	}
-	return users, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// WHETHER AN ACCOUNT CAN LOG IN IS READ, NOT ASSUMED. This was
+	// hardcoded true, so a locked account read as one that could sign
+	// in — the console stating the opposite of the truth on the single
+	// field that answers "is this user disabled".
+	locked := d.lockedAccounts(ctx)
+	roles := d.roleNames(ctx)
+	for i := range users {
+		u := &users[i]
+		u.Role = roles[u.Name]
+		// A role is not a way in, whatever else is true of it.
+		u.CanLogin = !u.Role && !locked[u.Name+"\x00"+u.Host]
+	}
+	return users, nil
+}
+
+// roleNames is the set of entries in mysql.user that are MariaDB
+// ROLES rather than accounts. They sit in the same table with an empty
+// host, so without this a role was listed as somebody who could sign
+// in. MySQL has no roles in this sense and the column is absent, which
+// is an empty set rather than an error.
+func (d *Driver) roleNames(ctx context.Context) map[string]bool {
+	roles := map[string]bool{}
+	rows, err := d.db.QueryContext(ctx,
+		`SELECT user FROM mysql.user WHERE is_role = 'Y'`)
+	if err != nil {
+		return roles
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return roles
+		}
+		roles[name] = true
+	}
+	return roles
 }
 
 // systemUser marks the accounts the server ships with, which exist to
@@ -337,6 +463,52 @@ func (d *Driver) CreateUser(ctx context.Context, spec database.UserSpec) error {
 
 func (d *Driver) DropUser(ctx context.Context, name, host string) error {
 	if _, err := d.db.ExecContext(ctx, "DROP USER "+account(name, host)); err != nil {
+		return fmt.Errorf("mysql: %w", err)
+	}
+	return nil
+}
+
+// SetUserEnabled locks or unlocks the account.
+//
+// A LOCKED ACCOUNT KEEPS EVERYTHING ELSE. Its grants, its password and
+// its host stay exactly as they were — which is the whole point of
+// having this beside Delete: "they have left" and "this login is
+// finished forever" are different decisions, and only one of them is
+// reversible.
+//
+// ACCOUNT LOCK arrived in MySQL 5.7.6 and MariaDB 10.4.2. An older
+// server rejects the syntax outright, and that comes back as the
+// engine's own message rather than being dressed up as something else.
+func (d *Driver) SetUserEnabled(ctx context.Context, name, host string, enabled bool) error {
+	what := "ACCOUNT LOCK"
+	if enabled {
+		what = "ACCOUNT UNLOCK"
+	}
+	if _, err := d.db.ExecContext(ctx, "ALTER USER "+account(name, host)+" "+what); err != nil {
+		return fmt.Errorf("mysql: %w", err)
+	}
+	return nil
+}
+
+// SetUserHost moves the account to a different host pattern.
+//
+// THE HOST IS HALF THE IDENTITY, so this is a RENAME rather than an
+// update of a field: 'app'@'10.0.0.5' and 'app'@'%' are two different
+// accounts as far as the server is concerned, and RENAME USER is what
+// carries the password and every grant across. Dropping and recreating
+// would silently discard both.
+func (d *Driver) SetUserHost(ctx context.Context, name, host, newHost string) error {
+	if newHost == "" {
+		newHost = "%"
+	}
+	if host == "" {
+		host = "%"
+	}
+	if newHost == host {
+		return nil
+	}
+	stmt := "RENAME USER " + account(name, host) + " TO " + account(name, newHost)
+	if _, err := d.db.ExecContext(ctx, stmt); err != nil {
 		return fmt.Errorf("mysql: %w", err)
 	}
 	return nil

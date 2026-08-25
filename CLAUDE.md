@@ -599,6 +599,88 @@ Surface the daily 90% here and link out for the rest.
   DDL can't take bind parameters, so identifiers are checked against
   `identRe` in the API layer AND quoted by the driver; the engine's own
   databases are flagged `System` and refused for deletion.
+- WHAT THIS SECTION IS FOR IS ADMINISTRATION, NOT SCHEMA. Create a
+  database, drop one, create a user, delete one, change a password,
+  move which hosts an account connects from, disable an account, and
+  grant it access to a database — plus a listing of what tables are in
+  there and how big they are, which is a glance rather than a tool.
+  Creating tables and browsing rows are deliberately OUT: that is the
+  application's schema, owned by whoever wrote it and its migrations,
+  and phpMyAdmin already exists for the times you genuinely need a SQL
+  client. The line is the same one drawn everywhere else here — the
+  daily 90%, with the deep and rare left in the tool that owns it.
+- WHETHER AN ACCOUNT CAN LOG IN IS READ, NEVER ASSUMED. `CanLogin` was
+  hardcoded true on every MySQL account, so a LOCKED one read as able
+  to sign in — the console stating the opposite of the truth on the one
+  field that answers "is this user disabled", while PostgreSQL read the
+  real value and the two engines quietly disagreed. Reading it means
+  reading two unrelated places: MySQL 5.7.6+ keeps `account_locked` as
+  an ENUM on `mysql.user`, MariaDB 10.4+ keeps it as JSON in
+  `mysql.global_priv` where the key is ABSENT rather than false when
+  unlocked — the same "a key left at its default is omitted" trap the
+  cloud-init rows hit. Neither server answers the other's query, so the
+  shape is DISCOVERED on first use and remembered, per the UniFi
+  prefix rule. A server too old for either has no lock at all, and
+  there "every account can log in" is true rather than assumed.
+  MARIADB ROLES ARE NOT ACCOUNTS but live in the same table
+  (`is_role='Y'`, empty host), so they were listed as people who could
+  sign in. They stay listed — they are real and granted to real users —
+  and are marked, with nothing offering one a password.
+  DISABLING IS THE REVERSIBLE HALF of a decision whose other half
+  isn't: a locked account keeps its grants, its password and its host,
+  which is the answer to "they have left" that lets whoever inherits
+  the job be handed it back.
+  CHANGING A HOST IS A RENAME. `'app'@'10.0.0.5'` and `'app'@'%'` are
+  two different accounts to MySQL, and `RENAME USER` is what carries
+  the password and every grant across — drop-and-recreate silently
+  discards both. It has NO PostgreSQL equivalent and that is not a gap
+  to fill: a role has no host, and where somebody may connect from is
+  `pg_hba.conf`, a FILE on the server this console reaches no more than
+  a hypervisor's /etc. The driver answers `ErrUnsupported`, the API
+  turns that into a 400 that says so, and the menu item is ABSENT
+  rather than greyed out — a disabled control invites you to work out
+  why.
+- WHICH ACCOUNT IS ONE ANSWER, NOT TWO. The grant form showed a picker
+  reading "bob@localhost" that set its value to `bob`, threw the host
+  away, and took it from a SEPARATE field defaulting to `%` — so
+  granting to any account not already at `%` addressed `'bob'@'%'`,
+  which usually doesn't exist, and MySQL answered "Can't find any
+  matching row in the user table". The wildcard looked like a safe
+  default and was a different account. The identity travels as the pair
+  it is, and the host is only a question when CREATING one. The
+  "Change" link on a grant row carries it too, for the same reason.
+  A ROLE HAS NO HOST AT ALL, and `'devrole'@''` fails exactly like
+  `'devrole'@'%'` — a role is granted to as a BARE NAME. So the driver
+  decides the spelling rather than the caller: `grantee` looks the name
+  up and only appends `@host` for a real account. That also means a
+  blank host stops being silently rewritten to `%`, which is the same
+  bug wearing a default.
+  ON MYSQL THE NAME COLLISION IS THE PAIR: `'app'@'10.0.0.5'` and
+  `'app'@'%'` are two accounts, and creating the second while the first
+  exists is the ordinary reason the host field is there — so "already
+  exists" checks both halves.
+- A VIEW IS NOT A TABLE AND MUST NOT BE HIDDEN. The table listing
+  filtered on `BASE TABLE`, so three views in this lab's `romm`
+  database sat on the server and on no page here — and a view is
+  exactly what somebody goes looking for when a query names something
+  they cannot find. They are listed WITH THEIR KIND rather than
+  filtered out, because a view stores nothing: its rows and size are
+  not small numbers, they are not numbers, so they render as a dash
+  and the totals line counts them separately. PostgreSQL's
+  MATERIALIZED views do store rows and are still views here, since
+  they are still not something you write to.
+- THE ENGINES ARE TESTED AGAINST REAL ENGINES, because the interesting
+  failures here are queries that silently stop matching rather than
+  errors. `lockedAccounts` fails by returning an EMPTY MAP, which reads
+  as "nobody is locked" — the original bug, restored, with nothing to
+  see. So `internal/database/mysql/lock_integration_test.go` is build-
+  tagged `integration` (kept out of `make check`, which must not need
+  Docker) and pointed at a container:
+  `VANTRIC_TEST_MYSQL=127.0.0.1:13306 go test -tags integration ./internal/database/mysql/`.
+  Run it against BOTH families — a driver that works on MariaDB proves
+  nothing about MySQL here — and it asserts the discovered shape is not
+  `lockNone`, since a server that just accepted ACCOUNT LOCK and then
+  reports nobody locked is a broken read rather than an absent feature.
 - A database DRILLS IN to its own tabbed page (Details / Tables /
   Permissions), the same template as a VM instance. Both extra tabs are
   read ON DEMAND and never polled: they query someone else's catalog,

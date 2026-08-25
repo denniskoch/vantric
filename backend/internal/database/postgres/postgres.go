@@ -252,6 +252,36 @@ func (d *Driver) DropUser(ctx context.Context, name, _ string) error {
 	return nil
 }
 
+// SetUserEnabled takes LOGIN away from the role, or gives it back.
+//
+// PostgreSQL has no lock, and NOLOGIN is the same answer: the role
+// keeps its password, its memberships and every grant it holds, and
+// stops being a way in. A role that never had LOGIN is a group, and
+// enabling one would turn it into an account — but the caller can only
+// reach this through a user listing that already reports canLogin, so
+// the state it is asking for is the state it saw.
+func (d *Driver) SetUserEnabled(ctx context.Context, name, _ string, enabled bool) error {
+	what := "NOLOGIN"
+	if enabled {
+		what = "LOGIN"
+	}
+	if _, err := d.pool.Exec(ctx, "ALTER ROLE "+quote(name)+" "+what); err != nil {
+		return fmt.Errorf("postgres: %w", err)
+	}
+	return nil
+}
+
+// SetUserHost has no PostgreSQL equivalent and says so.
+//
+// A role is not scoped to a host here. Where somebody may connect from
+// is pg_hba.conf — a FILE on the server, edited and reloaded there,
+// which this console reaches no more than it reaches a hypervisor's
+// /etc. Returning ErrUnsupported lets the UI decline to offer the
+// action rather than offering one that always fails.
+func (d *Driver) SetUserHost(_ context.Context, _, _, _ string) error {
+	return database.ErrUnsupported
+}
+
 func (d *Driver) SetPassword(ctx context.Context, name, _, password string) error {
 	stmt := "ALTER ROLE " + quote(name) + " PASSWORD " + quoteLiteral(password)
 	if _, err := d.pool.Exec(ctx, stmt); err != nil {
