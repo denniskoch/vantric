@@ -174,6 +174,25 @@ export function identifierError(value: string): string | null {
   return null
 }
 
+/**
+ * A MySQL host pattern: where an account may connect from.
+ *
+ * The failure this catches is a TYPO, not an injection — the driver
+ * quotes the value either way. MySQL accepts any string here, so a
+ * mistyped pattern makes a real account that nothing can ever connect
+ * as, and the only symptom is a login that keeps being refused.
+ */
+export function hostPatternError(value: string): string | null {
+  const host = value.trim()
+  if (!host) return 'A host is required — use % for any host'
+  if (/\s/.test(host)) return 'No spaces'
+  if (!/^[A-Za-z0-9_%.:*/-]+$/.test(host)) {
+    return 'Use a host name, an address, or a pattern with %'
+  }
+  if (host.length > 255) return 'Keep it under 256 characters'
+  return null
+}
+
 /** Providers cap how short or long a TTL may be. */
 export function ttlError(seconds: number): string | null {
   if (!seconds) return null

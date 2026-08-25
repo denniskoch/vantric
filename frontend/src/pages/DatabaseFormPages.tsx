@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Checkbox, FormControlLabel, MenuItem, TextField } from '@mui/material'
+import { Alert, Checkbox, FormControlLabel, MenuItem, TextField } from '@mui/material'
 import SelectField from '../components/SelectField'
 import { api } from '../api/client'
 import FormPage from '../components/FormPage'
-import { identifierError } from '../validation'
+import { hostPatternError, identifierError } from '../validation'
 
 /** The three forms an instance's tabs used to open in modals. They
  *  share a back target — the instance they belong to. */
@@ -177,6 +177,70 @@ export function CreateDatabaseUserPage() {
         }
         label="May create databases"
       />
+    </FormPage>
+  )
+}
+
+/**
+ * Moving an account to a different host pattern.
+ *
+ * THE HOST IS HALF THE IDENTITY on MySQL — 'app'@'10.0.0.5' and
+ * 'app'@'%' are two different accounts to the server — so this is a
+ * rename, and the driver uses RENAME USER precisely so the password
+ * and every grant travel with it.
+ *
+ * Its own page rather than a dialog, the same rule the password form
+ * follows: a dialog asks "are you sure?", anything you fill in gets a
+ * page.
+ */
+export function DatabaseUserHostPage() {
+  const navigate = useNavigate()
+  const { id, server, backTo, invalidate } = useInstance()
+  const { name = '' } = useParams()
+  const [params] = useSearchParams()
+  const host = params.get('host') ?? undefined
+  const [newHost, setNewHost] = useState(host ?? '%')
+  const [error, setError] = useState<string | null>(null)
+
+  const save = useMutation({
+    mutationFn: () => api.setDatabaseUserHost(id, name, newHost, host),
+    onSuccess: () => {
+      invalidate()
+      navigate(backTo)
+    },
+    onError: (e: Error) => setError(e.message),
+  })
+
+  const problem = hostPatternError(newHost)
+
+  return (
+    <FormPage
+      title={`Move ${name}${host ? `@${host}` : ''}`}
+      backTo={backTo}
+      backLabel={server?.name ?? 'Instance'}
+      error={error}
+      onDismissError={() => setError(null)}
+      primaryLabel="Move account"
+      primaryDisabled={!newHost || Boolean(problem) || newHost === host}
+      pending={save.isPending}
+      onPrimary={() => save.mutate()}
+    >
+      <TextField
+        label="Connects from"
+        size="small"
+        value={newHost}
+        onChange={(e) => setNewHost(e.target.value)}
+        error={Boolean(problem)}
+        helperText={
+          problem ??
+          "% is any host. A pattern works too: 192.168.80.% or %.example.com"
+        }
+        fullWidth
+      />
+      <Alert severity="info" sx={{ mt: 2 }}>
+        The password and every grant move with the account. Anything connected
+        as {name}@{host || '%'} stays connected until it reconnects.
+      </Alert>
     </FormPage>
   )
 }

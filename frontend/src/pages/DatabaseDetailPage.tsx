@@ -101,8 +101,15 @@ export default function DatabaseDetailPage() {
   // PostgreSQL has schemas and per-table owners; MySQL has neither, so
   // the columns disappear rather than printing a column of dashes.
   const isPostgres = server?.type === 'postgres'
-  const totalSize = tables.reduce((sum, t) => sum + t.sizeBytes, 0)
-  const totalRows = tables.reduce((sum, t) => sum + t.rows, 0)
+  // THE TOTALS ARE THE TABLES' ONLY. A view stores nothing, so adding
+  // it to a count of tables overstates how many there are, and adding
+  // its size adds a number that isn't one — PostgreSQL reports a few
+  // pages for a view's definition, which would quietly inflate the
+  // disk figure this line exists to give.
+  const baseTables = tables.filter((t) => t.kind !== 'view')
+  const viewCount = tables.length - baseTables.length
+  const totalSize = baseTables.reduce((sum, t) => sum + t.sizeBytes, 0)
+  const totalRows = baseTables.reduce((sum, t) => sum + t.rows, 0)
 
   return (
     <Box sx={{ pb: 4 }}>
@@ -173,7 +180,9 @@ export default function DatabaseDetailPage() {
                 Row counts are the engine's own estimate; a dash means it doesn't
                 have one yet.
                 {tables.length > 0 &&
-                  ` ${tables.length} table${tables.length === 1 ? '' : 's'}, about ${totalRows.toLocaleString()} rows, ${formatBytes(totalSize)}.`}
+                  ` ${baseTables.length} table${baseTables.length === 1 ? '' : 's'}, about ${totalRows.toLocaleString()} rows, ${formatBytes(totalSize)}`}
+                {viewCount > 0 && `, and ${viewCount} view${viewCount === 1 ? '' : 's'}`}
+                {tables.length > 0 && '.'}
               </Typography>
               <TableContainer component={Paper} variant="outlined">
                 <Table size="small">
@@ -181,6 +190,7 @@ export default function DatabaseDetailPage() {
                     <TableRow>
                       {isPostgres && <TableCell>Schema</TableCell>}
                       <TableCell>Name</TableCell>
+                      <TableCell>Kind</TableCell>
                       {isPostgres && <TableCell>Owner</TableCell>}
                       {!isPostgres && <TableCell>Engine</TableCell>}
                       <TableCell align="right">Rows (est.)</TableCell>
@@ -202,19 +212,27 @@ export default function DatabaseDetailPage() {
                             </Typography>
                           )}
                         </TableCell>
+                        <TableCell sx={{ color: 'text.secondary' }}>
+                          {t.kind === 'view' ? 'View' : 'Table'}
+                        </TableCell>
                         {isPostgres && <TableCell>{t.owner || '—'}</TableCell>}
                         {!isPostgres && <TableCell>{t.engine || '—'}</TableCell>}
-                        {/* 0 means "never analysed" as often as it means
-                            empty, so don't claim a sized table has no rows. */}
+                        {/* A VIEW STORES NOTHING, so its rows and size are
+                            not small numbers — they are not numbers. The
+                            engine reports zeroes and printing them would
+                            describe an empty table where there is no table.
+                            Same rule as an unanalysed row count below. */}
                         <TableCell align="right">
-                          {t.rows > 0 ? t.rows.toLocaleString() : '—'}
+                          {t.kind === 'view' || t.rows <= 0 ? '—' : t.rows.toLocaleString()}
                         </TableCell>
-                        <TableCell align="right">{formatBytes(t.sizeBytes)}</TableCell>
+                        <TableCell align="right">
+                          {t.kind === 'view' ? '—' : formatBytes(t.sizeBytes)}
+                        </TableCell>
                       </TableRow>
                     ))}
                     {tables.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                        <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                           {tablesLoading ? 'Loading…' : 'No tables in this database.'}
                         </TableCell>
                       </TableRow>

@@ -74,6 +74,7 @@ import NetworkControllerFormPage from './pages/NetworkControllerFormPage'
 import {
   CreateDatabasePage,
   CreateDatabaseUserPage,
+  DatabaseUserHostPage,
   DatabaseUserPasswordPage,
 } from './pages/DatabaseFormPages'
 import HypervisorFormPage from './pages/HypervisorFormPage'
@@ -247,6 +248,10 @@ export default function App() {
         <Route
           path="/databases/instances/:id/users/:name/password"
           element={<RequireRole><DatabaseUserPasswordPage /></RequireRole>}
+        />
+        <Route
+          path="/databases/instances/:id/users/:name/host"
+          element={<RequireRole><DatabaseUserHostPage /></RequireRole>}
         />
         <Route path="/docker/overview" element={<SectionLandingPage />} />
         <Route path="/docker/containers" element={<DockerContainersPage />} />

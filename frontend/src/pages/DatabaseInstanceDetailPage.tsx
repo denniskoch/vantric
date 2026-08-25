@@ -28,6 +28,8 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import AddBoxIcon from '@mui/icons-material/AddBox'
 import KeyIcon from '@mui/icons-material/Key'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
+import BlockIcon from '@mui/icons-material/Block'
+import PublicIcon from '@mui/icons-material/Public'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import { api } from '../api/client'
@@ -108,6 +110,15 @@ export default function DatabaseInstanceDetailPage() {
       setDroppingUser(null)
     },
   })
+  // Turning an account off is one click and reversible, so it acts from
+  // the menu rather than through a confirmation — the dialog rule here
+  // is about what cannot be undone.
+  const setUserEnabled = useMutation({
+    mutationFn: (user: DatabaseUser) =>
+      api.setDatabaseUserEnabled(id, user.name, !user.canLogin, user.host),
+    onSuccess: refresh,
+    onError,
+  })
   const removeServer = useMutation({
     mutationFn: () => api.deleteDatabaseServer(id),
     onSuccess: () => navigate('/databases/instances'),
@@ -141,6 +152,7 @@ export default function DatabaseInstanceDetailPage() {
   const connected = server.status === 'connected'
   // MySQL databases have no owner; PostgreSQL's do.
   const hasOwners = server.type === 'postgres'
+  const isPostgres = server.type === 'postgres'
   const brand = databaseBrand(server.type, server.info?.version)
 
   return (
@@ -340,7 +352,7 @@ export default function DatabaseInstanceDetailPage() {
                   <TableRow>
                     <TableCell>Name</TableCell>
                     <TableCell>Type</TableCell>
-                    <TableCell>Can log in</TableCell>
+                    <TableCell>Status</TableCell>
                     <TableCell>Superuser</TableCell>
                     <TableCell>Create DB</TableCell>
                     <TableCell>Member of</TableCell>
@@ -355,8 +367,26 @@ export default function DatabaseInstanceDetailPage() {
                         {user.name}
                         {user.host && <Box component="span" sx={{ color: 'text.secondary' }}>@{user.host}</Box>}
                       </TableCell>
-                      <TableCell>{user.system ? 'System' : 'User'}</TableCell>
-                      <TableCell>{yesNo(user.canLogin)}</TableCell>
+                      <TableCell>
+                        {user.role ? 'Role' : user.system ? 'System' : 'User'}
+                      </TableCell>
+                      {/* WHAT THIS ANSWERS IS "is this account off", so it
+                          says so in those words. "Can log in: No" is the
+                          same fact phrased as a property, and reads as a
+                          missing capability rather than a decision
+                          somebody made. A role is neither — it is not a
+                          way in at all. */}
+                      <TableCell>
+                        {user.role ? (
+                          <Box component="span" sx={{ color: 'text.secondary' }}>
+                            Not a login
+                          </Box>
+                        ) : user.canLogin ? (
+                          'Enabled'
+                        ) : (
+                          <Box component="span" sx={{ color: 'warning.dark' }}>Disabled</Box>
+                        )}
+                      </TableCell>
                       <TableCell>{yesNo(user.superuser)}</TableCell>
                       <TableCell>{yesNo(user.createDb)}</TableCell>
                       <TableCell sx={{ color: 'text.secondary' }}>
@@ -457,6 +487,45 @@ export default function DatabaseInstanceDetailPage() {
           }}
         >
           <KeyIcon fontSize="small" sx={{ mr: 1 }} /> Set password
+        </MenuItem>
+        {/* MySQL only, and ABSENT rather than disabled on PostgreSQL: a
+            role there has no host, and where somebody may connect from
+            lives in pg_hba.conf on the server. A greyed-out item invites
+            you to work out why. */}
+        {!isPostgres && (
+          <MenuItem
+            disabled={userMenu?.user.system || userMenu?.user.role}
+            onClick={() => {
+              if (userMenu) {
+                const host = userMenu.user.host
+                  ? `?host=${encodeURIComponent(userMenu.user.host)}`
+                  : ''
+                navigate(`/databases/instances/${id}/users/${userMenu.user.name}/host${host}`)
+              }
+              setUserMenu(null)
+            }}
+          >
+            <PublicIcon fontSize="small" sx={{ mr: 1 }} /> Change host
+          </MenuItem>
+        )}
+        {/* Off, not gone. The grants stay, so whoever inherits the job
+            gets them back by turning this on again. */}
+        <MenuItem
+          disabled={userMenu?.user.system || userMenu?.user.role}
+          onClick={() => {
+            if (userMenu) setUserEnabled.mutate(userMenu.user)
+            setUserMenu(null)
+          }}
+        >
+          {userMenu?.user.canLogin ? (
+            <>
+              <BlockIcon fontSize="small" sx={{ mr: 1 }} /> Disable account
+            </>
+          ) : (
+            <>
+              <CheckCircleIcon fontSize="small" sx={{ mr: 1 }} /> Enable account
+            </>
+          )}
         </MenuItem>
         <MenuItem
           disabled={userMenu?.user.system}

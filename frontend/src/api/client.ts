@@ -73,6 +73,9 @@ export interface SSHKey {
 
 /** One table inside a database. Row counts are the engine's estimate. */
 export interface DatabaseTable {
+  /** A view has no size, no rows and no storage engine — the kind is
+   *  what lets those render as a dash rather than a confident zero. */
+  kind: 'table' | 'view'
   schema: string
   name: string
   owner: string
@@ -1919,6 +1922,9 @@ export interface DatabaseUser {
   connectionLimit: number
   /** Ships with the server (mysql.sys and friends) — not droppable. */
   system: boolean
+  /** A bundle of privileges rather than a way in. MariaDB keeps roles
+   *  in the same table as accounts, so they appear in this list. */
+  role: boolean
 }
 
 export interface DatabaseConnection {
@@ -2639,6 +2645,25 @@ export const api = {
         host ? `?host=${encodeURIComponent(host)}` : ''
       }`,
       { method: 'PUT', body: JSON.stringify({ password }) },
+    ),
+  setDatabaseUserEnabled: (
+    serverId: string,
+    name: string,
+    enabled: boolean,
+    host?: string,
+  ) =>
+    request<void>(
+      `/database/servers/${serverId}/users/${encodeURIComponent(name)}/enabled${
+        host ? `?host=${encodeURIComponent(host)}` : ''
+      }`,
+      { method: 'PUT', body: JSON.stringify({ enabled }) },
+    ),
+  setDatabaseUserHost: (serverId: string, name: string, newHost: string, host?: string) =>
+    request<void>(
+      `/database/servers/${serverId}/users/${encodeURIComponent(name)}/host${
+        host ? `?host=${encodeURIComponent(host)}` : ''
+      }`,
+      { method: 'PUT', body: JSON.stringify({ host: newHost }) },
     ),
   dropDatabaseUser: (serverId: string, name: string, host?: string) =>
     request<void>(
