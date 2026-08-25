@@ -125,10 +125,11 @@ type wireHost struct {
 }
 
 type wireSoftware struct {
-	Name            string `json:"name"`
-	Version         string `json:"version"`
-	Source          string `json:"source"`
-	GeneratedCPE    string `json:"generated_cpe"`
+	Name            string   `json:"name"`
+	Version         string   `json:"version"`
+	Source          string   `json:"source"`
+	GeneratedCPE    string   `json:"generated_cpe"`
+	InstalledPaths  []string `json:"installed_paths"`
 	Vulnerabilities []struct {
 		CVE               string  `json:"cve"`
 		DetailsLink       string  `json:"details_link"`
@@ -293,6 +294,24 @@ func (p *Provider) hostDetail(ctx context.Context, path string) (*inventory.Host
 		pkg := inventory.Package{
 			Name: s.Name, Version: s.Version, Source: s.Source, CPE: s.GeneratedCPE,
 			Vulnerabilities: []inventory.Vulnerability{},
+		}
+		// WHERE IT IS, not just that it is. A bundle in the Trash is
+		// reported by the agent exactly like an installed one — see
+		// inventory.Discarded.
+		if len(s.InstalledPaths) > 0 {
+			pkg.Path = s.InstalledPaths[0]
+			// Discarded only when EVERY copy is: an app installed in
+			// /Applications with an old version also sitting in the
+			// Trash is installed, and calling it discarded would
+			// excuse a flaw that is genuinely live.
+			pkg.Discarded = true
+			for _, path := range s.InstalledPaths {
+				if !inventory.Discarded(path) {
+					pkg.Path = path
+					pkg.Discarded = false
+					break
+				}
+			}
 		}
 		for _, v := range s.Vulnerabilities {
 			vuln := inventory.Vulnerability{

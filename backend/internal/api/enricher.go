@@ -203,6 +203,16 @@ func (e *enricher) pass(ctx context.Context) {
 				return
 			case <-time.After(rateLimitBackoff):
 			}
+		case errors.Is(err, nvd.ErrRefused):
+			// NVD rejecting the request outright, which in practice
+			// means the API key. Stopping the pass on the first one is
+			// right: a refusal is not a CVE that failed, it is every
+			// CVE that will fail, and the pace makes no difference to
+			// it. Named so the settings page says the key rather than
+			// making somebody read five thousand identical failures.
+			e.log.Error("enricher: NVD refused the request, stopping",
+				"hasApiKey", e.nvd.HasAPIKey(), "error", err)
+			consecutive = maxConsecutiveFailures
 		default:
 			consecutive++
 		}

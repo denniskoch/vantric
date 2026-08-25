@@ -34,6 +34,12 @@ import (
 // missing API key into thousands of refused requests.
 var ErrRateLimited = errors.New("nvd: rate limited")
 
+// ErrRefused is NVD rejecting the request outright — a 404, which it
+// does NOT use for a CVE it has never heard of. That answer is a 200
+// carrying no results, so the two must never be collapsed: one is a
+// fact worth caching and the other is a request that never happened.
+var ErrRefused = errors.New("nvd: request refused")
+
 const (
 	endpoint = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 	// A CVE's description and score change rarely, and never in a way
@@ -135,6 +141,34 @@ func (c *Client) Lookup(ctx context.Context, cve string) (*Record, error) {
 	return record, nil
 }
 
+// VerifyKey asks NVD to answer one well-known CVE with the given key,
+// so a key that will be refused is refused HERE — while somebody is
+// looking at the form — rather than silently, six hours later, in a
+// background pass.
+//
+// Every other credential in this console is verified before it is
+// stored. This one was not, and the cost was 3,668 published CVEs
+// cached as unpublished, because NVD's answer to a bad key is a 404
+// that used to read as "no such CVE".
+//
+// An empty key is valid: NVD serves anonymous callers, slowly.
+func (c *Client) VerifyKey(ctx context.Context, key string) error {
+	if strings.TrimSpace(key) == "" {
+		return nil
+	}
+	probe := &Client{http: c.http, cache: map[string]entry{}, apiKey: key}
+	// A CVE that has existed since 2021 and will not be withdrawn, so a
+	// nil answer here means the request was wrong rather than the CVE.
+	record, err := probe.fetch(ctx, "CVE-2021-44228")
+	if err != nil {
+		return err
+	}
+	if record == nil {
+		return fmt.Errorf("%w: NVD returned no result for a CVE it holds", ErrRefused)
+	}
+	return nil
+}
+
 func (c *Client) cached(cve string) (*Record, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -173,7 +207,17 @@ func (c *Client) fetch(ctx context.Context, cve string) (*Record, error) {
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	switch {
 	case resp.StatusCode == http.StatusNotFound:
-		return nil, nil
+		// NOT "no such CVE". NVD answers a CVE it doesn't hold with 200
+		// and totalResults 0 (below); 404 is how it REFUSES a request,
+		// and in practice that means the apiKey header was rejected.
+		// Reading it as an empty answer recorded 3,668 published CVEs
+		// as unpublished — every one looked up after a bad key was
+		// saved — and cached the lie, so CVE-2023-4863 sat on a host
+		// page as "Not scored" while CISA listed it as exploited.
+		if key != "" {
+			return nil, fmt.Errorf("%w: NVD refused the request (%s) — the API key is usually the cause", ErrRefused, resp.Status)
+		}
+		return nil, fmt.Errorf("%w: NVD refused the request (%s)", ErrRefused, resp.Status)
 	case resp.StatusCode == http.StatusForbidden, resp.StatusCode == http.StatusTooManyRequests:
 		// NVD's answer to a caller asking too often. Anonymous callers
 		// get a handful a minute; a key raises it to about fifty per
@@ -206,6 +250,7 @@ func (c *Client) fetch(ctx context.Context, cve string) (*Record, error) {
 	if err := json.Unmarshal(raw, &body); err != nil {
 		return nil, fmt.Errorf("nvd: decoding: %w", err)
 	}
+	// The one way NVD says it holds nothing on a CVE.
 	if len(body.Vulnerabilities) == 0 {
 		return nil, nil
 	}

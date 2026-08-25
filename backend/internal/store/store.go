@@ -5,8 +5,10 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -369,6 +371,26 @@ func (s *Store) migrate() error {
 			return fmt.Errorf("store: migration failed: %w", err)
 		}
 	}
+	for _, r := range repairs {
+		key := "repair." + r.name
+		var done string
+		switch err := s.db.QueryRow(
+			`SELECT value FROM app_settings WHERE key = ?`, key).Scan(&done); {
+		case err == nil:
+			continue
+		case !errors.Is(err, sql.ErrNoRows):
+			return fmt.Errorf("store: repair %s: %w", r.name, err)
+		}
+		if _, err := s.db.Exec(r.sql); err != nil {
+			return fmt.Errorf("store: repair %s: %w", r.name, err)
+		}
+		if _, err := s.db.Exec(
+			`INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)`,
+			key, time.Now().UTC().Format(time.RFC3339), time.Now().UTC().Format(time.RFC3339),
+		); err != nil {
+			return fmt.Errorf("store: repair %s: %w", r.name, err)
+		}
+	}
 	return nil
 }
 
@@ -430,4 +452,27 @@ var columnMigrations = []string{
 	// A tile is an icon and a name. The second line was furniture on
 	// something the size of a button.
 	`ALTER TABLE user_shortcuts DROP COLUMN description`,
+}
+
+// Rows a bug wrote, cleared so the thing that writes them can write
+// them again correctly.
+//
+// A REPAIR RUNS ONCE, WHICH IS WHAT SEPARATES IT FROM A MIGRATION.
+// Schema statements above are idempotent by construction — the second
+// ADD COLUMN is an error you ignore. A repair deletes DATA, and the
+// rows it deletes are the same shape as the correct rows written
+// afterwards, so running it every boot would wipe the fix on the way
+// in. Each is remembered by name in app_settings.
+var repairs = []struct{ name, sql string }{
+	// NVD ANSWERS A BAD API KEY WITH 404, and the client read 404 as
+	// "no such CVE" — which NVD actually says with a 200 carrying no
+	// results. So every CVE looked up after a bad key was saved got
+	// cached as unpublished: 3,668 of them here, including
+	// CVE-2023-4863, which sat on a host page reading "Not scored"
+	// while CISA listed it as actively exploited. The client now
+	// treats 404 as a refusal, and these rows go so the enricher
+	// re-reads them. Dropping ALL misses rather than the recent ones is
+	// deliberate: a genuine miss costs one lookup to re-establish, and
+	// a row that recorded only the conclusion cannot say which it was.
+	{"nvd-404-misses", `DELETE FROM cve_cache WHERE missing = 1`},
 }

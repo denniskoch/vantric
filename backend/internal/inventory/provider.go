@@ -19,6 +19,7 @@ package inventory
 import (
 	"context"
 	"errors"
+	"strings"
 	"vantric/internal/registry"
 )
 
@@ -100,6 +101,47 @@ type Package struct {
 	// Vulnerabilities carried by this version, where the service
 	// computes them.
 	Vulnerabilities []Vulnerability `json:"vulnerabilities"`
+	// Path is where the agent found it, and it is here because of one
+	// specific lie a package list can tell.
+	Path string `json:"path,omitempty"`
+	// Discarded is an application sitting in the user's TRASH, not
+	// installed.
+	//
+	// THE AGENT REPORTS IT AND IT IS RIGHT TO. A .app dragged to the
+	// Trash and never emptied is still on disk, still carries whatever
+	// flaws its version had, and can still be launched by
+	// double-clicking it — so hiding it, which the inventory service's
+	// own UI does, means a machine reads clean while a vulnerable
+	// binary sits in a folder nobody empties. Fleet showed four
+	// applications on this lab's MacBook and its API reported five; the
+	// fifth was Microsoft Teams in the Trash since 2021, carrying six
+	// CVEs including one CISA lists as actively exploited.
+	//
+	// Reporting it identically to an installed app is the other
+	// mistake: you would go looking in /Applications and not find it.
+	// So it is listed, counted, and SAID — because the remedy is
+	// different. Emptying the Trash fixes it; updating the app does
+	// not.
+	Discarded bool `json:"discarded,omitempty"`
+}
+
+// discardedPaths are where each platform puts what somebody deleted but
+// did not remove.
+var discardedPaths = []string{
+	"/.Trash/",                   // macOS, per user
+	"/.Trashes/",                 // macOS, per volume
+	"/$Recycle.Bin/",             // Windows
+	"/.local/share/Trash/files/", // Linux, freedesktop.org
+}
+
+// Discarded reports whether a path is inside somebody's wastebasket.
+func Discarded(path string) bool {
+	for _, dir := range discardedPaths {
+		if strings.Contains(path, dir) {
+			return true
+		}
+	}
+	return false
 }
 
 // Vulnerability is a CVE affecting an installed package.

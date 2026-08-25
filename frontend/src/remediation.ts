@@ -54,6 +54,16 @@ export function newestOSInEstate(
  * One piece of software that needs updating, however many rows the
  * inventory service split it into.
  */
+/** One flaw behind a row's count. */
+export interface RemediationCVE {
+  cve: string
+  severity: string
+  cvssScore: number
+  knownExploited: boolean
+  /** Empty when no fixed version has been published. */
+  resolvedInVersion: string
+}
+
 export interface Installed {
   name: string
   version: string
@@ -68,6 +78,15 @@ export interface Installed {
    *  of one thing together in the list. */
   product: string
   /** Distinct CVEs across every row that is this same software. */
+  /** The CVEs behind `count`, worst first — what the row expands to
+   *  show. Carried rather than re-derived, because the grouping that
+   *  produced the count is the only thing that knows which rows fed
+   *  it: a Windows installer's ten components are one product here. */
+  cves: RemediationCVE[]
+  /** Every copy of it is in the Trash. Still on disk, still carrying
+   *  its flaws, and fixed by emptying the Trash rather than by
+   *  updating anything — so it is listed, but the remedy differs. */
+  discarded: boolean
 }
 
 /**
@@ -144,7 +163,16 @@ export function installedNeedingUpdate(
     version: string
     cpe: string
     source: string
-    vulnerabilities: { cve: string; severity: string; cvssScore: number }[] | null
+    vulnerabilities:
+      | {
+          cve: string
+          severity: string
+          cvssScore: number
+          knownExploited?: boolean
+          resolvedInVersion?: string
+        }[]
+      | null
+    discarded?: boolean
   }[],
 ): Installed[] {
   const groups = new Map<
@@ -154,9 +182,10 @@ export function installedNeedingUpdate(
       version: string
       product: string
       source: string
-      cves: Set<string>
+      cves: Map<string, RemediationCVE>
       severity: string
       worstScore: number
+      discarded: boolean
     }
   >()
   for (const p of packages) {
@@ -171,13 +200,27 @@ export function installedNeedingUpdate(
         version: p.version,
         product,
         source: p.source,
-        cves: new Set<string>(),
+        cves: new Map<string, RemediationCVE>(),
         severity: '',
         worstScore: 0,
+        // A group is discarded only if EVERY row in it is. One live
+        // copy makes the whole product live, which is the safe
+        // direction: excusing a real flaw is worse than mentioning a
+        // trashed one.
+        discarded: true,
       }
     group.names.push(p.name)
+    if (!p.discarded) group.discarded = false
     for (const v of vulns) {
-      group.cves.add(v.cve)
+      // Keyed by CVE, because the same flaw arrives once per component
+      // of a product that ships as several packages.
+      group.cves.set(v.cve, {
+        cve: v.cve,
+        severity: v.severity,
+        cvssScore: v.cvssScore,
+        knownExploited: Boolean(v.knownExploited),
+        resolvedInVersion: v.resolvedInVersion ?? '',
+      })
       // AN APP IS AS BAD AS ITS WORST FLAW. One critical among fifty
       // lows is a critical; counting instead would bury it under
       // something harmless and numerous.
@@ -202,6 +245,17 @@ export function installedNeedingUpdate(
       worstScore: g.worstScore,
       kind: softwareKind(name, g.source),
       count: g.cves.size,
+      // WORST FIRST, and known-exploited above everything: the reason
+      // to open a row is to find the one that matters, not to read an
+      // alphabetical list.
+      cves: [...g.cves.values()].sort(
+        (a, b) =>
+          Number(b.knownExploited) - Number(a.knownExploited) ||
+          rankOf(a.severity) - rankOf(b.severity) ||
+          b.cvssScore - a.cvssScore ||
+          a.cve.localeCompare(b.cve),
+      ),
+      discarded: g.discarded,
     }
   })
 

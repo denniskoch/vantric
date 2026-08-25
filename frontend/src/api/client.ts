@@ -499,6 +499,12 @@ export interface InventoryPackage {
   version: string
   source: string
   vulnerabilities: Vulnerability[] | null
+  /** Where the agent found it. */
+  path?: string
+  /** In the Trash rather than installed — still on disk, still
+   *  launchable, and fixed by emptying the Trash rather than by
+   *  updating anything. */
+  discarded?: boolean
 }
 
 export interface InventoryHost {

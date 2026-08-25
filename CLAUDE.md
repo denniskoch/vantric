@@ -743,6 +743,32 @@ Surface the daily 90% here and link out for the rest.
   vulnerabilities is to hold the table and look the name up. Merging
   DEDUPES BY CVE and lets the software row win: it names a package you
   can upgrade, where the OS row can only say update the system.
+- SOFTWARE IN THE TRASH IS STILL SOFTWARE, and Fleet's own UI hides it
+  while its API reports it — which is how Microsoft Teams appeared here
+  and nowhere else, sitting in a Trash nobody emptied since 2021 with
+  six CVEs including CISA-exploited CVE-2023-4863. Fleet is right that
+  it is on disk and right to report it; hiding it is the part this
+  console disagrees with, because an app in the Trash can still be
+  opened and still carries its flaws. So `installed_paths` is read and
+  `inventory.Discarded` names the four wastebasket shapes (macOS
+  `/.Trash/` and `/.Trashes/`, Windows `/$Recycle.Bin/`, XDG
+  `/.local/share/Trash/files/`). A package is discarded only when EVERY
+  path it reports is one of them, and a GROUP only when every package in
+  it is — one live copy makes the whole product live, which is the safe
+  direction, since excusing a real flaw is worse than mentioning a
+  trashed one. The row says so, because the remedy differs: empty the
+  Trash rather than update anything.
+- THE COUNT IS THE HEADLINE AND THE CVES ARE THE ANSWER. "7
+  vulnerabilities" states the size of a problem and nothing about
+  whether it matters — one of the seven being in CISA's catalogue is a
+  different Tuesday from seven mediums. So a row on the host assessment
+  EXPANDS to the flaws behind its number, worst first with
+  known-exploited above everything, and is CLOSED by default: five apps
+  with their CVEs unfolded is the wall of text the count exists to
+  replace. The list is carried on the group rather than re-derived,
+  because the grouping that produced the count is the only thing that
+  knows which rows fed it — a Windows installer's ten components are
+  one product here.
 - A HOST'S NAME IS THE ONE SOMEBODY CHOSE, not the one the machine
   answers to. Fleet publishes `display_name` — the computer name where
   one is set, the hostname otherwise — and it is what Fleet's own UI
@@ -794,6 +820,31 @@ Surface the daily 90% here and link out for the rest.
   carrying on, the pace is re-read every iteration so a key change
   takes effect immediately, and ten consecutive failures end the pass
   instead of firing five thousand more requests at a public service.
+- NVD SAYS "NO SUCH CVE" WITH A 200, AND 404 MEANS SOMETHING ELSE
+  ENTIRELY. A CVE it has never heard of comes back 200 with
+  `totalResults: 0`; a 404 is NVD REFUSING the request, and in practice
+  that means the `apiKey` header was rejected. The client read 404 as an
+  empty answer, so every lookup made after a bad key was saved cached
+  the opposite of the truth — 3,668 published CVEs recorded as
+  unpublished on this lab, including CVE-2023-4863, which sat on a
+  host's page reading "Not scored" while CISA listed it as actively
+  exploited. `ErrRefused` is now its own sentinel beside `ErrRateLimited`
+  and stops the pass on the FIRST one: a refusal is not a CVE that
+  failed, it is every CVE that will fail, and no pace fixes it.
+  THE KEY IS VERIFIED BEFORE IT IS STORED, the rule every other
+  credential here already followed and the one this setting was missing
+  — `VerifyKey` asks for a CVE that has existed since 2021, so a key
+  that will be refused is refused while somebody is looking at the form.
+  An empty key passes, because anonymous is a supported way to call NVD.
+- A REPAIR RUNS ONCE, WHICH IS WHAT SEPARATES IT FROM A MIGRATION.
+  `store.repairs` clears rows a bug wrote. The schema statements beside
+  it are idempotent by construction — a second ADD COLUMN is an error
+  you ignore — but a repair deletes DATA whose replacement has the same
+  shape, so running it every boot would wipe the fix on the way in.
+  Each is remembered by name in `app_settings`. The first one drops
+  every `missing = 1` row from `cve_cache`, because a row that recorded
+  only the conclusion cannot say whether it was a genuine miss or the
+  404 above, and re-establishing a real miss costs one lookup.
 - BLANK KEEPS, REMOVE DELETES. The key field is write-only, so it is
   always empty when the page loads — which made "Save" with an
   untouched form silently delete a working key. Blank now means "keep

@@ -673,6 +673,15 @@ func (s *Server) setNVDAPIKey(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
+	// Verified before it is stored, the same rule every other credential
+	// here follows — and the one this setting was missing. NVD refuses a
+	// bad key with a 404 that used to read as "this CVE isn't
+	// published", so an unverified key didn't fail: it quietly filled
+	// the cache with the opposite of the truth.
+	if err := s.nvd.VerifyKey(r.Context(), key); err != nil {
+		s.err(w, http.StatusBadRequest, "NVD rejected this key: "+err.Error())
+		return
+	}
 	if err := s.store.SetSetting(r.Context(), nvdAPIKeySetting, key); err != nil {
 		s.fail(w, err, "saving the key")
 		return
