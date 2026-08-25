@@ -149,16 +149,35 @@ func levelPrivileges(level database.AccessLevel) string {
 	return ""
 }
 
+// grantee spells the thing being granted to, which is NOT always
+// name@host.
+//
+// A ROLE HAS NO HOST, and addressing one as though it did fails —
+// `'devrole'@”` and `'devrole'@'%'` are both "Can't find any matching
+// row in the user table". A role is a bare quoted name.
+//
+// The host is not defaulted to '%' for an ordinary account either.
+// 'bob'@'localhost' and 'bob'@'%' are two different accounts, so
+// filling in a blank host with the wildcard doesn't grant broadly, it
+// names an account that usually doesn't exist and fails the same way.
+// A caller that has an account has its host; a blank one is only ever
+// right for a role.
+func (d *Driver) grantee(ctx context.Context, name, host string) string {
+	if host == "" && d.roleNames(ctx)[name] {
+		return quoteLiteral(name)
+	}
+	if host == "" {
+		host = "%"
+	}
+	return quoteLiteral(name) + "@" + quoteLiteral(host)
+}
+
 func (d *Driver) GrantAccess(ctx context.Context, spec database.AccessSpec) error {
 	privileges := levelPrivileges(spec.Level)
 	if privileges == "" {
 		return fmt.Errorf("mysql: unknown access level %q", spec.Level)
 	}
-	host := spec.Host
-	if host == "" {
-		host = "%"
-	}
-	account := quoteLiteral(spec.User) + "@" + quoteLiteral(host)
+	account := d.grantee(ctx, spec.User, spec.Host)
 
 	// Clear first, so lowering someone's access is a reduction rather
 	// than an addition on top of what they already had.
@@ -173,10 +192,7 @@ func (d *Driver) GrantAccess(ctx context.Context, spec database.AccessSpec) erro
 }
 
 func (d *Driver) RevokeAccess(ctx context.Context, dbName, user, host string) error {
-	if host == "" {
-		host = "%"
-	}
-	if err := d.revokeOn(ctx, dbName, quoteLiteral(user)+"@"+quoteLiteral(host)); err != nil {
+	if err := d.revokeOn(ctx, dbName, d.grantee(ctx, user, host)); err != nil {
 		return fmt.Errorf("mysql: %w", err)
 	}
 	return nil

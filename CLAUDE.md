@@ -640,6 +640,25 @@ Surface the daily 90% here and link out for the rest.
   turns that into a 400 that says so, and the menu item is ABSENT
   rather than greyed out — a disabled control invites you to work out
   why.
+- WHICH ACCOUNT IS ONE ANSWER, NOT TWO. The grant form showed a picker
+  reading "bob@localhost" that set its value to `bob`, threw the host
+  away, and took it from a SEPARATE field defaulting to `%` — so
+  granting to any account not already at `%` addressed `'bob'@'%'`,
+  which usually doesn't exist, and MySQL answered "Can't find any
+  matching row in the user table". The wildcard looked like a safe
+  default and was a different account. The identity travels as the pair
+  it is, and the host is only a question when CREATING one. The
+  "Change" link on a grant row carries it too, for the same reason.
+  A ROLE HAS NO HOST AT ALL, and `'devrole'@''` fails exactly like
+  `'devrole'@'%'` — a role is granted to as a BARE NAME. So the driver
+  decides the spelling rather than the caller: `grantee` looks the name
+  up and only appends `@host` for a real account. That also means a
+  blank host stops being silently rewritten to `%`, which is the same
+  bug wearing a default.
+  ON MYSQL THE NAME COLLISION IS THE PAIR: `'app'@'10.0.0.5'` and
+  `'app'@'%'` are two accounts, and creating the second while the first
+  exists is the ordinary reason the host field is there — so "already
+  exists" checks both halves.
 - A VIEW IS NOT A TABLE AND MUST NOT BE HIDDEN. The table listing
   filtered on `BASE TABLE`, so three views in this lab's `romm`
   database sat on the server and on no page here — and a view is

@@ -297,7 +297,13 @@ export default function DatabaseDetailPage() {
                                 size="small"
                                 onClick={() =>
                                   navigate(
-                                    `${basePath}/access?user=${encodeURIComponent(granteeName(g.grantee))}`,
+                                    // The host travels too: it is half of
+                                    // which account this grant belongs to,
+                                    // and a form that had to guess it
+                                    // guessed '%' and named a different one.
+                                    `${basePath}/access?user=${encodeURIComponent(
+                                      granteeName(g.grantee),
+                                    )}&host=${encodeURIComponent(granteeHost(g.grantee))}`,
                                   )
                                 }
                               >
