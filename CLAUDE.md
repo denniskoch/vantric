@@ -640,6 +640,29 @@ Surface the daily 90% here and link out for the rest.
   turns that into a 400 that says so, and the menu item is ABSENT
   rather than greyed out — a disabled control invites you to work out
   why.
+- POSTGRES ACCESS IS TO THE DATABASE, NOT TO `public`. Every grant and
+  revoke statement named that one schema, so on a database with any
+  other the console granted PARTIAL access and reported success — a
+  role given "read" could not read `reports.daily`, with nothing
+  saying why. Revoke was hardcoded the same way, which is the worse
+  direction: it claimed to have taken access away and left it
+  everywhere but one schema. `userSchemas` lists what the database
+  actually holds, and both sides walk the same set — an extension's
+  schema included, since "read access" that stops at its edge is the
+  same bug wearing a different name. Schemas created LATER still are
+  not covered and cannot be: default privileges attach per schema and
+  PostgreSQL has no "future schemas" form. That is the engine's limit
+  rather than a shortcut.
+- POSTGRESQL CANNOT SAY WHY A ROLE HAS NO LOGIN, so the console must
+  not either. It records `rolcanlogin` and nothing about intent — the
+  real GROUP concept went away in 8.1, so a group role and an account
+  somebody switched off are THE SAME STATE. Printing "Disabled" over a
+  group asserts a decision nobody made, which is the same mistake as
+  claiming a locked MySQL account can sign in. It reports the attribute
+  in psql's own words ("Cannot log in"), and the menu names the change
+  it makes ("Allow login") rather than implying an account is being
+  switched back on. MariaDB keeps Enabled/Disabled/Role, because
+  `is_role` means it genuinely knows.
 - WHICH ACCOUNT IS ONE ANSWER, NOT TWO. The grant form showed a picker
   reading "bob@localhost" that set its value to `bob`, threw the host
   away, and took it from a SEPARATE field defaulting to `%` — so

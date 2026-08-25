@@ -370,12 +370,21 @@ export default function DatabaseInstanceDetailPage() {
                       <TableCell>
                         {user.role ? 'Role' : user.system ? 'System' : 'User'}
                       </TableCell>
-                      {/* WHAT THIS ANSWERS IS "is this account off", so it
-                          says so in those words. "Can log in: No" is the
-                          same fact phrased as a property, and reads as a
-                          missing capability rather than a decision
-                          somebody made. A role is neither — it is not a
-                          way in at all. */}
+                      {/* WHAT THIS ANSWERS IS "is this account off", so on
+                          MySQL it says so in those words: "Can log in: No"
+                          is the same fact phrased as a property, and reads
+                          as a missing capability rather than a decision
+                          somebody made. A role is neither — it is not a way
+                          in at all.
+                          POSTGRESQL CANNOT SAY THAT MUCH, and must not
+                          pretend to. It records one fact, rolcanlogin, and
+                          nothing about intent — a group role and an account
+                          somebody switched off are THE SAME STATE there,
+                          since the real GROUP concept went away in 8.1. So
+                          "Disabled" over a group would assert a decision
+                          nobody made, which is the same mistake as claiming
+                          a locked account can sign in. It reports the
+                          attribute instead, in psql's own words. */}
                       <TableCell>
                         {user.role ? (
                           <Box component="span" sx={{ color: 'text.secondary' }}>
@@ -384,7 +393,12 @@ export default function DatabaseInstanceDetailPage() {
                         ) : user.canLogin ? (
                           'Enabled'
                         ) : (
-                          <Box component="span" sx={{ color: 'warning.dark' }}>Disabled</Box>
+                          <Box
+                            component="span"
+                            sx={{ color: isPostgres ? 'text.secondary' : 'warning.dark' }}
+                          >
+                            {isPostgres ? 'Cannot log in' : 'Disabled'}
+                          </Box>
                         )}
                       </TableCell>
                       <TableCell>{yesNo(user.superuser)}</TableCell>
@@ -523,16 +537,21 @@ export default function DatabaseInstanceDetailPage() {
             setUserMenu(null)
           }}
         >
-          {/* A role reads canLogin=false because it is not a way in,
-              not because somebody turned it off — so it must not be
-              offered an "Enable" that would misdescribe it. */}
+          {/* A MariaDB role reads canLogin=false because it is not a
+              way in, not because somebody turned it off — so it must not
+              be offered an "Enable" that would misdescribe it.
+              On PostgreSQL the action NAMES THE STATE IT CHANGES rather
+              than implying an account was switched off, because the same
+              menu item is what turns a group role into a login one. */}
           {userMenu?.user.canLogin || userMenu?.user.role ? (
             <>
-              <BlockIcon fontSize="small" sx={{ mr: 1 }} /> Disable account
+              <BlockIcon fontSize="small" sx={{ mr: 1 }} />{' '}
+              {isPostgres ? 'Disallow login' : 'Disable account'}
             </>
           ) : (
             <>
-              <CheckCircleIcon fontSize="small" sx={{ mr: 1 }} /> Enable account
+              <CheckCircleIcon fontSize="small" sx={{ mr: 1 }} />{' '}
+              {isPostgres ? 'Allow login' : 'Enable account'}
             </>
           )}
         </MenuItem>
