@@ -477,7 +477,13 @@ export default function DatabaseInstanceDetailPage() {
         open={Boolean(userMenu)}
         onClose={() => setUserMenu(null)}
       >
+        {/* A ROLE HAS NO PASSWORD, and a system account's is the
+            server's own business — changing mariadb.sys's is a way to
+            break the server from a menu. Drop was already guarded on
+            both; this was not, which made the row's own actions
+            disagree about what it is. */}
         <MenuItem
+          disabled={userMenu?.user.system || userMenu?.user.role}
           onClick={() => {
             if (userMenu) {
               const host = userMenu.user.host ? `?host=${encodeURIComponent(userMenu.user.host)}` : ''
@@ -517,7 +523,10 @@ export default function DatabaseInstanceDetailPage() {
             setUserMenu(null)
           }}
         >
-          {userMenu?.user.canLogin ? (
+          {/* A role reads canLogin=false because it is not a way in,
+              not because somebody turned it off — so it must not be
+              offered an "Enable" that would misdescribe it. */}
+          {userMenu?.user.canLogin || userMenu?.user.role ? (
             <>
               <BlockIcon fontSize="small" sx={{ mr: 1 }} /> Disable account
             </>
