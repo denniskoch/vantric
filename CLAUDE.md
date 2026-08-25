@@ -1776,6 +1776,23 @@ Surface the daily 90% here and link out for the rest.
   permanent left nav with collapsible groups (GCP-style). Sections and
   groups live in `src/components/nav.tsx` — adding entries there wires
   both menus.
+- A LANDING CARD IS ONE SIZE, WHICH IS WHAT MAKES IT A GRID. The grid
+  already stretched cards to match WITHIN a row — that is what
+  `align-items: stretch` does — so the ragged edge was BETWEEN rows: a
+  row whose hints all fit on one line stood shorter than the row under
+  it, and the page read as a stack of unrelated blocks. Uniformity has
+  to be a property of the card, not of its neighbours, so the space is
+  RESERVED rather than measured: one line for the label, two for the
+  hint, whether a given card uses them or not. A longer hint is clamped
+  rather than allowed to grow the card, and the label never wraps —
+  both are the intended pressure, since the moment one card grows every
+  card grows with it.
+  COLUMNS DROP, THEY DO NOT SQUEEZE. Fixed breakpoints gave two columns
+  from 600px up, which at tablet width is a 224px card — narrow enough
+  that most hints ran past the two lines reserved for them, so pinning
+  the height would have started clipping text that fits fine on a
+  desktop. `minmax(320px, 1fr)` sheds a column instead, so a card is
+  never narrower than the text it has to hold.
 - Every section lands on the same template, `pages/SectionLandingPage.tsx`:
   header, an optional summary slot, then cards for the section's nav
   items grouped as the left nav groups them. Compute's overview
