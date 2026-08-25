@@ -161,6 +161,12 @@ export default function App() {
         <Route path="/devices/hosts" element={<Navigate to="/devices/virtual-hosts" replace />} />
         <Route path="/devices/hosts/:id" element={<DevicesHostPage />} />
         <Route path="/security/host-assessment" element={<SecurityHostAssessmentPage />} />
+        {/* The same page with a host in it, so an assessment can be
+            linked to, bookmarked and reloaded. */}
+        <Route
+          path="/security/host-assessment/:hostId"
+          element={<SecurityHostAssessmentPage />}
+        />
         <Route path="/security/vulnerabilities" element={<SecurityVulnerabilitiesPage />} />
         <Route path="/security/vulnerabilities/:cve" element={<SecurityVulnerabilityPage />} />
         <Route path="/devices/installers" element={<DevicesInstallersPage />} />

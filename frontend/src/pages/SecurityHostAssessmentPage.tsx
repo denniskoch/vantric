@@ -15,7 +15,7 @@ import {
   TableRow,
   Typography,
 } from '@mui/material'
-import { Link as RouterLink } from 'react-router-dom'
+import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { api } from '../api/client'
@@ -37,9 +37,22 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber'
  * Starts where it can stand up: pick a machine, see what it is. The
  * hosts come from the listing this console already makes, so choosing
  * one costs nothing — what goes below the picker is the part we grow.
+ *
+ * WHICH HOST IS IN THE URL, not in a useState. A machine's assessment
+ * is a page about that machine — the thing you send someone, bookmark,
+ * reload after a fix, or reach with the back button — and none of that
+ * works when the only record of what you picked is component state.
+ * Every other drill-in here already had an address; this one was a
+ * dropdown over a page that never changed.
  */
+/** Where a host's assessment lives. Empty id is the bare picker. */
+function pathFor(id: string): string {
+  return id ? `/security/host-assessment/${encodeURIComponent(id)}` : '/security/host-assessment'
+}
+
 export default function SecurityHostAssessmentPage() {
-  const [hostId, setHostId] = useState('')
+  const { hostId = '' } = useParams()
+  const navigate = useNavigate()
 
   const { data, isLoading } = useQuery({
     queryKey: ['inventoryHosts'],
@@ -71,8 +84,8 @@ export default function SecurityHostAssessmentPage() {
         <SelectField
           label="Host"
           size="small"
-          value={hostId}
-          onChange={(e) => setHostId(e.target.value)}
+          value={hosts.some((h) => h.id === hostId) ? hostId : ''}
+          onChange={(e) => navigate(pathFor(e.target.value))}
           sx={{ minWidth: 320, mb: 3 }}
         >
           <MenuItem value="">
@@ -84,6 +97,17 @@ export default function SecurityHostAssessmentPage() {
             </MenuItem>
           ))}
         </SelectField>
+      )}
+
+      {/* A LINK OUTLIVES THE MACHINE IT NAMES. A bookmark to a host
+          that has since been retired — or a service swapped for
+          another, which renumbers everything — would otherwise land on
+          the bare picker and look like the link had simply lost its
+          fragment. */}
+      {hostId && data?.configured && hosts.length > 0 && !host && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          No host with this id. It may have been removed from the inventory service.
+        </Alert>
       )}
 
       {host && (

@@ -758,6 +758,16 @@ Surface the daily 90% here and link out for the rest.
   direction, since excusing a real flaw is worse than mentioning a
   trashed one. The row says so, because the remedy differs: empty the
   Trash rather than update anything.
+- A HOST ASSESSMENT HAS AN ADDRESS. Which machine you are looking at
+  lives in the URL (`/security/host-assessment/{id}`), not in a
+  useState behind a dropdown — a page about one machine is the thing
+  you send someone, bookmark, reload after a fix, or reach with the
+  back button, and none of that works when the only record of the
+  choice is component state. Picking one NAVIGATES rather than setting
+  state, so history holds each machine you looked at. A link that
+  outlives its host says so: an id the inventory service no longer
+  knows gets a message, where falling back to the empty picker would
+  read as a link that had lost its fragment.
 - THE COUNT IS THE HEADLINE AND THE CVES ARE THE ANSWER. "7
   vulnerabilities" states the size of a problem and nothing about
   whether it matters — one of the seven being in CISA's catalogue is a
