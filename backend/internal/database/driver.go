@@ -16,6 +16,13 @@ import (
 
 var ErrNotFound = errors.New("database: not found")
 
+// ErrUnsupported is what a driver returns for something its engine has
+// no equivalent of. It is a distinct answer from a failure: the UI
+// must be able to tell "this engine cannot do that" from "that went
+// wrong", so it can decline to offer the action rather than offering
+// one that always errors.
+var ErrUnsupported = errors.New("database: not supported by this engine")
+
 // ServerInfo is what the server reports about itself.
 type ServerInfo struct {
 	// Version is the engine's own version string, e.g. "16.2".
@@ -44,14 +51,32 @@ type Database struct {
 	System bool `json:"system"`
 }
 
+// TableKind separates the two things a "table listing" contains.
+//
+// A VIEW IS NOT A TABLE AND MUST NOT BE HIDDEN. The listing filtered on
+// BASE TABLE, so three views in this lab's `romm` database sat on the
+// server and on no page here — and a view is exactly the thing somebody
+// goes looking for when a query names something they cannot find. It is
+// listed WITH ITS KIND rather than filtered out, because the two answer
+// different questions: a view has no size, no row count and no storage
+// engine, so printing zeroes for those would describe a table that
+// isn't there.
+type TableKind string
+
+const (
+	KindTable TableKind = "table"
+	KindView  TableKind = "view"
+)
+
 // Table is one table inside a database. Row counts are the engine's
 // own ESTIMATE — both engines keep one in their catalog, and counting
 // for real means a full scan of someone else's production table.
 type Table struct {
-	Schema string `json:"schema"`
-	Name   string `json:"name"`
-	Owner  string `json:"owner"`
-	Rows   int64  `json:"rows"`
+	Schema string    `json:"schema"`
+	Name   string    `json:"name"`
+	Kind   TableKind `json:"kind"`
+	Owner  string    `json:"owner"`
+	Rows   int64     `json:"rows"`
 	// SizeBytes includes indexes.
 	SizeBytes int64 `json:"sizeBytes"`
 	// Engine is MySQL's storage engine (InnoDB, MyISAM); empty on
@@ -104,7 +129,11 @@ type User struct {
 	Name string `json:"name"`
 	// Host is MySQL's half of the identity ('%', 'localhost'); empty
 	// for engines where a user isn't scoped to one.
-	Host        string   `json:"host"`
+	Host string `json:"host"`
+	// CanLogin is whether this account may currently connect — the one
+	// field that answers "is this user disabled", so it must never be
+	// assumed. The MySQL driver used to hardcode it true, which said
+	// exactly the wrong thing about a locked account.
 	CanLogin    bool     `json:"canLogin"`
 	Superuser   bool     `json:"superuser"`
 	CreateDB    bool     `json:"createDb"`
@@ -113,6 +142,12 @@ type User struct {
 	// ConnectionLimit is -1 for unlimited.
 	ConnectionLimit int  `json:"connectionLimit"`
 	System          bool `json:"system"`
+	// Role marks a bundle of privileges rather than a way in. MariaDB
+	// keeps roles in the same table as accounts (is_role='Y', with an
+	// empty host), so they were listed here as though someone could
+	// sign in as one. They stay listed, because they are real and
+	// granted to real users, but nothing offers to give one a password.
+	Role bool `json:"role"`
 }
 
 // Connection is one client session, as the server sees it.
@@ -173,6 +208,19 @@ type Driver interface {
 	// the pair; engines without hosts ignore the second argument.
 	DropUser(ctx context.Context, name, host string) error
 	SetPassword(ctx context.Context, name, host, password string) error
+	// SetUserEnabled turns an account off without deleting it, which is
+	// the answer to "this person has left" that keeps their grants
+	// intact for whoever inherits the job. MySQL locks the account;
+	// PostgreSQL takes LOGIN away from the role.
+	SetUserEnabled(ctx context.Context, name, host string, enabled bool) error
+	// SetUserHost moves a MySQL identity to a different host pattern.
+	//
+	// PostgreSQL returns ErrUnsupported, and that is not a gap to fill
+	// later: a Postgres role has no host, and where somebody may
+	// connect from lives in pg_hba.conf — a FILE on the server, which
+	// this console reaches no more than it reaches a hypervisor's
+	// /etc. Saying so is better than an action that always fails.
+	SetUserHost(ctx context.Context, name, host, newHost string) error
 	// Close releases the pool; called when a server is edited or
 	// removed, so connections don't leak.
 	Close()

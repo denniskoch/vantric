@@ -20,15 +20,22 @@ func (d *Driver) Tables(ctx context.Context, dbName string) ([]database.Table, e
 	// TABLE_ROWS is the engine's estimate for InnoDB and can be off by
 	// a wide margin; it's still the only free answer, and a console
 	// shouldn't COUNT(*) someone's production table on page load.
+	//
+	// VIEWS ARE LISTED TOO. Filtering on BASE TABLE hid three of them
+	// in this lab's `romm` database — present on the server, on no page
+	// here. They come back with NULL for rows, size and engine, which
+	// is the truth about a view rather than a gap, so the kind travels
+	// with the row and the UI shows a dash instead of a zero.
 	rows, err := d.db.QueryContext(ctx, `
 		SELECT table_name,
+		       table_type,
 		       COALESCE(table_rows, 0),
 		       COALESCE(data_length, 0) + COALESCE(index_length, 0),
 		       COALESCE(engine, ''),
 		       COALESCE(table_collation, ''),
 		       COALESCE(table_comment, '')
 		FROM information_schema.tables
-		WHERE table_schema = ? AND table_type = 'BASE TABLE'
+		WHERE table_schema = ? AND table_type IN ('BASE TABLE', 'VIEW')
 		ORDER BY table_name`, dbName)
 	if err != nil {
 		return nil, err
@@ -38,9 +45,14 @@ func (d *Driver) Tables(ctx context.Context, dbName string) ([]database.Table, e
 	tables := []database.Table{}
 	for rows.Next() {
 		var t database.Table
-		if err := rows.Scan(&t.Name, &t.Rows, &t.SizeBytes, &t.Engine,
+		var tableType string
+		if err := rows.Scan(&t.Name, &tableType, &t.Rows, &t.SizeBytes, &t.Engine,
 			&t.Collation, &t.Comment); err != nil {
 			return nil, err
+		}
+		t.Kind = database.KindTable
+		if tableType == "VIEW" {
+			t.Kind = database.KindView
 		}
 		// MySQL has no schema layer inside a database and no per-table
 		// owner; leaving them blank is honest, and the UI drops the

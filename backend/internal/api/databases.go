@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"regexp"
 	"slices"
@@ -26,6 +27,18 @@ import (
 // keeps the surface small in the first place.
 var identRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_$-]{0,62}$`)
 
+// hostRe is what MySQL accepts as the other half of an identity: a
+// name, an address, or either with % and _ wildcards — 'localhost',
+// '%', '192.168.80.%', '%.example.com', and the netmask form
+// '10.0.0.0/255.0.0.0'.
+//
+// Validated even though the driver quotes it, because the failure here
+// is not injection but a TYPO: MySQL accepts any string as a host
+// pattern, so a mistyped one produces a real account that nothing can
+// ever connect as, and the only symptom is a login that keeps being
+// refused.
+var hostRe = regexp.MustCompile(`^[A-Za-z0-9_%.:*/-]{1,255}$`)
+
 func (s *Server) databaseRoutes(r chi.Router) {
 	r.Get("/database/engines", func(w http.ResponseWriter, r *http.Request) {
 		s.json(w, http.StatusOK, dbfactory.Types)
@@ -41,6 +54,8 @@ func (s *Server) databaseRoutes(r chi.Router) {
 	r.Get("/database/servers/{id}/users", s.listDatabaseUsers)
 	r.Post("/database/servers/{id}/users", s.createDatabaseUser)
 	r.Put("/database/servers/{id}/users/{name}/password", s.setDatabaseUserPassword)
+	r.Put("/database/servers/{id}/users/{name}/enabled", s.setDatabaseUserEnabled)
+	r.Put("/database/servers/{id}/users/{name}/host", s.setDatabaseUserHost)
 	r.Delete("/database/servers/{id}/users/{name}", s.dropDatabaseUser)
 	r.Get("/database/servers/{id}/connections", s.listDatabaseConnections)
 	// Inside one database. Read on demand for the detail view — these
@@ -422,6 +437,73 @@ func (s *Server) setDatabaseUserPassword(w http.ResponseWriter, r *http.Request)
 	}
 	if err := driver.SetPassword(r.Context(), name, r.URL.Query().Get("host"), req.Password); err != nil {
 		s.fail(w, err, "setting password")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// setDatabaseUserEnabled turns an account off without deleting it.
+//
+// The answer to "this person has left" that keeps their grants intact
+// for whoever inherits the job — and the reversible half of a decision
+// whose other half is not.
+func (s *Server) setDatabaseUserEnabled(w http.ResponseWriter, r *http.Request) {
+	driver := s.dbDriver(w, r)
+	if driver == nil {
+		return
+	}
+	var req struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	name := chi.URLParam(r, "name")
+	if !identRe.MatchString(name) {
+		s.err(w, http.StatusBadRequest, "not a valid user name")
+		return
+	}
+	if err := driver.SetUserEnabled(r.Context(), name, r.URL.Query().Get("host"), req.Enabled); err != nil {
+		s.fail(w, err, "changing the account")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// setDatabaseUserHost moves a MySQL identity to a different host
+// pattern. PostgreSQL answers ErrUnsupported, which becomes a 400
+// naming the reason rather than a 500 — the engine is not broken, it
+// has no such concept.
+func (s *Server) setDatabaseUserHost(w http.ResponseWriter, r *http.Request) {
+	driver := s.dbDriver(w, r)
+	if driver == nil {
+		return
+	}
+	var req struct {
+		Host string `json:"host"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	name := chi.URLParam(r, "name")
+	if !identRe.MatchString(name) {
+		s.err(w, http.StatusBadRequest, "not a valid user name")
+		return
+	}
+	if !hostRe.MatchString(req.Host) {
+		s.err(w, http.StatusBadRequest, "not a valid host pattern")
+		return
+	}
+	err := driver.SetUserHost(r.Context(), name, r.URL.Query().Get("host"), req.Host)
+	if errors.Is(err, database.ErrUnsupported) {
+		s.err(w, http.StatusBadRequest,
+			"this engine has no per-user host; where a role may connect from is set in pg_hba.conf on the server")
+		return
+	}
+	if err != nil {
+		s.fail(w, err, "changing the host")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

@@ -72,6 +72,11 @@ func TestOwnerOnlyCoversEveryCredentialRoute(t *testing.T) {
 		"/api/v1/database/servers/abc/databases",
 		"/api/v1/database/servers/abc/users",
 		"/api/v1/database/servers/abc/users/bob/password",
+		// Disabling an account and moving which hosts it may connect
+		// from are the same kind of act as changing its password:
+		// using a connected backend, which is an editor's.
+		"/api/v1/database/servers/abc/users/bob/enabled",
+		"/api/v1/database/servers/abc/users/bob/host",
 		"/api/v1/database/servers/abc/databases/app/access",
 		"/api/v1/storage/buckets",
 		"/api/v1/storage/buckets/lab-backups/quota",

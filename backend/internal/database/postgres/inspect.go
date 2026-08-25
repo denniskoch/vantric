@@ -44,9 +44,18 @@ func (d *Driver) Tables(ctx context.Context, dbName string) ([]database.Table, e
 	// A table that has never been analysed reports 0 whatever its size,
 	// which is why the UI shows an unknown estimate as "—" rather than
 	// claiming the table is empty.
+	//
+	// VIEWS ARE LISTED TOO ('v' and 'm'), for the reason the MySQL side
+	// lists them: a view is on the server and was on no page here. A
+	// plain view stores nothing, so pg_total_relation_size reports the
+	// few pages of its definition and reltuples is meaningless — the
+	// kind travels with the row so the UI can show a dash rather than a
+	// number that means nothing. A MATERIALIZED view does store rows,
+	// but it is still not a table you write to, so it is a view here.
 	rows, err := conn.Query(ctx, `
 		SELECT n.nspname,
 		       c.relname,
+		       c.relkind,
 		       pg_get_userbyid(c.relowner),
 		       GREATEST(COALESCE(s.n_live_tup, 0), COALESCE(c.reltuples, 0))::bigint,
 		       pg_total_relation_size(c.oid),
@@ -54,7 +63,7 @@ func (d *Driver) Tables(ctx context.Context, dbName string) ([]database.Table, e
 		FROM pg_class c
 		JOIN pg_namespace n ON n.oid = c.relnamespace
 		LEFT JOIN pg_stat_user_tables s ON s.relid = c.oid
-		WHERE c.relkind IN ('r', 'p')
+		WHERE c.relkind IN ('r', 'p', 'v', 'm')
 		  AND n.nspname NOT IN ('pg_catalog', 'information_schema')
 		  AND n.nspname NOT LIKE 'pg_toast%'
 		ORDER BY n.nspname, c.relname`)
@@ -66,8 +75,14 @@ func (d *Driver) Tables(ctx context.Context, dbName string) ([]database.Table, e
 	tables := []database.Table{}
 	for rows.Next() {
 		var t database.Table
-		if err := rows.Scan(&t.Schema, &t.Name, &t.Owner, &t.Rows, &t.SizeBytes, &t.Comment); err != nil {
+		var relkind string
+		if err := rows.Scan(&t.Schema, &t.Name, &relkind, &t.Owner, &t.Rows,
+			&t.SizeBytes, &t.Comment); err != nil {
 			return nil, err
+		}
+		t.Kind = database.KindTable
+		if relkind == "v" || relkind == "m" {
+			t.Kind = database.KindView
 		}
 		tables = append(tables, t)
 	}
