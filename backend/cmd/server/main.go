@@ -118,6 +118,7 @@ func main() {
 	go reconciler.Run(ctx)
 	// Fills in what each CVE actually is, slowly, in NVD's own time.
 	go server.EnrichCVEs(ctx)
+	go server.Housekeep(ctx)
 
 	// Bounded where it can be, and DELIBERATELY NOT where it can't.
 	//

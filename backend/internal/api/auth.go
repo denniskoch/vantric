@@ -64,7 +64,10 @@ func userFrom(ctx context.Context) *store.User {
 // user doesn't need.
 func (s *Server) requireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user := s.sessionUser(r)
+		// Renewing here rather than in sessionUser: this is the one
+		// place every authenticated request passes through, and it has
+		// the ResponseWriter the refreshed cookie needs.
+		user, _ := s.sessionUserRenewing(r, w)
 		if user == nil {
 			s.err(w, http.StatusUnauthorized, "sign in to continue")
 			return
@@ -77,15 +80,41 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 // missing, expired, or belongs to an account that's been disabled or
 // deleted since.
 func (s *Server) sessionUser(r *http.Request) *store.User {
+	user, _ := s.sessionUserRenewing(r, nil)
+	return user
+}
+
+// sessionUserRenewing resolves the cookie and, when w is non-nil,
+// EXTENDS a session that is running out.
+//
+// USING THE CONSOLE KEEPS YOU SIGNED IN. The TTL used to be absolute
+// from the moment of sign-in, so somebody working all day was dropped
+// at an arbitrary hour with no warning and no relation to whether they
+// were using it — which reads as a flaky session rather than as a
+// policy, and is most of what "randomly asks me to log on again" was.
+//
+// Renewed only past the HALFWAY mark, not on every request: the
+// instance list polls every three seconds, and a write per request
+// would be thousands of pointless updates an hour for no more security
+// and no better experience. The cookie is re-sent with the new expiry
+// at the same time, or the browser would drop it while the row lived
+// on.
+func (s *Server) sessionUserRenewing(r *http.Request, w http.ResponseWriter) (*store.User, string) {
 	cookie, err := r.Cookie(sessionCookie)
 	if err != nil || cookie.Value == "" {
-		return nil
+		return nil, ""
 	}
-	user, err := s.store.UserBySession(r.Context(), cookie.Value)
+	user, expires, err := s.store.SessionUser(r.Context(), cookie.Value)
 	if err != nil {
-		return nil
+		return nil, ""
 	}
-	return user
+	if w != nil && time.Until(expires) < sessionTTL/2 {
+		renewed := time.Now().Add(sessionTTL)
+		if err := s.store.ExtendSession(r.Context(), cookie.Value, renewed); err == nil {
+			s.setSessionCookie(w, r, cookie.Value, renewed)
+		}
+	}
+	return user, cookie.Value
 }
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
@@ -170,7 +199,9 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 // outside the authenticated group, because the app has to be able to
 // ask before it knows.
 func (s *Server) currentUser(w http.ResponseWriter, r *http.Request) {
-	user := s.sessionUser(r)
+	// Outside requireAuth, so it renews on its own — this is the
+	// endpoint the shell asks to know whether it is still signed in.
+	user, _ := s.sessionUserRenewing(r, w)
 	if user == nil {
 		s.err(w, http.StatusUnauthorized, "not signed in")
 		return

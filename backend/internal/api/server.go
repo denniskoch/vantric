@@ -192,6 +192,45 @@ func New(
 // by main alongside the reconciler; returns when the context ends.
 func (s *Server) EnrichCVEs(ctx context.Context) { s.enrich.Run(ctx) }
 
+// Housekeep drops rows nothing will ask for again: expired sessions and
+// audit entries past the retention window.
+//
+// PRUNING THAT NOTHING CALLS IS NOT PRUNING. PruneAudit had been
+// written, documented as a 90-day window, and never once invoked — so
+// the log had kept every entry since the console was first started.
+// Sessions were worse: they were swept only when their own token was
+// presented, which cannot happen after they expire, because the browser
+// drops the cookie at the same moment.
+//
+// On boot and then daily. Neither is urgent enough for a tighter beat,
+// and a failure is logged rather than fatal: a console that will not
+// start because it could not tidy up is worse than a large table.
+func (s *Server) Housekeep(ctx context.Context) {
+	sweep := func() {
+		if n, err := s.store.PruneSessions(ctx); err != nil {
+			s.log.Warn("pruning sessions failed", "error", err)
+		} else if n > 0 {
+			s.log.Info("pruned expired sessions", "rows", n)
+		}
+		if n, err := s.store.PruneAudit(ctx, auditRetention); err != nil {
+			s.log.Warn("pruning the audit log failed", "error", err)
+		} else if n > 0 {
+			s.log.Info("pruned audit entries", "rows", n, "olderThan", auditRetention)
+		}
+	}
+	sweep()
+	ticker := time.NewTicker(24 * time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			sweep()
+		}
+	}
+}
+
 func (s *Server) Router() http.Handler {
 	r := chi.NewRouter()
 	// Not middleware.RealIP: it believes X-Forwarded-For from anyone.

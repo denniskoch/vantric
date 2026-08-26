@@ -203,28 +203,78 @@ func (s *Store) CreateSession(ctx context.Context, token, userID string, expires
 // than on a timer: the only thing that has to be true is that they
 // stop working.
 func (s *Store) UserBySession(ctx context.Context, token string) (*User, error) {
+	u, _, err := s.SessionUser(ctx, token)
+	return u, err
+}
+
+// SessionUser also reports when the session expires, so the caller can
+// renew one that is running out. A zero time means there is no session
+// to renew.
+func (s *Store) SessionUser(ctx context.Context, token string) (*User, time.Time, error) {
 	var userID, expires string
 	err := s.db.QueryRowContext(ctx,
 		`SELECT user_id, expires_at FROM iam_sessions WHERE token = ?`, token).
 		Scan(&userID, &expires)
 	if err == sql.ErrNoRows {
-		return nil, ErrNotFound
+		return nil, time.Time{}, ErrNotFound
 	}
 	if err != nil {
-		return nil, err
+		return nil, time.Time{}, err
 	}
-	if at, perr := time.Parse(time.RFC3339, expires); perr == nil && time.Now().After(at) {
+	at, perr := time.Parse(time.RFC3339, expires)
+	if perr == nil && time.Now().After(at) {
 		_, _ = s.db.ExecContext(ctx, `DELETE FROM iam_sessions WHERE token = ?`, token)
-		return nil, ErrNotFound
+		return nil, time.Time{}, ErrNotFound
 	}
 	u, err := s.GetUser(ctx, userID)
 	if err != nil {
-		return nil, err
+		return nil, time.Time{}, err
 	}
 	if !u.Active {
-		return nil, ErrNotFound
+		return nil, time.Time{}, ErrNotFound
 	}
-	return u, nil
+	return u, at, nil
+}
+
+// ExtendSession pushes a session's expiry out, so using the console
+// keeps you signed in.
+//
+// A HARD DEADLINE LOGS YOU OUT MID-SENTENCE. The TTL was absolute from
+// the moment you signed in, so a console somebody works in all day
+// dropped them at an arbitrary hour with no warning and no relation to
+// whether they were using it — which reads as the session being flaky
+// rather than as a policy.
+//
+// The caller renews only past the halfway mark rather than on every
+// request, because the instance list polls every three seconds and a
+// write per request would be thousands of pointless updates an hour.
+func (s *Store) ExtendSession(ctx context.Context, token string, expires time.Time) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE iam_sessions SET expires_at = ? WHERE token = ?`,
+		expires.UTC().Format(time.RFC3339), token)
+	return err
+}
+
+// PruneSessions drops rows whose session has expired.
+//
+// EXPIRING IS NOT THE SAME AS BEING SWEPT. UserBySession deletes an
+// expired row when that token is PRESENTED, which sounds like enough
+// and isn't: a session that runs out while you are away is never
+// presented again, because the browser dropped the cookie at the same
+// moment. So the rows accumulate — fifty-one of them here, going back
+// a fortnight, none of which could ever be swept by being asked for.
+//
+// Nothing about auth depends on this; an expired row is refused either
+// way. It exists so the table does not grow forever.
+func (s *Store) PruneSessions(ctx context.Context) (int64, error) {
+	res, err := s.db.ExecContext(ctx,
+		`DELETE FROM iam_sessions WHERE expires_at < ?`,
+		time.Now().UTC().Format(time.RFC3339))
+	if err != nil {
+		return 0, err
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
 }
 
 func (s *Store) DeleteSession(ctx context.Context, token string) error {
