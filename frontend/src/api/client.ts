@@ -2010,6 +2010,30 @@ export interface CreateInstanceRequest {
  */
 export class UnauthorizedError extends Error {}
 
+/**
+ * Anyone who wants to know the session has ended.
+ *
+ * A 401 CAN ARRIVE ON ANY REQUEST, and only one of them used to be
+ * acted on. The shell's gate watched the session query alone, which is
+ * cached for a minute and never polled — so when a session expired, the
+ * page you were on filled with red "sign in to continue" alerts while
+ * the app went on believing you were signed in, and only a refresh
+ * (which re-asks /auth/me) sent you to the sign-in page. That is both
+ * halves of "it randomly stops working until I reload".
+ *
+ * The client cannot import the query cache without a cycle, so it says
+ * what happened and lets the session hook decide.
+ */
+type UnauthorizedListener = () => void
+const unauthorizedListeners = new Set<UnauthorizedListener>()
+
+export function onUnauthorized(listener: UnauthorizedListener): () => void {
+  unauthorizedListeners.add(listener)
+  return () => {
+    unauthorizedListeners.delete(listener)
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // FormData sets its own Content-Type, boundary and all. Forcing JSON
   // over it produces a body the server can't parse.
@@ -2028,7 +2052,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       // non-JSON error body; keep statusText
     }
-    if (res.status === 401) throw new UnauthorizedError(message)
+    if (res.status === 401) {
+      // THE AUTH ENDPOINTS ANSWER FOR THEMSELVES and must not be
+      // announced. /auth/login's 401 means "wrong password", which the
+      // sign-in page already shows. /auth/me's 401 IS the session
+      // query's own answer — announcing it would invalidate the query
+      // that just produced it, refetch, get another 401, and announce
+      // again: a request loop for as long as the tab is open.
+      if (!path.startsWith('/auth/')) {
+        unauthorizedListeners.forEach((notify) => notify())
+      }
+      throw new UnauthorizedError(message)
+    }
     throw new Error(message)
   }
   if (res.status === 204) return undefined as T

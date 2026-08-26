@@ -1813,6 +1813,37 @@ Surface the daily 90% here and link out for the rest.
   (same rule as the seeded hypervisor). With no password configured
   one is generated and logged once — the only time a password is
   written to the log, and better than a default nobody changes.
+- USING THE CONSOLE KEEPS YOU SIGNED IN. The session TTL was absolute
+  from the moment of sign-in, so somebody working all day was dropped at
+  an arbitrary hour with no warning and no relation to whether they were
+  using it — which reads as a flaky session rather than as a policy.
+  `requireAuth` extends it, and re-sends the cookie with the new expiry
+  so the browser doesn't drop it while the row lives on. Renewed only
+  past the HALFWAY mark, never on every request: the instance list polls
+  every three seconds, and a write per request would be thousands of
+  pointless updates an hour for no more security.
+- A 401 CAN ARRIVE ON ANY REQUEST, and only one of them used to be
+  acted on. The shell's gate watched the `['session']` query alone,
+  which is cached for a minute and never polled — so an expired session
+  filled whatever page you were on with red "sign in to continue"
+  alerts while the app went on believing you were signed in, and only a
+  reload sent you to the sign-in page. That is both halves of "it
+  randomly stops working until I refresh". The API client now announces
+  a 401 and the session hook RE-ASKS rather than assuming: the server
+  is what knows, and one 401 from a backend having a bad moment must
+  not sign you out. The `/auth/*` endpoints are excluded — `/auth/me`'s
+  own 401 IS the answer, and announcing it would invalidate the query
+  that produced it and loop forever. One re-ask per burst, because the
+  hook has several callers and a page fires several queries at once.
+- PRUNING THAT NOTHING CALLS IS NOT PRUNING. `PruneAudit` was written,
+  documented here as a 90-day window, and never once invoked — so the
+  log had kept every entry since the console was first started.
+  Sessions were worse: `UserBySession` sweeps an expired row when its
+  token is PRESENTED, which cannot happen after it expires, because the
+  browser drops the cookie at the same moment. Fifty-three rows had
+  accumulated. `Server.Housekeep` runs both on boot and daily; a
+  failure is logged rather than fatal, since a console that won't start
+  because it couldn't tidy up is worse than a large table.
 - WHO DID WHAT IS THIS CONSOLE'S TO RECORD. Every backend is reached
   through ONE shared credential — Proxmox's task log can only ever say
   `root@pam!lcm`, which is correct for a service account and useless

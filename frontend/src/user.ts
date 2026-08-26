@@ -1,5 +1,6 @@
+import { useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, UnauthorizedError } from './api/client'
+import { api, onUnauthorized, UnauthorizedError } from './api/client'
 import type { IAMUser } from './api/client'
 
 /**
@@ -7,7 +8,11 @@ import type { IAMUser } from './api/client'
  * server rather than a constant. The session is an HttpOnly cookie, so
  * this is the only way to find out.
  */
+/** Guards the re-check below; module-level so every hook shares it. */
+let recheckScheduled = false
+
 export function useSession() {
+  const queryClient = useQueryClient()
   const { data, isLoading, error } = useQuery({
     queryKey: ['session'],
     queryFn: api.me,
@@ -15,6 +20,34 @@ export function useSession() {
     retry: (_count, err) => !(err instanceof UnauthorizedError),
     staleTime: 60_000,
   })
+
+  // A 401 ON ANY REQUEST ENDS THE SESSION, not just a 401 on this one.
+  // This query is cached for a minute and never polled, so an expired
+  // session used to show up as red alerts on whatever page you were
+  // looking at while the shell still believed you were signed in — and
+  // only a reload, which re-runs this, actually sent you to sign in.
+  //
+  // It re-asks rather than assuming: the server is the one that knows,
+  // and a single 401 from a backend having a bad moment should not sign
+  // you out of the console.
+  //
+  // ONE RE-ASK PER BURST. This hook is called from several components
+  // and a page fires several queries at once, so the naive version made
+  // one /auth/me per listener per 401 — four for a single expiry here,
+  // and many more on a page mid-load. The flag collapses them: whoever
+  // notices first schedules the check, everyone else rides along.
+  useEffect(
+    () =>
+      onUnauthorized(() => {
+        if (recheckScheduled) return
+        recheckScheduled = true
+        queueMicrotask(() => {
+          recheckScheduled = false
+          queryClient.invalidateQueries({ queryKey: ['session'] })
+        })
+      }),
+    [queryClient],
+  )
   return {
     user: data ?? null,
     loading: isLoading,
