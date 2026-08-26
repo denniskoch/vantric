@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -25,12 +25,23 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import AddBoxIcon from '@mui/icons-material/AddBox'
 import { api } from '../api/client'
-import type { DatabaseGrant } from '../api/client'
+import type { DatabaseGrant, DatabaseTable } from '../api/client'
+import type { ColumnDef } from '@tanstack/react-table'
+import DataTable from '../components/DataTable'
 import DetailTable, { DetailSection } from '../components/DetailTable'
 import { formatBytes } from '../format'
 import { BrandLabel } from '../components/BrandIcon'
 import { databaseBrand } from '../brands'
 import { engineLabels } from '../databases'
+
+/** What a row's kind is called, and whether its numbers mean anything. */
+function kindLabel(kind: DatabaseTable['kind']): string {
+  if (kind === 'view') return 'View'
+  if (kind === 'matview') return 'Materialized view'
+  return 'Table'
+}
+
+const stores = (t: DatabaseTable) => t.kind !== 'view'
 
 type TabID = 'details' | 'tables' | 'permissions'
 
@@ -106,10 +117,99 @@ export default function DatabaseDetailPage() {
   // its size adds a number that isn't one — PostgreSQL reports a few
   // pages for a view's definition, which would quietly inflate the
   // disk figure this line exists to give.
-  const baseTables = tables.filter((t) => t.kind !== 'view')
+  const tableColumns = useMemo<ColumnDef<DatabaseTable, unknown>[]>(() => {
+    const cols: ColumnDef<DatabaseTable, unknown>[] = []
+    if (isPostgres) {
+      cols.push({
+        id: 'schema',
+        header: 'Schema',
+        meta: { width: 140 },
+        accessorFn: (t) => t.schema,
+      })
+    }
+    cols.push({
+      id: 'name',
+      header: 'Name',
+      meta: { width: 280 },
+      accessorFn: (t) => t.name,
+      cell: ({ row }) => (
+        <Box>
+          {row.original.name}
+          {/* Comments are rare; a whole column of dashes isn't worth
+              the width, so it sits under the name where it exists. */}
+          {row.original.comment && (
+            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+              {row.original.comment}
+            </Typography>
+          )}
+        </Box>
+      ),
+    })
+    cols.push({
+      id: 'kind',
+      header: 'Kind',
+      meta: { nowrap: true, hug: true },
+      accessorFn: (t) => kindLabel(t.kind),
+      cell: ({ row }) => (
+        <Box component="span" sx={{ color: 'text.secondary' }}>
+          {kindLabel(row.original.kind)}
+        </Box>
+      ),
+    })
+    if (isPostgres) {
+      cols.push({
+        id: 'owner',
+        header: 'Owner',
+        meta: { nowrap: true },
+        accessorFn: (t) => t.owner,
+        cell: ({ row }) => row.original.owner || '—',
+      })
+    } else {
+      cols.push({
+        id: 'engine',
+        header: 'Engine',
+        meta: { nowrap: true },
+        accessorFn: (t) => t.engine,
+        cell: ({ row }) => row.original.engine || '—',
+      })
+    }
+    cols.push({
+      id: 'rows',
+      header: 'Rows (est.)',
+      meta: { align: 'right', nowrap: true },
+      // A PLAIN VIEW STORES NOTHING, so it sorts below every real count
+      // rather than mixing in among the empty tables — the same rule
+      // "Not scored" follows on the CVE list. A materialized view does
+      // store its rows and sorts on them like a table.
+      accessorFn: (t) => (stores(t) ? t.rows : -1),
+      cell: ({ row }) =>
+        !stores(row.original) || row.original.rows <= 0
+          ? '—'
+          : row.original.rows.toLocaleString(),
+    })
+    cols.push({
+      id: 'size',
+      header: 'Size',
+      meta: { align: 'right', nowrap: true },
+      accessorFn: (t) => (stores(t) ? t.sizeBytes : -1),
+      cell: ({ row }) =>
+        stores(row.original) ? formatBytes(row.original.sizeBytes) : '—',
+    })
+    return cols
+  }, [isPostgres])
+
+  // THE COUNTS AND THE TOTALS ANSWER DIFFERENT QUESTIONS. How many
+  // tables there are is a count of TABLES — a view is not one, and a
+  // materialized view is not one either. How much disk this holds is a
+  // sum over everything that STORES, which includes a materialized view
+  // and excludes a plain one: PostgreSQL reports a few pages for a
+  // plain view's definition, which would quietly inflate the figure,
+  // while a materialized view's bytes are as real as a table's.
+  const baseTables = tables.filter((t) => t.kind === 'table')
   const viewCount = tables.length - baseTables.length
-  const totalSize = baseTables.reduce((sum, t) => sum + t.sizeBytes, 0)
-  const totalRows = baseTables.reduce((sum, t) => sum + t.rows, 0)
+  const stored = tables.filter(stores)
+  const totalSize = stored.reduce((sum, t) => sum + t.sizeBytes, 0)
+  const totalRows = stored.reduce((sum, t) => sum + t.rows, 0)
 
   return (
     <Box sx={{ pb: 4 }}>
@@ -180,66 +280,22 @@ export default function DatabaseDetailPage() {
                 Row counts are the engine's own estimate; a dash means it doesn't
                 have one yet.
                 {tables.length > 0 &&
-                  ` ${baseTables.length} table${baseTables.length === 1 ? '' : 's'}, about ${totalRows.toLocaleString()} rows, ${formatBytes(totalSize)}`}
-                {viewCount > 0 && `, and ${viewCount} view${viewCount === 1 ? '' : 's'}`}
-                {tables.length > 0 && '.'}
+                  ` ${baseTables.length} table${baseTables.length === 1 ? '' : 's'}`}
+                {viewCount > 0 && ` and ${viewCount} view${viewCount === 1 ? '' : 's'}`}
+                {tables.length > 0 &&
+                  `, about ${totalRows.toLocaleString()} rows, ${formatBytes(totalSize)}.`}
               </Typography>
-              <TableContainer component={Paper} variant="outlined">
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      {isPostgres && <TableCell>Schema</TableCell>}
-                      <TableCell>Name</TableCell>
-                      <TableCell>Kind</TableCell>
-                      {isPostgres && <TableCell>Owner</TableCell>}
-                      {!isPostgres && <TableCell>Engine</TableCell>}
-                      <TableCell align="right">Rows (est.)</TableCell>
-                      <TableCell align="right">Size</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {tables.map((t) => (
-                      <TableRow key={`${t.schema}.${t.name}`} hover>
-                        {isPostgres && <TableCell>{t.schema}</TableCell>}
-                        <TableCell>
-                          {t.name}
-                          {/* Comments are rare; a whole column of dashes
-                              isn't worth the width, so it sits under the
-                              name where it exists. */}
-                          {t.comment && (
-                            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
-                              {t.comment}
-                            </Typography>
-                          )}
-                        </TableCell>
-                        <TableCell sx={{ color: 'text.secondary' }}>
-                          {t.kind === 'view' ? 'View' : 'Table'}
-                        </TableCell>
-                        {isPostgres && <TableCell>{t.owner || '—'}</TableCell>}
-                        {!isPostgres && <TableCell>{t.engine || '—'}</TableCell>}
-                        {/* A VIEW STORES NOTHING, so its rows and size are
-                            not small numbers — they are not numbers. The
-                            engine reports zeroes and printing them would
-                            describe an empty table where there is no table.
-                            Same rule as an unanalysed row count below. */}
-                        <TableCell align="right">
-                          {t.kind === 'view' || t.rows <= 0 ? '—' : t.rows.toLocaleString()}
-                        </TableCell>
-                        <TableCell align="right">
-                          {t.kind === 'view' ? '—' : formatBytes(t.sizeBytes)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {tables.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                          {tablesLoading ? 'Loading…' : 'No tables in this database.'}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+              {/* SORTED BY SIZE, because that is what the column is for.
+                  A listing exists to answer "what is big in here", and
+                  alphabetical makes you read every row to find out. */}
+              <DataTable
+                rows={tables}
+                columns={tableColumns}
+                getRowId={(t) => `${t.schema}.${t.name}`}
+                initialSort={[{ id: 'size', desc: true }]}
+                filterPlaceholder="Filter tables"
+                empty={tablesLoading ? 'Loading…' : 'No tables in this database.'}
+              />
             </DetailSection>
           </>
         )}

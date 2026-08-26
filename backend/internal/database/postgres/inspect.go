@@ -80,9 +80,14 @@ func (d *Driver) Tables(ctx context.Context, dbName string) ([]database.Table, e
 			&t.SizeBytes, &t.Comment); err != nil {
 			return nil, err
 		}
-		t.Kind = database.KindTable
-		if relkind == "v" || relkind == "m" {
+		switch relkind {
+		case "v":
 			t.Kind = database.KindView
+		case "m":
+			// Stored, so its size and row estimate are real.
+			t.Kind = database.KindMaterializedView
+		default:
+			t.Kind = database.KindTable
 		}
 		tables = append(tables, t)
 	}

@@ -28,6 +28,8 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import AddBoxIcon from '@mui/icons-material/AddBox'
 import KeyIcon from '@mui/icons-material/Key'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
+import type { ColumnDef } from '@tanstack/react-table'
+import DataTable from '../components/DataTable'
 import BlockIcon from '@mui/icons-material/Block'
 import PublicIcon from '@mui/icons-material/Public'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
@@ -153,6 +155,111 @@ export default function DatabaseInstanceDetailPage() {
   // MySQL databases have no owner; PostgreSQL's do.
   const hasOwners = server.type === 'postgres'
   const isPostgres = server.type === 'postgres'
+
+  const userColumns: ColumnDef<DatabaseUser, unknown>[] = [
+    {
+      id: 'name',
+      header: 'Name',
+      meta: { width: 240 },
+      accessorFn: (u) => u.name,
+      cell: ({ row }) => (
+        <>
+          {row.original.name}
+          {row.original.host && (
+            <Box component="span" sx={{ color: 'text.secondary' }}>
+              @{row.original.host}
+            </Box>
+          )}
+        </>
+      ),
+    },
+    {
+      id: 'type',
+      header: 'Type',
+      meta: { nowrap: true, hug: true },
+      accessorFn: (u) => (u.role ? 'Role' : u.system ? 'System' : 'User'),
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      meta: { nowrap: true },
+      // Sorted so accounts that CANNOT sign in come first, which is what
+      // somebody opens this list to find. A role sorts last: it is not a
+      // way in and was never meant to be one, so unlike a disabled
+      // account it is not a finding.
+      accessorFn: (u) => (u.role ? 2 : u.canLogin ? 1 : 0),
+      cell: ({ row }) => {
+        const u = row.original
+        if (u.role) {
+          return (
+            <Box component="span" sx={{ color: 'text.secondary' }}>
+              Not a login
+            </Box>
+          )
+        }
+        if (u.canLogin) return 'Enabled'
+        return (
+          <Box
+            component="span"
+            sx={{ color: isPostgres ? 'text.secondary' : 'warning.dark' }}
+          >
+            {isPostgres ? 'Cannot log in' : 'Disabled'}
+          </Box>
+        )
+      },
+    },
+    {
+      id: 'superuser',
+      header: 'Superuser',
+      meta: { nowrap: true, hug: true },
+      accessorFn: (u) => u.superuser,
+      cell: ({ row }) => yesNo(row.original.superuser),
+    },
+    {
+      id: 'createDb',
+      header: 'Create DB',
+      meta: { nowrap: true, hug: true },
+      accessorFn: (u) => u.createDb,
+      cell: ({ row }) => yesNo(row.original.createDb),
+    },
+    {
+      id: 'memberOf',
+      header: 'Member of',
+      meta: { maxWidth: 200 },
+      accessorFn: (u) => u.memberOf?.join(', ') ?? '',
+      cell: ({ row }) => (
+        <Box component="span" sx={{ color: 'text.secondary' }}>
+          {row.original.memberOf?.join(', ') || '—'}
+        </Box>
+      ),
+    },
+    {
+      id: 'connectionLimit',
+      header: 'Connection limit',
+      meta: { align: 'right', nowrap: true },
+      // Unlimited is -1 in the record and belongs at the TOP of a
+      // descending sort, not below every real cap.
+      accessorFn: (u) =>
+        u.connectionLimit < 0 ? Number.MAX_SAFE_INTEGER : u.connectionLimit,
+      cell: ({ row }) =>
+        row.original.connectionLimit < 0 ? 'Unlimited' : row.original.connectionLimit,
+    },
+    {
+      id: 'actions',
+      header: '',
+      enableSorting: false,
+      meta: { hug: true },
+      cell: ({ row }) => (
+        <IconButton
+          size="small"
+          onClick={(e) => setUserMenu({ anchor: e.currentTarget, user: row.original })}
+        >
+          <MoreVertIcon fontSize="small" />
+        </IconButton>
+      ),
+    },
+  ]
+
   const brand = databaseBrand(server.type, server.info?.version)
 
   return (
@@ -346,92 +453,20 @@ export default function DatabaseInstanceDetailPage() {
                 Create user
               </Button>
             </Box>
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Name</TableCell>
-                    <TableCell>Type</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Superuser</TableCell>
-                    <TableCell>Create DB</TableCell>
-                    <TableCell>Member of</TableCell>
-                    <TableCell align="right">Connection limit</TableCell>
-                    <TableCell align="right" />
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={`${user.name}@${user.host}`} hover>
-                      <TableCell>
-                        {user.name}
-                        {user.host && <Box component="span" sx={{ color: 'text.secondary' }}>@{user.host}</Box>}
-                      </TableCell>
-                      <TableCell>
-                        {user.role ? 'Role' : user.system ? 'System' : 'User'}
-                      </TableCell>
-                      {/* WHAT THIS ANSWERS IS "is this account off", so on
-                          MySQL it says so in those words: "Can log in: No"
-                          is the same fact phrased as a property, and reads
-                          as a missing capability rather than a decision
-                          somebody made. A role is neither — it is not a way
-                          in at all.
-                          POSTGRESQL CANNOT SAY THAT MUCH, and must not
-                          pretend to. It records one fact, rolcanlogin, and
-                          nothing about intent — a group role and an account
-                          somebody switched off are THE SAME STATE there,
-                          since the real GROUP concept went away in 8.1. So
-                          "Disabled" over a group would assert a decision
-                          nobody made, which is the same mistake as claiming
-                          a locked account can sign in. It reports the
-                          attribute instead, in psql's own words. */}
-                      <TableCell>
-                        {user.role ? (
-                          <Box component="span" sx={{ color: 'text.secondary' }}>
-                            Not a login
-                          </Box>
-                        ) : user.canLogin ? (
-                          'Enabled'
-                        ) : (
-                          <Box
-                            component="span"
-                            sx={{ color: isPostgres ? 'text.secondary' : 'warning.dark' }}
-                          >
-                            {isPostgres ? 'Cannot log in' : 'Disabled'}
-                          </Box>
-                        )}
-                      </TableCell>
-                      <TableCell>{yesNo(user.superuser)}</TableCell>
-                      <TableCell>{yesNo(user.createDb)}</TableCell>
-                      <TableCell sx={{ color: 'text.secondary' }}>
-                        {user.memberOf?.join(', ') || '—'}
-                      </TableCell>
-                      <TableCell align="right">
-                        {user.connectionLimit < 0 ? 'Unlimited' : user.connectionLimit}
-                      </TableCell>
-                      <TableCell align="right">
-                        <IconButton
-                          size="small"
-                          onClick={(e) => setUserMenu({ anchor: e.currentTarget, user })}
-                        >
-                          <MoreVertIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {users.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                        {usersLoading ? 'Loading…' : 'No users.'}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            {/* DISABLED ACCOUNTS FIRST, then by name. The reason to
+                open this list is usually to find out who still has a way
+                in, and on a server with thirty accounts alphabetical
+                means reading all thirty. */}
+            <DataTable
+              rows={users}
+              columns={userColumns}
+              getRowId={(u) => `${u.name}@${u.host}`}
+              initialSort={[{ id: 'status', desc: false }]}
+              filterPlaceholder="Filter users"
+              empty={usersLoading ? 'Loading…' : 'No users.'}
+            />
           </>
         )}
-
         {tab === 'connections' && (
           <TableContainer component={Paper} variant="outlined">
             <Table size="small">

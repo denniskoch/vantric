@@ -640,6 +640,31 @@ Surface the daily 90% here and link out for the rest.
   turns that into a 400 that says so, and the menu item is ABSENT
   rather than greyed out — a disabled control invites you to work out
   why.
+- THE DATABASE SECTION'S LISTS USE `DataTable` LIKE EVERY OTHER LIST
+  HERE. They were hand-rolled `<Table>`, so the one column somebody
+  opens the page for could not be sorted on — a table listing exists to
+  answer "what is big in here", and alphabetical makes you read all of
+  it. Tables and the cross-server Databases list default to SIZE
+  DESCENDING; the user list defaults to accounts that CANNOT sign in
+  first, since that is what somebody opens it to find. Sort keys are
+  chosen so the absent values land where they belong rather than at the
+  top: a plain view's row count and size sort as -1, and an unlimited
+  connection limit sorts above every real cap instead of below them.
+- A MATERIALIZED VIEW STORES ITS ROWS, which is the whole difference
+  from a view for every purpose except writing to it. Collapsing it
+  into `KindView` rendered its size as "—", so a multi-gigabyte
+  materialized view would have been invisible on the one page that
+  reports disk. It is its own kind, its numbers are shown like a
+  table's, and it is counted with the views but summed with the tables
+  — how many tables there are and how much disk this holds are
+  different questions, and a plain view is a no to both while a
+  materialized one is a no to the first only.
+- A PLACEHOLDER IS NOT A COMMENT. MySQL writes the literal string
+  "VIEW" into `table_comment` for every view, so the listing printed
+  "VIEW" under each view's name as though somebody had described it
+  that way. Same rule as a DMI serial reading "To be filled by
+  O.E.M." — a field the engine fills in for nobody is empty, however
+  it looks.
 - POSTGRES ACCESS IS TO THE DATABASE, NOT TO `public`. Every grant and
   revoke statement named that one schema, so on a database with any
   other the console granted PARTIAL access and reported success — a

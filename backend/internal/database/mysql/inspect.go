@@ -53,6 +53,15 @@ func (d *Driver) Tables(ctx context.Context, dbName string) ([]database.Table, e
 		t.Kind = database.KindTable
 		if tableType == "VIEW" {
 			t.Kind = database.KindView
+			// A PLACEHOLDER IS NOT A COMMENT. MySQL writes the literal
+			// string "VIEW" into table_comment for every view, so the
+			// listing printed "VIEW" underneath each view's name as
+			// though somebody had described it that way. Same rule as a
+			// DMI serial reading "To be filled by O.E.M." — a field the
+			// engine fills in for nobody is empty, however it looks.
+			if t.Comment == "VIEW" {
+				t.Comment = ""
+			}
 		}
 		// MySQL has no schema layer inside a database and no per-table
 		// owner; leaving them blank is honest, and the UI drops the

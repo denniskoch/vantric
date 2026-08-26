@@ -73,9 +73,12 @@ export interface SSHKey {
 
 /** One table inside a database. Row counts are the engine's estimate. */
 export interface DatabaseTable {
-  /** A view has no size, no rows and no storage engine — the kind is
-   *  what lets those render as a dash rather than a confident zero. */
-  kind: 'table' | 'view'
+  /** A plain view has no size, no rows and no storage engine — the
+   *  kind is what lets those render as a dash rather than a confident
+   *  zero. A MATERIALIZED view does store them, which is why it is its
+   *  own kind rather than a view: rendering its size as "—" would hide
+   *  real disk on the page that reports disk. */
+  kind: 'table' | 'view' | 'matview'
   schema: string
   name: string
   owner: string
