@@ -1,19 +1,13 @@
+import { useMemo } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import {
-  Box,
-  Link,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-} from '@mui/material'
+import { Box, Link } from '@mui/material'
+import type { ColumnDef } from '@tanstack/react-table'
 import { api } from '../api/client'
+import type { Database } from '../api/client'
 import { formatBytes } from '../format'
 import { BrandLabel } from '../components/BrandIcon'
+import DataTable from '../components/DataTable'
 import PageHeader from '../components/PageHeader'
 import { databaseBrand } from '../brands'
 
@@ -39,73 +33,95 @@ export default function DatabasesPage() {
 
   const serverFor = (id: string) => servers.find((s) => s.id === id)
 
+  const columns = useMemo<ColumnDef<Database, unknown>[]>(
+    () => [
+      {
+        id: 'name',
+        header: 'Name',
+        meta: { width: 260 },
+        accessorFn: (db) => db.name,
+        cell: ({ row }) => (
+          <Link
+            component={RouterLink}
+            to={`/databases/instances/${row.original.serverId}/databases/${encodeURIComponent(row.original.name)}`}
+            underline="hover"
+          >
+            {row.original.name}
+          </Link>
+        ),
+      },
+      {
+        id: 'type',
+        header: 'Type',
+        meta: { nowrap: true, hug: true },
+        accessorFn: (db) => (db.system ? 'System' : 'User'),
+      },
+      {
+        id: 'instance',
+        header: 'Instance',
+        meta: { width: 200 },
+        // Sorted and filtered on the instance's NAME, which is what the
+        // cell draws — the id it is keyed by would sort a list of
+        // servers into UUID order.
+        accessorFn: (db) => serverFor(db.serverId)?.name ?? '',
+        cell: ({ row }) => (
+          <Link
+            component={RouterLink}
+            to={`/databases/instances/${row.original.serverId}`}
+            underline="hover"
+            sx={{ display: 'block' }}
+          >
+            <BrandLabel
+              icon={databaseBrand(
+                serverFor(row.original.serverId)?.type ?? '',
+                serverFor(row.original.serverId)?.info?.version,
+              )}
+              label={serverFor(row.original.serverId)?.name ?? '—'}
+            />
+          </Link>
+        ),
+      },
+      {
+        id: 'size',
+        header: 'Size',
+        meta: { align: 'right', nowrap: true },
+        accessorFn: (db) => db.sizeBytes,
+        cell: ({ row }) =>
+          row.original.sizeBytes ? formatBytes(row.original.sizeBytes) : '—',
+      },
+      {
+        id: 'encoding',
+        header: 'Encoding',
+        meta: { nowrap: true },
+        accessorFn: (db) => db.encoding,
+      },
+      {
+        id: 'connections',
+        header: 'Connections',
+        meta: { align: 'right', nowrap: true },
+        accessorFn: (db) => db.connections,
+      },
+    ],
+    [servers],
+  )
+
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
         title="Databases"
-        description={
-          <>
-            Every database across your connected instances.
-          </>
-        }
+        description={<>Every database across your connected instances.</>}
       />
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Instance</TableCell>
-              <TableCell align="right">Size</TableCell>
-              <TableCell>Encoding</TableCell>
-              <TableCell align="right">Connections</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {databases.map((db) => (
-              <TableRow key={`${db.serverId}/${db.name}`} hover>
-                <TableCell>
-                  <Link
-                    component={RouterLink}
-                    to={`/databases/instances/${db.serverId}/databases/${encodeURIComponent(db.name)}`}
-                    underline="hover"
-                  >
-                    {db.name}
-                  </Link>
-                </TableCell>
-                <TableCell>{db.system ? 'System' : 'User'}</TableCell>
-                <TableCell>
-                  <Link
-                    component={RouterLink}
-                    to={`/databases/instances/${db.serverId}`}
-                    underline="hover"
-                    sx={{ display: 'block' }}
-                  >
-                    <BrandLabel
-                      icon={databaseBrand(
-                        serverFor(db.serverId)?.type ?? '',
-                        serverFor(db.serverId)?.info?.version,
-                      )}
-                      label={serverFor(db.serverId)?.name ?? '—'}
-                    />
-                  </Link>
-                </TableCell>
-                <TableCell align="right">{db.sizeBytes ? formatBytes(db.sizeBytes) : '—'}</TableCell>
-                <TableCell>{db.encoding}</TableCell>
-                <TableCell align="right">{db.connections}</TableCell>
-              </TableRow>
-            ))}
-            {databases.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                  {isLoading ? 'Loading…' : 'No databases — connect an instance first.'}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      {/* BIGGEST FIRST. A cross-server listing is read to find out what
+          is taking the room, and alphabetical makes you read all of it. */}
+      <DataTable
+        rows={databases}
+        columns={columns}
+        getRowId={(db) => `${db.serverId}/${db.name}`}
+        initialSort={[{ id: 'size', desc: true }]}
+        filterPlaceholder="Filter databases"
+        empty={isLoading ? 'Loading…' : 'No databases — connect an instance first.'}
+      />
     </Box>
   )
 }

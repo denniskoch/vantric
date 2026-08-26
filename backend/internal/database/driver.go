@@ -66,7 +66,18 @@ type TableKind string
 const (
 	KindTable TableKind = "table"
 	KindView  TableKind = "view"
+	// KindMaterializedView STORES ITS ROWS, which is what separates it
+	// from a view for every purpose except writing to it. Collapsing it
+	// into KindView made its size render as "—", hiding real disk from
+	// the one page that reports disk — a multi-gigabyte materialized
+	// view would have been invisible next to the tables it dwarfs.
+	// PostgreSQL only; MySQL has no equivalent.
+	KindMaterializedView TableKind = "matview"
 )
+
+// Stores is whether rows and bytes mean anything for this kind. A plain
+// view has neither — not small numbers, no numbers.
+func (k TableKind) Stores() bool { return k != KindView }
 
 // Table is one table inside a database. Row counts are the engine's
 // own ESTIMATE — both engines keep one in their catalog, and counting

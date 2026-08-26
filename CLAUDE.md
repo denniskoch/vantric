@@ -640,6 +640,54 @@ Surface the daily 90% here and link out for the rest.
   turns that into a 400 that says so, and the menu item is ABSENT
   rather than greyed out — a disabled control invites you to work out
   why.
+- THE DATABASE SECTION'S LISTS USE `DataTable` LIKE EVERY OTHER LIST
+  HERE. They were hand-rolled `<Table>`, so the one column somebody
+  opens the page for could not be sorted on — a table listing exists to
+  answer "what is big in here", and alphabetical makes you read all of
+  it. Tables and the cross-server Databases list default to SIZE
+  DESCENDING; the user list defaults to accounts that CANNOT sign in
+  first, since that is what somebody opens it to find. Sort keys are
+  chosen so the absent values land where they belong rather than at the
+  top: a plain view's row count and size sort as -1, and an unlimited
+  connection limit sorts above every real cap instead of below them.
+- A MATERIALIZED VIEW STORES ITS ROWS, which is the whole difference
+  from a view for every purpose except writing to it. Collapsing it
+  into `KindView` rendered its size as "—", so a multi-gigabyte
+  materialized view would have been invisible on the one page that
+  reports disk. It is its own kind, its numbers are shown like a
+  table's, and it is counted with the views but summed with the tables
+  — how many tables there are and how much disk this holds are
+  different questions, and a plain view is a no to both while a
+  materialized one is a no to the first only.
+- A PLACEHOLDER IS NOT A COMMENT. MySQL writes the literal string
+  "VIEW" into `table_comment` for every view, so the listing printed
+  "VIEW" under each view's name as though somebody had described it
+  that way. Same rule as a DMI serial reading "To be filled by
+  O.E.M." — a field the engine fills in for nobody is empty, however
+  it looks.
+- POSTGRES ACCESS IS TO THE DATABASE, NOT TO `public`. Every grant and
+  revoke statement named that one schema, so on a database with any
+  other the console granted PARTIAL access and reported success — a
+  role given "read" could not read `reports.daily`, with nothing
+  saying why. Revoke was hardcoded the same way, which is the worse
+  direction: it claimed to have taken access away and left it
+  everywhere but one schema. `userSchemas` lists what the database
+  actually holds, and both sides walk the same set — an extension's
+  schema included, since "read access" that stops at its edge is the
+  same bug wearing a different name. Schemas created LATER still are
+  not covered and cannot be: default privileges attach per schema and
+  PostgreSQL has no "future schemas" form. That is the engine's limit
+  rather than a shortcut.
+- POSTGRESQL CANNOT SAY WHY A ROLE HAS NO LOGIN, so the console must
+  not either. It records `rolcanlogin` and nothing about intent — the
+  real GROUP concept went away in 8.1, so a group role and an account
+  somebody switched off are THE SAME STATE. Printing "Disabled" over a
+  group asserts a decision nobody made, which is the same mistake as
+  claiming a locked MySQL account can sign in. It reports the attribute
+  in psql's own words ("Cannot log in"), and the menu names the change
+  it makes ("Allow login") rather than implying an account is being
+  switched back on. MariaDB keeps Enabled/Disabled/Role, because
+  `is_role` means it genuinely knows.
 - WHICH ACCOUNT IS ONE ANSWER, NOT TWO. The grant form showed a picker
   reading "bob@localhost" that set its value to `bob`, threw the host
   away, and took it from a SEPARATE field defaulting to `%` — so

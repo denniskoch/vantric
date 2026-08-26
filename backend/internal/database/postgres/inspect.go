@@ -80,9 +80,14 @@ func (d *Driver) Tables(ctx context.Context, dbName string) ([]database.Table, e
 			&t.SizeBytes, &t.Comment); err != nil {
 			return nil, err
 		}
-		t.Kind = database.KindTable
-		if relkind == "v" || relkind == "m" {
+		switch relkind {
+		case "v":
 			t.Kind = database.KindView
+		case "m":
+			// Stored, so its size and row estimate are real.
+			t.Kind = database.KindMaterializedView
+		default:
+			t.Kind = database.KindTable
 		}
 		tables = append(tables, t)
 	}
@@ -197,43 +202,93 @@ func sortedGrants(byKey map[string]*database.Grant) []database.Grant {
 // grantStatements renders the level as statements to run inside the
 // database. schemaPublic is where an application's tables live unless
 // someone went out of their way; deeper layouts are a psql job.
-func grantStatements(level database.AccessLevel, user, owner string) []string {
+// ACCESS IS TO THE DATABASE, NOT TO `public`.
+//
+// Every one of these statements used to name `public` and nothing
+// else, so on a database with any other schema the console granted
+// partial access and reported success — a role given "read" could not
+// read `reports.daily`, with nothing anywhere saying why. The revoke
+// was hardcoded the same way, which is the worse direction: it said it
+// had taken access away and left it in place everywhere but one
+// schema.
+//
+// Schemas created LATER are still not covered, and cannot be: default
+// privileges attach per schema and PostgreSQL has no "future schemas"
+// form. That is the engine's limit rather than a shortcut, and the one
+// thing to know is that a grant is re-applied by granting again.
+func grantStatements(level database.AccessLevel, user, owner string, schemas []string) []string {
 	u := quote(user)
-	stmts := []string{
-		"GRANT USAGE ON SCHEMA public TO " + u,
-	}
-	defaults := func(objects, privileges string) string {
-		// FOR ROLE the owner: default privileges attach to the role that
-		// CREATES the object, and that's whoever owns the database, not
-		// the console's login.
-		return "ALTER DEFAULT PRIVILEGES FOR ROLE " + quote(owner) +
-			" IN SCHEMA public GRANT " + privileges + " ON " + objects + " TO " + u
-	}
-	switch level {
-	case database.AccessReadOnly:
-		stmts = append(stmts,
-			"GRANT SELECT ON ALL TABLES IN SCHEMA public TO "+u,
-			"GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO "+u,
-			defaults("TABLES", "SELECT"),
-			defaults("SEQUENCES", "USAGE, SELECT"),
-		)
-	case database.AccessReadWrite:
-		stmts = append(stmts,
-			"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "+u,
-			"GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO "+u,
-			defaults("TABLES", "SELECT, INSERT, UPDATE, DELETE"),
-			defaults("SEQUENCES", "USAGE, SELECT, UPDATE"),
-		)
-	case database.AccessFull:
-		stmts = append(stmts,
-			"GRANT CREATE ON SCHEMA public TO "+u,
-			"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "+u,
-			"GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "+u,
-			defaults("TABLES", "ALL PRIVILEGES"),
-			defaults("SEQUENCES", "ALL PRIVILEGES"),
-		)
+	stmts := []string{}
+	for _, schema := range schemas {
+		sq := quote(schema)
+		defaults := func(objects, privileges string) string {
+			// FOR ROLE the owner: default privileges attach to the role
+			// that CREATES the object, and that's whoever owns the
+			// database, not the console's login.
+			return "ALTER DEFAULT PRIVILEGES FOR ROLE " + quote(owner) +
+				" IN SCHEMA " + sq + " GRANT " + privileges + " ON " + objects + " TO " + u
+		}
+		// Without USAGE on the schema, every table privilege below it is
+		// unreachable — the grant succeeds and the role still can't read
+		// anything.
+		stmts = append(stmts, "GRANT USAGE ON SCHEMA "+sq+" TO "+u)
+		switch level {
+		case database.AccessReadOnly:
+			stmts = append(stmts,
+				"GRANT SELECT ON ALL TABLES IN SCHEMA "+sq+" TO "+u,
+				"GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA "+sq+" TO "+u,
+				defaults("TABLES", "SELECT"),
+				defaults("SEQUENCES", "USAGE, SELECT"),
+			)
+		case database.AccessReadWrite:
+			stmts = append(stmts,
+				"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "+sq+" TO "+u,
+				"GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA "+sq+" TO "+u,
+				defaults("TABLES", "SELECT, INSERT, UPDATE, DELETE"),
+				defaults("SEQUENCES", "USAGE, SELECT, UPDATE"),
+			)
+		case database.AccessFull:
+			stmts = append(stmts,
+				"GRANT CREATE ON SCHEMA "+sq+" TO "+u,
+				"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA "+sq+" TO "+u,
+				"GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA "+sq+" TO "+u,
+				defaults("TABLES", "ALL PRIVILEGES"),
+				defaults("SEQUENCES", "ALL PRIVILEGES"),
+			)
+		}
 	}
 	return stmts
+}
+
+// userSchemas lists the schemas inside a database that hold somebody's
+// data, which is all of them except the engine's own.
+//
+// pg_toast and the per-session pg_temp_* schemas are the engine's
+// plumbing; information_schema and pg_catalog are the catalog. An
+// extension's schema IS included: it is part of this database, and
+// "read access" that stops at its edge is the bug above wearing a
+// different name.
+func userSchemas(ctx context.Context, conn *pgx.Conn) ([]string, error) {
+	rows, err := conn.Query(ctx, `
+		SELECT nspname FROM pg_namespace
+		 WHERE nspname NOT IN ('information_schema', 'pg_catalog')
+		   AND nspname NOT LIKE 'pg\_toast%'
+		   AND nspname NOT LIKE 'pg\_temp%'
+		   AND nspname NOT LIKE 'pg\_toast\_temp%'
+		 ORDER BY nspname`)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: listing schemas: %w", err)
+	}
+	defer rows.Close()
+	schemas := []string{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		schemas = append(schemas, name)
+	}
+	return schemas, rows.Err()
 }
 
 func (d *Driver) GrantAccess(ctx context.Context, spec database.AccessSpec) error {
@@ -258,12 +313,17 @@ func (d *Driver) GrantAccess(ctx context.Context, spec database.AccessSpec) erro
 	}
 	defer conn.Close(ctx)
 
-	// Start from nothing so lowering someone's access is a real
-	// reduction rather than an addition on top of what they had.
-	if err := revokeInDatabase(ctx, conn, spec.User, owner); err != nil {
+	schemas, err := userSchemas(ctx, conn)
+	if err != nil {
 		return err
 	}
-	for _, stmt := range grantStatements(spec.Level, spec.User, owner) {
+
+	// Start from nothing so lowering someone's access is a real
+	// reduction rather than an addition on top of what they had.
+	if err := revokeInDatabase(ctx, conn, spec.User, owner, schemas); err != nil {
+		return err
+	}
+	for _, stmt := range grantStatements(spec.Level, spec.User, owner, schemas) {
 		if _, err := conn.Exec(ctx, stmt); err != nil {
 			return fmt.Errorf("postgres: %s: %w", firstWords(stmt), err)
 		}
@@ -281,7 +341,11 @@ func (d *Driver) RevokeAccess(ctx context.Context, dbName, user, _ string) error
 		return err
 	}
 	defer conn.Close(ctx)
-	if err := revokeInDatabase(ctx, conn, user, owner); err != nil {
+	schemas, err := userSchemas(ctx, conn)
+	if err != nil {
+		return err
+	}
+	if err := revokeInDatabase(ctx, conn, user, owner, schemas); err != nil {
 		return err
 	}
 	if _, err := d.pool.Exec(ctx, "REVOKE ALL PRIVILEGES ON DATABASE "+
@@ -294,19 +358,28 @@ func (d *Driver) RevokeAccess(ctx context.Context, dbName, user, _ string) error
 // revokeInDatabase clears everything inside one database, standing
 // rules for future objects included — a revoke that leaves those
 // behind hands access back the next time a table is created.
-func revokeInDatabase(ctx context.Context, conn *pgx.Conn, user, owner string) error {
+// revokeInDatabase clears one role's access across every schema it was
+// given any in. It must cover the SAME set the grant does, or "revoke"
+// reports having taken access away while leaving it everywhere the
+// grant reached and this didn't.
+func revokeInDatabase(ctx context.Context, conn *pgx.Conn, user, owner string, schemas []string) error {
 	u := quote(user)
-	for _, stmt := range []string{
-		"ALTER DEFAULT PRIVILEGES FOR ROLE " + quote(owner) +
-			" IN SCHEMA public REVOKE ALL ON TABLES FROM " + u,
-		"ALTER DEFAULT PRIVILEGES FOR ROLE " + quote(owner) +
-			" IN SCHEMA public REVOKE ALL ON SEQUENCES FROM " + u,
-		"REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM " + u,
-		"REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM " + u,
-		"REVOKE ALL PRIVILEGES ON SCHEMA public FROM " + u,
-	} {
-		if _, err := conn.Exec(ctx, stmt); err != nil {
-			return fmt.Errorf("postgres: %s: %w", firstWords(stmt), err)
+	for _, schema := range schemas {
+		sq := quote(schema)
+		for _, stmt := range []string{
+			// The standing rule goes first: leave it and the next
+			// CREATE TABLE hands the access straight back.
+			"ALTER DEFAULT PRIVILEGES FOR ROLE " + quote(owner) +
+				" IN SCHEMA " + sq + " REVOKE ALL ON TABLES FROM " + u,
+			"ALTER DEFAULT PRIVILEGES FOR ROLE " + quote(owner) +
+				" IN SCHEMA " + sq + " REVOKE ALL ON SEQUENCES FROM " + u,
+			"REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA " + sq + " FROM " + u,
+			"REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA " + sq + " FROM " + u,
+			"REVOKE ALL PRIVILEGES ON SCHEMA " + sq + " FROM " + u,
+		} {
+			if _, err := conn.Exec(ctx, stmt); err != nil {
+				return fmt.Errorf("postgres: %s: %w", firstWords(stmt), err)
+			}
 		}
 	}
 	return nil
