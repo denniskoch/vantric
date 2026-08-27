@@ -7,14 +7,13 @@ import {
   Button,
   FormControlLabel,
   IconButton,
-  MenuItem,
   Switch,
   TextField,
   Typography,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
-import SelectField from '../components/SelectField'
+import RolePicker from '../components/RolePicker'
 import { api } from '../api/client'
 import FormPage from '../components/FormPage'
 import { useSession } from '../user'
@@ -139,29 +138,14 @@ export default function IAMUserFormPage() {
         </Typography>
         {roleRows.map((value, i) => (
           <Box key={i} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1.5 }}>
-            <SelectField
-              label="Role"
+            <RolePicker
               value={value}
-              onChange={(e) =>
-                setRoleRows((rows) => rows.map((r, j) => (j === i ? e.target.value : r)))
+              roles={roles}
+              disabledRoles={roleRows}
+              onChange={(role) =>
+                setRoleRows((rows) => rows.map((r, j) => (j === i ? role : r)))
               }
-              size="small"
-              sx={{ flex: 1 }}
-              helperText={roles.find((r) => r.role === value)?.help}
-            >
-              <MenuItem value="">
-                <em>Choose a role</em>
-              </MenuItem>
-              {roles
-                // Already on another row: offering it twice invites a
-                // duplicate that grants nothing extra.
-                .filter((r) => r.role === value || !roleRows.includes(r.role))
-                .map((r) => (
-                  <MenuItem key={r.role} value={r.role}>
-                    {r.label}
-                  </MenuItem>
-                ))}
-            </SelectField>
+            />
             <IconButton
               size="small"
               aria-label="Remove role"
