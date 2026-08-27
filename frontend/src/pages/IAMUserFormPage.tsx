@@ -2,15 +2,20 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  Alert,
   Box,
+  Button,
   FormControlLabel,
+  IconButton,
   MenuItem,
   Switch,
   TextField,
   Typography,
 } from '@mui/material'
+import AddIcon from '@mui/icons-material/Add'
+import DeleteIcon from '@mui/icons-material/Delete'
+import SelectField from '../components/SelectField'
 import { api } from '../api/client'
-import type { RoleID } from '../api/client'
 import FormPage from '../components/FormPage'
 import { useSession } from '../user'
 
@@ -29,7 +34,13 @@ export default function IAMUserFormPage() {
 
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
-  const [role, setRole] = useState<RoleID>('viewer')
+  // A LIST, NOT A FIELD. An account holds a set of roles — "viewer"
+  // plus "compute.admin" is somebody who watches the lab and runs one
+  // part of it — so the form is rows you add to, the way GCP's Assign
+  // Roles panel is. An empty string is a row somebody has opened and
+  // not yet chosen, which is why it survives in state and is dropped on
+  // save.
+  const [roleRows, setRoleRows] = useState<string[]>(['viewer'])
   const [password, setPassword] = useState('')
   const [active, setActive] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -45,13 +56,24 @@ export default function IAMUserFormPage() {
     if (!existing) return
     setEmail(existing.email)
     setName(existing.name)
-    setRole(existing.role)
     setActive(existing.active)
   }, [existing])
 
+  const { data: heldRoles } = useQuery({
+    queryKey: ['iamUserRoles', id],
+    queryFn: () => api.getUserRoles(id!),
+    enabled: editing,
+  })
+  useEffect(() => {
+    // An account with no bindings shows one empty row rather than
+    // nothing, or there is no control to add the first one.
+    if (heldRoles) setRoleRows(heldRoles.length ? heldRoles : [''])
+  }, [heldRoles])
+
   const save = useMutation({
     mutationFn: () => {
-      const body = { email: email.trim(), name: name.trim(), role, active }
+      const roles = roleRows.filter(Boolean)
+      const body = { email: email.trim(), name: name.trim(), roles, active }
       return editing
         ? api.updateIAMUser(id!, body)
         : api.createIAMUser({ ...body, password })
@@ -109,23 +131,63 @@ export default function IAMUserFormPage() {
         size="small"
         fullWidth
       />
-      <TextField
-        select
-        label="Role"
-        value={role}
-        onChange={(e) => setRole(e.target.value as RoleID)}
-        size="small"
-        fullWidth
-      >
-        {roles.map((r) => (
-          <MenuItem key={r.id} value={r.id}>
-            <Box>
-              <Typography sx={{ fontSize: 14 }}>{r.title}</Typography>
-              <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{r.description}</Typography>
-            </Box>
-          </MenuItem>
+      <Box>
+        <Typography sx={{ fontSize: 14, mb: 0.5 }}>Assign roles</Typography>
+        <Typography sx={{ fontSize: 12, color: 'text.secondary', mb: 1.5 }}>
+          A role covers one section. The basic three cover every section at
+          once, so an account can watch the whole lab and run one part of it.
+        </Typography>
+        {roleRows.map((value, i) => (
+          <Box key={i} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1.5 }}>
+            <SelectField
+              label="Role"
+              value={value}
+              onChange={(e) =>
+                setRoleRows((rows) => rows.map((r, j) => (j === i ? e.target.value : r)))
+              }
+              size="small"
+              sx={{ flex: 1 }}
+              helperText={roles.find((r) => r.role === value)?.help}
+            >
+              <MenuItem value="">
+                <em>Choose a role</em>
+              </MenuItem>
+              {roles
+                // Already on another row: offering it twice invites a
+                // duplicate that grants nothing extra.
+                .filter((r) => r.role === value || !roleRows.includes(r.role))
+                .map((r) => (
+                  <MenuItem key={r.role} value={r.role}>
+                    {r.label}
+                  </MenuItem>
+                ))}
+            </SelectField>
+            <IconButton
+              size="small"
+              aria-label="Remove role"
+              sx={{ mt: 0.5 }}
+              onClick={() => setRoleRows((rows) => rows.filter((_, j) => j !== i))}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Box>
         ))}
-      </TextField>
+        <Button
+          size="small"
+          startIcon={<AddIcon />}
+          onClick={() => setRoleRows((rows) => [...rows, ''])}
+        >
+          Add another role
+        </Button>
+        {/* An account with nothing granted can sign in and see no
+            section at all, which is a real thing to want for somebody
+            on their way out — but not something to do by accident. */}
+        {roleRows.filter(Boolean).length === 0 && (
+          <Alert severity="warning" sx={{ mt: 1.5 }}>
+            No roles: this account will be able to sign in and see nothing.
+          </Alert>
+        )}
+      </Box>
 
       {!editing && (
         <TextField

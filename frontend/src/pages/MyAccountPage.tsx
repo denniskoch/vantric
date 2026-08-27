@@ -53,7 +53,11 @@ export default function MyAccountPage() {
     },
   })
 
-  const role = roles.find((r) => r.id === user?.role)
+  // Every role this account holds, described. A single one was the old
+  // model; now somebody can hold several and each says a different thing.
+  const held = (user?.roles ?? []).map(
+    (id) => roles.find((r) => r.role === id) ?? { role: id, label: id, help: '' },
+  )
 
   if (!user) return null
 
@@ -78,15 +82,20 @@ export default function MyAccountPage() {
             { label: 'Email', value: user.email },
             { label: 'Name', value: user.name || '—' },
             {
-              label: 'Role',
+              label: 'Roles',
               value: (
                 <Box>
-                  {role?.title ?? user.role}
-                  {role && (
-                    <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
-                      {role.description}
-                    </Typography>
-                  )}
+                  {held.length === 0 && 'No roles'}
+                  {held.map((r) => (
+                    <Box key={r.role} sx={{ mb: 0.75 }}>
+                      {r.label}
+                      {r.help && (
+                        <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+                          {r.help}
+                        </Typography>
+                      )}
+                    </Box>
+                  ))}
                 </Box>
               ),
             },

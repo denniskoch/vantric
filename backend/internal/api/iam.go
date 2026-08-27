@@ -1,9 +1,12 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/mail"
+	"slices"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -26,6 +29,14 @@ func (s *Server) iamRoutes(r chi.Router) {
 	r.Put("/iam/users/{id}", s.updateUser)
 	r.Delete("/iam/users/{id}", s.deleteUser)
 	r.Put("/iam/users/{id}/password", s.setUserPassword)
+	r.Get("/iam/users/{id}/roles", s.getUserRoles)
+	r.Put("/iam/users/{id}/roles", s.setUserRoles)
+	// NOT UNDER /iam. This says what the CALLER holds, which is about
+	// them rather than about administering accounts — filed under the
+	// IAM section it was unreadable by everyone who isn't an IAM admin,
+	// which is to say it broke the nav for exactly the people the nav
+	// exists to narrow.
+	r.Get("/sections", s.listSections)
 	r.Get("/iam/oidc", s.getOIDC)
 	r.Put("/iam/oidc", s.saveOIDC)
 	r.Delete("/iam/oidc", s.deleteOIDC)
@@ -46,14 +57,155 @@ type roleInfo struct {
 // direction to be wrong in and still the wrong direction, because the
 // reader it misleads is the one deciding whether their new endpoint
 // needs a check of its own.
-var roleCatalog = []roleInfo{
-	{store.RoleOwner, "Owner", "Full control, including managing accounts and backends"},
-	{store.RoleEditor, "Editor", "Create and change resources, but not accounts"},
-	{store.RoleViewer, "Viewer", "Read-only access to everything"},
+// roleCatalog is what the role picker renders: the basic roles, then
+// each section's, with a sentence saying what the tier means there.
+//
+// BUILT FROM THE SECTIONS RATHER THAN LISTED, so a section added to
+// roles.go appears here without anybody remembering to. A hand-written
+// catalog is the same drift the old ownerOnly list had.
+type roleCatalogEntry struct {
+	Role  string `json:"role"`
+	Label string `json:"label"`
+	Help  string `json:"help"`
+	// Section is empty for a basic role, which applies to all of them.
+	Section string `json:"section"`
+	Tier    string `json:"tier"`
+}
+
+func titleCase(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+func buildRoleCatalog() []roleCatalogEntry {
+	tierHelp := map[Tier]string{
+		TierViewer: "Read %s and change nothing",
+		TierEditor: "Create and change %s, but not its stored credentials",
+		TierAdmin:  "Everything in %s, including the credentials it connects with",
+	}
+	catalog := []roleCatalogEntry{
+		{roleOwner, "Owner", "Every section, including credentials and who can sign in", "", "admin"},
+		{roleEditor, "Editor", "Create and change resources in every section, but no credentials", "", "editor"},
+		{roleViewer, "Viewer", "Read every section and change nothing", "", "viewer"},
+	}
+	for _, sec := range sections {
+		tiers := []Tier{TierViewer, TierEditor}
+		if sec.Credentialed {
+			tiers = append(tiers, TierAdmin)
+		}
+		for _, t := range tiers {
+			catalog = append(catalog, roleCatalogEntry{
+				Role:    sec.ID + "." + t.String(),
+				Label:   sec.Label + " " + titleCase(t.String()),
+				Help:    fmt.Sprintf(tierHelp[t], sec.Label),
+				Section: sec.ID,
+				Tier:    t.String(),
+			})
+		}
+	}
+	return catalog
 }
 
 func (s *Server) listRoles(w http.ResponseWriter, r *http.Request) {
-	s.json(w, http.StatusOK, roleCatalog)
+	s.json(w, http.StatusOK, buildRoleCatalog())
+}
+
+// listSections is what the nav needs: which sections exist, and which
+// of them this caller holds anything on. The frontend hides the rest —
+// and the API refuses them either way, so the hiding is a courtesy
+// rather than the boundary.
+func (s *Server) listSections(w http.ResponseWriter, r *http.Request) {
+	held := grants(rolesFrom(r.Context()))
+	type view struct {
+		ID    string `json:"id"`
+		Label string `json:"label"`
+		Tier  string `json:"tier"`
+	}
+	out := []view{}
+	for _, sec := range sections {
+		tier := held[sec.ID]
+		if tier == TierNone {
+			continue
+		}
+		out = append(out, view{sec.ID, sec.Label, tier.String()})
+	}
+	s.json(w, http.StatusOK, out)
+}
+
+// userRoles reports one account's bindings.
+func (s *Server) getUserRoles(w http.ResponseWriter, r *http.Request) {
+	roles, err := s.store.UserRoles(r.Context(), chi.URLParam(r, "id"))
+	if err != nil {
+		s.fail(w, err, "reading roles")
+		return
+	}
+	sortRoles(roles)
+	s.json(w, http.StatusOK, roles)
+}
+
+// setUserRoles replaces an account's bindings.
+func (s *Server) setUserRoles(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Roles []string `json:"roles"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.err(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	for _, role := range req.Roles {
+		if !ValidRole(role) {
+			// Refused rather than dropped: a binding silently discarded
+			// is an account that looks granted and isn't.
+			s.err(w, http.StatusBadRequest, "no such role: "+role)
+			return
+		}
+	}
+	id := chi.URLParam(r, "id")
+	target, err := s.store.GetUser(r.Context(), id)
+	if err != nil {
+		s.fail(w, err, "user")
+		return
+	}
+
+	// THE CONSOLE CANNOT LOSE ITS LAST OWNER. The check is on the
+	// binding rather than a column now, and still only counts ACTIVE
+	// accounts, since a disabled one is not a way back in.
+	hadOwner := false
+	for _, role := range mustRoles(r.Context(), s, id) {
+		if role == roleOwner {
+			hadOwner = true
+		}
+	}
+	keepsOwner := slices.Contains(req.Roles, roleOwner)
+	if hadOwner && !keepsOwner && target.Active {
+		owners, err := s.store.CountUsersWithRole(r.Context(), roleOwner)
+		if err != nil {
+			s.fail(w, err, "counting owners")
+			return
+		}
+		if owners <= 1 {
+			s.err(w, http.StatusBadRequest,
+				"this is the last owner — grant owner to another account first")
+			return
+		}
+	}
+
+	if err := s.store.SetUserRoles(r.Context(), id, req.Roles); err != nil {
+		s.fail(w, err, "saving roles")
+		return
+	}
+	s.log.Info("roles changed", "account", target.Email, "roles", req.Roles)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func mustRoles(ctx context.Context, s *Server, id string) []string {
+	roles, err := s.store.UserRoles(ctx, id)
+	if err != nil {
+		return nil
+	}
+	return roles
 }
 
 func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +214,22 @@ func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err, "listing users")
 		return
 	}
-	s.json(w, http.StatusOK, users)
+	byUser, err := s.store.RolesByUser(r.Context())
+	if err != nil {
+		s.fail(w, err, "listing roles")
+		return
+	}
+	type view struct {
+		store.User
+		Roles []string `json:"roles"`
+	}
+	out := make([]view, 0, len(users))
+	for _, u := range users {
+		roles := byUser[u.ID]
+		sortRoles(roles)
+		out = append(out, view{User: u, Roles: roles})
+	}
+	s.json(w, http.StatusOK, out)
 }
 
 func (s *Server) getUser(w http.ResponseWriter, r *http.Request) {
@@ -75,11 +242,29 @@ func (s *Server) getUser(w http.ResponseWriter, r *http.Request) {
 }
 
 type userRequest struct {
-	Email    string `json:"email"`
-	Name     string `json:"name"`
-	Role     string `json:"role"`
-	Password string `json:"password"`
-	Active   bool   `json:"active"`
+	Email string `json:"email"`
+	Name  string `json:"name"`
+	// Roles is the set this account holds. The old single `role` is
+	// still accepted so an older client (or a bootstrap config) keeps
+	// working; it means the same thing as one basic binding.
+	Roles    []string `json:"roles"`
+	Role     string   `json:"role"`
+	Password string   `json:"password"`
+	Active   bool     `json:"active"`
+}
+
+// requestedRoles folds the two spellings into one set and checks it.
+func requestedRoles(req userRequest) ([]string, error) {
+	roles := req.Roles
+	if len(roles) == 0 && req.Role != "" {
+		roles = []string{req.Role}
+	}
+	for _, role := range roles {
+		if !ValidRole(role) {
+			return nil, fmt.Errorf("no such role: %s", role)
+		}
+	}
+	return roles, nil
 }
 
 func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
@@ -109,6 +294,11 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	roles, err := requestedRoles(req)
+	if err != nil {
+		s.err(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	user := &store.User{
 		ID:           uuid.NewString(),
 		Email:        req.Email,
@@ -125,7 +315,11 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err, "creating user")
 		return
 	}
-	s.log.Info("iam user created", "email", user.Email, "role", user.Role)
+	if err := s.store.SetUserRoles(r.Context(), user.ID, roles); err != nil {
+		s.fail(w, err, "granting roles")
+		return
+	}
+	s.log.Info("iam user created", "email", user.Email, "roles", roles)
 	s.json(w, http.StatusCreated, user)
 }
 
@@ -165,13 +359,31 @@ func (s *Server) updateUser(w http.ResponseWriter, r *http.Request) {
 	// Don't let the console lose its last administrator — by demotion or
 	// by deactivation. Both are one click, and both are unrecoverable
 	// from inside the app.
-	if existing.Role == store.RoleOwner && (req.Role != store.RoleOwner || !req.Active) {
-		others, err := s.store.CountOwners(r.Context(), id)
+	//
+	// THE CHECK IS ON THE BINDING NOW, not on a column. An account is an
+	// owner because it holds the owner role, and roles are edited on
+	// their own endpoint — so what this still has to catch is the other
+	// half: deactivating the last one.
+	roles, err := requestedRoles(req)
+	if err != nil {
+		s.err(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	held := mustRoles(r.Context(), s, id)
+	wasOwner := slices.Contains(held, roleOwner)
+	// An update that names no roles is not a request to remove them —
+	// this form edits the name, email and whether the account is on.
+	staysOwner := wasOwner
+	if len(roles) > 0 {
+		staysOwner = slices.Contains(roles, roleOwner)
+	}
+	if wasOwner && (!staysOwner || !req.Active) {
+		others, err := s.store.CountUsersWithRole(r.Context(), roleOwner)
 		if err != nil {
 			s.fail(w, err, "counting owners")
 			return
 		}
-		if others == 0 {
+		if others <= 1 {
 			s.err(w, http.StatusConflict,
 				"this is the last active owner; promote someone else first")
 			return
@@ -182,6 +394,12 @@ func (s *Server) updateUser(w http.ResponseWriter, r *http.Request) {
 	existing.Name = strings.TrimSpace(req.Name)
 	existing.Role = req.Role
 	wasActive := existing.Active
+	if len(roles) > 0 {
+		if err := s.store.SetUserRoles(r.Context(), id, roles); err != nil {
+			s.fail(w, err, "saving roles")
+			return
+		}
+	}
 	existing.Active = req.Active
 	existing.PasswordHash = "" // left alone by UpdateUser
 	if err := s.store.UpdateUser(r.Context(), existing); err != nil {
@@ -210,13 +428,13 @@ func (s *Server) deleteUser(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err, "user")
 		return
 	}
-	if user.Role == store.RoleOwner {
-		others, err := s.store.CountOwners(r.Context(), id)
+	if slices.Contains(mustRoles(r.Context(), s, id), roleOwner) {
+		others, err := s.store.CountUsersWithRole(r.Context(), roleOwner)
 		if err != nil {
 			s.fail(w, err, "counting owners")
 			return
 		}
-		if others == 0 {
+		if others <= 1 {
 			s.err(w, http.StatusConflict,
 				"this is the last active owner; promote someone else first")
 			return
@@ -273,8 +491,13 @@ func validateUser(req userRequest) error {
 	if _, err := mail.ParseAddress(req.Email); err != nil {
 		return errValidation("that doesn't look like an email address")
 	}
-	if !store.ValidRole(req.Role) {
-		return errValidation("pick a role: owner, editor or viewer")
+	// The roles themselves are checked by requestedRoles, which knows
+	// the section model. NOTHING IS REQUIRED HERE: an account with no
+	// roles can sign in and see nothing, which is a real thing to want
+	// for somebody on their way out, and the form warns rather than
+	// refuses.
+	if _, err := requestedRoles(req); err != nil {
+		return errValidation(err.Error())
 	}
 	return nil
 }

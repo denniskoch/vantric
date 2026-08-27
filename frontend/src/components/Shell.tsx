@@ -41,7 +41,7 @@ const overviewId = 'overview'
 const topSectionIds = [overviewId, 'shortcuts']
 import { api } from '../api/client'
 import NotificationBell from './NotificationBell'
-import { initialFor, useRefreshSession, useSession } from '../user'
+import { initialFor, usePermissions, useRefreshSession, useSession } from '../user'
 import { useFavorites } from '../favorites'
 import StarIcon from '@mui/icons-material/Star'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
@@ -88,7 +88,20 @@ export default function Shell() {
   // above. A stored favourite naming one of them is ignored rather
   // than migrated away — it can only have come from an older build,
   // and dropping it here costs nothing.
-  const listed = sections.filter((s) => !topSectionIds.includes(s.id))
+  // A SECTION YOU HOLD NO ROLE ON IS NOT DRAWN. The API refuses it
+  // either way, so this is the nav telling the truth rather than the
+  // boundary itself — but a menu full of pages that answer 403 is a
+  // menu that teaches you to ignore it.
+  //
+  // Shortcuts and docs are exempt: shortcuts are per-account and
+  // self-service by design, and docs describe the console rather than
+  // the lab.
+  const { held } = usePermissions()
+  const alwaysVisible = ['shortcuts', 'docs']
+  const visible = (id: string) => alwaysVisible.includes(id) || Boolean(held[id])
+  const listed = sections.filter(
+    (s) => !topSectionIds.includes(s.id) && visible(s.id),
+  )
   const pinned = listed.filter((s) => isFavorite(s.id))
 
   const section = sectionFor(location.pathname)
@@ -255,6 +268,7 @@ export default function Shell() {
             going. See topSectionIds. */}
         <List dense>
           {topSectionIds
+            .filter(visible)
             .map((id) => sections.find((s) => s.id === id))
             .filter((s) => s !== undefined)
             .map((s) => (

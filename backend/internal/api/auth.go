@@ -230,7 +230,20 @@ func (s *Server) currentUser(w http.ResponseWriter, r *http.Request) {
 		s.err(w, http.StatusUnauthorized, "not signed in")
 		return
 	}
-	s.json(w, http.StatusOK, user)
+	// The roles travel with the account, because the shell needs them
+	// before it can draw a nav — and asking for them separately would
+	// mean a render with every section showing and then a render with
+	// the right ones, which reads as the nav flickering.
+	roles, err := s.store.UserRoles(r.Context(), user.ID)
+	if err != nil {
+		s.fail(w, err, "reading roles")
+		return
+	}
+	sortRoles(roles)
+	s.json(w, http.StatusOK, struct {
+		*store.User
+		Roles []string `json:"roles"`
+	}{user, roles})
 }
 
 // changeOwnPassword lets whoever is signed in rotate their own

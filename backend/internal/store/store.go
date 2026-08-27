@@ -496,6 +496,10 @@ var backfills = []struct{ name, sql string }{
 }
 
 var repairs = []struct{ name, sql string }{
+	// Role bindings left behind by a delete that predated DeleteUser
+	// clearing them.
+	{"orphan-role-bindings", `DELETE FROM iam_role_bindings
+	                           WHERE user_id NOT IN (SELECT id FROM iam_users)`},
 	// NVD ANSWERS A BAD API KEY WITH 404, and the client read 404 as
 	// "no such CVE" — which NVD actually says with a 200 carrying no
 	// results. So every CVE looked up after a bad key was saved got

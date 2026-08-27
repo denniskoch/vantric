@@ -129,6 +129,8 @@ var selfService = []string{
 // is a title and a status rather than anything sensitive.
 var shellRoutes = []string{
 	"/api/v1/operations",
+	// What sections THIS caller holds. About them, not about IAM.
+	"/api/v1/sections",
 }
 
 // guestAccess are the GETs THAT ARE NOT READS, and they are the reason

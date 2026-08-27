@@ -145,8 +145,9 @@ func (s *Store) UpdateUser(ctx context.Context, u *User) error {
 	return nil
 }
 
-// DeleteUser removes the account and every session it holds, so a
-// deleted person is signed out everywhere in the same breath.
+// DeleteUser removes the account, every session it holds and every role
+// it was granted, so a deleted person is signed out everywhere and
+// leaves nothing behind in the same breath.
 func (s *Store) DeleteUser(ctx context.Context, id string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -155,6 +156,13 @@ func (s *Store) DeleteUser(ctx context.Context, id string) error {
 	defer tx.Rollback()
 
 	if _, err := tx.ExecContext(ctx, `DELETE FROM iam_sessions WHERE user_id = ?`, id); err != nil {
+		return err
+	}
+	// Bindings go with the account. Nothing reads an orphaned row —
+	// every query joins iam_users — but a table that accumulates rows
+	// nobody will ever ask about is the sessions problem again.
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM iam_role_bindings WHERE user_id = ?`, id); err != nil {
 		return err
 	}
 	res, err := tx.ExecContext(ctx, `DELETE FROM iam_users WHERE id = ?`, id)

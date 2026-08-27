@@ -4,10 +4,14 @@ import type { Branding } from '../branding'
 /** A role in this console — not in the identity provider it manages. */
 export type RoleID = 'owner' | 'editor' | 'viewer'
 
+/** One grantable role, as the picker renders it. */
 export interface Role {
-  id: RoleID
-  title: string
-  description: string
+  role: string
+  label: string
+  help: string
+  /** Empty for a basic role, which applies to every section. */
+  section: string
+  tier: string
 }
 
 /** An account that can sign in to this console. */
@@ -15,7 +19,11 @@ export interface IAMUser {
   id: string
   email: string
   name: string
+  /** The basic role this account had before roles became bindings.
+   *  Kept so an older payload still parses; `roles` is the truth. */
   role: RoleID
+  /** Every role this account holds: basic ones and "<section>.<tier>". */
+  roles: string[]
   /** False for an account with no local password (SSO-only, later). */
   hasPassword: boolean
   active: boolean
@@ -112,7 +120,8 @@ export interface DatabaseGrant {
 export interface IAMUserRequest {
   email: string
   name: string
-  role: RoleID
+  /** The set this account holds. Replaces the old single `role`. */
+  roles: string[]
   active: boolean
   /** Only on create; changing a password is its own endpoint. */
   password?: string
@@ -2684,6 +2693,14 @@ export const api = {
       }`,
       { method: 'PUT', body: JSON.stringify({ password }) },
     ),
+  listIAMSections: () =>
+    request<{ id: string; label: string; tier: string }[]>('/sections'),
+  getUserRoles: (id: string) => request<string[]>(`/iam/users/${id}/roles`),
+  setUserRoles: (id: string, roles: string[]) =>
+    request<void>(`/iam/users/${id}/roles`, {
+      method: 'PUT',
+      body: JSON.stringify({ roles }),
+    }),
   setDatabaseUserEnabled: (
     serverId: string,
     name: string,

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { Alert, Box } from '@mui/material'
+import { useLocation } from 'react-router-dom'
 import { usePermissions } from '../user'
+import { sectionFor } from './nav'
 
 /**
  * A page only an owner should be looking at.
@@ -22,17 +24,25 @@ export default function RequireRole({
   admin?: boolean
   children: ReactNode
 }) {
-  const { canAdmin, canEdit, role } = usePermissions()
+  const location = useLocation()
+  const { canAdmin, canEdit, tier } = usePermissions()
+  const section = sectionFor(location.pathname)
   const allowed = admin ? canAdmin : canEdit
   if (allowed) return <>{children}</>
+  // NAMES THE ROLE THAT WOULD WORK. "You need a higher role" sends
+  // somebody to ask an owner a question neither of them can answer;
+  // "you need dns.admin" is a sentence they can paste.
+  const need = `${section?.id ?? 'this section'}.${admin ? 'admin' : 'editor'}`
   return (
     <Box sx={{ p: 3, maxWidth: 720 }}>
       <Alert severity="info">
         {admin
-          ? 'This page manages credentials and accounts, which is owner-only. '
-          : 'This page changes resources, which needs the editor role. '}
-        This account is {role === 'viewer' ? 'a viewer' : `an ${role}`} — ask an owner to
-        change that if you need it.
+          ? `This page manages ${section?.label ?? 'this section'}'s stored credentials, which needs ${need}. `
+          : `This page changes ${section?.label ?? 'this section'}, which needs ${need}. `}
+        {tier === 'none'
+          ? 'This account holds no role here.'
+          : `This account has ${section?.id}.${tier}.`}{' '}
+        Ask an owner to grant it.
       </Alert>
     </Box>
   )
