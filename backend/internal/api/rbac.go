@@ -32,12 +32,6 @@ import (
 // role one: two routes are GETs that reach inside a guest instead of
 // describing it. See guestAccess.
 
-const (
-	roleOwner  = "owner"
-	roleEditor = "editor"
-	roleViewer = "viewer"
-)
-
 // ownerOnly are the route prefixes where a mutation needs an owner.
 // Credentials for a backend, accounts that can sign in, and the
 // settings that govern both.
@@ -118,6 +112,25 @@ var selfService = []string{
 	"/api/v1/shortcuts",
 }
 
+// shellRoutes are the console's own chrome rather than any section's
+// data, so anyone signed in reaches them.
+//
+// The notification bell is the case: an operation is work THIS CONSOLE
+// is doing, the bell sits in the toolbar on every page, and every page
+// depends on it to invalidate what an operation touched. Filing it
+// under a section would blank the bell for anyone without that section
+// and break invalidation everywhere else.
+//
+// WHAT THIS COSTS, stated rather than hidden: the registry is global and
+// carries no actor, so an account holding only compute roles sees that
+// somebody restored a bucket. The operation already knows its
+// ResourceType, so filtering the list by the sections a caller holds is
+// the refinement this is waiting for — it is not done yet, and the bell
+// is a title and a status rather than anything sensitive.
+var shellRoutes = []string{
+	"/api/v1/operations",
+}
+
 // guestAccess are the GETs THAT ARE NOT READS, and they are the reason
 // privilege can't be derived from the HTTP verb.
 //
@@ -152,20 +165,41 @@ func isGuestAccess(path string) bool {
 	return false
 }
 
-// requireRole refuses mutations the signed-in account isn't entitled
-// to make. Mounted inside the authenticated group, so there is always
-// an actor.
-func (s *Server) requireRole(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
-		default:
-			// A verb is not a privilege level: see guestAccess.
-			if !isGuestAccess(r.URL.Path) {
-				next.ServeHTTP(w, r)
-				return
+// requiredTier is how much of a section a request needs.
+//
+// A VERB IS NOT A PRIVILEGE LEVEL, which is the rule guestAccess already
+// existed for: a websocket shell and a file pull are both GETs and both
+// do more than any mutation in this API. So the tier is decided from the
+// path as well as the method.
+func requiredTier(method, path string) Tier {
+	switch method {
+	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+		// Storing a credential for a backend is the admin tier of that
+		// backend's section — the same line the old ownerOnly list drew,
+		// scoped rather than global.
+		for _, prefix := range ownerOnly {
+			if ownerOnlyMatch(prefix, path) {
+				return TierAdmin
 			}
 		}
+		return TierEditor
+	default:
+		if isGuestAccess(path) {
+			return TierEditor
+		}
+		return TierViewer
+	}
+}
+
+// requireRole refuses what the signed-in account isn't entitled to.
+// Mounted inside the authenticated group, so there is always an actor.
+//
+// READS ARE CHECKED TOO, unlike the model this replaces. A section
+// somebody holds no role on is absent from their nav, and a nav that
+// hides something the API would still serve is decoration rather than a
+// boundary.
+func (s *Server) requireRole(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := userFrom(r.Context())
 		if user == nil {
 			// requireAuth runs first, so this can't happen — but a
@@ -175,35 +209,53 @@ func (s *Server) requireRole(next http.Handler) http.Handler {
 			return
 		}
 		path := r.URL.Path
+		// Somebody's own account, key and tiles. Open to anyone signed
+		// in, or a viewer could not use the console at all.
 		for _, prefix := range selfService {
 			if strings.HasPrefix(path, prefix) {
 				next.ServeHTTP(w, r)
 				return
 			}
 		}
-		if user.Role == roleOwner {
-			next.ServeHTTP(w, r)
-			return
-		}
-		for _, prefix := range ownerOnly {
-			if ownerOnlyMatch(prefix, path) {
-				s.log.Warn("refused: needs an owner",
-					"account", user.Email, "role", user.Role, "path", path)
-				s.err(w, http.StatusForbidden,
-					"that needs an owner — this account is "+roleLabel(user.Role)+
-						". Credentials, accounts and sign-on settings are owner-only.")
+		for _, prefix := range shellRoutes {
+			if strings.HasPrefix(path, prefix) {
+				next.ServeHTTP(w, r)
 				return
 			}
 		}
-		if user.Role == roleViewer {
-			s.log.Warn("refused: read-only account",
-				"account", user.Email, "path", path)
-			s.err(w, http.StatusForbidden,
-				"this account can view but not change anything — ask an owner for the editor role")
+		section, known := sectionFor(path)
+		if !known {
+			// A ROUTE THAT BELONGS TO NO SECTION IS REFUSED, not waved
+			// through. rbac_test walks the router and fails on one of
+			// these, so it should be impossible — and if it happens
+			// anyway, an unreachable page is a better failure than an
+			// unguarded one.
+			s.log.Warn("refused: route belongs to no section", "path", path)
+			s.err(w, http.StatusForbidden, "that isn't part of any section this console governs")
 			return
 		}
-		next.ServeHTTP(w, r)
+		need := requiredTier(r.Method, path)
+		held := grants(rolesFrom(r.Context()))[section.ID]
+		if held >= need {
+			next.ServeHTTP(w, r)
+			return
+		}
+		s.log.Warn("refused", "account", user.Email, "section", section.ID,
+			"held", held.String(), "need", need.String(), "path", path)
+		s.err(w, http.StatusForbidden, refusal(section, held, need))
 	})
+}
+
+// refusal says which role would have worked, because "forbidden" on its
+// own sends somebody to ask an owner a question neither of them can
+// answer.
+func refusal(section Section, held, need Tier) string {
+	want := section.ID + "." + need.String()
+	if held == TierNone {
+		return "you have no access to " + section.Label + " — ask an owner for " + want
+	}
+	return "that needs " + want + " — this account has " +
+		section.ID + "." + held.String()
 }
 
 func roleLabel(role string) string {

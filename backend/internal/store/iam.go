@@ -189,6 +189,93 @@ func (s *Store) TouchUserLogin(ctx context.Context, id string) error {
 	return err
 }
 
+// Role bindings.
+//
+// A person holds a SET of roles. The old single column could say
+// "editor" and nothing else; this can say "viewer" and "compute.admin",
+// which is somebody who watches the lab and runs one part of it.
+
+// UserRoles lists what an account holds, in no particular order.
+func (s *Store) UserRoles(ctx context.Context, userID string) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT role FROM iam_role_bindings WHERE user_id = ? ORDER BY role`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	roles := []string{}
+	for rows.Next() {
+		var role string
+		if err := rows.Scan(&role); err != nil {
+			return nil, err
+		}
+		roles = append(roles, role)
+	}
+	return roles, rows.Err()
+}
+
+// RolesByUser is every binding at once, for the account listing — one
+// query rather than one per row.
+func (s *Store) RolesByUser(ctx context.Context) (map[string][]string, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT user_id, role FROM iam_role_bindings ORDER BY user_id, role`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	byUser := map[string][]string{}
+	for rows.Next() {
+		var id, role string
+		if err := rows.Scan(&id, &role); err != nil {
+			return nil, err
+		}
+		byUser[id] = append(byUser[id], role)
+	}
+	return byUser, rows.Err()
+}
+
+// SetUserRoles replaces an account's bindings.
+//
+// REPLACES, IN ONE TRANSACTION. Granting is how access is lowered as
+// well as raised — the same rule database grants follow — and a
+// half-applied change is an account holding neither what it had nor
+// what was asked for.
+func (s *Store) SetUserRoles(ctx context.Context, userID string, roles []string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM iam_role_bindings WHERE user_id = ?`, userID); err != nil {
+		return err
+	}
+	seen := map[string]bool{}
+	for _, role := range roles {
+		if role == "" || seen[role] {
+			continue
+		}
+		seen[role] = true
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO iam_role_bindings (user_id, role) VALUES (?, ?)`,
+			userID, role); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// CountUsersWithRole is how the console refuses to lose its last owner.
+// It counts ACTIVE accounts, since a disabled one is not a way back in.
+func (s *Store) CountUsersWithRole(ctx context.Context, role string) (int, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM iam_role_bindings b
+		  JOIN iam_users u ON u.id = b.user_id
+		 WHERE b.role = ? AND u.active = 1`, role).Scan(&n)
+	return n, err
+}
+
 // Sessions.
 
 func (s *Store) CreateSession(ctx context.Context, token, userID string, expires time.Time) error {

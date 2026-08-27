@@ -52,6 +52,20 @@ type ctxUserKey struct{}
 // userFrom returns the account this request is authenticated as, if
 // any. Handlers use it to answer "who is this" — not "may they",
 // which is a question the role model doesn't enforce yet.
+// ctxRolesKey carries the account's role bindings alongside it.
+//
+// RESOLVED ONCE, IN requireAuth. The permission check needs them on
+// every request, and looking them up there would be a second query per
+// request on a console whose lists poll every three seconds — and would
+// put a database dependency inside the middleware that decides access,
+// which is the one place worth being able to test without one.
+type ctxRolesKey struct{}
+
+func rolesFrom(ctx context.Context) []string {
+	roles, _ := ctx.Value(ctxRolesKey{}).([]string)
+	return roles
+}
+
 func userFrom(ctx context.Context) *store.User {
 	u, _ := ctx.Value(ctxUserKey{}).(*store.User)
 	return u
@@ -72,7 +86,17 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 			s.err(w, http.StatusUnauthorized, "sign in to continue")
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxUserKey{}, user)))
+		roles, err := s.store.UserRoles(r.Context(), user.ID)
+		if err != nil {
+			// Refusing beats guessing: an account whose roles could not
+			// be read holds none, rather than holding whatever it had.
+			s.log.Error("reading roles failed", "account", user.Email, "error", err)
+			s.err(w, http.StatusForbidden, "could not read this account's roles")
+			return
+		}
+		ctx := context.WithValue(r.Context(), ctxUserKey{}, user)
+		ctx = context.WithValue(ctx, ctxRolesKey{}, roles)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 

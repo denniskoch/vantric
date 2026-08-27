@@ -329,6 +329,15 @@ var migrations = []string{
 	`CREATE INDEX IF NOT EXISTS idx_user_shortcuts_user ON user_shortcuts(user_id, position)`,
 	// Sessions live server-side so signing out, or disabling an account,
 	// takes effect immediately — which a self-contained token can't do.
+	// ROLES ARE BINDINGS, NOT A COLUMN. A person holds a set of them —
+	// "viewer" plus "compute.admin" is somebody who can see the lab and
+	// runs one part of it — and a single column could only ever say one
+	// thing. iam_users.role is backfilled into here and then ignored.
+	`CREATE TABLE IF NOT EXISTS iam_role_bindings (
+		user_id TEXT NOT NULL,
+		role TEXT NOT NULL,
+		PRIMARY KEY (user_id, role)
+	)`,
 	`CREATE TABLE IF NOT EXISTS iam_sessions (
 		token TEXT PRIMARY KEY,
 		user_id TEXT NOT NULL REFERENCES iam_users(id),
@@ -371,24 +380,35 @@ func (s *Store) migrate() error {
 			return fmt.Errorf("store: migration failed: %w", err)
 		}
 	}
+	// The key prefixes differ and must not be unified: `repair.` markers
+	// are already recorded in deployed databases, and renaming them
+	// would re-run a repair that deletes rows.
+	type oneTime struct{ key, sql string }
+	var pending []oneTime
+	for _, b := range backfills {
+		pending = append(pending, oneTime{"backfill." + b.name, b.sql})
+	}
 	for _, r := range repairs {
-		key := "repair." + r.name
+		pending = append(pending, oneTime{"repair." + r.name, r.sql})
+	}
+	for _, r := range pending {
+		key := r.key
 		var done string
 		switch err := s.db.QueryRow(
 			`SELECT value FROM app_settings WHERE key = ?`, key).Scan(&done); {
 		case err == nil:
 			continue
 		case !errors.Is(err, sql.ErrNoRows):
-			return fmt.Errorf("store: repair %s: %w", r.name, err)
+			return fmt.Errorf("store: %s: %w", r.key, err)
 		}
 		if _, err := s.db.Exec(r.sql); err != nil {
-			return fmt.Errorf("store: repair %s: %w", r.name, err)
+			return fmt.Errorf("store: %s: %w", r.key, err)
 		}
 		if _, err := s.db.Exec(
 			`INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)`,
 			key, time.Now().UTC().Format(time.RFC3339), time.Now().UTC().Format(time.RFC3339),
 		); err != nil {
-			return fmt.Errorf("store: repair %s: %w", r.name, err)
+			return fmt.Errorf("store: %s: %w", r.key, err)
 		}
 	}
 	return nil
@@ -463,6 +483,18 @@ var columnMigrations = []string{
 // rows it deletes are the same shape as the correct rows written
 // afterwards, so running it every boot would wipe the fix on the way
 // in. Each is remembered by name in app_settings.
+// Data moved once on the way to a new shape. Same once-only machinery
+// as repairs below and for the same reason: running a backfill on every
+// boot would resurrect bindings somebody had deliberately removed.
+var backfills = []struct{ name, sql string }{
+	// Every account's single role becomes a binding. A basic role name
+	// means the same thing in the new model — every section at that
+	// tier — so the value carries across unchanged.
+	{"role-bindings", `INSERT INTO iam_role_bindings (user_id, role)
+	                   SELECT id, role FROM iam_users
+	                    WHERE role <> ''`},
+}
+
 var repairs = []struct{ name, sql string }{
 	// NVD ANSWERS A BAD API KEY WITH 404, and the client read 404 as
 	// "no such CVE" — which NVD actually says with a 200 carrying no
