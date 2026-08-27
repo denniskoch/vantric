@@ -6,7 +6,10 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
 
 	"vantric/internal/store"
 )
@@ -159,8 +162,10 @@ func TestRequireRoleGuardsTheMiddleware(t *testing.T) {
 		reached := false
 		next := http.HandlerFunc(func(http.ResponseWriter, *http.Request) { reached = true })
 		r := httptest.NewRequest(c.method, c.path, nil)
-		r = r.WithContext(context.WithValue(r.Context(), ctxUserKey{},
-			&store.User{Email: "someone@example.com", Role: c.role}))
+		ctx := context.WithValue(r.Context(), ctxUserKey{},
+			&store.User{Email: "someone@example.com"})
+		ctx = context.WithValue(ctx, ctxRolesKey{}, []string{c.role})
+		r = r.WithContext(ctx)
 		w := httptest.NewRecorder()
 
 		s.requireRole(next).ServeHTTP(w, r)
@@ -174,6 +179,126 @@ func TestRequireRoleGuardsTheMiddleware(t *testing.T) {
 		}
 		if !c.allowed && w.Code != http.StatusForbidden {
 			t.Errorf("%s %s as %s: refused with %d, wanted 403", c.method, c.path, c.role, w.Code)
+		}
+	}
+}
+
+// EVERY ROUTE BELONGS TO A SECTION, and this is what makes that true
+// rather than intended.
+//
+// The old model's weak point was a hand-maintained list of strings: the
+// hypervisor rename moved /servers to /hypervisors and left the old
+// spelling matching nothing, so an editor could store a root token and
+// nothing failed to build. A list can only be checked against the paths
+// somebody remembered to write down.
+//
+// This walks the ACTUAL router. A route added tomorrow under a prefix
+// no section claims fails here, which is the only way a permission
+// model stays closed as the API grows. The failure direction is safe
+// either way — requireRole refuses an unclassified path — but an
+// unreachable page found in CI beats one found by a user.
+func TestEveryRouteBelongsToASection(t *testing.T) {
+	s := &Server{log: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	mux, ok := s.Router().(chi.Routes)
+	if !ok {
+		t.Fatal("the router is no longer a chi.Routes; this test needs it to walk")
+	}
+
+	// Reachable without a session at all, so they are outside the
+	// section model by design rather than by omission.
+	open := []string{
+		"/api/v1/auth/", "/api/v1/branding", "/api/v1/branding/logo",
+	}
+	// The caller's own account, key and tiles, and the console's own
+	// chrome.
+	selfServed := append(append([]string{}, selfService...), shellRoutes...)
+
+	var unclassified []string
+	err := chi.Walk(mux, func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
+		path := strings.TrimSuffix(route, "/*")
+		for _, p := range open {
+			if strings.HasPrefix(path, p) {
+				return nil
+			}
+		}
+		for _, p := range selfServed {
+			if strings.HasPrefix(path, p) {
+				return nil
+			}
+		}
+		if _, known := sectionFor(path); !known {
+			unclassified = append(unclassified, method+" "+path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walking the router: %v", err)
+	}
+	for _, route := range unclassified {
+		t.Errorf("%s belongs to no section — add its prefix to sections in roles.go", route)
+	}
+}
+
+// The tiers, per section, are the whole point of the model: holding
+// compute.editor must not move anything in DNS.
+func TestSectionRolesDoNotLeakAcrossSections(t *testing.T) {
+	s := &Server{log: slog.New(slog.NewTextHandler(io.Discard, nil))}
+
+	cases := []struct {
+		name    string
+		roles   []string
+		method  string
+		path    string
+		allowed bool
+	}{
+		{"compute.editor creates an instance", []string{"compute.editor"},
+			http.MethodPost, "/api/v1/instances", true},
+		{"compute.editor cannot touch DNS", []string{"compute.editor"},
+			http.MethodPost, "/api/v1/dns/zones/example.com/records", false},
+		{"compute.editor cannot even READ DNS", []string{"compute.editor"},
+			http.MethodGet, "/api/v1/dns/zones", false},
+		{"compute.editor cannot add a hypervisor", []string{"compute.editor"},
+			http.MethodPost, "/api/v1/hypervisors", false},
+		{"compute.admin can", []string{"compute.admin"},
+			http.MethodPost, "/api/v1/hypervisors", true},
+		{"compute.admin still cannot add a DNS provider", []string{"compute.admin"},
+			http.MethodPost, "/api/v1/dns/providers", false},
+		{"dns.admin can", []string{"dns.admin"},
+			http.MethodPost, "/api/v1/dns/providers", true},
+
+		// The combination the model exists for: watch everything, run
+		// one part of it.
+		{"viewer + compute.admin reads DNS", []string{"viewer", "compute.admin"},
+			http.MethodGet, "/api/v1/dns/zones", true},
+		{"viewer + compute.admin cannot write DNS", []string{"viewer", "compute.admin"},
+			http.MethodPost, "/api/v1/dns/zones/example.com/records", false},
+		{"viewer + compute.admin adds a hypervisor", []string{"viewer", "compute.admin"},
+			http.MethodPost, "/api/v1/hypervisors", true},
+
+		// A section nobody granted is not readable, which is what makes
+		// hiding it from the nav a boundary rather than decoration.
+		{"no roles reads nothing", nil, http.MethodGet, "/api/v1/instances", false},
+		{"no roles still changes their own password", nil,
+			http.MethodPost, "/api/v1/auth/password", true},
+
+		// IAM is its own section, so running Compute is not a way to
+		// grant yourself more of it.
+		{"compute.admin cannot create accounts", []string{"compute.admin"},
+			http.MethodPost, "/api/v1/iam/users", false},
+		{"iam.admin can", []string{"iam.admin"},
+			http.MethodPost, "/api/v1/iam/users", true},
+	}
+
+	for _, c := range cases {
+		reached := false
+		next := http.HandlerFunc(func(http.ResponseWriter, *http.Request) { reached = true })
+		r := httptest.NewRequest(c.method, c.path, nil)
+		ctx := context.WithValue(r.Context(), ctxUserKey{}, &store.User{Email: "someone@example.com"})
+		ctx = context.WithValue(ctx, ctxRolesKey{}, c.roles)
+		w := httptest.NewRecorder()
+		s.requireRole(next).ServeHTTP(w, r.WithContext(ctx))
+		if reached != c.allowed {
+			t.Errorf("%s: allowed=%v, wanted %v", c.name, reached, c.allowed)
 		}
 	}
 }

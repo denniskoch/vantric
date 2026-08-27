@@ -1872,6 +1872,52 @@ Surface the daily 90% here and link out for the rest.
   It lives here first because the console already IS a SQLite file, and
   a log you can't read without standing up a cluster is a log nobody
   reads. Entries are pruned after 90 days.
+- THE UNIT OF ACCESS IS A SECTION, which is what GCP calls a service.
+  A role is either a BASIC one — owner, editor, viewer, which apply to
+  every section — or `<section>.<tier>`, and an account holds a SET of
+  them: "viewer" plus "compute.admin" is somebody who watches the lab
+  and runs one part of it. The highest applicable tier wins per section.
+  Bindings live in `iam_role_bindings`; `iam_users.role` was backfilled
+  into it once and is no longer read.
+  THREE TIERS, NOT TWO, because the line below survives being scoped: an
+  editor may delete a VM, which a backup recovers, while only an admin
+  may store a hypervisor credential, which is a standing grant of
+  everything an editor could ever do. Scoped, `dns.admin` can store a
+  Cloudflare token without being able to store a Proxmox one. Admin
+  exists only where a section actually holds a credential.
+  READS ARE CHECKED, which reverses the old rule. It held while the only
+  question was how much you could change; once a section can be absent
+  from somebody's nav, the nav has to be telling the truth, or the
+  hiding is decoration and the boundary is imaginary.
+  EVERY ROUTE BELONGS TO EXACTLY ONE SECTION, and `rbac_test` WALKS THE
+  ROUTER to prove it rather than checking a list somebody maintained —
+  which is the failure the hypervisor rename caused. A route matching no
+  section is REFUSED, so the failure direction is a page nobody can
+  reach rather than one anybody can. Three things sit outside the model
+  deliberately: self-service (`/auth/password`, `/ssh-key`,
+  `/favorites`, `/shortcuts`), and `shellRoutes` — `/operations`,
+  `/sections` and `/overview` — which are the console's own chrome. The
+  bell is on every page and every page needs it to invalidate; what that
+  costs is that the operation registry carries no actor, so filtering it
+  by `ResourceType` is the refinement it is waiting for.
+  THE FRONT DOOR STAYS OPEN AND FILTERS ITSELF. `/overview` is where "/"
+  lands, so hiding it would open the console on a refusal — but exempting
+  it from the nav alone would be the decoration this model exists to
+  avoid. Every finding names the page that shows it, so `sectionForRoute`
+  gives its section and one you would be refused is dropped; the counts
+  and datastores are Compute's and go with them.
+  ROLES RESOLVE ONCE, in `requireAuth`, and travel on the context — one
+  query per request rather than two, and a check that can be tested
+  without a database.
+  A NEW ACCOUNT STARTS WITH NOTHING. It defaulted to "viewer", which
+  under the old model was the smallest grant and under this one is every
+  section readable.
+  THE UI ONLY DECIDES WHAT TO OFFER, as before. `usePermissions` takes
+  its section FROM THE ROUTE — a page belongs to a section, so `canEdit`
+  under /compute means `compute.editor` — which is why a hundred call
+  sites did not have to learn their own name. A refusal NAMES THE ROLE
+  that would have worked, because "forbidden" sends somebody to ask an
+  owner a question neither of them can answer.
 - ROLES ARE ENFORCED, AND THE LINE IS CREDENTIALS, NOT DANGER
   (`internal/api/rbac.go`). GCP's basic three: a viewer reads
   everything and changes nothing, an editor changes RESOURCES, an

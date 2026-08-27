@@ -1,5 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useLocation } from 'react-router-dom'
+import { sections, sectionFor } from './components/nav'
+import { atLeast, grantsBySection } from './roles'
+import type { Tier } from './roles'
 import { api, onUnauthorized, UnauthorizedError } from './api/client'
 import type { IAMUser } from './api/client'
 
@@ -50,28 +54,47 @@ export function useSession() {
   )
   return {
     user: data ?? null,
+    /** The account's role bindings; empty until the session lands. */
+    roles: data?.roles ?? [],
     loading: isLoading,
     signedOut: error instanceof UnauthorizedError,
   }
 }
 
 /**
- * What this account may do, mirroring the roles the API enforces.
+ * What this account may do HERE, mirroring the roles the API enforces.
  *
  * The API is the boundary — these only decide what to OFFER. A button
- * that exists and then fails is a worse answer than a button that
- * isn't there, but a hidden button is not a permission check, which is
- * why the middleware doesn't trust any of this.
+ * that exists and then fails is a worse answer than a button that isn't
+ * there, but a hidden button is not a permission check, which is why the
+ * middleware doesn't trust any of this.
+ *
+ * THE SECTION COMES FROM THE ROUTE, which is why a hundred call sites
+ * did not have to learn their own name. A page belongs to a section —
+ * that is what the nav is — so "can I edit" on a page under /compute
+ * means compute.editor, and the same three properties keep meaning what
+ * they meant. Pass an id for the rare component that asks about a
+ * section it isn't rendered inside.
  */
-export function usePermissions() {
-  const { user } = useSession()
-  const role = user?.role ?? 'viewer'
+export function usePermissions(sectionId?: string) {
+  const { roles } = useSession()
+  const location = useLocation()
+  const here = sectionId ?? sectionFor(location.pathname)?.id
+  const held = useMemo(
+    () => grantsBySection(roles, sections.map((s) => s.id)),
+    [roles],
+  )
+  const tier: Tier = (here && held[here]) || 'none'
   return {
-    role,
+    /** The tier held on this section, for a message that says which. */
+    tier,
+    /** Every section this account holds anything on — what the nav draws. */
+    held,
+    canView: atLeast(tier, 'viewer'),
     /** Resources: instances, records, databases, templates. */
-    canEdit: role === 'owner' || role === 'editor',
-    /** Credentials, accounts and sign-on settings. */
-    canAdmin: role === 'owner',
+    canEdit: atLeast(tier, 'editor'),
+    /** Credentials and the settings that govern them. */
+    canAdmin: atLeast(tier, 'admin'),
   }
 }
 

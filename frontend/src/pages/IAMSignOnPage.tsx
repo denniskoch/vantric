@@ -241,11 +241,11 @@ export default function IAMSignOnPage() {
             fullWidth
           >
             {roles.map((r) => (
-              <MenuItem key={r.id} value={r.id}>
+              <MenuItem key={r.role} value={r.role}>
                 <Box>
-                  <Typography sx={{ fontSize: 14 }}>{r.title}</Typography>
+                  <Typography sx={{ fontSize: 14 }}>{r.label}</Typography>
                   <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
-                    {r.description}
+                    {r.help}
                   </Typography>
                 </Box>
               </MenuItem>

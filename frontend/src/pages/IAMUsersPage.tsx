@@ -53,7 +53,7 @@ export default function IAMUsersPage() {
     queryFn: api.listIAMUsers,
   })
   const { data: roles = [] } = useQuery({ queryKey: ['iamRoles'], queryFn: api.listRoles })
-  const roleTitle = (id: string) => roles.find((r) => r.id === id)?.title ?? id
+  const roleTitle = (id: string) => roles.find((r) => r.role === id)?.label ?? id
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['iamUsers'] })
 
@@ -74,7 +74,9 @@ export default function IAMUsersPage() {
       api.updateIAMUser(user.id, {
         email: user.email,
         name: user.name,
-        role: user.role,
+        // Roles are edited on their own endpoint; omitting them here
+        // means "leave them alone" rather than "remove them".
+        roles: [],
         active: !user.active,
       }),
     onSuccess: invalidate,
@@ -151,7 +153,14 @@ export default function IAMUsersPage() {
                   )}
                 </TableCell>
                 <TableCell>{user.name || '—'}</TableCell>
-                <TableCell>{roleTitle(user.role)}</TableCell>
+                {/* Every role, not one. An account holding "viewer"
+                    and "compute.admin" describes itself only if both
+                    are shown. */}
+                <TableCell>
+                  {user.roles?.length
+                    ? user.roles.map(roleTitle).join(', ')
+                    : <Box component="span" sx={{ color: 'warning.dark' }}>No roles</Box>}
+                </TableCell>
                 <TableCell>
                   {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'Never'}
                 </TableCell>
