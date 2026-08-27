@@ -131,6 +131,12 @@ var shellRoutes = []string{
 	"/api/v1/operations",
 	// What sections THIS caller holds. About them, not about IAM.
 	"/api/v1/sections",
+	// THE FRONT DOOR IS ALWAYS OPEN, because it is where "/" lands and a
+	// console that starts on a refusal is a console that looks broken.
+	// It is not a hole: the handler filters its findings to the sections
+	// the caller holds, so somebody with only compute roles gets the
+	// page and Compute's problems, not the lab's.
+	"/api/v1/overview",
 }
 
 // guestAccess are the GETs THAT ARE NOT READS, and they are the reason

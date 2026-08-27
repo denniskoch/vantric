@@ -78,39 +78,62 @@ type Section struct {
 	// and editor grant the same thing and the UI offers two roles rather
 	// than three.
 	Credentialed bool
+	// Route is where the section lives in the BROWSER, which is not
+	// always its API prefix — Databases is /databases and /api/v1/database,
+	// Devices is /devices and /api/v1/inventory. The overview needs it to
+	// work out which section a finding belongs to, since a finding knows
+	// the page that shows it.
+	Route string
+}
+
+// sectionForRoute resolves a UI path to its section, longest match
+// first for the same reason sectionFor does.
+func sectionForRoute(route string) (Section, bool) {
+	best, bestLen := Section{}, -1
+	for _, s := range sections {
+		if s.Route == "" {
+			continue
+		}
+		if route == s.Route || strings.HasPrefix(route, s.Route+"/") {
+			if len(s.Route) > bestLen {
+				best, bestLen = s, len(s.Route)
+			}
+		}
+	}
+	return best, bestLen >= 0
 }
 
 // sections is the authoritative map. The frontend has its own list for
 // the nav, and the ids must agree — but this one decides, because the
 // frontend's job is what to OFFER and this one's is what to allow.
 var sections = []Section{
-	{ID: "overview", Label: "Cloud overview", Prefixes: []string{"/overview"}},
+	{ID: "overview", Label: "Cloud overview", Prefixes: []string{"/overview"}, Route: "/overview"},
 	{ID: "security", Label: "Security", Prefixes: []string{
 		"/security", "/vulnerabilities", "/kev",
 		// The NVD key and the enrichment switch: what a CVE MEANS is a
 		// security question, per the section split already documented.
 		"/inventory/enrichment", "/inventory/cve",
-	}, Credentialed: true},
-	{ID: "monitoring", Label: "Monitoring", Prefixes: []string{"/monitoring"}, Credentialed: true},
+	}, Credentialed: true, Route: "/security"},
+	{ID: "monitoring", Label: "Monitoring", Prefixes: []string{"/monitoring"}, Credentialed: true, Route: "/monitoring"},
 	{ID: "compute", Label: "Compute", Prefixes: []string{
 		"/instances", "/containers", "/nodes", "/hypervisors", "/hypervisor-types",
 		"/datastores", "/disks", "/snapshots", "/backups", "/backup-schedules",
 		"/images", "/vm-templates", "/ct-templates", "/cloud-images", "/isos",
 		"/bridges", "/machine-types",
-	}, Credentialed: true},
-	{ID: "docker", Label: "Docker", Prefixes: []string{"/docker"}, Credentialed: true},
+	}, Credentialed: true, Route: "/compute"},
+	{ID: "docker", Label: "Docker", Prefixes: []string{"/docker"}, Credentialed: true, Route: "/docker"},
 	{ID: "devices", Label: "Devices", Prefixes: []string{
 		"/inventory", "/installers",
-	}, Credentialed: true},
-	{ID: "storage", Label: "Object storage", Prefixes: []string{"/storage"}, Credentialed: true},
-	{ID: "databases", Label: "Databases", Prefixes: []string{"/database"}, Credentialed: true},
-	{ID: "network", Label: "Network", Prefixes: []string{"/network"}, Credentialed: true},
-	{ID: "dns", Label: "DNS", Prefixes: []string{"/dns"}, Credentialed: true},
-	{ID: "identity", Label: "Identity Platform", Prefixes: []string{"/identity"}, Credentialed: true},
-	{ID: "ai", Label: "AI gateway", Prefixes: []string{"/ai"}, Credentialed: true},
+	}, Credentialed: true, Route: "/devices"},
+	{ID: "storage", Label: "Object storage", Prefixes: []string{"/storage"}, Credentialed: true, Route: "/storage"},
+	{ID: "databases", Label: "Databases", Prefixes: []string{"/database"}, Credentialed: true, Route: "/databases"},
+	{ID: "network", Label: "Network", Prefixes: []string{"/network"}, Credentialed: true, Route: "/network"},
+	{ID: "dns", Label: "DNS", Prefixes: []string{"/dns"}, Credentialed: true, Route: "/dns"},
+	{ID: "identity", Label: "Identity Platform", Prefixes: []string{"/identity"}, Credentialed: true, Route: "/identity"},
+	{ID: "ai", Label: "AI gateway", Prefixes: []string{"/ai"}, Credentialed: true, Route: "/ai"},
 	{ID: "iam", Label: "IAM & Admin", Prefixes: []string{
 		"/iam", "/audit", "/branding",
-	}, Credentialed: true},
+	}, Credentialed: true, Route: "/iam"},
 }
 
 // SectionByID looks one up. Used by the API that reports somebody's

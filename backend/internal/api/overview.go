@@ -539,7 +539,26 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 	if stores == nil {
 		stores = []datastoreUsage{}
 	}
-	s.json(w, http.StatusOK, overviewResponse{Problems: problems, Counts: out, Datastores: stores})
+	// THE FRONT DOOR SHOWS WHAT YOU CAN OPEN. Every finding names the
+	// page that shows it, so the section it belongs to is already known —
+	// and a finding you are refused the page for is one you can only
+	// stare at. Filtering here is what lets the overview stay visible to
+	// everyone without becoming a way to read every section through the
+	// back of it.
+	held := grants(rolesFrom(r.Context()))
+	visible := problems[:0:0]
+	for _, p := range problems {
+		if sec, ok := sectionForRoute(p.To); !ok || held[sec.ID] != TierNone {
+			visible = append(visible, p)
+		}
+	}
+	// The counts and the datastores are Compute's, so an account without
+	// it gets the page and none of the numbers rather than a page that
+	// quietly reports the lab it cannot look at.
+	if held["compute"] == TierNone {
+		out, stores = counts{}, nil
+	}
+	s.json(w, http.StatusOK, overviewResponse{Problems: visible, Counts: out, Datastores: stores})
 }
 
 // eachDriver is listAcrossHypervisors without a request to read a filter

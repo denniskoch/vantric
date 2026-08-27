@@ -39,7 +39,14 @@ export default function IAMUserFormPage() {
   // Roles panel is. An empty string is a row somebody has opened and
   // not yet chosen, which is why it survives in state and is dropped on
   // save.
-  const [roleRows, setRoleRows] = useState<string[]>(['viewer'])
+  //
+  // A NEW ACCOUNT STARTS EMPTY. It defaulted to "viewer", which under
+  // the old model was the smallest thing you could grant and under this
+  // one is every section readable — a much larger grant than picking
+  // one, and larger than it looks sitting next to compute.viewer. An
+  // empty row makes the decision explicit, and the warning below says
+  // what nothing means.
+  const [roleRows, setRoleRows] = useState<string[]>([''])
   const [password, setPassword] = useState('')
   const [active, setActive] = useState(true)
   const [error, setError] = useState<string | null>(null)

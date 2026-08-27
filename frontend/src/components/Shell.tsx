@@ -93,11 +93,15 @@ export default function Shell() {
   // boundary itself — but a menu full of pages that answer 403 is a
   // menu that teaches you to ignore it.
   //
-  // Shortcuts and docs are exempt: shortcuts are per-account and
-  // self-service by design, and docs describe the console rather than
-  // the lab.
+  // Three are exempt. Shortcuts are per-account and self-service by
+  // design; docs describe the console rather than the lab; and the
+  // OVERVIEW IS THE FRONT DOOR — it is where "/" lands, and a console
+  // that opens on a refusal looks broken. That last one is not a hole
+  // in the model: the endpoint filters its findings to the sections the
+  // caller holds, so the page is visible to everyone and reports only
+  // what that person could go and look at.
   const { held } = usePermissions()
-  const alwaysVisible = ['shortcuts', 'docs']
+  const alwaysVisible = ['overview', 'shortcuts', 'docs']
   const visible = (id: string) => alwaysVisible.includes(id) || Boolean(held[id])
   const listed = sections.filter(
     (s) => !topSectionIds.includes(s.id) && visible(s.id),
