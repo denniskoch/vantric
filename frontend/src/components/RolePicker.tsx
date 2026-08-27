@@ -3,6 +3,7 @@ import {
   Box,
   InputAdornment,
   Popover,
+  Tooltip,
   TextField,
   Typography,
 } from '@mui/material'
@@ -25,9 +26,17 @@ import { sections } from './nav'
  * resource gets a page; this is a picker on one field, which is what
  * TimeRangePicker and the schedule builder already are.
  *
- * WHAT IT SHOWS IS THE ROLE, not a description of the model. The help
- * line sits under the field once something is chosen, where it answers
- * "what did I just grant" rather than explaining the design.
+ * A ROW IS ONE LINE. It carried the role string under its label —
+ * "Editor" over "editor" — which says the same thing twice and doubled
+ * the height of a list whose whole problem was length. The name is in
+ * the list to browse and in the search box to type, so nothing is lost
+ * by dropping it.
+ *
+ * THE DESCRIPTION IS A TOOLTIP, the way GCP's is: it is the answer to
+ * "what does this one do", asked about one row at a time, and putting
+ * it on every row at once is the wall again. It still sits under the
+ * field once something is chosen, where it answers "what did I just
+ * grant".
  */
 export default function RolePicker({
   value,
@@ -164,7 +173,10 @@ export default function RolePicker({
                   onClick={() => setGroup(g.id)}
                   sx={{
                     px: 2,
-                    py: 1,
+                    py: 0.5,
+                    minHeight: 28,
+                    display: 'flex',
+                    alignItems: 'center',
                     fontSize: 14,
                     cursor: 'pointer',
                     bgcolor: group === g.id ? 'action.selected' : undefined,
@@ -186,33 +198,36 @@ export default function RolePicker({
             {shown.map((r) => {
               const taken = disabledRoles.includes(r.role) && r.role !== value
               return (
-                <Box
+                <Tooltip
                   key={r.role}
-                  onClick={() => !taken && choose(r.role)}
-                  sx={{
-                    px: 2,
-                    py: 1,
-                    cursor: taken ? 'default' : 'pointer',
-                    opacity: taken ? 0.45 : 1,
-                    bgcolor: r.role === value ? 'action.selected' : undefined,
-                    '&:hover': { bgcolor: taken ? undefined : 'surface.subtle' },
-                  }}
+                  title={r.help}
+                  placement="right"
+                  enterDelay={400}
+                  slotProps={{ tooltip: { sx: { maxWidth: 260, fontSize: 12 } } }}
                 >
-                  <Typography sx={{ fontSize: 14 }}>
+                  <Box
+                    onClick={() => !taken && choose(r.role)}
+                    sx={{
+                      px: 2,
+                      py: 0.5,
+                      minHeight: 28,
+                      display: 'flex',
+                      alignItems: 'center',
+                      fontSize: 14,
+                      cursor: taken ? 'default' : 'pointer',
+                      color: taken ? 'text.disabled' : 'text.primary',
+                      bgcolor: r.role === value ? 'action.selected' : undefined,
+                      '&:hover': { bgcolor: taken ? undefined : 'surface.subtle' },
+                    }}
+                  >
                     {r.label}
                     {taken && (
-                      <Box component="span" sx={{ color: 'text.secondary' }}>
-                        {' '}
-                        · already added
+                      <Box component="span" sx={{ color: 'text.disabled', ml: 1 }}>
+                        · added
                       </Box>
                     )}
-                  </Typography>
-                  <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
-                    {/* The role string itself, because it is what a
-                        refusal names and what somebody pastes. */}
-                    {r.role}
-                  </Typography>
-                </Box>
+                  </Box>
+                </Tooltip>
               )
             })}
           </Box>
