@@ -1563,10 +1563,18 @@ export interface Operation {
   /** which lists to refresh when this finishes */
   resourceType: 'instance' | 'image' | 'iso' | 'cloudImage' | 'ctTemplate' | 'backup'
   hypervisorId?: string
-  status: 'RUNNING' | 'DONE' | 'ERROR'
+  /** WARNING is work that FINISHED with something to say — Proxmox's
+   *  "WARNINGS: N". It is a success, and showing it as a failure is how
+   *  a bell teaches you to ignore its colour. */
+  status: 'RUNNING' | 'DONE' | 'WARNING' | 'ERROR'
   step?: string
   steps?: string[]
   error?: string
+  /** What a finished task wanted to say; set with status WARNING. */
+  warning?: string
+  /** The hypervisor's own task log, carried over so a warning doesn't
+   *  mean "go and read it in the other console". */
+  output?: string[]
   /** where clicking the notification goes */
   to?: string
   startedAt: string

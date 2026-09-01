@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"sync"
 	"time"
@@ -36,7 +37,12 @@ import (
 const (
 	opRunning = "RUNNING"
 	opDone    = "DONE"
-	opError   = "ERROR"
+	// opWarned is work that FINISHED and has something to say. Red means
+	// fire, and a warning wearing red teaches you to ignore the bell —
+	// which costs you the one time it is red for a reason. Proxmox
+	// distinguishes these and so does this.
+	opWarned = "WARNING"
+	opError  = "ERROR"
 
 	// How many operations to remember. The bell is a recent-activity
 	// list, not an audit log.
@@ -64,6 +70,13 @@ type Operation struct {
 	Step  string   `json:"step,omitempty"`
 	Steps []string `json:"steps,omitempty"`
 	Error string   `json:"error,omitempty"`
+	// Warning is what a finished task wanted to say. Separate from Error
+	// because the work happened either way.
+	Warning string `json:"warning,omitempty"`
+	// Output is the hypervisor's own task log, fetched when a task ends
+	// with anything to say. A status like "WARNINGS: 1" tells you to go
+	// and look somewhere else; this is so you don't have to.
+	Output []string `json:"output,omitempty"`
 	// To is where clicking the notification goes.
 	To        string     `json:"to,omitempty"`
 	StartedAt time.Time  `json:"startedAt"`
@@ -120,6 +133,13 @@ func (o *opRegistry) step(id, step string) {
 // a finished operation reads as its outcome rather than as whatever it
 // happened to be doing last.
 func (o *opRegistry) finish(id, message string, err error) {
+	o.finishWith(id, message, err, nil)
+}
+
+// finishWith is finish plus whatever the task said. An error carrying
+// only "the hypervisor reported the task failed" is a dead end; the log
+// is where the reason is.
+func (o *opRegistry) finishWith(id, message string, err error, output []string) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	op := o.find(id)
@@ -128,12 +148,32 @@ func (o *opRegistry) finish(id, message string, err error) {
 	}
 	now := time.Now()
 	op.EndedAt = &now
+	op.Output = output
 	if err != nil {
 		op.Status = opError
 		op.Error = err.Error()
 		return
 	}
 	op.Status = opDone
+	if message != "" {
+		op.Step = message
+	}
+}
+
+// warn marks an operation that finished with something to say. The work
+// is done — this is not a failure, and must not be shown as one.
+func (o *opRegistry) warn(id, message, warning string, output []string) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	op := o.find(id)
+	if op == nil {
+		return
+	}
+	now := time.Now()
+	op.EndedAt = &now
+	op.Status = opWarned
+	op.Warning = warning
+	op.Output = output
 	if message != "" {
 		op.Step = message
 	}
@@ -210,9 +250,36 @@ func (s *Server) run(op *Operation, done string, work func(ctx context.Context, 
 // to the browser to poll, which made every page that started one
 // responsible for watching it.
 func (s *Server) watchTask(op *Operation, driver hypervisor.Driver, taskID, done string) {
-	s.run(op, done, func(ctx context.Context, _ func(string)) error {
-		return awaitTask(ctx, driver, taskID)
-	})
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), opTimeout)
+		defer cancel()
+		err := awaitTask(ctx, driver, taskID)
+
+		// THE LOG IS FETCHED WHERE IT MATTERS. A clean task has nothing
+		// to read and asking for it would be a request per operation for
+		// nothing; a task that failed or warned is exactly the one
+		// somebody is about to go and look up in the hypervisor's UI.
+		var output []string
+		if err != nil {
+			if lines, logErr := driver.TaskLog(ctx, taskID); logErr == nil {
+				output = lines
+			} else {
+				s.log.Warn("could not read task log", "task", taskID, "error", logErr)
+			}
+		}
+
+		var warn *taskWarning
+		if errors.As(err, &warn) {
+			s.log.Info("operation finished with warnings",
+				"title", op.Title, "exit", warn.exit)
+			s.ops.warn(op.ID, done, warn.exit, output)
+			return
+		}
+		if err != nil {
+			s.log.Error("operation failed", "title", op.Title, "error", err)
+		}
+		s.ops.finishWith(op.ID, done, err, output)
+	}()
 }
 
 // awaitTask blocks until a hypervisor task ends, and is separate from
@@ -236,6 +303,11 @@ func awaitTask(ctx context.Context, driver hypervisor.Driver, taskID string) err
 			if !status.Succeeded {
 				return &taskError{exit: status.ExitStatus}
 			}
+			if status.Warned {
+				// Not an error: the caller decides how to show it, and
+				// every caller here shows it as a warning.
+				return &taskWarning{exit: status.ExitStatus}
+			}
 			return nil
 		}
 	}
@@ -255,6 +327,13 @@ func (s *Server) watchOrFinish(op *Operation, driver hypervisor.Driver, taskID, 
 }
 
 // taskError carries the hypervisor's own words for a failed task.
+// taskWarning is a task that SUCCEEDED and said something. It is an
+// error type only because that is how awaitTask reports back; callers
+// test for it and finish the operation as a warning.
+type taskWarning struct{ exit string }
+
+func (e *taskWarning) Error() string { return e.exit }
+
 type taskError struct{ exit string }
 
 func (e *taskError) Error() string {

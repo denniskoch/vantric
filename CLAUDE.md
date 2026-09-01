@@ -521,6 +521,29 @@ Surface the daily 90% here and link out for the rest.
   State is in memory: a restart forgets what was in flight, which is
   honest, where rows in the database would survive as operations stuck
   at RUNNING with nothing left to advance them.
+- A WARNING IS NOT A FIRE, AND PROXMOX HAS THREE OUTCOMES. A task ends
+  with `OK`, with `WARNINGS: N`, or with the reason it failed — and the
+  middle one is a SUCCESS that has something to say. `Succeeded` was
+  `ExitStatus == "OK"`, so a VM that started perfectly reported a red
+  error in the bell: the console contradicting the hypervisor about
+  something the hypervisor is authoritative on, and spending the colour
+  that means "drop everything" on a note about certificate enrolment. A
+  bell that cries wolf is a bell you stop reading, which costs you the
+  time it is right. `TaskStatus.Warned` is carried separately from
+  `Succeeded` because those are different questions, and an operation
+  has a third terminal state (`WARNING`, amber) between DONE and ERROR.
+  `taskOutcome` is its own function so the rule is testable without a
+  hypervisor, and the test carries the real qmstart that prompted it.
+- A STATUS THAT SENDS YOU ELSEWHERE HAS REPORTED NOTHING. "WARNINGS: 1"
+  is a pointer to Proxmox's own task viewer, which is the console
+  admitting it didn't look. `Driver.TaskLog` fetches the task's output
+  and `watchTask` attaches it to the operation — but ONLY when the task
+  warned or failed, since a clean task has nothing to read and asking
+  would be a request per operation for nothing. The bell is too small
+  for thirteen lines of log, so it links to a viewer; that one is a
+  DIALOG rather than a page, and the modal rule permits it because its
+  reasoning is that a form in a modal can't be linked to or survive a
+  reload — and an operation is in memory and can't either.
 - THE BELL REPORTS WITHOUT BEING OPENED, which is the only reason to
   put it in the toolbar, and it does it with a RING rather than a
   wiggle. It used to shake — a swing that decayed over a second and

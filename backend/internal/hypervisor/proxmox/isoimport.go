@@ -159,11 +159,54 @@ func (d *Driver) TaskStatus(ctx context.Context, taskID string) (*hypervisor.Tas
 	if err := d.do(ctx, http.MethodGet, path, nil, &res); err != nil {
 		return nil, err
 	}
+	out := taskOutcome(res.Status, res.ExitStatus)
+	out.ID = taskID
+	return out, nil
+}
+
+// taskOutcome reads Proxmox's answer, which has THREE shapes and was
+// being read as two: "OK" is clean, "WARNINGS: N" is done with
+// something to say, and anything else is the reason it failed. Only the
+// third is an error — reading the second as one put a red mark in the
+// bell against a VM that had started.
+//
+// Its own function so the rule can be tested without a hypervisor.
+func taskOutcome(status, exit string) *hypervisor.TaskStatus {
+	running := status == "running"
+	stopped := !running
+	warned := stopped && strings.HasPrefix(exit, "WARNINGS:")
 	return &hypervisor.TaskStatus{
-		ID:         taskID,
-		Status:     res.Status,
-		ExitStatus: res.ExitStatus,
-		Running:    res.Status == "running",
-		Succeeded:  res.Status == "stopped" && res.ExitStatus == "OK",
-	}, nil
+		Status:     status,
+		ExitStatus: exit,
+		Running:    running,
+		Succeeded:  stopped && (exit == "OK" || warned),
+		Warned:     warned,
+	}
+}
+
+// TaskLog is the task's own output, the same lines Proxmox's task
+// viewer shows.
+//
+// Fetched only when something wants it — a status is cheap and polled
+// every two seconds, a log is neither. `limit=0` means every line;
+// Proxmox otherwise pages them 50 at a time, which would truncate the
+// one message somebody is trying to read.
+func (d *Driver) TaskLog(ctx context.Context, taskID string) ([]string, error) {
+	parts := strings.Split(taskID, ":")
+	if len(parts) < 2 || parts[0] != "UPID" {
+		return nil, fmt.Errorf("proxmox: %q is not a task id", taskID)
+	}
+	var res []struct {
+		Line int    `json:"n"`
+		Text string `json:"t"`
+	}
+	path := apiPath("/nodes/%s/tasks/%s/log?limit=0", parts[1], taskID)
+	if err := d.do(ctx, http.MethodGet, path, nil, &res); err != nil {
+		return nil, err
+	}
+	lines := make([]string, 0, len(res))
+	for _, l := range res {
+		lines = append(lines, l.Text)
+	}
+	return lines, nil
 }
