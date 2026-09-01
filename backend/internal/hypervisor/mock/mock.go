@@ -618,6 +618,10 @@ func (d *Driver) TaskStatus(ctx context.Context, taskID string) (*hypervisor.Tas
 	}, nil
 }
 
+// TaskLog: the mock's tasks say nothing, which is a real answer rather
+// than an error — a backend with no log returns none.
+func (d *Driver) TaskLog(context.Context, string) ([]string, error) { return nil, nil }
+
 func (d *Driver) Datastores(ctx context.Context) ([]hypervisor.Datastore, error) {
 	return []hypervisor.Datastore{
 		{ID: "lab-node-a/local", Name: "local", Node: "lab-node-a", Type: "dir",

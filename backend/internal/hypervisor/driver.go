@@ -251,13 +251,26 @@ type ISOUploadSpec struct {
 
 // TaskStatus is a long-running hypervisor operation (image import,
 // clone, …). Status is "running" or "stopped"; ExitStatus is set once
-// stopped ("OK" on success).
+// stopped.
+//
+// A TASK THAT WARNS HAS SUCCEEDED. Proxmox ends a task with "OK", with
+// "WARNINGS: N", or with the reason it failed — and the middle one is a
+// SUCCESS that has something to say. Treating anything but "OK" as a
+// failure reported a VM that started perfectly as a red error in the
+// bell, which is the console contradicting the hypervisor about
+// something the hypervisor is authoritative on.
 type TaskStatus struct {
 	ID         string `json:"id"`
 	Status     string `json:"status"`
 	ExitStatus string `json:"exitStatus"`
 	Running    bool   `json:"running"`
 	Succeeded  bool   `json:"succeeded"`
+	// Warned is a task that finished its work and wants to tell you
+	// something — the EFI certificate notice, a fallback it took. It is
+	// carried separately from Succeeded because those are different
+	// questions, and answering them with one bool is what made a warning
+	// look like a fire.
+	Warned bool `json:"warned"`
 }
 
 // CTTemplate is a container root-filesystem template (Proxmox vztmpl
@@ -640,6 +653,13 @@ type Driver interface {
 	DeleteImage(ctx context.Context, imageID string) (taskID string, err error)
 	// TaskStatus reports on a task previously returned by this driver.
 	TaskStatus(ctx context.Context, taskID string) (*TaskStatus, error)
+	// TaskLog is what the task actually SAID, which is the half a status
+	// leaves out. "WARNINGS: 1" tells you to go and look somewhere else;
+	// the log is the somewhere else, and a console that makes you open
+	// the hypervisor's own UI to read it has not reported anything.
+	// Returns nothing, without erroring, for a backend whose tasks keep
+	// no log.
+	TaskLog(ctx context.Context, taskID string) ([]string, error)
 
 	// Create provisions an instance and returns its driver-specific ID.
 	// It should return quickly; provisioning continues asynchronously
